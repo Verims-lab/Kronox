@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 
 const PRESENCE_ONLINE_TTL_MS = 2 * 60 * 1000;
 const MAX_SELECTION_ROWS = 200;
@@ -218,8 +218,7 @@ Deno.serve(async (req) => {
         targetReference: 'opaque_presence_key',
       },
     });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown online player selection error';
-    return json({ ok: false, error: message }, 500);
+  } catch {
+    return json({ ok: false, error: 'Oyuncu listesi yüklenemedi.' }, 500);
   }
 });

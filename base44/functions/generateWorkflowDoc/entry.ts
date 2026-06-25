@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 import { PDFDocument, rgb, StandardFonts } from 'npm:pdf-lib';
 
 function normalizeAdminAuthEmail(value) {

@@ -56,6 +56,53 @@ Rules:
 
 # 2. Web Push Secrets
 
+## Friend and Online invite delivery privacy
+
+`sendFriendRequest` must validate the current user, resolve email/username
+targets server-side, check self/friend/duplicate-pending guards, create the
+`FriendRequest` row first, and only then attempt email delivery. SendEmail
+failure is a soft delivery failure: it must not roll back or delete the pending
+request.
+
+Online non-friend game invites use opaque `target_ref` values in the client.
+`createGameInvitesForTargets` resolves those refs backend-side to routable
+recipients. Public player-selection, lobby, invite, notification, and push
+payloads must use username-safe labels and must not expose target email,
+provider IDs, owner keys, raw guest IDs, or internal player keys.
+
+## Base44 SDK alignment
+
+Security Pass 1 pins the frontend `@base44/sdk` dependency exactly at
+`0.8.34` and aligns Base44 Deno function imports to
+`npm:@base44/sdk@0.8.34`. Do not reintroduce `^` on the frontend SDK package
+or older `npm:@base44/sdk@0.8.25` function imports unless a Base44 runtime
+compatibility incident requires an explicit documented split.
+
+`@base44/vite-plugin` remains unchanged in this pass; it is build/runtime
+tooling, not the SDK auth/entity/function client.
+
+## Markdown and raw HTML
+
+Kronox does not support rendering user/admin/question markdown as raw HTML.
+`react-markdown` is not a runtime dependency in Security Pass 1, and
+`rehype-raw` must not be added for user/content markdown.
+
+Rules:
+
+* do not render question, admin, user, notification, lobby, invite, or profile
+  content with raw HTML
+* do not use `dangerouslySetInnerHTML` for user-generated, backend-provided, or
+  markdown-provided content
+* if static framework code needs generated CSS, prefer a text child and narrow
+  identifier/value guards over `dangerouslySetInnerHTML`
+* do not add a heavy sanitization dependency unless product scope introduces a
+  real markdown feature that cannot be removed
+
+The remaining Base44 `access_token` URL/localStorage pattern is a known
+Base44-managed auth pattern. Current mitigation is to remove `access_token`
+from the URL immediately, avoid token logging/rendering, and avoid inventing a
+custom token store in app code.
+
 Game invite push delivery is best-effort.
 
 In-app invite persistence does not depend on push being configured.

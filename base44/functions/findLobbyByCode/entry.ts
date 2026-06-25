@@ -8,7 +8,7 @@
  * 3. Append the joining player atomically
  * 4. Return the full updated lobby to the client
  */
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 
 const normalizeCode = (code) =>
   String(code || '')

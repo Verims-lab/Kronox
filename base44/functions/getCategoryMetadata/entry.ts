@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 
 const MAX_CATEGORY_LIMIT = 1000;
 const MAX_REQUEST_BODY_BYTES = 16 * 1024;

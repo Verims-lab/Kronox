@@ -8,7 +8,7 @@
  * Mirrors the safe append pattern already used in findLobbyByCode.js so
  * multiplayer authority assumptions stay intact.
  */
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 
 // Codex130 — Game invite + lobby staleness TTL: 10 minutes.
 const GAME_INVITE_TTL_MS = 10 * 60 * 1000;

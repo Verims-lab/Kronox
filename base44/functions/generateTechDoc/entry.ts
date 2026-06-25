@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 import { PDFDocument, StandardFonts, rgb } from 'npm:pdf-lib';
 
 // Codex200 — Admin authorization is DB-backed via AdminUser and shared

@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 
 const DAILY_WHEEL_SOURCE = 'daily_wheel';
 const STREAK_BONUS_AMOUNT = 150;

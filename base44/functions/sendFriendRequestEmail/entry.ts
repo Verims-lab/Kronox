@@ -11,7 +11,7 @@
 //  - Email is sent via the built-in Base44 SendEmail integration. If it
 //    fails, we return ok:false with a short reason — the client treats
 //    this as a soft warning and does NOT roll back the FriendRequest.
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 
 const normalizeEmail = (value) => String(value || '').trim().toLowerCase();
 

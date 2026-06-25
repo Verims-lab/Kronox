@@ -8,7 +8,7 @@
  * - Function only sends to invite.to_email active PushSubscription rows.
  * - Push failure never invalidates the invite/lobby creation flow.
  */
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 import webpush from 'npm:web-push@3.6.7';
 
 const normalizeEmail = (value: unknown) => String(value || '').trim().toLowerCase();

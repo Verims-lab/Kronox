@@ -1,5 +1,5 @@
 /* global Deno */
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 
 const DAILY_QUEST_REWARD_SOURCE = 'daily_quest_reward';
 const RELATED_ENTITY_TYPE = 'daily_quest';

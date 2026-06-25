@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 
 const MAX_LOOKUP_ROWS = 20;
 const HARD_ZERO_MODE = 'hard_zero';
