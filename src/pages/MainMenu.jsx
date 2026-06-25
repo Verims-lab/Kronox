@@ -6,6 +6,7 @@ import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
 import { useAuth } from '@/lib/AuthContext';
 import StandardTopBar from '@/components/layout/StandardTopBar';
+import KronoxWordmark from '@/components/ui/KronoxWordmark';
 import DailyRewardsPanel from '@/components/dailyWheel/DailyRewardsPanel';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 import { isGuestOnboardingComplete } from '@/lib/guestProfile';
@@ -180,126 +181,8 @@ export default function MainMenu() {
 }
 
 /* ─────────────────────────────────────────────────────────────────── */
-/*  Wordmark + divider                                                 */
+/*  Divider                                                            */
 /* ─────────────────────────────────────────────────────────────────── */
-
-/**
- * Large KRONOX wordmark. The final "X" is split into two yellow accent
- * chevrons to mimic the reference logo, while the first five letters use
- * the cool white tone from the mock. clamp() keeps the size identical
- * across phones and desktop browsers without media queries.
- */
-function KronoxWordmark() {
-  // Reference shows clearly-separated KRONO letters in white plus a gold X
-  // whose two diagonals are split with a small gap (slight notch at the
-  // crossing point). We render the X as a stack of two rotated bars so the
-  // characteristic split is preserved at any size.
-  const fontSize = 'clamp(36px, 11vw, 60px)';
-  return (
-    <div
-      className="flex items-center justify-center"
-      style={{
-        gap: 'clamp(10px, 2.6vw, 16px)',
-        fontFamily: 'var(--font-cinzel)',
-        fontWeight: 900,
-        fontSize,
-        lineHeight: 1,
-      }}
-      aria-label="KRONOX"
-    >
-      <span
-        style={{
-          color: '#f1f4ff',
-          // Wider tracking matches the open, premium spacing in the crop.
-          letterSpacing: '0.34em',
-          // Compensate for trailing tracking so the gold X sits closer to "O".
-          paddingRight: '0.34em',
-          textShadow: '0 2px 12px rgba(0,0,0,0.55)',
-        }}
-      >
-        KRONO
-      </span>
-      <KronoxSplitX size={fontSize} />
-    </div>
-  );
-}
-
-/**
- * Gold "X" composed of two diagonal bars with a small split at the centre,
- * matching the reference logo crop. `size` mirrors the wordmark font-size
- * so the X scales with the rest of the logotype on every viewport.
- */
-function KronoxSplitX({ size }) {
-  return (
-    <span
-      aria-hidden="true"
-      style={{
-        position: 'relative',
-        display: 'inline-block',
-        width: `calc(${size} * 0.78)`,
-        height: size,
-        // Subtle warm glow like the rest of the logo.
-        filter: 'drop-shadow(0 0 8px rgba(250,204,21,0.55))',
-      }}
-    >
-      {/* Top-left → bottom-right diagonal, stopped before the crossing. */}
-      <span
-        style={{
-          position: 'absolute',
-          top: '6%',
-          left: 0,
-          width: '46%',
-          height: '14%',
-          background: '#facc15',
-          transformOrigin: '0% 50%',
-          transform: 'rotate(54deg)',
-          borderRadius: '2px',
-        }}
-      />
-      {/* Bottom-left → top-right diagonal (mirrored, also stopped). */}
-      <span
-        style={{
-          position: 'absolute',
-          bottom: '6%',
-          left: 0,
-          width: '46%',
-          height: '14%',
-          background: '#facc15',
-          transformOrigin: '0% 50%',
-          transform: 'rotate(-54deg)',
-          borderRadius: '2px',
-        }}
-      />
-      {/* Top-right → bottom-left diagonal (right half). */}
-      <span
-        style={{
-          position: 'absolute',
-          top: '6%',
-          right: 0,
-          width: '46%',
-          height: '14%',
-          background: '#facc15',
-          transformOrigin: '100% 50%',
-          transform: 'rotate(-54deg)',
-          borderRadius: '2px',
-        }}
-      />
-      <span
-        style={{
-          position: 'absolute',
-          bottom: '6%',
-          right: 0,
-          width: '46%',
-          height: '14%',
-          background: '#facc15',
-          transformOrigin: '100% 50%',
-          transform: 'rotate(54deg)',
-          borderRadius: '2px',
-        }}
-      />
-    </span>
-  );
-}
 
 /**
  * Yellow diamond accent below the wordmark, replicating the reference's
