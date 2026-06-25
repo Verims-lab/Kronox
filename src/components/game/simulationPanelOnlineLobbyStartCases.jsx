@@ -10,7 +10,15 @@ import gameSource from '../../pages/Game.jsx?raw';
 import useLobbySyncSource from '../../hooks/useLobbySync.js?raw';
 import useWaitingRoomSyncSource from '../../hooks/useWaitingRoomSync.js?raw';
 import onlineGameNavigationSource from '../../lib/onlineGameNavigation.js?raw';
+import onlineLobbyReducerSource from '../../lib/onlineLobbyReducer.js?raw';
 import healthMirrorSource from '../../lib/healthAlignmentDocMirrors.js?raw';
+import {
+  createOnlineLobbyInitialState,
+  hasOnlineSharedGameState,
+  onlineLobbyReducer,
+  ONLINE_LOBBY_ACTIONS,
+  ONLINE_LOBBY_PHASES,
+} from '@/lib/onlineLobbyReducer';
 import {
   acceptGameInviteFnSource,
   findLobbyByCodeFnSource,
@@ -65,6 +73,150 @@ export const EXTRA_SUITES = [
 ];
 
 export const EXTRA_TESTS = [
+  makeCase('online_lobby_reducer_phase_1_contract',
+    'Online lobby reducer models 4-player join/start/recovery without effects',
+    () => {
+      const required = missing(onlineLobbyReducerSource, [
+        'export function onlineLobbyReducer',
+        'export function createOnlineLobbyInitialState',
+        'export function hasOnlineSharedGameState',
+        'CREATE_REQUESTED',
+        'CREATE_SUCCEEDED',
+        'JOIN_REQUESTED',
+        'JOIN_SUCCEEDED',
+        'INVITE_ACCEPTED',
+        'LOBBY_REFRESHED',
+        'SUBSCRIPTION_UPDATE_RECEIVED',
+        'START_REQUESTED',
+        'START_CONFIRMED',
+        'RECOVERY_REQUESTED',
+        'RECOVERY_SUCCEEDED',
+        'LOBBY_EXPIRED',
+        'LOBBY_CANCELLED',
+        'missing_shared_game_state',
+      ]);
+      const reducerForbidden = forbidden(onlineLobbyReducerSource, [
+        'base44',
+        'fetch(',
+        'window.',
+        'document.',
+        'navigator.',
+        'localStorage',
+        'Date.now',
+        'new Date(',
+        'UserCategoryPreference',
+        'loadUserCategoryPreferences',
+      ]);
+      const integrationRequired = missing(`${safeStr(useWaitingRoomSyncSource)}\n${safeStr(waitingRoomPanelSource)}`, [
+        'onlineLobbyReducer',
+        'ONLINE_LOBBY_ACTIONS.START_CONFIRMED',
+        'ONLINE_LOBBY_ACTIONS.RECOVERY_REQUESTED',
+        'lobbyPhaseState',
+        'phase reducer',
+      ]);
+
+      const players = ['host', 'p2', 'p3', 'p4'].map((name, index) => ({
+        name,
+        email: `${name}@example.com`,
+        ready: true,
+        cards: index === 0 ? [{ id: 'seed-card', year: 1990 }] : [],
+      }));
+      const waitingLobby = {
+        id: 'lobby_4p',
+        code: 'ABCD12',
+        status: 'waiting',
+        state_revision: 1,
+        players,
+        selected_category_ids: [1, 2],
+      };
+      const startedLobby = {
+        ...waitingLobby,
+        status: 'starting',
+        state_revision: 2,
+        current_question_id: 'q-start',
+        online_question_deck: [{ id: 'q-start', year: 1999, question: 'Q' }],
+      };
+
+      const executableFailures = [];
+      const created = onlineLobbyReducer(createOnlineLobbyInitialState(), {
+        type: ONLINE_LOBBY_ACTIONS.CREATE_SUCCEEDED,
+        lobby: waitingLobby,
+      });
+      if (created.phase !== ONLINE_LOBBY_PHASES.WAITING || created.playerCount !== 4) executableFailures.push('4 participants not represented in waiting state');
+
+      const joined = onlineLobbyReducer(createOnlineLobbyInitialState(), {
+        type: ONLINE_LOBBY_ACTIONS.INVITE_ACCEPTED,
+        verifiedLobby: waitingLobby,
+        joinedLobby: waitingLobby,
+      });
+      if (joined.phase !== ONLINE_LOBBY_PHASES.JOINED || joined.joinedVia !== 'invite' || joined.playerCount !== 4) executableFailures.push('verifiedLobby/joinedLobby invite accept did not become joined');
+
+      const starting = onlineLobbyReducer(created, { type: ONLINE_LOBBY_ACTIONS.START_REQUESTED });
+      if (starting.phase !== ONLINE_LOBBY_PHASES.STARTING) executableFailures.push('START_REQUESTED did not enter starting');
+
+      const missingSharedState = onlineLobbyReducer(starting, {
+        type: ONLINE_LOBBY_ACTIONS.START_CONFIRMED,
+        lobby: { ...waitingLobby, status: 'starting', state_revision: 2, current_question_id: null, online_question_deck: [] },
+      });
+      if (missingSharedState.phase === ONLINE_LOBBY_PHASES.STARTED || missingSharedState.sharedGameStateReady) executableFailures.push('started phase allowed without shared game state');
+
+      const started = onlineLobbyReducer(starting, {
+        type: ONLINE_LOBBY_ACTIONS.START_CONFIRMED,
+        lobby: startedLobby,
+      });
+      if (started.phase !== ONLINE_LOBBY_PHASES.STARTED || !started.sharedGameStateReady || !hasOnlineSharedGameState(started.lobby)) executableFailures.push('shared game state did not confirm started');
+
+      const duplicateStart = onlineLobbyReducer(started, {
+        type: ONLINE_LOBBY_ACTIONS.START_CONFIRMED,
+        lobby: startedLobby,
+      });
+      if (duplicateStart.phase !== ONLINE_LOBBY_PHASES.STARTED || duplicateStart.stateRevision !== 2) executableFailures.push('duplicate start confirmation was not idempotent');
+
+      const newerWaiting = onlineLobbyReducer(created, {
+        type: ONLINE_LOBBY_ACTIONS.LOBBY_REFRESHED,
+        lobby: { ...waitingLobby, state_revision: 4, players: [...players, { name: 'late-player', email: 'late@example.com' }] },
+      });
+      const staleSameStatusRefresh = onlineLobbyReducer(newerWaiting, {
+        type: ONLINE_LOBBY_ACTIONS.LOBBY_REFRESHED,
+        lobby: { ...waitingLobby, state_revision: 2, players: [players[0]] },
+      });
+      if (staleSameStatusRefresh.stateRevision !== 4 || staleSameStatusRefresh.playerCount !== 5) executableFailures.push('same-status stale refresh erased newer roster state');
+
+      const staleRefresh = onlineLobbyReducer(started, {
+        type: ONLINE_LOBBY_ACTIONS.LOBBY_REFRESHED,
+        lobby: { ...waitingLobby, state_revision: 1 },
+      });
+      if (staleRefresh.phase !== ONLINE_LOBBY_PHASES.STARTED || staleRefresh.status !== 'starting') executableFailures.push('stale refresh erased newer started state');
+
+      const recovering = onlineLobbyReducer(created, { type: ONLINE_LOBBY_ACTIONS.RECOVERY_REQUESTED });
+      const recovered = onlineLobbyReducer(recovering, {
+        type: ONLINE_LOBBY_ACTIONS.RECOVERY_SUCCEEDED,
+        lobby: startedLobby,
+      });
+      if (recovering.phase !== ONLINE_LOBBY_PHASES.RECOVERING || recovered.phase !== ONLINE_LOBBY_PHASES.STARTED) executableFailures.push('missed realtime recovery did not recover to started');
+
+      const expired = onlineLobbyReducer(created, { type: ONLINE_LOBBY_ACTIONS.LOBBY_EXPIRED });
+      const expiredStart = onlineLobbyReducer(expired, {
+        type: ONLINE_LOBBY_ACTIONS.START_CONFIRMED,
+        lobby: startedLobby,
+      });
+      if (expiredStart.phase !== ONLINE_LOBBY_PHASES.EXPIRED) executableFailures.push('expired lobby was able to start');
+
+      if (required.length || reducerForbidden.length || integrationRequired.length || executableFailures.length) {
+        return fail('Online lobby reducer Phase 1 contract failed.', {
+          verification: 'STATIC_AND_EXECUTABLE_CONTRACT',
+          actionType: ACTION_TYPES.CODE_FIX,
+          file: 'onlineLobbyReducer + useWaitingRoomSync',
+          missing: { required, integrationRequired },
+          forbidden: reducerForbidden,
+          executableFailures,
+        });
+      }
+
+      return pass('Online lobby reducer models 4-player join/start/recovery, blocks stale/expired transitions, and stays effect-free.',
+        { verification: 'STATIC_AND_EXECUTABLE_CONTRACT' });
+    }),
+
   makeCase('four_player_join_uses_merge_retry',
     'Code and invite joins merge/retry roster writes instead of blind array overwrite',
     () => {

@@ -99,6 +99,13 @@ success-only backend record-context eligibility. Game.jsx still owns active
 runtime side effects until later ViewModel handoffs. The DB reporting plan now
 defines the privacy-safe SoloLevelAttemptEvent contract without broad runtime
 analytics writes.
+
+Phase 1 also adds src/lib/onlineLobbyReducer.js and
+src/lib/notificationReducer.js as pure MVI foundations. useWaitingRoomSync
+feeds authoritative lobby subscription/poll events into the Online reducer
+without changing route payloads. useNotificationCenter remains the shared
+ViewModel/store and delegates notification fetch/subscription/terminal
+lifecycle transitions to the notification reducer.
 `;
 
 export const ARCHITECTURE_TARGET_DOC = `# Kronox Architecture Target
@@ -115,6 +122,16 @@ Solo Phase 1 starts at src/lib/soloAttemptReducer.js: the reducer is pure,
 effect-free, uses current HAMLE scoring constants, tracks persistence and
 record-context status, and leaves analytics, daily quest, Base44 persistence,
 and record-context requests outside the reducer.
+
+Online Phase 1 starts at src/lib/onlineLobbyReducer.js: the reducer is pure,
+effect-free, owns idle/creating/waiting/joining/joined/starting/started/
+recovering/expired/error phases, gates started state on backend-owned shared
+game state, and leaves Base44 calls/subscriptions outside the reducer.
+
+Notification Phase 1 starts at src/lib/notificationReducer.js: the reducer is
+pure, effect-free, preserves valid pending rows through transient empty fetches,
+treats toast dismiss as visual-only, and closes actionable notifications only
+on accepted/rejected/expired/terminal/invalidation lifecycle events.
 `;
 
 export const HEALTH_GAP_ANALYSIS_DOC = `# Kronox Health Gap Analysis
@@ -126,8 +143,10 @@ cover Online join/start/recovery, invite verified lobby, notification
 no-flicker, Solo backend record context, Daily Quest Diamond-only rewards,
 leaderboard username-only payloads, Online category isolation, no raw
 Question.list gameplay fallback, economy idempotency guards, and private
-identifier display. Two-account, realtime, push, RLS/BOLA, device, and store
-proof remain manual/live probes.
+identifier display. Executable reducer coverage now protects Online 4-player
+representation/start/recovery transitions and notification transient-empty,
+terminal, dismiss, accept/reject, dedupe, and privacy transitions. Two-account,
+realtime, push, RLS/BOLA, device, and store proof remain manual/live probes.
 `;
 
 export const DB_REPORTING_READINESS_DOC = `# Kronox DB Reporting Readiness

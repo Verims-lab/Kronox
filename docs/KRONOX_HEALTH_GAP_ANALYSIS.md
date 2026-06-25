@@ -42,16 +42,23 @@ fallback polling/refetch.
   aligned with the MVVM/MVI target and Base44-active boundary.
 - Updated invite navigation Health expectations to require `verifiedLobby` and
   `joinedLobby`, not the older `lobby: updatedLobby` token.
+- Added executable Online lobby reducer coverage for 4-player representation,
+  accepted invite handoff, shared-state-gated start, missed-realtime recovery,
+  duplicate start confirmation, stale refresh protection, and expired lobby
+  blocking.
+- Added executable notification reducer coverage for transient empty fetches,
+  subscription upserts, terminal row closure, visual-only toast dismissal,
+  accept/reject closure, stable-id dedupe, and private identifier guardrails.
 
 ## Required Coverage Areas
 
 | Flow / contract | Current coverage | Needed next |
 | --- | --- | --- |
-| 4-player Online lobby join/start | `online_lobby_start_regression` static suite | Add a real or mocked multi-client simulation harness when feasible |
+| 4-player Online lobby join/start | `online_lobby_start_regression` static suite plus executable reducer phase simulation | Add a real or mocked multi-client simulation harness when feasible |
 | Host start shared state | Static source markers for deck/current question/status/revision | Backend runtime probe against deployed `startLobbyGame` |
-| Non-host recovery | Static subscription + poll/refetch markers | Browser automation with delayed/missed subscription event |
+| Non-host recovery | Static subscription + poll/refetch markers plus reducer recovery simulation | Browser automation with delayed/missed subscription event |
 | Invite accept verified lobby | Static `verifiedLobby`/`joinedLobby` contract | Deployed function freshness marker or Base44 test-function proof |
-| Notification no-flicker | Executable merge tests plus static ViewModel guards | Timed UI harness with transient empty fetch injection |
+| Notification no-flicker | Executable merge/reducer tests plus static ViewModel guards | Timed UI harness with transient empty fetch injection |
 | Solo record congratulations | Static backend context/copy checks | Production-like multi-user record fixture or backend probe |
 | Daily Quest Diamond-only | Static runtime/backend checks | Two-device claim race proof |
 | Leaderboard username-only | Static public payload checks | RLS/BOLA live probe |
@@ -87,4 +94,3 @@ fallback polling/refetch.
   two devices without duplicate grant/spend.
 - Privacy: no email/provider/raw guest/owner/internal player ids visible in
   leaderboard, lobby, notification, or push text.
-

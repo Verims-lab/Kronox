@@ -1,9 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { debugLog, debugWarn } from '@/lib/debugLog';
 import { isHost as isLobbyHost, summarizePlayers } from '@/lib/lobbyUtils';
 import { navigateToOnlineGame as navigateToOnlineGameRoute } from '@/lib/onlineGameNavigation';
+import {
+  createOnlineLobbyInitialState,
+  onlineLobbyReducer,
+  ONLINE_LOBBY_ACTIONS,
+} from '@/lib/onlineLobbyReducer';
 
 const STATUS_RANK = {
   waiting: 1,
@@ -50,6 +55,11 @@ export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, 
   const latestLobbyRef = useRef(lobby);
   const hasNavigatedToGameRef = useRef(false);
   const rejoinAttemptRef = useRef(false);
+  const [lobbyPhaseState, dispatchLobbyPhase] = useReducer(
+    onlineLobbyReducer,
+    lobby,
+    (initialLobby) => createOnlineLobbyInitialState({ lobby: initialLobby }),
+  );
 
   useEffect(() => { playerNameRef.current = playerName; }, [playerName]);
   useEffect(() => { userRef.current = user; }, [user]);
@@ -71,6 +81,13 @@ export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, 
     }
     latestLobbyRef.current = updatedLobby;
     setLobby(updatedLobby);
+    dispatchLobbyPhase({
+      type: (updatedLobby.status === 'starting' || updatedLobby.status === 'in_game')
+        ? ONLINE_LOBBY_ACTIONS.START_CONFIRMED
+        : ONLINE_LOBBY_ACTIONS.LOBBY_REFRESHED,
+      lobby: updatedLobby,
+      source,
+    });
     return true;
   }, [setLobby]);
 
@@ -177,6 +194,10 @@ export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, 
       if (receivedLobbyId !== lobby.id) return;
 
       if (eventType === 'delete') {
+        dispatchLobbyPhase({
+          type: ONLINE_LOBBY_ACTIONS.LOBBY_CANCELLED,
+          source: `subscription:${eventType}`,
+        });
         setLobby(null);
         return;
       }
@@ -223,6 +244,11 @@ export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, 
       setStartDebug(debugData);
 
       if (shouldNavigate) {
+        dispatchLobbyPhase({
+          type: ONLINE_LOBBY_ACTIONS.START_CONFIRMED,
+          lobby: updatedLobby,
+          source: 'subscription_navigation',
+        });
         navigateToOnlineGame(updatedLobby, 'subscription');
       }
     });
@@ -338,6 +364,10 @@ export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, 
       if (hasNavigatedToGameRef.current) return;
 
       try {
+        dispatchLobbyPhase({
+          type: ONLINE_LOBBY_ACTIONS.RECOVERY_REQUESTED,
+          source: 'start_fallback_poll',
+        });
         const fresh = await base44.entities.Lobby.get(lobby.id);
         const status = fresh?.status;
         const shouldNavigate = status === 'starting' || status === 'in_game';
@@ -360,7 +390,14 @@ export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, 
         setStartDebug(pollDebug);
 
         const applied = fresh ? applyLobbySnapshot(fresh, 'start_fallback_poll') : false;
-        if (shouldNavigate && (applied || fresh?.status === 'starting' || fresh?.status === 'in_game')) navigateToOnlineGame(fresh, 'poll');
+        if (shouldNavigate && (applied || fresh?.status === 'starting' || fresh?.status === 'in_game')) {
+          dispatchLobbyPhase({
+            type: ONLINE_LOBBY_ACTIONS.RECOVERY_SUCCEEDED,
+            lobby: fresh,
+            source: 'start_fallback_poll',
+          });
+          navigateToOnlineGame(fresh, 'poll');
+        }
       } catch (err) {
         const pollErrorDebug = {
           subscribedLobbyId: lobby.id,
@@ -378,6 +415,11 @@ export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, 
         };
         debugLog('[WaitingRoom] start fallback poll error:', pollErrorDebug);
         setStartDebug(pollErrorDebug);
+        dispatchLobbyPhase({
+          type: ONLINE_LOBBY_ACTIONS.RECOVERY_FAILED,
+          error: err.message,
+          source: 'start_fallback_poll',
+        });
       }
     }, 2500);
 
@@ -386,6 +428,7 @@ export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, 
 
   return {
     startDebug,
+    lobbyPhaseState,
     isDebugVisible: !isHost && (import.meta.env.DEV || user?.role === 'admin'),
     waitingScrollRef,
     pullY,
