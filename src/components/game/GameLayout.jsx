@@ -304,7 +304,10 @@ export default function GameLayout({
       ref={gameplayRootRef}
       className={`kx-viewport-lock kronox-gameplay-root flex flex-col ${isDragging ? 'kronox-game-drag-lock' : ''}`}
       data-kronox-gameplay-root="true"
-      style={{ background: 'linear-gradient(to bottom, #0B1F3A 0%, #1E3A8A 100%)' }}
+      style={{
+        background:
+          'radial-gradient(circle at 50% 38%, rgba(85, 216, 255, 0.10) 0%, transparent 46%), linear-gradient(180deg, #07152F 0%, #102C59 52%, #132F68 100%)',
+      }}
     >
       {/* TOP BAR */}
       <div
@@ -313,30 +316,27 @@ export default function GameLayout({
       >
         {showRemainingMoves && !winner && (
           <div
-            className="absolute left-4 top-2 flex min-w-[64px] items-center justify-center rounded-full border px-2 py-1"
+            className="absolute left-4 top-2 flex min-w-[64px] items-center justify-center rounded-full border-[1.5px] px-2.5 py-1"
             style={{
               top: 'calc(0.5rem + env(safe-area-inset-top))',
-              background: 'rgba(7,10,31,0.82)',
-              borderColor: visibleRemainingMoves <= 2 ? 'rgba(248,113,113,0.64)' : 'rgba(250,204,21,0.48)',
+              background: 'rgba(6, 18, 37, 0.88)',
+              borderColor: visibleRemainingMoves <= 2 ? 'rgba(248,113,113,0.72)' : '#FFC928',
               boxShadow: visibleRemainingMoves <= 2
-                ? '0 0 16px rgba(248,113,113,0.22)'
-                : '0 0 14px rgba(250,204,21,0.16)',
+                ? '0 0 12px rgba(248,113,113,0.24), inset 0 1px 0 rgba(255,255,255,0.04)'
+                : '0 0 12px rgba(255, 201, 40, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.04)',
             }}
             aria-label={`${visibleRemainingMoves} hamle kaldı`}
             data-kronox-solo-remaining-moves={visibleRemainingMoves}
             data-kronox-solo-max-moves={visibleMaxMoves}
           >
             <span
-              className="kronox-number font-bangers tracking-[0.08em]"
+              className="font-inter font-semibold"
               style={{
-                color: visibleRemainingMoves <= 2 ? '#fca5a5' : '#fde68a',
-                fontSize: 'clamp(13px, 3.7vw, 15px)',
-                textShadow: visibleRemainingMoves <= 2
-                  ? '0 0 10px rgba(248,113,113,0.42)'
-                  : '0 0 10px rgba(250,204,21,0.32)',
+                color: '#F4F7FB',
+                fontSize: 'clamp(13px, 3.6vw, 14px)',
               }}
             >
-              {visibleRemainingMoves} HAMLE
+              <span style={{ color: visibleRemainingMoves <= 2 ? '#fca5a5' : '#FFC928' }}>{visibleRemainingMoves}</span> HAMLE
             </span>
           </div>
         )}
@@ -344,42 +344,37 @@ export default function GameLayout({
         {/* Center: Logo + progress */}
         <div className="mx-auto flex min-w-0 flex-col items-center">
           <img
-            src="https://media.base44.com/images/public/69e753d5ab4c08a7c4287c25/49fc6f458_kronoxnobckgrnd.png"
+            src="https://media.base44.com/images/public/6a05b47e401bb23c2f21a522/ff7c7b3e0_Logo2506.png"
             alt="Kronox"
-            className="mb-1 h-16 w-[172px] max-w-[48vw] object-contain"
+            className="mb-1 h-12 w-auto max-w-[52vw] object-contain"
           />
           {/* Progress bar */}
           <div className="mt-1 w-28">
             <motion.div
               key={progressPulseKey}
-              className="kronox-number mb-0.5 text-center text-xs"
+              className="mb-0.5 text-center font-inter font-semibold"
+              style={{ fontSize: 13, color: '#A7C4E5' }}
               initial={progressPulseKey > 0 ? {
                 scale: prefersReducedMotion ? 1 : 1.16,
-                color: '#facc15',
-                textShadow: '0 0 12px rgba(250,204,21,0.62), 0 0 20px rgba(56,189,248,0.28)',
               } : false}
-              animate={{
-                scale: 1,
-                color: progressPulseActive ? '#fde68a' : 'rgba(255,255,255,0.62)',
-                textShadow: progressPulseActive
-                  ? '0 0 10px rgba(250,204,21,0.46), 0 0 16px rgba(56,189,248,0.20)'
-                  : '0 0 0 rgba(0,0,0,0)',
-              }}
+              animate={{ scale: 1 }}
               transition={{ duration: prefersReducedMotion ? 0.18 : 0.34, ease: 'easeOut' }}
             >
               {visibleProgressCount}/{visibleProgressTarget}
             </motion.div>
             <motion.div
-              className="h-2 rounded-full bg-white/10 overflow-hidden"
+              className="h-[7px] rounded-full overflow-hidden"
+              style={{ background: '#29436C' }}
               animate={{
                 boxShadow: progressPulseActive
-                  ? '0 0 12px rgba(250,204,21,0.32), 0 0 18px rgba(56,189,248,0.18)'
+                  ? '0 0 12px rgba(255,201,40,0.32)'
                   : '0 0 0 rgba(0,0,0,0)',
               }}
               transition={{ duration: 0.28, ease: 'easeOut' }}
             >
               <motion.div
-                className="h-full rounded-full bg-gradient-to-r from-primary to-yellow-300"
+                className="h-full rounded-full"
+                style={{ background: 'linear-gradient(90deg, #FFE26A 0%, #FFC928 100%)' }}
                 animate={{ width: `${progressPercent}%` }}
                 transition={{ type: 'spring', stiffness: 200, damping: 30 }}
               />
@@ -452,10 +447,10 @@ export default function GameLayout({
         {/* Instruction text — online uses OnlineTurnIndicator above instead */}
         {!isOnline && isMyTurn && !winner && currentQuestion && !feedback ? (
           <div className="text-center">
-            <p className="font-inter font-semibold tracking-wide" style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)' }}>
+            <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 600, fontSize: 18, letterSpacing: '0.03em', color: '#F4F7FB' }}>
               KARTI ZAMAN ÇİZGİSİNE
             </p>
-            <p className="font-bangers tracking-widest" style={{ fontSize: 18, color: '#facc15' }}>
+            <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontStyle: 'italic', fontSize: 21, color: '#FFC928' }}>
               YERLEŞTİR!
             </p>
           </div>

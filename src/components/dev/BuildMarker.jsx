@@ -1,9 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex445 — Health blocker fix:
-//   • Pins frontend @base44/sdk exactly to 0.8.34 and keeps function imports aligned.
-//   • Tightens Daily Quest claims to require completed progress and a daily_quest_reward DiamondTransaction before visible reward success.
-//   • Refreshes invite/privacy Health source scope plus architecture/reporting/visual readiness mirror tokens.
+// Codex446 — Solo gameplay top-area visual refresh (visual-only): navy gradient background, gold-bordered top chips, new Logo2506 asset, restyled 2/7 label + gold progress bar, Barlow Condensed instruction header. Gameplay/scoring/Online unchanged.
 //
 // Codex444 — Security Pass 3:
 //   • Adds accessible status semantics to protected/page/game/lobby loading states without visual layout changes.
@@ -2536,7 +2533,7 @@ import React, { useEffect, useState } from 'react';
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
 // Verims comment on 25.06.2026
-const BUILD_MARKER = 'Codex445';
+const BUILD_MARKER = 'Codex446';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
