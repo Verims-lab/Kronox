@@ -2481,6 +2481,12 @@ import React, { useEffect, useState } from 'react';
 //   • Adds Health/static proof that public category metadata is allowed only
 //     when it exposes no questions, answers, years, full bank, or stale fallbacks.
 //
+// Codex437 — Home wordmark Health wrapper + VAPID guardrail audit:
+//   • Restores a real MainMenu-local KronoxWordmark function while preserving
+//     the shared CSS/motion wordmark visual.
+//   • Confirms sendGameInvitePush keeps VAPID values env/secret-only with
+//     safe missing-config skip diagnostics and no secret logging.
+//
 // Codex436 — Online presence + friend username display foundation:
 //   • Adds backend-owned PlayerPresence with current-user heartbeat and
 //     accepted-friend-scoped lookup.
@@ -2496,7 +2502,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex436';
+const BUILD_MARKER = 'Codex437';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
