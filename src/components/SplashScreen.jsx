@@ -10,14 +10,16 @@ export default function SplashScreen() {
       transition={{ duration: 0.4 }}
       className="fixed inset-0 z-50 flex flex-col items-center justify-center"
       style={{
-        background: 'linear-gradient(to bottom, #0B1F3A 0%, #1E3A8A 100%)',
+        // Match the pre-React splash + index.html body background exactly so
+        // there is no color burst when React mounts over the pre-splash.
+        background: 'radial-gradient(circle at 50% 30%, #1a0a3a 0%, #0a0e2e 55%, #050716 100%)',
         paddingTop: 'env(safe-area-inset-top)',
         paddingBottom: 'env(safe-area-inset-bottom)',
       }}
     >
-      {/* Transparent container — the splash gradient stays visible behind the
-          centered Kronox loading animation. No opaque block behind it. */}
-      <KronoxLoadingVideo maxWidthClassName="max-w-[80%]" style={{ maxHeight: '60vh' }} />
+      {/* Transparent container — the dark gradient stays visible behind the
+          centered Kronox loading animation. No opaque block, no yellow. */}
+      <KronoxLoadingVideo maxWidthClassName="max-w-[82vw]" style={{ maxHeight: '60vh' }} />
     </motion.div>
   );
 }
