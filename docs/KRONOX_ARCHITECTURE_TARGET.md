@@ -65,10 +65,19 @@ Current:
 
 Target:
 - `soloAttemptReducer` owns events such as `CARD_PLACED`, `JOKER_USED`,
-  `TIMER_EXPIRED`, `TARGET_REACHED`, `PERSIST_REQUESTED`, `PERSIST_DONE`.
+  `TARGET_REACHED`, `ATTEMPT_FAILED`, `PERSIST_REQUESTED`,
+  `PERSIST_SUCCEEDED`, and record-context status transitions.
 - ViewModel owns effects: analytics writes, daily quest progress, persistence,
   record context request.
 - View renders `SoloLevelResult` from reducer state only.
+
+Phase 1 foundation:
+- `src/lib/soloAttemptReducer.js` defines the pure, effect-free Solo attempt
+  state contract for current HAMLE rules, persistence status, joker usage
+  summary, and backend record-context eligibility.
+- `Game.jsx` still owns the active runtime side effects in Phase 1. Later
+  integration should route one handoff at a time through a ViewModel before
+  changing render behavior.
 
 Parity plan:
 - Keep current scoring and HAMLE thresholds unchanged.
@@ -145,4 +154,3 @@ number of files that know about Base44 by creating provider-specific gateways:
 
 Each gateway should preserve current payloads first. Provider-neutral adapters
 come only after parity tests and live proof exist.
-

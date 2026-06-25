@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex429 — Solo attempt reducer + DB reporting event plan:
+//   • Adds a pure Solo attempt lifecycle reducer for current HAMLE rules,
+//     persistence status, joker summary, and success-only record context.
+//   • Adds targeted Health coverage for reducer purity, star thresholds,
+//     joker non-spend semantics, and record-context gating.
+//   • Defines the privacy-safe SoloLevelAttemptEvent Phase 1 reporting plan
+//     without enabling broad analytics writes.
+//
 // Codex428 — Architecture audit + Health gap guardrails:
 //   • Adds architecture target/audit, Health gap, DB reporting readiness,
 //     and visual asset readiness docs.
@@ -2449,7 +2457,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex428';
+const BUILD_MARKER = 'Codex429';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

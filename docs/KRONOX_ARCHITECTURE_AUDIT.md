@@ -37,7 +37,7 @@ Mechanical scan from this pass:
 
 | Area | Current entry points | Data source | State owner | Separation | Deterministic critical state | Direct Base44 spread | Security risks | Performance risks | Health coverage | Recommended action |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Solo | `src/pages/SoloChallenge.jsx`, `src/pages/Game.jsx`, `src/components/game/SoloLevelResult.jsx`, `SoloSuccessPopup.jsx` | `getQuestions`, `User.solo_progress`, guest payload, local engine helpers | Mostly `Game.jsx` hooks/state | Partial MVVM: helpers exist, page still owns much flow state | Partially deterministic; reducer/state machine not fully extracted | Yes: `auth.me`, progress writes, question fetch gateway | Raw question bank exposure is controlled by `getQuestions`; guest token proof must stay tight | `Game.jsx` is large; drag/drop must avoid heavy work | Strong static coverage for Solo rules, question exposure, records | Pilot MVI reducer for Solo attempt lifecycle after current Health stabilizes |
+| Solo | `src/pages/SoloChallenge.jsx`, `src/pages/Game.jsx`, `src/components/game/SoloLevelResult.jsx`, `SoloSuccessPopup.jsx` | `getQuestions`, `User.solo_progress`, guest payload, local engine helpers | Mostly `Game.jsx` hooks/state | Partial MVVM: helpers exist, page still owns much flow state | Phase 1 reducer exists in `src/lib/soloAttemptReducer.js`; runtime effects still live in `Game.jsx` | Yes: `auth.me`, progress writes, question fetch gateway | Raw question bank exposure is controlled by `getQuestions`; guest token proof must stay tight | `Game.jsx` is large; drag/drop must avoid heavy work | Strong static/executable coverage for Solo rules, reducer, question exposure, records | Integrate reducer behind a Solo ViewModel in later small handoffs |
 | Online | `LobbyRoom.jsx`, `WaitingRoomPanel.jsx`, `useWaitingRoomSync`, `useLobbySync`, `Game.jsx` | `Lobby`, `GameInvite`, `startLobbyGame`, `findLobbyByCode`, `updateLobbyGameState` | Mixed route state, lobby hooks, backend functions | Partial MVVM; `dbGateway/lobbyGateway` starts a service boundary | Improved by merge/retry, idempotent start, poll recovery | Yes: lobby page/hooks still read entities directly | Host/participant auth and public identity must stay backend enforced | Subscription plus polling can scale poorly without backoff and unified owner | Online lobby start regression suite exists | Next safe pilot: central Online ViewModel/state machine around lobby phase |
 | Notifications | `useNotificationCenter`, `useHeaderNotifications`, `HeaderNotificationBell`, `GameInviteNotifier`, `IncomingInvitesPanel` | `FriendRequest`, `GameInvite`, push subscription APIs | Shared external store in `useNotificationCenter` | Good ViewModel direction; selectors separated | Merge helpers preserve valid pending rows through stale empty fetches | Yes: reads/subscriptions direct in hook | Public labels must stay username-only; push payloads must remain compact | Multiple subscriptions/focus refreshes need bounded cadence as usage grows | Strong lifecycle suite exists | Keep as MVI pilot; formalize event reducer for fetch/subscription/terminal states |
 | Profile / Settings / Account linking | `ProfilePage`, `SettingsPage`, `AuthContext`, guest/account helpers | Base44 auth `User`, `GuestProfile`, `linkGuestAccount`, `updateProfileSettings` | Auth context plus page-local state | Partial ViewModel; service helpers exist | Link flow guarded by backend token proof/idempotency | Yes | Account linking and deletion require two-account/manual privacy proof | Profile calls can repeat on mount/focus; acceptable at current scale | Strong onboarding/profile/account Health | Move more page auth/profile logic behind profile service boundary |
@@ -57,7 +57,8 @@ Mechanical scan from this pass:
    scripts. This is acceptable for the current production path but blocks a
    clean MVVM/service boundary.
 2. `Game.jsx` still owns too much Solo gameplay orchestration. Pure helpers
-   exist, but the critical attempt lifecycle is not a standalone reducer.
+   exist, and Phase 1 adds `src/lib/soloAttemptReducer.js`, but current
+   runtime side effects have not yet been moved behind a Solo ViewModel.
 3. Online lobby state is split across `LobbyRoom`, `useWaitingRoomSync`,
    `useLobbySync`, route state, and backend functions. Recent fixes reduced
    race risk, but the state model is still implicit.
@@ -72,6 +73,11 @@ Mechanical scan from this pass:
 
 - Added architecture-audit Health coverage so the new target docs cannot drift
   silently.
+- Added `src/lib/soloAttemptReducer.js` as the Phase 1 pure Solo attempt
+  lifecycle reducer and locked current HAMLE/record-context behavior with
+  targeted Health coverage.
+- Added the Phase 1 `SoloLevelAttemptEvent` reporting contract without enabling
+  broad analytics or client-owned event writes.
 - Corrected invite navigation Health expectations from the older
   `lobby: updatedLobby` token to the current `verifiedLobby` / `joinedLobby`
   contract.
