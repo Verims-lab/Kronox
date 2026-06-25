@@ -32,6 +32,7 @@ fallback polling/refetch.
 | Online start | Confirms source has merge/retry/start/recovery markers | Does not simulate four live accounts or Base44 realtime delivery |
 | Invite accept | Confirms `verifiedLobby`/`joinedLobby` contract | Does not prove deployed function freshness |
 | Notifications | Executable merge helpers cover stale empty fetches | Does not prove push delivery or service worker behavior on real devices |
+| Online presence | Confirms PlayerPresence owner binding, accepted-friend lookup, username-only labels, and offline fallback | Does not prove deployed function freshness or two-device heartbeat timing |
 | Solo records | Confirms backend context and copy | Does not prove production data has multi-user records |
 | Economy | Confirms idempotency guards and Diamond-only rules | Does not prove DB uniqueness or two-device race safety |
 | Leaderboard privacy | Confirms sanitized public payload shape | Does not prove live RLS prevents direct entity reads |
@@ -51,6 +52,9 @@ fallback polling/refetch.
 - Added executable notification reducer coverage for transient empty fetches,
   subscription upserts, terminal row closure, visual-only toast dismissal,
   accept/reject closure, stable-id dedupe, and private identifier guardrails.
+- Added focused friend/presence coverage so fake-online friend pickers, email
+  display fallbacks, unscoped presence reads, and non-current-user presence
+  writes fail Health.
 
 ## Required Coverage Areas
 
@@ -61,6 +65,7 @@ fallback polling/refetch.
 | Non-host recovery | Static subscription + poll/refetch markers plus reducer recovery simulation | Browser automation with delayed/missed subscription event |
 | Invite accept verified lobby | Static `verifiedLobby`/`joinedLobby` contract | Deployed function freshness marker or Base44 test-function proof |
 | Notification no-flicker | Executable merge/reducer tests plus static ViewModel guards | Timed UI harness with transient empty fetch injection |
+| Friend online/offline presence | Static backend contract and UI-helper checks for `PlayerPresence`, heartbeat, accepted-friend lookup, offline fallback, and username-only labels | Two-account live proof: user B appears online after heartbeat and offline after expiry/background |
 | Solo record congratulations | Static backend context/copy checks | Production-like multi-user record fixture or backend probe |
 | Daily Quest Diamond-only | Static runtime/backend checks | Two-device claim race proof |
 | Leaderboard username-only | Static public payload checks | RLS/BOLA live probe |

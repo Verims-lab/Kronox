@@ -20,6 +20,7 @@ import { base44 } from '@/api/base44Client';
 import CategoryPreferenceOnboardingModal from '@/components/settings/CategoryPreferenceOnboardingModal';
 import { isGuestOnboardingComplete } from '@/lib/guestProfile';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
+import usePresenceHeartbeat from '@/hooks/usePresenceHeartbeat';
 
 const MainMenu = lazyWithRetry(() => import('./pages/MainMenu'), 'MainMenu');
 const MarketPage = lazyWithRetry(() => import('./pages/MarketPage'), 'MarketPage');
@@ -57,6 +58,7 @@ function AdminRoute({ children }) {
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, authError, isAuthenticated, user, guestProfile, checkUserAuth } = useAuth();
+  usePresenceHeartbeat(user);
   const location = useLocation();
   const prevPathRef = React.useRef(location.pathname);
   const isGamePage = location.pathname === '/game';
@@ -231,7 +233,7 @@ const AuthenticatedApp = () => {
 
 
 function App() {
-  // Codex435 — push current build marker into diag bus once at app boot
+  // Codex436 — push current build marker into diag bus once at app boot
   useEffect(() => {
     appDiagSetBuildMarker('Codex436');
     // Codex176 — App booted successfully, so any prior stale-chunk reload

@@ -2481,6 +2481,14 @@ import React, { useEffect, useState } from 'react';
 //   • Adds Health/static proof that public category metadata is allowed only
 //     when it exposes no questions, answers, years, full bank, or stale fallbacks.
 //
+// Codex436 — Online presence + friend username display foundation:
+//   • Adds backend-owned PlayerPresence with current-user heartbeat and
+//     accepted-friend-scoped lookup.
+//   • Replaces fake-online friend picker labels with real TTL-based
+//     online/offline display state.
+//   • Keeps friend, invite, and request rows username-only with no email
+//     fallback display.
+//
 // Codex400 — Current category metadata runtime policy:
 //   • Removes stale hardcoded category fallback names/IDs from startLobbyGame,
 //     getQuestions, Online category UI helpers, and Solo diagnostic helpers.
@@ -2488,7 +2496,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex435';
+const BUILD_MARKER = 'Codex436';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

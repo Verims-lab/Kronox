@@ -1,0 +1,84 @@
+{
+  "name": "PlayerPresence",
+  "type": "object",
+  "description": "Best-effort Online/social presence rows written only through backend functions. Rows store anonymized owner_key_hash plus session metadata, never email/provider ids/raw guest ids/player keys. Friend visibility is relationship-scoped by getFriendPresence.",
+  "properties": {
+    "owner_key_hash": {
+      "type": "string",
+      "description": "Internal anonymized key derived server-side from the authenticated owner. Not displayed in public UI."
+    },
+    "player_type": {
+      "type": "string",
+      "enum": [
+        "guest",
+        "linked",
+        "unknown"
+      ],
+      "default": "unknown",
+      "description": "Presence actor class. Current social friends path is linked/authenticated."
+    },
+    "username": {
+      "type": "string",
+      "description": "Safe public username snapshot; never email/provider/internal id."
+    },
+    "session_id": {
+      "type": "string",
+      "description": "Client session id scoped to this actor and overwritten server-side only for the authenticated caller."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "online",
+        "offline"
+      ],
+      "default": "offline",
+      "description": "Best-effort visible presence status."
+    },
+    "last_seen_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Latest server write time."
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Freshness cutoff for online state."
+    },
+    "source": {
+      "type": "string",
+      "description": "Write source marker, for example app_heartbeat."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional admin note; not used by runtime UI."
+    }
+  },
+  "required": [
+    "owner_key_hash",
+    "session_id",
+    "status"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

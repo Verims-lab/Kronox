@@ -16,9 +16,23 @@
 
 import { normalizeEmail, isValidEmail } from '@/lib/friendsApi';
 import friendsApiSource from '../../lib/friendsApi.js?raw';
+import publicIdentitySource from '../../lib/publicIdentity.js?raw';
+import presenceSource from '../../lib/presence.js?raw';
+import useFriendPresenceSource from '../../hooks/useFriendPresence.js?raw';
+import usePresenceHeartbeatSource from '../../hooks/usePresenceHeartbeat.js?raw';
 import friendsPageSource from '../../pages/FriendsPage.jsx?raw';
 import addFriendFormSource from '../friends/AddFriendForm.jsx?raw';
-import { sendFriendRequestEmailFnSourceFull } from './simulationPanelContractStrings.jsx';
+import friendListItemSource from '../friends/FriendListItem.jsx?raw';
+import outgoingRequestItemSource from '../friends/OutgoingRequestItem.jsx?raw';
+import friendSelectModalSource from '../lobby/FriendSelectModal.jsx?raw';
+import createLobbyInvitePanelSource from '../lobby/CreateLobbyInvitePanel.jsx?raw';
+import appSource from '../../App.jsx?raw';
+import {
+  getFriendPresenceFnSource,
+  playerPresenceEntitySource,
+  sendFriendRequestEmailFnSourceFull,
+  updatePlayerPresenceFnSource,
+} from './simulationPanelContractStrings.jsx';
 
 function safeStr(src) {
   if (src == null) return '';
@@ -283,4 +297,134 @@ export const EXTRA_TESTS = [
       runtimeProofRequired: true,
       actionType: ACTION_TYPES.MANUAL_VERIFICATION,
     }),
+
+  makeCase('invite_delivery', 'friend_presence_backend_is_owner_bound_and_friend_scoped',
+    'PlayerPresence writes are current-user-bound and reads are accepted-friend scoped',
+    () => {
+      const composed = `${safeStr(playerPresenceEntitySource)}\n${safeStr(updatePlayerPresenceFnSource)}\n${safeStr(getFriendPresenceFnSource)}`;
+      const required = [
+        '"name": "PlayerPresence"',
+        'owner_key_hash',
+        'never email/provider ids/raw guest ids/player keys',
+        'const user = await base44.auth.me()',
+        'const myEmail = normalizeEmail(user.email)',
+        'const ownerKeyHash = makeOwnerKeyHash(myEmail)',
+        "FriendRequest.filter({ to_email: myEmail, status: 'accepted' }",
+        "FriendRequest.filter({ from_email: myEmail, status: 'accepted' }",
+        'requestedSet.has(friend.email)',
+        'presence_key',
+      ];
+      const missing = required.filter((token) => !composed.includes(token));
+      if (missing.length) {
+        return fail('Presence backend contract is missing owner binding or accepted-friend scoping.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          missing,
+        });
+      }
+      return pass('Presence writes are tied to auth.me() and reads are relationship-scoped.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('invite_delivery', 'friend_presence_not_hardcoded_online',
+    'Friend picker renders real online/offline labels instead of hardcoded Çevrimiçi',
+    () => {
+      const src = `${safeStr(friendSelectModalSource)}\n${safeStr(createLobbyInvitePanelSource)}\n${safeStr(useFriendPresenceSource)}\n${safeStr(presenceSource)}`;
+      const required = [
+        'useFriendPresence',
+        'getPresenceForFriend',
+        'getFriendDisplayPresence',
+        'isPresenceOnline',
+        'Çevrim dışı',
+        'PRESENCE_ONLINE_TTL_MS',
+      ];
+      const forbidden = [
+        'const isOnline = true',
+        'treat every friend as "Çevrimiçi" by default',
+      ];
+      const missing = required.filter((token) => !src.includes(token));
+      const foundForbidden = forbidden.filter((token) => src.includes(token));
+      if (missing.length || foundForbidden.length) {
+        return fail('Friend picker presence can still drift to fake-online behavior.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          missing,
+          foundForbidden,
+        });
+      }
+      return pass('Friend pickers use presence helper output and include offline display state.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('invite_delivery', 'friend_rows_username_only_no_email_display_fallback',
+    'Friends UI uses safe username labels and does not display friend_email as a fallback',
+    () => {
+      const src = `${safeStr(publicIdentitySource)}\n${safeStr(friendsApiSource)}\n${safeStr(friendListItemSource)}\n${safeStr(outgoingRequestItemSource)}\n${safeStr(friendSelectModalSource)}\n${safeStr(createLobbyInvitePanelSource)}`;
+      const required = [
+        'getSafePublicUsernameLabel',
+        'normalizeSafePublicUsernameInput',
+        'resolveSafePublicUsername',
+        'getSafeFriendDisplayName',
+        'getSafeRequestTargetName',
+        'friend_username',
+        'presence_key',
+      ];
+      const forbidden = [
+        'friend.friend_name?.trim() || friend.friend_email',
+        'const display = request.to_email',
+        '>{friend.friend_email}</p>',
+        'invite?.from_name?.trim() || invite?.from_email',
+      ];
+      const missing = required.filter((token) => !src.includes(token));
+      const foundForbidden = forbidden.filter((token) => src.includes(token));
+      if (missing.length || foundForbidden.length) {
+        return fail('A friend-facing surface can still display email/provider/internal identifiers.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          missing,
+          foundForbidden,
+        });
+      }
+      return pass('Friend-facing UI uses safe username helpers instead of email fallbacks.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('invite_delivery', 'presence_heartbeat_registered_from_app_shell',
+    'Authenticated app shell starts the current user presence heartbeat',
+    () => {
+      const src = `${safeStr(appSource)}\n${safeStr(usePresenceHeartbeatSource)}\n${safeStr(presenceSource)}`;
+      const required = [
+        'usePresenceHeartbeat(user)',
+        "functions.invoke('updatePlayerPresence'",
+        'PRESENCE_HEARTBEAT_MS',
+        'document.visibilityState',
+        'PRESENCE_STATUS.OFFLINE',
+      ];
+      const missing = required.filter((token) => !src.includes(token));
+      if (missing.length) {
+        return fail('Presence heartbeat is not wired from the authenticated app shell.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          missing,
+        });
+      }
+      return pass('Authenticated users emit best-effort online/offline heartbeats.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
 ];

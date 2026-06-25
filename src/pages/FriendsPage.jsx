@@ -19,6 +19,7 @@ import OutgoingRequestItem from '@/components/friends/OutgoingRequestItem';
 import AddFriendForm from '@/components/friends/AddFriendForm';
 import IncomingInvitesPanel from '@/components/invites/IncomingInvitesPanel';
 import useFriendsRealtimeRefresh from '@/hooks/useFriendsRealtimeRefresh';
+import useFriendPresence from '@/hooks/useFriendPresence';
 import StandardTopBar from '@/components/layout/StandardTopBar';
 import PullToRefresh from '@/components/mobile/PullToRefresh';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
@@ -40,6 +41,9 @@ export default function FriendsPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const { getPresenceForFriend } = useFriendPresence(friends, {
+    enabled: authChecked && Boolean(user?.email),
+  });
 
   useEffect(() => {
     base44.auth.me()
@@ -221,7 +225,12 @@ export default function FriendsPage() {
             ) : (
               <div className="space-y-2">
                 {friends.map((f) => (
-                  <FriendListItem key={f.id} friend={f} onRemove={handleRemove} />
+                  <FriendListItem
+                    key={f.id}
+                    friend={f}
+                    presence={getPresenceForFriend(f)}
+                    onRemove={handleRemove}
+                  />
                 ))}
               </div>
             )}
