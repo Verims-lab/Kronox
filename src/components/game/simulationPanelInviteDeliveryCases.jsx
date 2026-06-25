@@ -19,6 +19,7 @@ import friendsApiSource from '../../lib/friendsApi.js?raw';
 import publicIdentitySource from '../../lib/publicIdentity.js?raw';
 import presenceSource from '../../lib/presence.js?raw';
 import onlinePlayerSelectionSource from '../../lib/onlinePlayerSelection.js?raw';
+import inviteApiSource from '../../lib/inviteApi.js?raw';
 import useFriendPresenceSource from '../../hooks/useFriendPresence.js?raw';
 import usePresenceHeartbeatSource from '../../hooks/usePresenceHeartbeat.js?raw';
 import friendsPageSource from '../../pages/FriendsPage.jsx?raw';
@@ -502,7 +503,7 @@ export const EXTRA_TESTS = [
   makeCase('invite_delivery', 'online_non_friend_invites_backend_resolve_opaque_targets',
     'Online non-friend invites use opaque target refs resolved by backend, not client-visible email',
     () => {
-      const src = `${safeStr(onlinePlayerSelectionSource)}\n${safeStr(friendSelectModalSource)}\n${safeStr(createLobbyInvitePanelSource)}\n${safeStr(createGameInvitesForTargetsFnSource)}`;
+      const src = `${safeStr(onlinePlayerSelectionSource)}\n${safeStr(inviteApiSource)}\n${safeStr(friendSelectModalSource)}\n${safeStr(createLobbyInvitePanelSource)}\n${safeStr(createGameInvitesForTargetsFnSource)}`;
       const required = [
         'normalizeInviteTargetRef',
         'target_refs',
