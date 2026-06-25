@@ -159,9 +159,8 @@ const GUIDED_TUTORIAL_MESSAGES = [
     body: 'Her geçerli yerleştirme bir hamledir. 7 kartı 10 hamle içinde tamamla.',
   },
   {
-    icon: Sparkles,
-    title: 'Seriyi Tamamla',
-    body: 'Kalan kartları doğru sıraya yerleştir.',
+    variant: 'sentence',
+    body: 'Kartı doğru yere yerleştir, seviyeyi tamamla',
   },
 ];
 

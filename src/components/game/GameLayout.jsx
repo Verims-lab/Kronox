@@ -74,27 +74,48 @@ function CTAButton({ active, onClick, disabled }) {
   );
 }
 
-function GuidedDragFingerHint({ active, reducedMotion, targetZoneIndex = null, zoneCount = 1 }) {
+function GuidedDragFingerHint({ active, reducedMotion, targetSlotPosition = null, containerRef = null }) {
   if (!active) return null;
 
-  // The Timeline auto-scrolls the correct target slot to its horizontal
-  // centre during the tutorial placement step, so the hand drags straight
-  // DOWN from the card into the centred slot — fully entering it instead of
-  // stopping near the timeline edge. The deeper Y (188) carries the hand
-  // into the drop zone area below the question card.
-  void targetZoneIndex;
-  void zoneCount;
+  // The hand must travel from the question card DOWN INTO the actual correct
+  // timeline slot. The Timeline reports that slot's live viewport-center X/Y
+  // (targetSlotPosition) — we convert it to coordinates relative to the
+  // gameplay container so the hand lands inside the real slot, not a guessed
+  // dead-center position. If the position isn't available yet, we fall back
+  // to the previous straight-down behavior. Visual-only; hit-testing is
+  // unaffected (it reads finger coordinates).
+  const container = containerRef?.current || null;
+  let endX = null;
+  let endY = null;
+  if (targetSlotPosition && container) {
+    const rect = container.getBoundingClientRect();
+    endX = targetSlotPosition.centerX - rect.left;
+    endY = targetSlotPosition.centerY - rect.top;
+  }
+  const hasResolvedTarget = endX !== null && endY !== null;
+
+  // Start point: just under the question card area (~46% of container height),
+  // centered. End point: the real slot center (or straight down as fallback).
+  const startLeft = hasResolvedTarget ? endX : null;
+
   const pathAnimation = reducedMotion
     ? {
         opacity: [0.72, 1, 0.72],
         scale: [1, 1.04, 1],
       }
-    : {
-        x: [0, 0, 0, 0],
-        y: [0, 0, 188, 188],
-        opacity: [0, 1, 1, 0],
-        scale: [0.92, 1, 1, 0.96],
-      };
+    : hasResolvedTarget
+      ? {
+          x: [0, 0, 0, 0],
+          y: [0, 0, Math.max(40, endY - (container.getBoundingClientRect().height * 0.46)), Math.max(40, endY - (container.getBoundingClientRect().height * 0.46))],
+          opacity: [0, 1, 1, 0],
+          scale: [0.92, 1, 1, 0.96],
+        }
+      : {
+          x: [0, 0, 0, 0],
+          y: [0, 0, 188, 188],
+          opacity: [0, 1, 1, 0],
+          scale: [0.92, 1, 1, 0.96],
+        };
 
   return (
     <motion.div
@@ -113,8 +134,8 @@ function GuidedDragFingerHint({ active, reducedMotion, targetZoneIndex = null, z
         ease: 'easeInOut',
       }}
       style={{
-        left: '50%',
-        top: '58%',
+        left: hasResolvedTarget ? startLeft : '50%',
+        top: '46%',
         marginLeft: -24,
         marginTop: -24,
         willChange: 'transform, opacity',
@@ -240,6 +261,8 @@ export default function GameLayout({
   const [progressPulseKey, setProgressPulseKey] = useState(0);
   const [progressPulseActive, setProgressPulseActive] = useState(false);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const gameplayRootRef = useRef(null);
+  const [guidedTargetSlotPosition, setGuidedTargetSlotPosition] = useState(null);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return undefined;
@@ -278,6 +301,7 @@ export default function GameLayout({
 
   return (
     <div
+      ref={gameplayRootRef}
       className={`kx-viewport-lock kronox-gameplay-root flex flex-col ${isDragging ? 'kronox-game-drag-lock' : ''}`}
       data-kronox-gameplay-root="true"
       style={{ background: 'linear-gradient(to bottom, #0B1F3A 0%, #1E3A8A 100%)' }}
@@ -489,8 +513,8 @@ export default function GameLayout({
             <GuidedDragFingerHint
               active={Boolean(guidedDragHintActive && isMyTurn && !isDragging && !feedback && !winner && !interactionPaused)}
               reducedMotion={prefersReducedMotion}
-              targetZoneIndex={guidedDragTargetZone}
-              zoneCount={(currentPlayer?.cards?.length || 0) + 1}
+              targetSlotPosition={guidedTargetSlotPosition}
+              containerRef={gameplayRootRef}
             />
             {isSpectatingQuestion && (
               <div
@@ -539,6 +563,7 @@ export default function GameLayout({
               }
               beginnerPlacementHintZone={beginnerPlacementHintZone}
               guidedTargetZone={guidedDragHintActive ? guidedDragTargetZone : null}
+              onGuidedTargetSlotPosition={guidedDragHintActive ? setGuidedTargetSlotPosition : undefined}
               guidedScrollHintActive={timelineSwipeHintVisible}
               onGuidedScrollHintInteraction={guidedTimelineScrollHintActive ? onTimelineSwipeHintInteraction : undefined}
               correctStreak={correctStreak}

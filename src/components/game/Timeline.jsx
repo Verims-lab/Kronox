@@ -167,6 +167,7 @@ export default function Timeline({
   placementFeedback = null,
   beginnerPlacementHintZone = null,
   guidedTargetZone = null,
+  onGuidedTargetSlotPosition,
   guidedScrollHintActive = false,
   onGuidedScrollHintInteraction,
   correctStreak = 0,
@@ -292,6 +293,42 @@ export default function Timeline({
     frame = requestAnimationFrame(align);
     return () => { if (frame) cancelAnimationFrame(frame); };
   }, [guidedTargetZone, isDragMode, groupedCards.length]);
+
+  // Codex — Report the guided target slot's live viewport-center X/Y so the
+  // tutorial hand (rendered by GameLayout) can move INTO the real correct
+  // slot instead of assuming dead screen-center. Recomputed on scroll +
+  // animation frames while the guided target is active so it stays glued to
+  // the slot even as the auto-scroll above centres it. Tutorial-only and
+  // visual-only — never touches hit-testing (which reads finger coords).
+  useEffect(() => {
+    if (!onGuidedTargetSlotPosition) return undefined;
+    if (guidedTargetZone == null) {
+      onGuidedTargetSlotPosition(null);
+      return undefined;
+    }
+    const scroller = scrollRef.current;
+    if (!scroller) return undefined;
+    let frame = 0;
+    let lastX = null;
+    const report = () => {
+      const target = dropZoneRefs.current[guidedTargetZone];
+      if (target) {
+        const rect = target.getBoundingClientRect();
+        const cx = (rect.left + rect.right) / 2;
+        const cy = (rect.top + rect.bottom) / 2;
+        if (lastX === null || Math.abs(cx - lastX) > 1) {
+          lastX = cx;
+          onGuidedTargetSlotPosition({ centerX: cx, centerY: cy });
+        }
+      }
+      frame = requestAnimationFrame(report);
+    };
+    frame = requestAnimationFrame(report);
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      onGuidedTargetSlotPosition(null);
+    };
+  }, [guidedTargetZone, groupedCards.length, onGuidedTargetSlotPosition]);
 
   // Expose scroll ref to parent (for ghost card offset)
   useEffect(() => {
