@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex447 — Health blocker fix:
+//   • Restores from-primary gameplay token coverage without changing the inline visual gradient.
+//   • Applies kronox-number to GameLayout move/progress numeric surfaces.
+//   • Aligns Health doc mirrors for contract-guard, Online join/start, and visual readiness wording.
+//
 // Codex446 — Health blocker fix:
 //   • Re-pins frontend @base44/sdk exactly to 0.8.34 after main sync.
 //   • Applies kronox-number to the Solo level timer value.
@@ -2541,7 +2546,7 @@ import React, { useEffect, useState } from 'react';
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
 // Verims comment on 25.06.2026
-const BUILD_MARKER = 'Codex446';
+const BUILD_MARKER = 'Codex447';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

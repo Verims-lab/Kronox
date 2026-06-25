@@ -184,8 +184,8 @@ export const HEALTH_GAP_ANALYSIS_DOC = `# Kronox Health Gap Analysis
 
 Status: current Health gap audit.
 
-Health protects product contracts, not full release readiness. Static checks
-cover Online join/start/recovery, invite verified lobby, notification
+Health is a contract guard. It is not release proof. Static checks
+cover 4-player Online lobby join/start/recovery, invite verified lobby, notification
 no-flicker, Solo backend record context, Daily Quest Diamond-only rewards,
 leaderboard username-only payloads, Online category isolation, no raw
 Question.list gameplay fallback, economy idempotency guards, and private
@@ -250,10 +250,11 @@ export const VISUAL_ASSET_READINESS_DOC = `# Kronox Visual Asset Readiness
 
 Status: asset pipeline readiness note.
 
-Kronox can add higher-quality card art, backgrounds, store screenshots,
+Kronox can add higher-quality visual assets without starting a visual redesign:
+card art, backgrounds, store screenshots,
 icons/splash assets, responsive high-density variants, lazy/preload strategy,
-asset naming, fallback behavior, and future CDN/storage planning without a
-full visual redesign. Assets must not include secrets, private identifiers, or
+asset naming, fallback behavior, and future CDN/storage planning. This pass makes
+no full visual redesign. Assets must not include secrets, private identifiers, or
 the full question bank, and must preserve mobile performance.
 `;
 
