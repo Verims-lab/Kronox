@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex442 — Security Pass 1:
+//   • Pins frontend/backend Base44 SDK usage to 0.8.34.
+//   • Removes unused react-markdown dependency and closes raw HTML chart style injection.
+//   • Adds targeted Health/docs for invite privacy, SDK alignment, markdown/XSS, and token URL cleanup.
+//
 // Codex441 — Online player selection expands beyond friends safely:
 //   • Online picker now lists online friends, online non-friends, then offline friends using username + opaque target refs only.
 //   • GameInvite recipient email resolution moved behind backend-owned target functions; public picker payloads never return email.
@@ -2515,7 +2520,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex441';
+const BUILD_MARKER = 'Codex442';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

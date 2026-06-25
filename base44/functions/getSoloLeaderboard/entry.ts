@@ -9,7 +9,7 @@
  * No raw email, notification settings, auth/private profile fields,
  * push/device data, or full User rows leave this function.
  */
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 500;

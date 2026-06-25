@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 
 const GAME_INVITE_TTL_MS = 10 * 60 * 1000;
 const LOBBY_STALE_AFTER_MS = 10 * 60 * 1000;
@@ -236,7 +236,7 @@ Deno.serve(async (req) => {
         createErrors.push({
           target_ref: target.targetRef,
           code: 'create_failed',
-          error: error instanceof Error ? error.message : 'create_failed',
+          error: 'create_failed',
         });
       }
     }
@@ -253,8 +253,7 @@ Deno.serve(async (req) => {
         targetResolution: 'backend_only',
       },
     });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown game invite target error';
-    return json({ ok: false, error: message }, 500);
+  } catch {
+    return json({ ok: false, error: 'Davet hedefleri çözümlenemedi.' }, 500);
   }
 });

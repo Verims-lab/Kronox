@@ -1,5 +1,5 @@
 // Verims comment-2 23.06.2026
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 
 const MAX_ROWS = 500;
 const PENDING_STATUSES = new Set(['pending', 'waiting', 'starting']);

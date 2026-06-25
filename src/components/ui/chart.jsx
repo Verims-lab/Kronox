@@ -10,6 +10,19 @@ const THEMES = {
   dark: ".dark"
 }
 
+const SAFE_CSS_IDENTIFIER_PATTERN = /^[A-Za-z_][A-Za-z0-9_-]*$/
+const SAFE_CSS_COLOR_VALUE_PATTERN = /^(#[0-9A-Fa-f]{3,8}|(?:rgb|rgba|hsl|hsla)\([0-9\s,%.+-]+\)|hsl\(var\(--[A-Za-z0-9_-]+\)\)|var\(--[A-Za-z0-9_-]+\)|[A-Za-z][A-Za-z0-9_-]*)$/
+
+function getSafeCssIdentifier(value) {
+  const text = String(value || "").trim()
+  return SAFE_CSS_IDENTIFIER_PATTERN.test(text) ? text : ""
+}
+
+function getSafeCssColorValue(value) {
+  const text = String(value || "").trim()
+  return SAFE_CSS_COLOR_VALUE_PATTERN.test(text) ? text : ""
+}
+
 const ChartContext = React.createContext(null)
 
 function useChart() {
@@ -24,7 +37,7 @@ function useChart() {
 
 const ChartContainer = React.forwardRef(({ id, className, children, config, ...props }, ref) => {
   const uniqueId = React.useId()
-  const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`
+  const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`.replace(/[^A-Za-z0-9_-]/g, "")
 
   return (
     (<ChartContext.Provider value={{ config }}>
@@ -50,30 +63,33 @@ const ChartStyle = ({
   id,
   config
 }) => {
-  const colorConfig = Object.entries(config).filter(([, config]) => config.theme || config.color)
+  const colorConfig = Object.entries(config || {})
+    .map(([key, itemConfig]) => [getSafeCssIdentifier(key), itemConfig])
+    .filter(([safeKey, itemConfig]) => safeKey && (itemConfig.theme || itemConfig.color))
 
   if (!colorConfig.length) {
     return null
   }
 
-  return (
-    (<style
-      dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(([theme, prefix]) => `
+  const css = Object.entries(THEMES)
+    .map(([theme, prefix]) => `
 ${prefix} [data-chart=${id}] {
 ${colorConfig
 .map(([key, itemConfig]) => {
-const color =
+const color = getSafeCssColorValue(
   itemConfig.theme?.[theme] ||
   itemConfig.color
+)
 return color ? `  --color-${key}: ${color};` : null
 })
+.filter(Boolean)
 .join("\n")}
 }
 `)
-          .join("\n"),
-      }} />)
+    .join("\n")
+
+  return (
+    (<style>{css}</style>)
   );
 }
 

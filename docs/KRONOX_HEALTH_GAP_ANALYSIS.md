@@ -63,6 +63,10 @@ fallback polling/refetch.
   non-friend / offline friend ordering, current-user/unroutable exclusion,
   opaque target refs, backend-only invite recipient resolution, and no
   client-visible recipient email.
+- Added Security Pass 1 coverage for exact Base44 SDK pin/alignment, no
+  `react-markdown`/`rehype-raw` raw HTML markdown path, guarded chart CSS
+  generation without `dangerouslySetInnerHTML`, and Base44 access-token URL
+  cleanup/no-token-logging.
 
 ## Required Coverage Areas
 

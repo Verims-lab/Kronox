@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 
 const HASH_ALGORITHM = 'sha256:kronox_guest_v1';
 const GUEST_ID_PREFIX = 'guest_';

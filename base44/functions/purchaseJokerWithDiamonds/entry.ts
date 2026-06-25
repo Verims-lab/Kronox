@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 
 const JOKER_TYPES = ['mistake_shield', 'card_swap', 'time_freeze'] as const;
 const MARKET_PURCHASE_REASON = 'market_purchase';

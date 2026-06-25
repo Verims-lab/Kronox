@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 
 const STARTER_QUANTITY = 3;
 const JOKER_TYPES = ['mistake_shield', 'card_swap', 'time_freeze'] as const;
