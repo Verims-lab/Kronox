@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex432 — username restore after login/relaunch:
+//   • Hydrates authenticated app/profile state from the saved User row so
+//     username returns with diamonds, level, categories, age, and gender.
+//   • Preserves explicit linked-account username before guest username during
+//     account linking, without using provider display/email as public identity.
+//   • Keeps empty profile username patches from replacing an existing username.
+//
 // Codex431 — Health blocker fixes:
 //   • Aligns Solo record-context Health with the real success popup helper path.
 //   • Locks invite open-to-lobby Health to verified/joined lobby route state.
@@ -2469,7 +2476,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex431';
+const BUILD_MARKER = 'Codex432';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

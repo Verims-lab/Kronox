@@ -13,6 +13,7 @@ import linkGuestAccountSource from '../../../base44/functions/linkGuestAccount/e
 import updateProfileSettingsSource from '../../../base44/functions/updateProfileSettings/entry.ts?raw';
 import guestProfileClientSource from '../../lib/guestProfile.js?raw';
 import profileSettingsClientSource from '../../lib/profileSettings.js?raw';
+import userProfileHydrationSource from '../../lib/userProfileHydration.js?raw';
 import userCategoryPreferencesSource from '../../lib/userCategoryPreferences.js?raw';
 import authContextSource from '../../lib/AuthContext.jsx?raw';
 import leaderboardSource from '../../lib/leaderboard.js?raw';
@@ -27,6 +28,7 @@ import mainMenuSource from '../../pages/MainMenu.jsx?raw';
 import profilePageSource from '../../pages/ProfilePage.jsx?raw';
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
 import playerSetupSource from '../../pages/PlayerSetup.jsx?raw';
+import { mergeAuthenticatedUserProfile } from '../../lib/userProfileHydration';
 
 const STATUS = {
   PASS: 'PASS',
@@ -465,6 +467,62 @@ export const EXTRA_TESTS = [
       }
       return pass('Guest and linked leaderboard rows use username-only public identity and keep owner_key/provider ids internal.', {
         verification: 'STATIC_CONTRACT',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('logged_in_username_restored_after_relaunch',
+    'Logged-in relaunch hydrates saved username instead of provider/display fallback',
+    () => {
+      const restored = mergeAuthenticatedUserProfile(
+        { email: 'ada@example.com', display_name: 'Ada Provider' },
+        { email: 'ada@example.com', username: 'KronoxAda', gender: 'female' },
+      );
+      const storedWins = mergeAuthenticatedUserProfile(
+        { email: 'ada@example.com', username: 'AuthName' },
+        { email: 'ada@example.com', username: 'SavedName' },
+      );
+      const providerUsernameIgnored = mergeAuthenticatedUserProfile(
+        { email: 'ada@example.com', username: 'ada@example.com', display_name: 'Ada Provider' },
+        { email: 'ada@example.com' },
+      );
+      const missing = missingTokens(`${authContextSource}\n${profilePageSource}\n${userProfileHydrationSource}\n${linkGuestAccountSource}\n${updateProfileSettingsSource}\n${leaderboardSource}`, [
+        'hydrateAuthenticatedUserProfile',
+        'mergeAuthenticatedUserProfile',
+        'selectStoredUserProfile',
+        'normalizeSafePublicUsernameInput',
+        'chooseLinkedAccountUsername',
+        'explicitLinkedUserUsername',
+        'explicitGuestUsername',
+        'usernameMergeSource',
+        'usernamePreservesExistingWhenEmpty',
+        'getSafeLeaderboardName',
+      ]);
+      const leakedProviderUsername = String(providerUsernameIgnored?.username || '').includes('@');
+      const behaviorFailed = restored?.username !== 'KronoxAda' ||
+        storedWins?.username !== 'SavedName' ||
+        leakedProviderUsername;
+      if (missing.length || behaviorFailed) {
+        return fail('Logged-in username restore/link/profile-save contract is not fully locked.', {
+          verification: 'STATIC_AND_HELPER_CONTRACT',
+          files: [
+            'src/lib/userProfileHydration.js',
+            'src/lib/AuthContext.jsx',
+            'src/pages/ProfilePage.jsx',
+            'base44/functions/linkGuestAccount/entry.ts',
+            'base44/functions/updateProfileSettings/entry.ts',
+          ],
+          actual: {
+            missing,
+            restoredUsername: restored?.username || '',
+            storedWinsUsername: storedWins?.username || '',
+            leakedProviderUsername,
+          },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Authenticated relaunch/profile loads hydrate the saved User.username, account linking preserves username precedence, and provider identity is not a username source.', {
+        verification: 'STATIC_AND_HELPER_CONTRACT',
         actionType: ACTION_TYPES.CODE_FIX,
       });
     }),

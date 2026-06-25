@@ -6,6 +6,7 @@ import { clearJokerInventoryCache, ensureStarterJokers, normalizeJokerEmail } fr
 import { applyUserProgressResetMarker } from '@/lib/progressResetCache';
 import { ensureGuestProfile, linkPendingGuestAccount, repairGuestOnboardingCompletionIfNeeded } from '@/lib/guestProfile';
 import { readSoloProgress } from '@/lib/soloLevels';
+import { hydrateAuthenticatedUserProfile } from '@/lib/userProfileHydration';
 
 const AuthContext = createContext();
 
@@ -92,6 +93,7 @@ export const AuthProvider = ({ children }) => {
 
       if (currentUser?.email) {
         setGuestProfile(null);
+        currentUser = await hydrateAuthenticatedUserProfile(base44, currentUser);
         applyUserProgressResetMarker(currentUser);
         const economyKey = `${String(currentUser.email).trim().toLowerCase()}:${getDiamondDailyKey()}`;
         if (economyEnsureKeyRef.current !== economyKey) {
@@ -103,7 +105,9 @@ export const AuthProvider = ({ children }) => {
                 });
             }
             const economy = await economyEnsurePromiseRef.current;
-            if (economy?.user) currentUser = economy.user;
+            if (economy?.user) {
+              currentUser = await hydrateAuthenticatedUserProfile(base44, economy.user);
+            }
             if (economy?.ok !== false) economyEnsureKeyRef.current = economyKey;
           } catch (economyError) {
             console.warn('[diamondEconomy] bootstrap grant skipped:', economyError?.message || economyError);
@@ -128,7 +132,7 @@ export const AuthProvider = ({ children }) => {
           const guestProgressSnapshot = readSoloProgress(null);
           const linkResult = await linkPendingGuestAccount({ soloProgress: guestProgressSnapshot });
           if (linkResult?.user) {
-            currentUser = linkResult.user;
+            currentUser = await hydrateAuthenticatedUserProfile(base44, linkResult.user);
             applyUserProgressResetMarker(currentUser);
           }
         } catch (linkError) {
@@ -136,8 +140,10 @@ export const AuthProvider = ({ children }) => {
             reason: String(linkError?.code || linkError?.message || 'account_link_failed').slice(0, 120),
           });
         }
+        currentUser = await hydrateAuthenticatedUserProfile(base44, currentUser);
         setAdminStatus(makePendingAdminStatus(currentUser));
         currentUser = await withAdminStatus(currentUser, { onStatus: setAdminStatus });
+        currentUser = await hydrateAuthenticatedUserProfile(base44, currentUser);
       } else {
         setAdminStatus(makePendingAdminStatus(currentUser));
         currentGuestProfile = await ensureGuestProfile().catch((guestError) => {

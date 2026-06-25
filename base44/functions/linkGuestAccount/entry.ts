@@ -148,6 +148,19 @@ function cleanPublicName(value: unknown, fallbackSeed = '') {
     : makeFallbackUsername(fallbackSeed);
 }
 
+function explicitPublicUsername(value: unknown) {
+  const explicitName = String(value || '').replace(/\s+/g, ' ').trim();
+  return isSafePublicUsername(explicitName) ? explicitName : '';
+}
+
+function chooseLinkedAccountUsername(user: any, guest: any) {
+  const explicitLinkedUserUsername = explicitPublicUsername(user?.username);
+  if (explicitLinkedUserUsername) return { username: explicitLinkedUserUsername, source: 'linked_user' };
+  const explicitGuestUsername = explicitPublicUsername(guest?.username);
+  if (explicitGuestUsername) return { username: explicitGuestUsername, source: 'guest_profile' };
+  return { username: '', source: 'missing' };
+}
+
 function initialFromName(value: string) {
   return cleanPublicName(value).charAt(0).toLocaleUpperCase('tr-TR') || 'K';
 }
@@ -862,7 +875,10 @@ Deno.serve(async (req: Request) => {
     const linkedGuestIds = Array.isArray(user?.linked_guest_ids) ? user.linked_guest_ids.map(String) : [];
     const guestAlreadyLinkedToThisUser = String(guest?.status || '') === 'linked' && linkedEmail === email;
     const additiveAllowed = !guestAlreadyLinkedToThisUser && !linkedGuestIds.includes(guestId);
-    const username = await resolveUniqueUsername(base44, guest?.username || user?.username || guestId, email, guestId);
+    const usernameChoice = chooseLinkedAccountUsername(user, guest);
+    const username = usernameChoice.username
+      ? await resolveUniqueUsername(base44, usernameChoice.username, email, guestId)
+      : '';
     const displayName = username;
     const userProfileUpdatedAt = user?.profile_settings_updated_at || user?.updated_at || user?.updated_date || user?.created_date;
     const guestProfileUpdatedAt = guest?.profile_settings_updated_at || guest?.profile_setup_completed_at || guest?.updated_at || guest?.created_at || guest?.created_date;
@@ -918,14 +934,17 @@ Deno.serve(async (req: Request) => {
       quest: { merged: 0, updated: 0, skipped: 0, failed: true },
     }));
     const nextLinkedGuestIds = Array.from(new Set([...linkedGuestIds, guestId]));
+    const identityPatch = username ? {
+      username,
+      username_normalized: normalizeUsernameKey(username),
+      display_name: displayName,
+    } : {};
     const userPatch = {
       solo_progress: mergedSoloProgress,
       online_progress: mergedOnlineProgress,
       kronox_puan_total: bestTotalScore,
       diamonds: diamondBalance,
-      username,
-      username_normalized: normalizeUsernameKey(username),
-      display_name: displayName,
+      ...identityPatch,
       age: mergedAge,
       gender: mergedGender,
       profile_settings_updated_at: nowIso(),
@@ -937,7 +956,9 @@ Deno.serve(async (req: Request) => {
       ...dailyRewardPatch,
     };
     const updatedUser = await updateCurrentUser(base44, user, userPatch);
-    const leaderboard = await upsertLeaderboard(base44, email, guestId, displayName, mergedSoloProgress, mergedOnlineProgress, bestTotalScore);
+    const leaderboard = username
+      ? await upsertLeaderboard(base44, email, guestId, displayName, mergedSoloProgress, mergedOnlineProgress, bestTotalScore)
+      : { updated: false, guestPassivated: false, usernameMissingRequiresProfileSetup: true };
     const exposureMerge = await mergePlayerQuestionExposureRows(base44, email, guestId).catch(() => ({
       mergedExposureRows: 0,
       mergedDailyRows: 0,
@@ -959,7 +980,9 @@ Deno.serve(async (req: Request) => {
       dailyQuestHistoryMerged: dailyRewardHistory.quest.merged,
       dailyQuestHistoryUpdated: dailyRewardHistory.quest.updated,
       dailyRewardSameDayGuardsPreserved: Object.keys(dailyRewardPatch).length > 0,
-      usernameDisplayApplied: true,
+      usernameDisplayApplied: Boolean(username),
+      usernameMergeSource: usernameChoice.source,
+      usernameMissingRequiresProfileSetup: !username,
       additiveMergeApplied: additiveAllowed,
     };
 
@@ -1011,6 +1034,7 @@ Deno.serve(async (req: Request) => {
         mergeIdempotent: true,
         guestStatusLinkedOnce: true,
         usernameFirstLeaderboardIdentity: true,
+        usernameMergeRule: 'linked_user_username_wins_else_guest_username',
         providerIdsDisplayedInLeaderboard: false,
       },
     });
