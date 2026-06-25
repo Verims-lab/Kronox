@@ -1,6 +1,5 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import KronoxLoadingVideo from '@/components/loading/KronoxLoadingVideo';
 
 export default function SplashScreen() {
   return (
@@ -17,9 +16,13 @@ export default function SplashScreen() {
         paddingBottom: 'env(safe-area-inset-bottom)',
       }}
     >
-      {/* Transparent container — the dark gradient stays visible behind the
-          centered Kronox loading animation. No opaque block, no yellow. */}
-      <KronoxLoadingVideo maxWidthClassName="max-w-[82vw]" style={{ maxHeight: '60vh' }} />
+      <span
+        className="block h-12 w-12 animate-spin rounded-full"
+        style={{
+          border: '3px solid rgba(148,163,184,0.25)',
+          borderTopColor: 'rgba(148,163,184,0.85)',
+        }}
+      />
     </motion.div>
   );
 }
