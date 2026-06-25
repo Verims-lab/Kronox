@@ -337,8 +337,13 @@ Current Online flow:
 3. Host selects categories.
 4. Selected categories are stored as live `category_id` values.
 5. Lobby is created or joined.
-6. `startLobbyGame` builds one shared authoritative deck.
-7. Game reads the persisted shared Online deck.
+6. Invite/code joins are idempotent and merge into the shared lobby roster.
+7. `startLobbyGame` reconciles accepted invitees, then builds one shared
+   authoritative deck/current question for the final participant list.
+8. All participants enter the same `/game?online=1&lobbyId=...` session from
+   realtime status updates or the waiting-room poll fallback.
+9. Game reads/refetches the persisted shared Online deck if route state or a
+   missed realtime event arrives before the full payload is visible.
 
 Online question rules:
 

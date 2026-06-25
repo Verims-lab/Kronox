@@ -51,7 +51,7 @@ export default function OnlineGameBootstrapFallback({
     if (busy) return;
     setBusy(true);
     try {
-      if (!hasLobbyData && canRetryLobby) {
+      if (canRetryLobby) {
         await onRefetchLobby?.();
       }
       if (canRetryQuestions) {

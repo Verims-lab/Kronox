@@ -408,9 +408,18 @@ Primary flow:
 
 * `OnlineChallengeScreen` loads category metadata
 * host selected categories become `Lobby.selected_category_ids`
+* invite/code join functions merge players by identity and retry after
+  concurrent roster writes
 * `startLobbyGame` validates host/participants/settings server-side
-* `startLobbyGame` builds and persists `online_question_deck`
-* Game reads persisted shared deck
+* `startLobbyGame` reconciles accepted invite recipients into the final roster
+  before assigning opening cards
+* `startLobbyGame` builds and persists `online_question_deck`,
+  `current_question_id`, `players`, `started_at`, and `state_revision` in one
+  authoritative start write; repeated starts return the existing started lobby
+  once that payload exists
+* waiting-room clients transition through realtime subscription or fallback
+  polling, and Game can refetch the current Lobby if a route snapshot is
+  partial
 
 Online deck contract:
 

@@ -110,6 +110,9 @@ import * as inviteTimezoneCases from './simulationPanelInviteTimezoneCases';
 // Codex140 — GameInvite "Aç" regression: successful accept must open the
 // lobby/waiting room; fresh lobby timestamps must not be parsed as stale.
 import * as gameInviteOpenToLobbyCases from './simulationPanelGameInviteOpenToLobbyCases';
+// Online 4-player lobby start regression: merge/retry joins, accepted-invite
+// reconciliation, idempotent start, and missed-realtime recovery.
+import * as onlineLobbyStartCases from './simulationPanelOnlineLobbyStartCases';
 // Codex139 — DB/Data Model hardening:
 // schema docs, Solo localStorage scoping, leaderboard projection drift,
 // OnlineMatchResult idempotency, cleanup/retention, and RLS probe matrix.
@@ -236,6 +239,7 @@ const MODULES = [
   scoringContractCases,
   inviteTimezoneCases,
   gameInviteOpenToLobbyCases,
+  onlineLobbyStartCases,
   dataModelCases,
   onlineScoreCompletionCases,
   onlineScoreVisiblePuanCases,
