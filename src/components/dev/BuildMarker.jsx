@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex449 — Health blocker fix:
+//   • Re-pins frontend @base44/sdk exactly to 0.8.34 after main sync.
+//   • Keeps package-lock root dependency exact while Base44 functions remain on npm:@base44/sdk@0.8.34.
+//
 // Codex447 — Health blocker fix:
 //   • Restores from-primary gameplay token coverage without changing the inline visual gradient.
 //   • Applies kronox-number to GameLayout move/progress numeric surfaces.
@@ -2546,7 +2550,7 @@ import React, { useEffect, useState } from 'react';
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
 // Verims comment on 25.06.2026
-const BUILD_MARKER = 'Codex448';
+const BUILD_MARKER = 'Codex449';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
