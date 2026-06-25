@@ -54,6 +54,7 @@ function json(body: unknown, status = 200) {
   return Response.json(body, { status });
 }
 
+
 function normalizeAdminAuthEmail(value: unknown) {
   return String(value || '').trim().toLowerCase();
 }
