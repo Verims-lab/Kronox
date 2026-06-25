@@ -30,7 +30,7 @@ and exports must use username-safe or anonymized labels.
 | Question difficulty quality | Partial | question metadata + attempt correctness | denominator by active pool | question bank | Admin-only aggregate by category/difficulty | Yes |
 | Correct/wrong distribution | Good partial | `QuestionAttemptEvent` | answer option diagnostics if needed | question text/years | Admin-only aggregate tables | Yes |
 | Online lobby created/joined/started/abandoned | Partial | `Lobby`, `GameInvite`, `LobbyMatchStats` | lifecycle event log | player identity | Add `OnlineLobbyEvent` with public-safe actor hash | Yes |
-| Invite sent/accepted/expired | Good partial | `GameInvite`, cleanup functions | notification channel/source | email/to/from leakage | Aggregate by status and day; keep email private | Yes |
+| Invite sent/accepted/expired | Good partial | `GameInvite`, `createGameInvitesForTargets`, cleanup functions | notification channel/source | email/to/from leakage | Aggregate by status, day, and safe recipient_relation/source; keep email private | Yes |
 | Notification shown/accepted/dismissed | Partial | UI only plus push subscription | durable shown/dismissed event | notification payload identity | Add compact `NotificationLifecycleEvent` if needed | Yes |
 | Device/platform split | Weak | user agent/browser only if captured ad hoc | platform/device class | fingerprinting | Store coarse platform only with privacy note | Yes |
 | Retention cohorts | Weak partial | creation dates plus progress | session/open events | identity | Add daily active aggregate, avoid raw device IDs | Yes |
@@ -52,6 +52,9 @@ and exports must use username-safe or anonymized labels.
 - Solo progress stores best/current state, not every attempt.
 - Online lobby lifecycle is reconstructed from current `Lobby`/`GameInvite`
   rows instead of append-only events.
+- Online player selection now records safe invite source/relation metadata on
+  `GameInvite`, but it is still a lifecycle row, not an append-only reporting
+  event stream.
 - Notification shown/dismissed behavior is mostly UI state, not reporting data.
 - DB unique/index proof is not present in repo for several idempotency keys.
 - Coarse device/platform reporting is not defined.
@@ -71,6 +74,22 @@ These can be added later without changing existing product behavior:
 
 All actor identifiers should be internal hashes or opaque IDs, not public
 emails, provider IDs, raw guest IDs, or owner keys in UI/exported reports.
+
+## Online Player Selection / Invite Reporting Phase 1
+
+Phase 1 does not add a broad invite analytics table. It adds small
+backend-owned foundations to existing invite rows:
+
+- `GameInvite.invite_target_ref`: opaque target ref used during backend invite
+  creation; never displayed in UI.
+- `GameInvite.recipient_relation`: `friend` / `not_friend` / `unknown` at
+  creation time.
+- `GameInvite.created_source`: for example `online_player_selection` or
+  `legacy_friend_email`.
+
+Public reports may aggregate by day/status/relation/source. They must not
+export `from_email`, `to_email`, `user_email`, raw `target_ref`, provider ID,
+owner_key, raw guest_id, internal player_key, or full question data.
 
 ## SoloLevelAttemptEvent Phase 1 Contract
 

@@ -20,7 +20,7 @@
     },
     "to_email": {
       "type": "string",
-      "description": "Lowercased email of the invited friend"
+      "description": "Lowercased email of the invited recipient. For Online player selection this is resolved backend-side from an opaque target_ref and never returned by the picker."
     },
     "to_name": {
       "type": "string",
@@ -48,6 +48,24 @@
     "player_count": {
       "type": "number",
       "description": "Intended total players for the invited game (2/3/4)"
+    },
+    "invite_target_ref": {
+      "type": "string",
+      "description": "Opaque presence/player-selection target ref used by backend-owned invite creation. Not displayed in public UI."
+    },
+    "recipient_relation": {
+      "type": "string",
+      "enum": [
+        "friend",
+        "not_friend",
+        "unknown"
+      ],
+      "default": "unknown",
+      "description": "Relationship class at invite creation time for reporting/debugging. Not an authorization source."
+    },
+    "created_source": {
+      "type": "string",
+      "description": "Invite creation source, for example online_player_selection or legacy_friend_email."
     },
     "created_at": {
       "type": "string",

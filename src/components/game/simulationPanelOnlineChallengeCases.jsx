@@ -2,10 +2,10 @@
 //
 // SCOPE
 //   Lock the new simplified Online Challenge flow in place:
-//     • Online ana ekran → kategori carousel + arkadaş popup + CTA
-//     • "Meydan Okumaya Başla" disabled until ≥1 friend selected
+//     • Online ana ekran → kategori carousel + oyuncu popup + CTA
+//     • "Meydan Okumaya Başla" disabled until ≥1 player selected
 //     • Tapping CTA opens the lobby DIRECTLY (no extra friend-select page)
-//     • Email invite input REMOVED from this flow (popup uses friend list)
+//     • Email invite input REMOVED from this flow (popup uses opaque target refs)
 //     • BottomNav visible on the Online selection screen
 //     • Old separate friend-select page (CreateLobbyInvitePanel) no longer
 //       referenced from the active LobbyRoom flow.
@@ -65,9 +65,9 @@ export const EXTRA_SUITES = [
 ];
 
 export const EXTRA_TESTS = [
-  /* 1. Online ekran popup ile arkadaş seçer, ayrı sayfa AÇILMAZ. */
+  /* 1. Online ekran popup ile oyuncu seçer, ayrı sayfa AÇILMAZ. */
   makeCase('online_challenge_flow', 'online_uses_popup_friend_selection',
-    'Online challenge screen uses a popup (FriendSelectModal) for friend selection — no separate friend page route',
+    'Online challenge screen uses a popup (FriendSelectModal) for player selection — no separate friend page route',
     () => {
       const required = missingTokens(onlineChallengeScreenSource, [
         'FriendSelectModal',
@@ -78,7 +78,7 @@ export const EXTRA_TESTS = [
         'OnlineChallengeScreen',
       ]);
       if (required.length || lobbyMustImportNewScreen.length) {
-        return fail('Online screen is not wired to the popup-based friend selection.', {
+        return fail('Online screen is not wired to the popup-based player selection.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'OnlineChallengeScreen.jsx / LobbyRoom.jsx',
@@ -87,18 +87,18 @@ export const EXTRA_TESTS = [
           actual: { required, lobbyMustImportNewScreen },
         });
       }
-      return pass('Online screen routes through popup friend selection.',
+      return pass('Online screen routes through popup player selection.',
         { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION' });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 2. Challenge butonu en az 1 arkadaş seçimine kadar disabled. */
+  /* 2. Challenge butonu en az 1 oyuncu seçimine kadar disabled. */
   makeCase('online_challenge_flow', 'challenge_cta_disabled_until_friend_selected',
-    '"Meydan Okumaya Başla" CTA is disabled until at least one friend is selected',
+    '"Meydan Okumaya Başla" CTA is disabled until at least one player is selected',
     () => {
       const required = missingTokens(onlineChallengeScreenSource, [
         'ctaDisabled',
-        'selectedEmails.length === 0',
+        'inviteTargets.length === 0',
         'disabled={ctaDisabled}',
       ]);
       if (required.length) {
@@ -107,7 +107,7 @@ export const EXTRA_TESTS = [
           classification: 'REAL_PRODUCT_RISK',
           file: 'OnlineChallengeScreen.jsx',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'CTA disabled when selectedEmails.length === 0',
+          expected: 'CTA disabled when inviteTargets.length === 0',
           actual: { required },
         });
       }
@@ -118,12 +118,12 @@ export const EXTRA_TESTS = [
 
   /* 3. CTA bastığında DİREKT lobi açılır — ayrı arkadaş seçim ekranı YOK. */
   makeCase('online_challenge_flow', 'challenge_opens_lobby_directly',
-    'Tapping the CTA invokes handleCreate directly with { invitedEmails, selectedCategories } — no extra screen',
+    'Tapping the CTA invokes handleCreate directly with { inviteTargets, selectedCategories } — no extra screen',
     () => {
       const required = missingTokens(lobbyRoomSource, [
-        'onStartChallenge={({ selectedCategories, selectedEmails })',
+        'onStartChallenge={({ selectedCategories, inviteTargets })',
         'handleCreate({',
-        'invitedEmails',
+        'inviteTargets',
         'selectedCategories',
       ]);
       // The old CreateLobbyInvitePanel must NOT appear in active LobbyRoom flow.
@@ -148,7 +148,7 @@ export const EXTRA_TESTS = [
 
   /* 4. Mail ile davet etme alanı YOK. */
   makeCase('online_challenge_flow', 'no_email_invite_input_in_online_flow',
-    'Email invite text input is removed from the online challenge screen and the friend modal',
+    'Email invite text input is removed from the online challenge screen and the player modal',
     () => {
       // Look for typical email-input markers on the new flow surfaces.
       const forbiddenOnScreen = forbiddenTokensFound(onlineChallengeScreenSource, [
@@ -181,7 +181,7 @@ export const EXTRA_TESTS = [
         'prev.length >= MAX_SELECTION',
       ]);
       if (required.length) {
-        return fail('Friend modal does not enforce the 3-friend cap.', {
+        return fail('Friend modal does not enforce the 3-player cap.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'FriendSelectModal.jsx',
@@ -190,7 +190,7 @@ export const EXTRA_TESTS = [
           actual: { required },
         });
       }
-      return pass('Friend modal enforces the 3-friend cap.',
+      return pass('Friend modal enforces the 3-player cap.',
         { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION' });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
@@ -303,11 +303,11 @@ export const EXTRA_TESTS = [
 
   /* 10. Davet altyapısı korunuyor — handleCreate hâlâ createGameInvites çağırıyor. */
   makeCase('online_challenge_flow', 'invite_infrastructure_preserved',
-    'Lobby creation still triggers createGameInvites for selected friends — invite backend wiring is unchanged',
+    'Lobby creation still triggers createGameInvites for selected invite targets — invite backend wiring is preserved',
     () => {
       const required = missingTokens(lobbyRoomSource, [
         'createGameInvites',
-        'invitedEmails',
+        'inviteTargets',
         'await createGameInvites',
       ]);
       if (required.length) {
@@ -316,7 +316,7 @@ export const EXTRA_TESTS = [
           classification: 'REAL_PRODUCT_RISK',
           file: 'pages/LobbyRoom.jsx',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'createGameInvites still invoked with invitedEmails',
+          expected: 'createGameInvites still invoked with inviteTargets',
           actual: { required },
         });
       }

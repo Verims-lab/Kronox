@@ -2,61 +2,64 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Check, UserRound, UserPlus, AlertCircle, ChevronDown, Swords } from 'lucide-react';
 import { sounds } from '@/lib/gameSounds';
-import { loadFriends, normalizeEmail } from '@/lib/friendsApi';
-import { getSafeFriendDisplayName } from '@/lib/publicIdentity';
-import useFriendPresence from '@/hooks/useFriendPresence';
+import {
+  loadOnlinePlayerSelection,
+  ONLINE_PLAYER_SELECTION_GROUPS,
+} from '@/lib/onlinePlayerSelection';
 
 /**
  * Kronox Online — Friend Select Modal (Codex159 redesign).
  *
  * Matches the target design (Attachment 3):
  *   • Premium dark-fantasy popup framed by gold ring.
- *   • Header: "ARKADAŞ SEÇ" with people icon + subtitle.
- *   • A dropdown-style filter chip with "Arkadaş seç..." label, then
- *     the actual list of friends underneath.
- *   • Each row: small online status dot + avatar + name + online/offline
- *     text + a square gold checkbox on the right.
+ *   • Header: "OYUNCU SEÇ" with people icon + subtitle.
+ *   • A dropdown-style filter chip with "Oyuncu seç..." label, then
+ *     the actual list underneath.
+ *   • Rows are ordered as online friends, online non-friends, offline friends.
+ *   • Each row: small real presence dot + avatar + username + status/relation
+ *     labels + a square gold checkbox on the right.
  *   • Bottom CTA: "ONAYLA" with crossed swords accent (gold, glowing).
  *
  * Selection rules:
- *   - Minimum 1 friend required to enable "ONAYLA".
- *   - Maximum 3 friends; extra taps are silent no-ops.
+ *   - Minimum 1 player required to enable "ONAYLA".
+ *   - Maximum 3 players; extra taps are silent no-ops.
  *
- * Online status comes from the relationship-scoped presence helper. Presence
- * is visual only and does not affect selection eligibility.
+ * Selection stores opaque backend target refs, never recipient emails.
  */
 const MAX_SELECTION = 3;
+const GROUP_LABELS = {
+  [ONLINE_PLAYER_SELECTION_GROUPS.ONLINE_FRIEND]: 'Çevrimiçi Arkadaşlar',
+  [ONLINE_PLAYER_SELECTION_GROUPS.ONLINE_NON_FRIEND]: 'Çevrimiçi Oyuncular',
+  [ONLINE_PLAYER_SELECTION_GROUPS.OFFLINE_FRIEND]: 'Çevrim Dışı Arkadaşlar',
+};
 
 export default function FriendSelectModal({
   open,
   onClose,
   user,
-  initialSelectedEmails = [],
+  initialSelectedTargets = [],
   onConfirm,
   onGoFriends,
 }) {
-  const [selected, setSelected] = useState(initialSelectedEmails);
-  const [friends, setFriends] = useState([]);
+  const [selected, setSelected] = useState(initialSelectedTargets);
+  const [players, setPlayers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const {
-    getPresenceForFriend,
-  } = useFriendPresence(friends, { enabled: open && Boolean(user?.email) });
 
   useEffect(() => {
-    if (open) setSelected(initialSelectedEmails);
+    if (open) setSelected(initialSelectedTargets);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   useEffect(() => {
     if (!open) return undefined;
-    if (!user?.email) { setFriends([]); return undefined; }
+    if (!user?.email) { setPlayers([]); return undefined; }
     let cancelled = false;
     setLoading(true);
     setError('');
-    loadFriends(user.email)
-      .then((rows) => { if (!cancelled) setFriends(rows || []); })
-      .catch((err) => { if (!cancelled) setError(err?.message || 'Arkadaşlar yüklenemedi.'); })
+    loadOnlinePlayerSelection()
+      .then((rows) => { if (!cancelled) setPlayers(rows || []); })
+      .catch((err) => { if (!cancelled) setError(err?.message || 'Oyuncular yüklenemedi.'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [open, user?.email]);
@@ -68,20 +71,19 @@ export default function FriendSelectModal({
     return () => { document.body.style.overflow = prev; };
   }, [open]);
 
-  const toggle = (emailRaw) => {
-    const email = normalizeEmail(emailRaw);
-    if (!email) return;
+  const toggle = (targetRef) => {
+    if (!targetRef) return;
     setSelected((prev) => {
-      if (prev.includes(email)) {
+      if (prev.includes(targetRef)) {
         sounds.tick();
-        return prev.filter((e) => e !== email);
+        return prev.filter((ref) => ref !== targetRef);
       }
       if (prev.length >= MAX_SELECTION) {
         sounds.tick();
         return prev; // silent cap at 3
       }
       sounds.tap();
-      return [...prev, email];
+      return [...prev, targetRef];
     });
   };
 
@@ -146,10 +148,10 @@ export default function FriendSelectModal({
                   letterSpacing: '0.20em',
                 }}
               >
-                ARKADAŞ SEÇ
+                OYUNCU SEÇ
               </p>
               <p className="mt-1 font-inter text-[12px] text-blue-100/70 leading-snug">
-                Meydan okumak istediğin<br />arkadaşını seç
+                Arkadaşlarını ve çevrimiçi<br />oyuncuları seç.
               </p>
               <div className="mt-2 flex justify-center">
                 <span
@@ -173,7 +175,7 @@ export default function FriendSelectModal({
                   boxShadow: 'inset 0 0 0 1px rgba(120,170,255,0.30)',
                 }}
               >
-                <span className="font-inter text-[13px] text-blue-100/70">Arkadaş seç...</span>
+                <span className="font-inter text-[13px] text-blue-100/70">Oyuncu seç...</span>
                 <ChevronDown className="h-4 w-4 text-blue-100/60" strokeWidth={2.4} />
               </div>
             </div>
@@ -187,26 +189,14 @@ export default function FriendSelectModal({
                 <FriendsSkeleton />
               ) : error ? (
                 <ErrorHint text={error} />
-              ) : friends.length === 0 ? (
-                <EmptyFriends onGoFriends={onGoFriends} onClose={onClose} />
+              ) : players.length === 0 ? (
+                <EmptyPlayers onGoFriends={onGoFriends} onClose={onClose} />
               ) : (
-                <ul className="divide-y divide-white/5">
-                  {friends.map((f) => {
-                    const email = normalizeEmail(f.friend_email);
-                    const isSelected = selected.includes(email);
-                    const capped = !isSelected && selected.length >= MAX_SELECTION;
-                    return (
-                      <FriendRow
-                        key={f.id}
-                        friend={f}
-                        presence={getPresenceForFriend(f)}
-                        selected={isSelected}
-                        capped={capped}
-                        onToggle={() => toggle(email)}
-                      />
-                    );
-                  })}
-                </ul>
+                <GroupedPlayerList
+                  players={players}
+                  selected={selected}
+                  onToggle={toggle}
+                />
               )}
             </div>
 
@@ -243,8 +233,8 @@ export default function FriendSelectModal({
               <p className="mt-2 text-center font-inter text-[11px]"
                 style={{ color: !confirmEnabled ? 'rgba(252,211,77,0.85)' : 'rgba(207,224,255,0.55)' }}>
                 {!confirmEnabled
-                  ? 'En az 1 arkadaş seçmelisin.'
-                  : `${selected.length} arkadaş seçildi`}
+                  ? 'En az 1 oyuncu seçmelisin.'
+                  : `${selected.length} oyuncu seçildi`}
               </p>
             </div>
           </motion.div>
@@ -256,10 +246,43 @@ export default function FriendSelectModal({
 
 /* ----------------------------- Sub-views ----------------------------- */
 
-function FriendRow({ friend, presence, selected, capped, onToggle }) {
-  const display = getSafeFriendDisplayName(friend);
+function GroupedPlayerList({ players, selected, onToggle }) {
+  return (
+    <div className="space-y-3">
+      {Object.values(ONLINE_PLAYER_SELECTION_GROUPS).map((group) => {
+        const rows = players.filter((player) => player.group === group);
+        if (!rows.length) return null;
+        return (
+          <section key={group}>
+            <p className="px-1 pb-1 font-inter text-[10px] font-black uppercase tracking-[0.18em] text-blue-100/55">
+              {GROUP_LABELS[group]}
+            </p>
+            <ul className="divide-y divide-white/5">
+              {rows.map((player) => {
+                const isSelected = selected.includes(player.target_ref);
+                const capped = !isSelected && selected.length >= MAX_SELECTION;
+                return (
+                  <PlayerRow
+                    key={player.target_ref}
+                    player={player}
+                    selected={isSelected}
+                    capped={capped}
+                    onToggle={() => onToggle(player.target_ref)}
+                  />
+                );
+              })}
+            </ul>
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+function PlayerRow({ player, selected, capped, onToggle }) {
+  const display = player?.username || player?.display_name || 'Oyuncu';
   const initial = (display || '?').charAt(0).toUpperCase();
-  const isOnline = Boolean(presence?.online);
+  const isOnline = Boolean(player?.online);
 
   return (
     <li>
@@ -276,8 +299,8 @@ function FriendRow({ friend, presence, selected, capped, onToggle }) {
           className="shrink-0 rounded-full"
           style={{
             width: 7, height: 7,
-            background: isOnline ? '#22c55e' : 'rgba(148,163,184,0.6)',
-            boxShadow: isOnline ? '0 0 6px rgba(34,197,94,0.65)' : 'none',
+            background: isOnline ? '#22c55e' : '#ef4444',
+            boxShadow: isOnline ? '0 0 6px rgba(34,197,94,0.65)' : '0 0 6px rgba(239,68,68,0.38)',
           }}
         />
 
@@ -299,9 +322,15 @@ function FriendRow({ friend, presence, selected, capped, onToggle }) {
         {/* Name + status text */}
         <div className="min-w-0 flex-1">
           <p className="truncate font-inter text-[14px] font-bold text-white">{display}</p>
-          <p className="truncate font-inter text-[11px]" style={{ color: isOnline ? '#34d399' : 'rgba(148,163,184,0.85)' }}>
-            {presence?.label || 'Çevrim dışı'}
-          </p>
+          <div className="flex min-w-0 items-center gap-2">
+            <p className="truncate font-inter text-[11px]" style={{ color: isOnline ? '#34d399' : '#f87171' }}>
+              {player?.status_label || (isOnline ? 'Çevrimiçi' : 'Çevrim dışı')}
+            </p>
+            <span className="shrink-0 rounded-full px-1.5 py-0.5 font-inter text-[9px] font-black uppercase tracking-wider text-blue-100/75"
+              style={{ boxShadow: 'inset 0 0 0 1px rgba(120,170,255,0.25)' }}>
+              {player?.badge_label || (player?.relation === 'friend' ? 'Arkadaş' : 'Oyuncu')}
+            </span>
+          </div>
         </div>
 
         {/* Square gold checkbox */}
@@ -341,7 +370,7 @@ function FriendsSkeleton() {
   );
 }
 
-function EmptyFriends({ onGoFriends, onClose }) {
+function EmptyPlayers({ onGoFriends, onClose }) {
   return (
     <div
       className="rounded-2xl px-4 py-5 text-center my-2"
@@ -351,9 +380,9 @@ function EmptyFriends({ onGoFriends, onClose }) {
       }}
     >
       <UserPlus className="mx-auto h-7 w-7 text-amber-300" />
-      <p className="mt-2 font-cinzel text-base tracking-wider text-white">Henüz arkadaşın yok</p>
+      <p className="mt-2 font-cinzel text-base tracking-wider text-white">Oyuncu bulunamadı</p>
       <p className="mt-1 font-inter text-[12px] text-blue-100/65">
-        Profil → Arkadaşlarım üzerinden arkadaş ekleyebilirsin.
+        Çevrimiçi oyuncu veya arkadaş görünmüyor.
       </p>
       {onGoFriends && (
         <button

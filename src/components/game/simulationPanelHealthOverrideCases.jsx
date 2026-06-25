@@ -847,7 +847,7 @@ export const EXTRA_TESTS = [
       const incomingInvites = safeStr(incomingInvitesPanelSource);
       const missingFriends = ['loadError', 'setLoadError', 'Arkadaş verisi yüklenemedi.']
         .filter((token) => !friends.includes(token));
-      const missingCreateInvite = ['friendsError', 'setFriendsError', 'ErrorHint', 'Arkadaşlar yüklenemedi.']
+      const missingCreateInvite = ['playersError', 'setPlayersError', 'ErrorHint', 'Oyuncular yüklenemedi.']
         .filter((token) => !createInvite.includes(token));
       const missingIncomingInvites = ['localError', 'setLocalError', 'center.error', 'Davet kabul edilemedi.']
         .filter((token) => !incomingInvites.includes(token));
@@ -858,7 +858,7 @@ export const EXTRA_TESTS = [
           file: 'FriendsPage.jsx + CreateLobbyInvitePanel.jsx + IncomingInvitesPanel.jsx',
           expected: {
             friends: ['loadError', 'setLoadError', 'Arkadaş verisi yüklenemedi.'],
-            createInvite: ['friendsError', 'setFriendsError', 'ErrorHint', 'Arkadaşlar yüklenemedi.'],
+            createInvite: ['playersError', 'setPlayersError', 'ErrorHint', 'Oyuncular yüklenemedi.'],
             incomingInvites: ['localError', 'setLocalError', 'center.error', 'Davet kabul edilemedi.'],
           },
           actual: { missingFriends, missingCreateInvite, missingIncomingInvites },

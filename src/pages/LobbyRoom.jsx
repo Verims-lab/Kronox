@@ -108,12 +108,12 @@ export default function LobbyRoom() {
     return () => setBottomNavHidden(false);
   }, []);
 
-  // Create signature: { maxPlayers, invitedEmails, selectedCategories }
+  // Create signature: { maxPlayers, inviteTargets, invitedEmails, selectedCategories }
   // forwarded by the OnlineChallengeScreen CTA (single-step lobby + invites).
   // playerName is derived from the authenticated user (no manual input).
   // For backwards-compat (e.g. if called with no payload), we fall back to playerName state.
   const handleCreate = async (payload = {}) => {
-    const { maxPlayers, invitedEmails, selectedCategories } = payload || {};
+    const { maxPlayers, inviteTargets, invitedEmails, selectedCategories } = payload || {};
     const derivedName = user
       ? deriveDisplayName(user)
       : (playerName && playerName.trim()) || '';
@@ -163,17 +163,21 @@ export default function LobbyRoom() {
     }
 
     const newLobby = await base44.entities.Lobby.create(lobbyPayload);
-    debugLog('[LobbyRoom] created lobby id:', newLobby.id, 'code:', newLobby.code, 'status:', newLobby.status, 'host:', newLobby.host_email, 'maxPlayers:', maxPlayers, 'invitedCount:', invitedEmails?.length || 0);
+    const targetCount = Array.isArray(inviteTargets) && inviteTargets.length
+      ? inviteTargets.length
+      : invitedEmails?.length || 0;
+    debugLog('[LobbyRoom] created lobby id:', newLobby.id, 'code:', newLobby.code, 'status:', newLobby.status, 'host:', newLobby.host_email, 'maxPlayers:', maxPlayers, 'invitedCount:', targetCount);
 
     // Best-effort: create pending GameInvite rows for selected friends. A
     // partial failure does not abort lobby creation — the host can re-invite
     // later if any row failed. Errors surface via setError so the user knows.
-    if (Array.isArray(invitedEmails) && invitedEmails.length) {
+    if ((Array.isArray(inviteTargets) && inviteTargets.length) || (Array.isArray(invitedEmails) && invitedEmails.length)) {
       try {
         const summary = await createGameInvites({
           host: user,
           lobby: newLobby,
           toEmails: invitedEmails,
+          inviteTargets,
           playerCount: maxPlayers,
         });
         debugLog('[LobbyRoom] invites created:', summary);
@@ -423,7 +427,7 @@ export default function LobbyRoom() {
   }
 
   // Codex127 — New online flow:
-  //   • mode === null  → OnlineChallengeScreen (kategori + arkadaş popup + CTA).
+  //   • mode === null  → OnlineChallengeScreen (kategori + oyuncu popup + CTA).
   //     Tek bir CTA ile lobi oluşturma + davet gönderme yapılır. Eski ayrı
   //     arkadaş seçim ekranı akıştan çıkarıldı (legacy panel dosyası kalır,
   //     ama burada referans verilmez).
@@ -459,13 +463,13 @@ export default function LobbyRoom() {
       user={user}
       loading={loading}
       error={error}
-      onStartChallenge={({ selectedCategories, selectedEmails }) => {
+      onStartChallenge={({ selectedCategories, inviteTargets }) => {
         // Codex127 — Tek adımda lobi + davet. maxPlayers = host + invited.
-        const invitedEmails = Array.isArray(selectedEmails) ? selectedEmails : [];
-        const maxPlayers = Math.min(4, Math.max(2, invitedEmails.length + 1));
+        const selectedTargets = Array.isArray(inviteTargets) ? inviteTargets : [];
+        const maxPlayers = Math.min(4, Math.max(2, selectedTargets.length + 1));
         handleCreate({
           maxPlayers,
-          invitedEmails,
+          inviteTargets: selectedTargets,
           selectedCategories,
         });
       }}

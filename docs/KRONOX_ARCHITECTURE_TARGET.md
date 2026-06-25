@@ -144,6 +144,11 @@ Phase 1 foundation:
   provide the focused Online/social presence foundation. Presence writes go
   through `updatePlayerPresence`, reads go through `getFriendPresence`, and
   both remain backend-owned instead of letting UI mark arbitrary users online.
+- Online player selection goes through `getOnlinePlayerSelection` and
+  `src/lib/onlinePlayerSelection.js`. The picker order is online friends,
+  online non-friends, then offline friends; offline non-friends are excluded.
+  The UI stores opaque `target_ref` values only. `createGameInvitesForTargets`
+  resolves those refs backend-side to existing `GameInvite` recipients.
 
 Parity plan:
 - Preserve exact user-facing behavior: dismissing a toast is visual only;
@@ -163,6 +168,10 @@ Parity plan:
 - Presence is best-effort and relationship-scoped: the current user can only
   heartbeat their own session, friend lookup is restricted to accepted
   friendships, and stale/missing presence displays offline rather than online.
+- Online non-friend discovery is presence-fresh only. Public selection payloads
+  must not return email, provider ID, raw guest ID, owner_key, or internal
+  player_key; backend-private routing data is allowed only inside service-role
+  functions/entities and must not be rendered or exported.
 - UI must not trust request-body user/owner/reward/score fields.
 - Service-role writes stay inside Base44 functions.
 - Question bank stays backend-only through compact projections.

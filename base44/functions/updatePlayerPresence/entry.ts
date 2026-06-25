@@ -69,6 +69,7 @@ Deno.serve(async (req) => {
 
     const payload = {
       owner_key_hash: ownerKeyHash,
+      user_email: myEmail,
       player_type: 'linked',
       username,
       session_id: sessionId,

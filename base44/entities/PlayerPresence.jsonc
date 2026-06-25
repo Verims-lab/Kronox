@@ -1,11 +1,15 @@
 {
   "name": "PlayerPresence",
   "type": "object",
-  "description": "Best-effort Online/social presence rows written only through backend functions. Rows store anonymized owner_key_hash plus session metadata, never email/provider ids/raw guest ids/player keys. Friend visibility is relationship-scoped by getFriendPresence.",
+  "description": "Best-effort Online/social presence rows written only through backend functions. Rows store anonymized owner_key_hash plus session metadata and a backend-private user_email used only for invite routing. Public responses never return email/provider ids/raw guest ids/player keys.",
   "properties": {
     "owner_key_hash": {
       "type": "string",
       "description": "Internal anonymized key derived server-side from the authenticated owner. Not displayed in public UI."
+    },
+    "user_email": {
+      "type": "string",
+      "description": "Backend-private routable email snapshot for GameInvite creation. Service-role functions may read it; public selection/presence responses must never return it."
     },
     "player_type": {
       "type": "string",

@@ -21,11 +21,11 @@ import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
  *   • Compact, horizontally-scrollable category cards driven from the
  *     current Category metadata. Each card shows a name + small description.
  *     Load failures show a retryable error instead of stale fallback categories.
- *   • Big "ARKADAŞ SEÇ" panel with a dropdown-style trigger that opens
- *     the friend selection popup.
- *   • Bottom CTA "DAVET ET" — disabled until ≥1 friend selected. CTA
- *     hands the same { selectedCategories, selectedEmails } payload to
- *     the parent so lobby creation and invite flow are unchanged.
+ *   • Big "OYUNCU SEÇ" panel with a dropdown-style trigger that opens
+ *     the player selection popup.
+ *   • Bottom CTA "DAVET ET" — disabled until ≥1 player selected. CTA
+ *     hands { selectedCategories, inviteTargets } to the parent so lobby
+ *     creation can resolve recipients backend-side without exposing email.
  *
  * Selection state for both categories AND friends is preserved here in
  * parent React state — neither is dropped before being passed to the
@@ -46,7 +46,7 @@ export default function OnlineChallengeScreen({
   onResumeActiveLobby,
 }) {
   const [selectedCategories, setSelectedCategories] = useState(DEFAULT_CATEGORIES);
-  const [selectedEmails, setSelectedEmails] = useState([]);
+  const [inviteTargets, setInviteTargets] = useState([]);
   const [friendModalOpen, setFriendModalOpen] = useState(false);
   const [dbCategories, setDbCategories] = useState(null);
   const [categoryLoading, setCategoryLoading] = useState(true);
@@ -116,14 +116,14 @@ export default function OnlineChallengeScreen({
     });
   };
 
-  const ctaDisabled = selectedEmails.length === 0 || loading || categoryLoading || selectedCategories.length === 0;
+  const ctaDisabled = inviteTargets.length === 0 || loading || categoryLoading || selectedCategories.length === 0;
 
   const handleStart = () => {
     if (ctaDisabled) return;
     sounds.tap();
     onStartChallenge?.({
       selectedCategories: [...selectedCategories],
-      selectedEmails: [...selectedEmails],
+      inviteTargets: [...inviteTargets],
     });
   };
 
@@ -200,7 +200,7 @@ export default function OnlineChallengeScreen({
         {/* Friend select panel — moved closer to the carousel so the
             panel never crowds the bottom CTA. */}
         <FriendSelectPanel
-          count={selectedEmails.length}
+          count={inviteTargets.length}
           onOpen={() => { sounds.tap(); setFriendModalOpen(true); }}
         />
 
@@ -263,8 +263,8 @@ export default function OnlineChallengeScreen({
               style={{ color: ctaDisabled ? 'rgba(252,211,77,0.85)' : 'rgba(207,224,255,0.55)' }}
             >
               {ctaDisabled
-                ? 'En az 1 arkadaş seçmeden başlanamaz.'
-                : 'Lobi açılacak ve arkadaşlarına davet gidecek.'}
+                ? 'En az 1 oyuncu seçmeden başlanamaz.'
+                : 'Lobi açılacak ve seçtiğin oyunculara davet gidecek.'}
             </p>
           )}
           {onJoinOpenLobby && (
@@ -284,8 +284,8 @@ export default function OnlineChallengeScreen({
         open={friendModalOpen}
         onClose={() => setFriendModalOpen(false)}
         user={user}
-        initialSelectedEmails={selectedEmails}
-        onConfirm={(emails) => setSelectedEmails(emails)}
+        initialSelectedTargets={inviteTargets}
+        onConfirm={(targets) => setInviteTargets(targets)}
         onGoFriends={onGoFriends}
       />
     </div>
@@ -393,10 +393,10 @@ function FriendSelectPanel({ count, onOpen }) {
             fontStyle: 'normal',
           }}
         >
-          ARKADAŞ SEÇ
+          OYUNCU SEÇ
         </p>
         <p className="mt-0.5 font-inter text-[11.5px] text-blue-100/70 leading-snug">
-          Meydan okumak istediğin<br />arkadaşını seç
+          Arkadaşlarını ve çevrimiçi<br />oyuncuları seç.
         </p>
       </div>
 
@@ -409,13 +409,13 @@ function FriendSelectPanel({ count, onOpen }) {
           background: 'rgba(8,14,32,0.75)',
           boxShadow: 'inset 0 0 0 1px rgba(120,170,255,0.30)',
         }}
-        aria-label="Arkadaş seç"
+        aria-label="Oyuncu seç"
       >
         <span className="font-inter text-[13.5px] text-blue-100/75">
           {count === 0
-            ? 'Arkadaş seç...'
-            : count === 1 ? '1 arkadaş seçildi'
-            : `${count} arkadaş seçildi`}
+            ? 'Oyuncu seç...'
+            : count === 1 ? '1 oyuncu seçildi'
+            : `${count} oyuncu seçildi`}
         </span>
         <ChevronDown className="h-5 w-5 text-blue-100/60" strokeWidth={2.4} />
       </button>
