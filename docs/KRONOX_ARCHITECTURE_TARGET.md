@@ -180,6 +180,16 @@ Parity plan:
 - Health must protect product contracts and explicitly label manual gates.
 - Android/iOS wrapper work remains manual proof until a repo-owned native
   pipeline exists.
+- Loading states should expose status semantics (`role="status"`,
+  `aria-live`, and a clear accessible name) without changing visual layout.
+  Icon-only controls must have accessible labels, custom modal/sheet surfaces
+  must be named dialogs, and inline form feedback should use alert/status
+  semantics where practical. Static Health guards these source contracts;
+  keyboard, screen-reader, and real-device focus behavior remain manual proof.
+- Admin authorization guard extraction stays a follow-up while Base44 function
+  bundles require inline AdminUser-backed guards. SimulationPanel source files
+  stay in the Health/admin/test-suite path until a separate test-runner
+  migration is planned.
 
 ## Migration Boundary Without Migrating
 

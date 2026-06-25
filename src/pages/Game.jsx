@@ -2987,9 +2987,11 @@ export default function Game() {
       <>{diagnosticsOverlay}
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4 px-6">
-          <Loader2 className="w-10 h-10 text-muted-foreground mx-auto animate-spin" />
-          <p className="font-inter text-sm text-muted-foreground">Sorular hazırlanıyor...</p>
-          <p className="font-inter text-xs text-muted-foreground/60">İlk yüklemede biraz sürebilir...</p>
+          <div role="status" aria-live="polite" aria-label="Sorular hazırlanıyor">
+            <Loader2 className="w-10 h-10 text-muted-foreground mx-auto animate-spin" aria-hidden="true" />
+            <p className="font-inter text-sm text-muted-foreground">Sorular hazırlanıyor...</p>
+            <p className="font-inter text-xs text-muted-foreground/60">İlk yüklemede biraz sürebilir...</p>
+          </div>
           <Button onClick={() => navigate('/')} variant="outline" size="sm">Geri Dön</Button>
         </div>
       </div></>

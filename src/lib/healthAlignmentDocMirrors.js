@@ -165,6 +165,18 @@ recipient email privately for GameInvite creation.
 Friends can be added by email address or registered Kronox username. Username
 lookup and duplicate/self checks stay backend-owned, and username-based add
 responses return only username-safe labels, never the target email.
+
+Loading states expose status semantics with role="status", aria-live, and a
+clear accessible name without changing visual layout. Icon-only controls have
+accessible labels, custom modal/sheet surfaces are named dialogs, and inline
+form feedback uses alert/status semantics where practical. Static Health guards
+these source contracts; keyboard, screen-reader, and real-device focus behavior
+remain manual proof.
+
+Admin authorization guard extraction stays a follow-up while Base44 function
+bundles require inline AdminUser-backed guards. SimulationPanel source files
+stay in the Health/admin/test-suite path until a separate test-runner migration
+is planned.
 `;
 
 export const HEALTH_GAP_ANALYSIS_DOC = `# Kronox Health Gap Analysis
@@ -185,8 +197,12 @@ server-side username resolution, required username-not-found copy, and no
 target-email return on username add or player selection. Executable reducer
 coverage now protects Online 4-player representation/start/recovery
 transitions and notification transient-empty, terminal, dismiss, accept/reject,
-dedupe, and privacy transitions. Two-account, realtime, push, RLS/BOLA, device,
-and store proof remain manual/live probes.
+dedupe, and privacy transitions. Security Pass 3 coverage protects accessible
+loading/status semantics, labeled custom modals, profile/onboarding form
+feedback semantics, incremental unused-import lint behavior, the menubar
+displayName cleanup, and the scoped admin-auth / SimulationPanel cleanup
+decision. Two-account, realtime, push, RLS/BOLA, keyboard/screen-reader,
+device, and store proof remain manual/live probes.
 The Online lobby/start/reconnect contract remains an architecture target and
 manual live-proof area even when reducer/static Health checks pass.
 `;

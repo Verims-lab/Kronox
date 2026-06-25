@@ -216,6 +216,9 @@ import * as mobileCompatibilityCases from './simulationPanelMobileCompatibilityC
 // Onboarding Phase 1: app-owned GuestProfile identity foundation, token hash
 // storage boundary, KronoxUser public username, and login-provider preservation.
 import * as onboardingGuestProfileCases from './simulationPanelOnboardingGuestProfileCases';
+// Security Pass 3: accessible loading/status contracts, custom modal labels,
+// incremental lint/code-quality decisions, and SimulationPanel scope audit.
+import * as a11yQualityCases from './simulationPanelA11yQualityCases';
 
 const MODULES = [
   soloProgressCases,
@@ -270,6 +273,7 @@ const MODULES = [
   dailyQuestRuntimeCases,
   mobileCompatibilityCases,
   onboardingGuestProfileCases,
+  a11yQualityCases,
 ];
 
 function flatten(key) {

@@ -125,6 +125,9 @@ export default function FriendSelectModal({
               boxShadow: 'inset 0 0 0 1.5px rgba(250,204,21,0.40), inset 0 1px 0 rgba(255,255,255,0.10), 0 22px 44px rgba(2,6,23,0.65), 0 0 28px rgba(250,204,21,0.18)',
             }}
             onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="friend-select-modal-title"
           >
             {/* Header */}
             <div className="relative px-5 pt-5 pb-3 text-center">
@@ -138,9 +141,10 @@ export default function FriendSelectModal({
                 }}
                 aria-label="Kapat"
               >
-                <X className="h-4 w-4" />
+                <X className="h-4 w-4" aria-hidden="true" />
               </button>
               <p
+                id="friend-select-modal-title"
                 className="font-cinzel font-black"
                 style={{
                   color: '#f1f4ff',
@@ -352,11 +356,17 @@ function PlayerRow({ player, selected, capped, onToggle }) {
 
 function FriendsSkeleton() {
   return (
-    <div className="space-y-2 py-2">
+    <div
+      className="space-y-2 py-2"
+      role="status"
+      aria-live="polite"
+      aria-label="Oyuncular yükleniyor"
+    >
       {[0, 1, 2, 3].map((i) => (
         <div
           key={i}
           className="h-12 rounded-xl"
+          aria-hidden="true"
           style={{
             background:
               'linear-gradient(90deg, rgba(255,255,255,0.04), rgba(255,255,255,0.08), rgba(255,255,255,0.04))',

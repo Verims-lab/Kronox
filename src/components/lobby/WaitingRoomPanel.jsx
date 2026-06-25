@@ -195,8 +195,13 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
         style={{ overscrollBehavior: 'contain', transform: pullY > 0 ? `translateY(${pullY}px)` : undefined, transition: pullY === 0 ? 'transform 0.2s' : undefined }}
       >
         {refreshing && (
-          <div className="flex justify-center py-1">
-            <Loader2 className="w-4 h-4 text-amber-300 animate-spin" />
+          <div
+            className="flex justify-center py-1"
+            role="status"
+            aria-live="polite"
+            aria-label="Lobi yenileniyor"
+          >
+            <Loader2 className="w-4 h-4 text-amber-300 animate-spin" aria-hidden="true" />
           </div>
         )}
         <div className="flex items-center justify-between">
@@ -435,7 +440,7 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
           >
             {isStarting ? (
               <span className="inline-flex items-center justify-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
                 BAŞLATILIYOR
               </span>
             ) : `OYUNU BAŞLAT (${lobby.players?.length || 0} oyuncu)`}

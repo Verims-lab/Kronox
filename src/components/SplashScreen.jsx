@@ -8,6 +8,9 @@ export default function SplashScreen() {
       exit={{ opacity: 0 }}
       transition={{ duration: 0.4 }}
       className="fixed inset-0 z-50 flex flex-col items-center justify-center"
+      role="status"
+      aria-live="polite"
+      aria-label="Kronox yükleniyor"
       style={{
         // Match the pre-React splash + index.html body background exactly so
         // there is no color burst when React mounts over the pre-splash.
@@ -18,6 +21,7 @@ export default function SplashScreen() {
     >
       <span
         className="block h-12 w-12 animate-spin rounded-full"
+        aria-hidden="true"
         style={{
           border: '3px solid rgba(148,163,184,0.25)',
           borderTopColor: 'rgba(148,163,184,0.85)',

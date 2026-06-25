@@ -13,8 +13,13 @@ export default function TestSuite() {
 
   if (isLoadingAuth) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-6 h-6 text-primary animate-spin" />
+      <div
+        className="min-h-screen bg-background flex items-center justify-center"
+        role="status"
+        aria-live="polite"
+        aria-label="Regression Test Panel yetkisi kontrol ediliyor"
+      >
+        <Loader2 className="w-6 h-6 text-primary animate-spin" aria-hidden="true" />
       </div>
     );
   }

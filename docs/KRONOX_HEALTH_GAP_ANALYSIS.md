@@ -72,6 +72,10 @@ fallback polling/refetch.
   protection, Solo joker non-negative spend protection, and Daily Wheel /
   Daily Quest Diamond-only claim serialization. DB unique/index proof and live
   two-device economy races remain manual gates.
+- Added Security Pass 3 coverage for accessible loading/status semantics,
+  labeled custom modals, profile/onboarding form feedback semantics,
+  incremental unused-import lint behavior, the menubar `displayName` cleanup,
+  and the scoped admin-auth / SimulationPanel cleanup decision.
 
 ## Required Coverage Areas
 
@@ -92,6 +96,7 @@ fallback polling/refetch.
 | No raw Question.list gameplay fallback | Static source checks | Deployed `getQuestions` marker proof |
 | Economy idempotency | Static guard checks plus function-level operation lock/recheck coverage | Platform unique/index proof or transactional replacement |
 | Public UI private identifiers | Static forbidden-token checks | Visual/manual walkthrough for lobbies, leaderboard, notifications |
+| Accessibility loading/forms/modals | Static status/label/dialog/form-feedback checks | Keyboard, TalkBack/VoiceOver, and real mobile focus-order proof |
 
 ## Health Design Rules
 

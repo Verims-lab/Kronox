@@ -319,8 +319,13 @@ function OnboardingShell({ children }) {
 
 function LoadingState() {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 text-center">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    <div
+      className="flex flex-col items-center justify-center gap-3 text-center"
+      role="status"
+      aria-live="polite"
+      aria-label="Kronox profilin hazırlanıyor"
+    >
+      <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
       <p className="font-inter text-sm font-bold text-blue-100">Kronox profilin hazırlanıyor...</p>
     </div>
   );
@@ -357,7 +362,7 @@ function TutorialStartStep({ username, busy, onStart, onExistingAccount }) {
         </p>
       </div>
       <Button onClick={onStart} disabled={busy} className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl font-inter font-black">
-        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Play className="h-4 w-4" aria-hidden="true" />}
         Seviye 1
       </Button>
       <button
@@ -495,12 +500,12 @@ function ProfileSetupStep({ profile, busy, submitError, onSubmit }) {
         </div>
       </div>
       {(validation || genericSubmitError) && (
-        <p className="mt-3 rounded-xl border border-amber-300/35 bg-amber-300/10 px-3 py-2 font-inter text-xs font-bold text-amber-100">
+        <p className="mt-3 rounded-xl border border-amber-300/35 bg-amber-300/10 px-3 py-2 font-inter text-xs font-bold text-amber-100" role="alert">
           {validation || genericSubmitError}
         </p>
       )}
       <Button type="submit" disabled={busy || !canSubmit} className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl font-inter font-black">
-        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ArrowRight className="h-4 w-4" aria-hidden="true" />}
         Kategorilere Geç
       </Button>
     </form>
@@ -592,8 +597,13 @@ function CategorySetupStep({ profile, busy, submitError, onComplete }) {
         )}
       </div>
       {loading ? (
-        <div className="grid min-h-40 place-items-center rounded-xl border border-white/10 bg-white/[0.04]">
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <div
+          className="grid min-h-40 place-items-center rounded-xl border border-white/10 bg-white/[0.04]"
+          role="status"
+          aria-live="polite"
+          aria-label="Kategoriler yükleniyor"
+        >
+          <Loader2 className="h-6 w-6 animate-spin text-primary" aria-hidden="true" />
         </div>
       ) : activeCategories.length === 0 ? (
         <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-5 text-center">
@@ -641,13 +651,13 @@ function CategorySetupStep({ profile, busy, submitError, onComplete }) {
         </div>
       )}
       {(validation || submitError) && (
-        <p className="mt-3 rounded-xl border border-amber-300/35 bg-amber-300/10 px-3 py-2 font-inter text-xs font-bold text-amber-100">
+        <p className="mt-3 rounded-xl border border-amber-300/35 bg-amber-300/10 px-3 py-2 font-inter text-xs font-bold text-amber-100" role="alert">
           {validation || submitError}
         </p>
       )}
       <div className="mt-5 flex flex-col gap-2">
         <Button onClick={finishWithSelection} disabled={busy || loading} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl font-inter font-black">
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ArrowRight className="h-4 w-4" aria-hidden="true" />}
           Ana Sayfa
         </Button>
         <button
