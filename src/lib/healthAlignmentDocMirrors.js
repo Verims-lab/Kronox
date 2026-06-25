@@ -212,13 +212,13 @@ export const DB_REPORTING_READINESS_DOC = `# Kronox DB Reporting Readiness
 
 Status: reporting-readiness audit.
 
-Future reports include DAU / WAU / MAU, new vs returning users, guest vs linked
-users, Solo level funnel/pass/fail/moves/time, Solo record counts, daily reward
-claims, joker earn/spend/purchase, Diamond balance changes, leaderboard
-movement, category preference distribution, question exposure/difficulty,
-Online lobby lifecycle, invite lifecycle, notification lifecycle, platform
-split, retention cohorts, and economy fraud/race anomalies. Missing event
-tables must be backward-compatible and privacy-safe.
+Future reports include DAU/WAU/MAU (DAU / WAU / MAU), new vs returning users,
+guest vs linked users, Solo level funnel/pass/fail/moves/time, Solo record
+counts, daily reward claims, joker earn/spend/purchase, Diamond balance
+changes, leaderboard movement, category preference distribution, question
+exposure/difficulty, Online lobby lifecycle, invite lifecycle, notification
+lifecycle, platform split, retention cohorts, and economy fraud/race anomalies.
+Missing event tables must be backward-compatible and privacy-safe.
 
 Online player selection / invite reporting Phase 1 uses existing GameInvite
 rows with invite_target_ref, recipient_relation, and created_source metadata.

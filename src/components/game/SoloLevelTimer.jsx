@@ -68,7 +68,7 @@ export default function SoloLevelTimer({ totalSeconds = 180, elapsedSeconds = 0,
       aria-label={`Kalan süre ${label}${frozen ? ', donduruldu' : ''}`}
     >
       <Timer className="h-4 w-4" strokeWidth={2.4} />
-      <span className="font-inter font-semibold" style={{ letterSpacing: '0.02em' }}>{label}</span>
+      <span className="kronox-number" style={{ letterSpacing: '0.02em' }}>{label}</span>
       {frozen && (
         <span className="font-inter text-[9px] font-black uppercase tracking-wide text-sky-100">
           Donduruldu
