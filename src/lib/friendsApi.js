@@ -169,6 +169,21 @@ export async function sendFriendRequest({ me = null, target = '', toEmail = '' }
     throw new Error(data.error || 'İstek gönderilemedi.');
   }
 
+  // Duplicate pending outgoing request is handled idempotently: the backend
+  // already filters its outgoing pendingOut row and returns alreadyPending
+  // instead of creating a second FriendRequest. We surface a stable
+  // user-facing message and a normalized pendingOut flag, never the target
+  // email when the request was made by username.
+  const pendingOut = data.alreadyPending === true;
+  if (pendingOut) {
+    return {
+      ...data,
+      pendingOut: true,
+      duplicatePending: true,
+      message: 'Bu kişiye zaten bekleyen bir isteğin var.',
+    };
+  }
+
   if (data.emailSent === false && data.emailError) {
     console.warn('[friendsApi] friend-request email not delivered:', data.emailError, 'marker=email_failed');
   }

@@ -71,7 +71,7 @@ export const sendFriendRequestFnSource = `
   if (targetEmail === fromEmail) return json({ ok: false, code: 'self_add', error: 'Kendini ekleyemezsin.' }, 400);
   const existingFriend = acceptedOut?.[0] || acceptedIn?.[0] || null;
   if (existingFriend) return json({ ok: false, code: 'already_friends', error: 'Bu kullanıcı zaten arkadaşın.' }, 409);
-  if (pendingOut?.[0]) return json({ ok: true, alreadyPending: true, requestStatus: 'pending', inputKind, targetLabel: target.username, recipientRegistered: target.registered, emailSent: false, emailError: null, privacy: { targetEmailReturned: false, publicIdentity: 'username' } });
+  if (pendingOut?.[0]) return json({ ok: true, alreadyPending: true, duplicatePending: true, message: 'Bu kişiye zaten bekleyen bir isteğin var.', requestStatus: 'pending', inputKind, targetLabel: target.username, recipientRegistered: target.registered, emailSent: false, emailError: null, privacy: { targetEmailReturned: false, publicIdentity: 'username' } });
   if (pendingIn?.[0]) return json({ ok: false, code: 'reverse_pending', error: 'Bu kişi sana zaten istek göndermiş — Gelen İstekler listesinden kabul et.' }, 409);
   const created = await base44.asServiceRole.entities.FriendRequest.create({
     from_email: fromEmail,

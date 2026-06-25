@@ -190,9 +190,14 @@ Deno.serve(async (req) => {
       base44.asServiceRole.entities.FriendRequest.filter({ from_email: targetEmail, to_email: fromEmail, status: 'pending' }, '-created_date', 1),
     ]);
     if (pendingOut?.[0]) {
+      // Idempotent duplicate guard: an outgoing pending request already
+      // exists, so we do NOT create a second FriendRequest. Return a stable
+      // user-facing message and never leak the target email.
       return json({
         ok: true,
         alreadyPending: true,
+        duplicatePending: true,
+        message: 'Bu kişiye zaten bekleyen bir isteğin var.',
         requestStatus: 'pending',
         inputKind,
         targetLabel: target.username,
