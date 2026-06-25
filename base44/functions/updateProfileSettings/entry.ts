@@ -238,10 +238,11 @@ async function refreshLeaderboardIdentity(base44: any, ownerKey: string, display
   return true;
 }
 
-function buildProfilePatch(body: any, fallbackSeed: string) {
+function buildProfilePatch(body: any, fallbackSeed: string, existingProfile: any = {}) {
   const rawUsername = String(body?.username || '').trim();
   if (rawUsername && !normalizeUsernameInput(rawUsername)) return { ok: false, code: 'invalid_username' };
-  const requestedUsername = normalizeUsernameInput(rawUsername) || makeFallbackUsername(fallbackSeed);
+  const existingUsername = normalizeUsernameInput(existingProfile?.username);
+  const requestedUsername = normalizeUsernameInput(rawUsername) || existingUsername || makeFallbackUsername(fallbackSeed);
   const username = normalizeUsernameInput(requestedUsername);
   if (!username) return { ok: false, code: 'invalid_username' };
   const age = normalizeAge(body?.age);
@@ -275,7 +276,7 @@ Deno.serve(async (req: Request) => {
 
     if (email) {
       const user = await findCurrentUserRow(base44, authUser, email);
-      const built = buildProfilePatch(body, email || String(rowId(user) || timestamp));
+      const built = buildProfilePatch(body, email || String(rowId(user) || timestamp), user);
       if (!built.ok) return json({ ok: false, code: built.code, error: 'Profil bilgilerini kontrol et.' }, 400);
       const owner = { mode: 'user' as const, ownerId: String(rowId(user) || ''), email };
       if (await usernameTaken(base44, built.patch.username, owner)) {
@@ -298,6 +299,7 @@ Deno.serve(async (req: Request) => {
         contract: {
           authUserVerifiedServerSide: true,
           usernameUniqueCaseInsensitive: true,
+          usernamePreservesExistingWhenEmpty: true,
           providerIdsDisplayedPublicly: false,
           ageGenderPublicFields: false,
         },
@@ -317,7 +319,7 @@ Deno.serve(async (req: Request) => {
     if (String(guest?.status || 'guest') === 'linked') {
       return json({ ok: false, code: 'guest_already_linked', error: 'Bu misafir profil bağlı hesaba taşınmış.' }, 409);
     }
-    const built = buildProfilePatch(body, guestId || timestamp);
+    const built = buildProfilePatch(body, guestId || timestamp, guest);
     if (!built.ok) return json({ ok: false, code: built.code, error: 'Profil bilgilerini kontrol et.' }, 400);
     const owner = { mode: 'guest' as const, ownerId: guestId, email: '' };
     if (await usernameTaken(base44, built.patch.username, owner)) {
@@ -344,6 +346,7 @@ Deno.serve(async (req: Request) => {
         guestTokenProofRequired: true,
         rawGuestTokenServerStored: false,
         usernameUniqueCaseInsensitive: true,
+        usernamePreservesExistingWhenEmpty: true,
         providerIdsDisplayedPublicly: false,
         ageGenderPublicFields: false,
         hashAlgorithm: HASH_ALGORITHM,

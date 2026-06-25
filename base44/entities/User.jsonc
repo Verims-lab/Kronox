@@ -136,7 +136,7 @@
     },
     "username": {
       "type": "string",
-      "description": "Public Kronox username used for leaderboard/profile identity. Must not be email, Google ID, Apple ID, or provider UID. Account linking preserves guest KronoxUser#### when chosen."
+      "description": "Public Kronox username used for leaderboard/profile identity. Must not be email, Google ID, Apple ID, or provider UID. Account linking preserves an explicit linked-user username first, then copies the explicit guest username when the linked user has none."
     },
     "username_normalized": {
       "type": "string",

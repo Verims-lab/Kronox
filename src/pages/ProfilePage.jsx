@@ -20,6 +20,7 @@ import { getCurrentPlayableLevel } from '@/lib/soloProgressHelpers';
 import { getLeaderboardDiamondValue, getSafeLeaderboardName } from '@/lib/leaderboard';
 import { getKronoxVisibleScore } from '@/lib/kronoxScore';
 import { ensureGuestProfile, getCachedGuestProfile, prepareGuestAccountLink } from '@/lib/guestProfile';
+import { hydrateAuthenticatedUserProfile } from '@/lib/userProfileHydration';
 import {
   JOKER_DEFINITIONS,
   emptyJokerBalances,
@@ -79,7 +80,7 @@ export default function ProfilePage() {
   useEffect(() => {
     let alive = true;
     base44.auth.me()
-      .then((u) => {
+      .then(async (u) => {
         if (!alive) return;
         if (!u) {
           setUser(null);
@@ -89,18 +90,21 @@ export default function ProfilePage() {
           setLoading(false);
           return;
         }
+        const hydratedUser = await hydrateAuthenticatedUserProfile(base44, u);
+        if (!alive) return;
         setGuestProfile(null);
-        setUser(u);
+        setUser(hydratedUser);
         setLoading(false);
 
         Promise.resolve()
-          .then(() => withAdminStatus(u))
+          .then(() => withAdminStatus(hydratedUser))
+          .then((adminCheckedUser) => hydrateAuthenticatedUserProfile(base44, adminCheckedUser))
           .then(async (adminCheckedUser) => {
             const normalizedProgress = await ensureSoloProgressBackfill(adminCheckedUser);
             if (!alive) return;
             setUser((current) => {
               const currentEmail = String(current?.email || current?.user_email || '').trim().toLowerCase();
-              const loadedEmail = String(u?.email || u?.user_email || '').trim().toLowerCase();
+              const loadedEmail = String(hydratedUser?.email || hydratedUser?.user_email || '').trim().toLowerCase();
               if (!currentEmail || currentEmail !== loadedEmail) return current;
               return { ...adminCheckedUser, solo_progress: normalizedProgress };
             });
