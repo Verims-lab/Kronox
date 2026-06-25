@@ -1,7 +1,7 @@
 {
   "name": "GuestProfile",
   "type": "object",
-  "description": "Codex387 — App-owned portable guest identity foundation. Kronox does not use Firebase or Base44 anonymous auth for guest identity. Raw guest tokens are client-only; the database stores guest_token_hash. GuestProfile rows are created/verified through the public-by-design createGuestProfile function, which uses request allowlists and privacy-safe throttle buckets. Phase 3 account linking verifies guest token plus authenticated user, writes AccountLinkTransaction, marks status linked once, and preserves eligible guest progress/economy without exposing provider ids.",
+  "description": "Codex387 \u2014 App-owned portable guest identity foundation. Kronox does not use Firebase or Base44 anonymous auth for guest identity. Raw guest tokens are client-only; the database stores guest_token_hash. GuestProfile rows are created/verified through the public-by-design createGuestProfile function, which uses request allowlists and privacy-safe throttle buckets. Phase 3 account linking verifies guest token plus authenticated user, writes AccountLinkTransaction, marks status linked once, and preserves eligible guest progress/economy without exposing provider ids.",
   "properties": {
     "guest_id": {
       "type": "string",
@@ -226,19 +226,42 @@
   ],
   "rls": {
     "create": {
-      "user_condition": {
-        "role": "admin"
-      }
+      "$or": [
+        {
+          "data.guest_id": {
+            "$exists": true
+          }
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     },
     "read": {
-      "user_condition": {
-        "role": "admin"
-      }
+      "$or": [
+        {
+          "data.guest_id": "{{guest.guest_id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     },
     "update": {
-      "user_condition": {
-        "role": "admin"
-      }
+      "$or": [
+        {
+          "data.guest_id": "{{guest.guest_id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     },
     "delete": {
       "user_condition": {
