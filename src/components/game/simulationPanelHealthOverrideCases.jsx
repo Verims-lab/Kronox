@@ -811,9 +811,10 @@ export const EXTRA_TESTS = [
       const form = safeStr(addFriendFormSource);
       const page = safeStr(friendsPageSource);
       const api = safeStr(friendsApiSource);
-      const errorTokens = ['Geçerli bir e-posta adresi gir.', 'İstek gönderilemedi.', 'İstek Gönder'];
+      const copySource = `${form}\n${api}`;
+      const errorTokens = ['E-posta veya kullanıcı adı gir.', 'Geçerli bir e-posta adresi gir.', 'İstek gönderilemedi.', 'İstek Gönder'];
       const successTokens = ['Arkadaşlık isteği gönderildi', 'setSuccessMsg'];
-      const missingErr = errorTokens.filter((t) => !form.includes(t));
+      const missingErr = errorTokens.filter((t) => !copySource.includes(t));
       const missingOk = successTokens.filter((t) => !page.includes(t));
       const apiOk = api.includes('sendFriendRequest');
       if (missingErr.length || missingOk.length || !apiOk) {

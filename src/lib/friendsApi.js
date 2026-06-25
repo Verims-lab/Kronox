@@ -5,9 +5,11 @@
 // because RLS forbids the client from writing rows owned by another user.
 
 import { base44 } from '@/api/base44Client';
-import { getSafeNotificationActorName } from '@/lib/notificationIdentity';
 import { getSafePublicUsernameLabel } from '@/lib/publicIdentity';
 import { getPresenceLookupKeyForEmail } from '@/lib/presence';
+import { normalizeSafePublicUsernameInput } from '@/lib/guestProfile';
+
+export const USERNAME_NOT_FOUND_MESSAGE = 'Kronox’ta bu kullanıcı adıyla biri yok.';
 
 export function normalizeEmail(raw) {
   return String(raw || '').trim().toLowerCase();
@@ -17,6 +19,25 @@ export function isValidEmail(raw) {
   const email = normalizeEmail(raw);
   // Minimal, safe RFC-ish check — good enough for client-side gating.
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+export function normalizeFriendUsername(raw) {
+  return normalizeSafePublicUsernameInput(raw);
+}
+
+export function parseFriendRequestTarget(raw) {
+  const value = String(raw || '').trim();
+  if (!value) return { kind: 'empty', value: '', error: 'E-posta veya kullanıcı adı gir.' };
+  if (value.includes('@')) {
+    const email = normalizeEmail(value);
+    return isValidEmail(email)
+      ? { kind: 'email', value: email, error: '' }
+      : { kind: 'email', value: email, error: 'Geçerli bir e-posta adresi gir.' };
+  }
+  const username = normalizeFriendUsername(value);
+  return username
+    ? { kind: 'username', value: username, error: '' }
+    : { kind: 'username', value, error: 'Geçerli bir kullanıcı adı gir.' };
 }
 
 async function loadUserPublicProfileByEmail(email) {
@@ -120,98 +141,38 @@ export async function loadOutgoingRequests(myEmail) {
   return rows || [];
 }
 
-export async function sendFriendRequest({ me, toEmail }) {
+export async function sendFriendRequest({ me = null, target = '', toEmail = '' } = {}) {
   const fromEmail = normalizeEmail(me?.email);
-  const target = normalizeEmail(toEmail);
+  const parsed = parseFriendRequestTarget(target ?? toEmail);
 
   if (!fromEmail) throw new Error('Önce giriş yapmalısın.');
-  if (!isValidEmail(target)) throw new Error('Geçerli bir e-posta adresi gir.');
-  if (target === fromEmail) throw new Error('Kendini ekleyemezsin.');
+  if (parsed.error) throw new Error(parsed.error);
 
-  // Already friends? (Normalized model — check accepted FriendRequests on both sides.)
-  // `existingFriend` is the explicit named marker for this guard so the
-  // contract test and future readers can grep one obvious token.
-  const [acceptedOut, acceptedIn] = await Promise.all([
-    base44.entities.FriendRequest.filter({ from_email: fromEmail, to_email: target, status: 'accepted' }),
-    base44.entities.FriendRequest.filter({ from_email: target, to_email: fromEmail, status: 'accepted' }),
-  ]);
-  const existingFriend = (acceptedOut?.[0] || acceptedIn?.[0] || null);
-  if (existingFriend) throw new Error('Bu kullanıcı zaten arkadaşın.');
-
-  // Pending request from me to target?
-  const pendingOut = await base44.entities.FriendRequest.filter({
-    from_email: fromEmail, to_email: target, status: 'pending',
-  });
-  if (pendingOut?.length) throw new Error('Bu kişiye zaten bekleyen bir isteğin var.');
-
-  // Pending request from target to me? Tell the user — they can accept it from the Incoming list.
-  const pendingIn = await base44.entities.FriendRequest.filter({
-    from_email: target, to_email: fromEmail, status: 'pending',
-  });
-  if (pendingIn?.length) {
-    throw new Error('Bu kişi sana zaten istek göndermiş — Gelen İstekler listesinden kabul et.');
-  }
-
-  // Codex129 — Recipient registration probe. Base44 SendEmail integration
-  // can ONLY deliver mail to users registered in the app — sending to a
-  // non-registered address always fails with "Cannot send emails to users
-  // outside the app". We don't roll back the FriendRequest (the row stays
-  // pending so the recipient can accept it after they sign up), but we
-  // surface a meaningful `recipientRegistered` flag so the UI can show an
-  // honest message instead of pretending the email went out.
-  //
-  // The User.list/filter call is RLS-gated. Most apps only let admins read
-  // other users; for a regular caller this will return [] for both real
-  // and missing users. We treat "unknown" as null and the UI prints the
-  // honest "may not be registered" copy in that case.
-  let recipientRegistered = null;
-  try {
-    const rows = await base44.entities.User.filter({ email: target }, '-created_date', 1);
-    if (Array.isArray(rows) && rows.length > 0) recipientRegistered = true;
-  } catch {
-    recipientRegistered = null;
-  }
-
-  await base44.entities.FriendRequest.create({
-    from_email: fromEmail,
-    from_name: getSafeNotificationActorName([me?.username, me?.public_username, me?.full_name], ''),
-    to_email: target,
-    status: 'pending',
-  });
-
-  // Codex087/Codex091 — fire-and-forget email notification. NEVER blocks or
-  // rolls back the FriendRequest. The FriendRequest above is the primary
-  // action; email is best-effort.
-  //
-  // Codex091: explicitly surface the controlled failure marker `email_failed`
-  // (used by the backend's SendEmail catch path) so callers/log readers can
-  // distinguish "FriendRequest created but email never went out" from
-  // "FriendRequest itself failed". We map any backend SendEmail failure to
-  // the canonical `email_failed` marker; other reasons keep their tag.
+  let res;
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    const res = await base44.functions.invoke('sendFriendRequestEmail', {
-      toEmail: target,
+    res = await base44.functions.invoke('sendFriendRequest', {
+      target: parsed.value,
+      inputKind: parsed.kind,
       appUrl: origin,
     });
-    if (!res?.data?.ok) {
-      // Backend returns error: 'email_failed' (status 502) on SendEmail
-      // failure. Normalize so the caller never sees a backend-internal tag.
-      const rawReason = res?.data?.error || 'unknown';
-      const reason = rawReason === 'email_failed' ? 'email_failed' : rawReason;
-      console.warn('[friendsApi] friend-request email not delivered:', reason, 'marker=email_failed');
-      // Communicate soft failure to the caller without throwing — caller
-      // can choose to surface a non-blocking warning. Shape is stable.
-      return { ok: true, emailSent: false, emailError: reason, recipientRegistered };
-    }
-    return { ok: true, emailSent: true, recipientRegistered };
   } catch (err) {
-    // Network / runtime / SDK error — still a soft failure, not a hard fail
-    // of the FriendRequest. Mark with the canonical email_failed marker so
-    // log filters / tests can grep one token.
-    console.warn('[friendsApi] sendFriendRequestEmail invoke failed:', err?.message || err, 'marker=email_failed');
-    return { ok: true, emailSent: false, emailError: 'email_failed', recipientRegistered };
+    const data = err?.response?.data || err?.data || {};
+    if (data?.code === 'username_not_found') throw new Error(USERNAME_NOT_FOUND_MESSAGE);
+    if (data?.error) throw new Error(data.error);
+    throw new Error(err?.message || 'İstek gönderilemedi.');
   }
+
+  const data = res?.data || {};
+  if (!data.ok || data.error) {
+    if (data.code === 'username_not_found') throw new Error(USERNAME_NOT_FOUND_MESSAGE);
+    throw new Error(data.error || 'İstek gönderilemedi.');
+  }
+
+  if (data.emailSent === false && data.emailError) {
+    console.warn('[friendsApi] friend-request email not delivered:', data.emailError, 'marker=email_failed');
+  }
+  return data;
 }
 
 export async function rejectIncomingRequest(requestId) {

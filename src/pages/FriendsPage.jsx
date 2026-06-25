@@ -87,7 +87,7 @@ export default function FriendsPage() {
   });
 
   /* ---- mutation handlers — always refetch after success ---- */
-  const handleSend = async (toEmail) => {
+  const handleSend = async (target) => {
     // Codex087 — sendFriendRequest may resolve with {emailSent:false} when
     // the FriendRequest was created but the email notification failed.
     // We must not throw in that case (the request itself succeeded), but
@@ -100,11 +100,13 @@ export default function FriendsPage() {
     //   • emailSent=false + recipientRegistered!=true → "isteği oluşturuldu.
     //     Alıcı Kronox'a kayıtlı değilse e-posta iletilemez; kayıt olursa
     //     uygulamada görecek."
-    const result = await sendFriendRequest({ me: user, toEmail });
+    const result = await sendFriendRequest({ me: user, target });
     await refresh(user.email);
     if (result) {
       let msg = null;
-      if (result.emailSent === true) {
+      if (result.alreadyPending) {
+        msg = 'Bu kişiye zaten bekleyen bir isteğin var.';
+      } else if (result.emailSent === true) {
         msg = 'Arkadaşlık isteği gönderildi ve e-posta iletildi.';
       } else if (result.recipientRegistered === true) {
         msg = 'İstek oluşturuldu. E-posta gönderilemedi ancak alıcı uygulamada görecek.';
@@ -221,7 +223,7 @@ export default function FriendsPage() {
           {/* My Friends */}
           <Section icon={Users} label="Arkadaşlarım" badge={friends.length}>
             {loading ? <RowSkeleton /> : friends.length === 0 ? (
-              <EmptyHint text="Henüz arkadaşın yok. Aşağıdan e-posta ile ekleyebilirsin." />
+              <EmptyHint text="Henüz arkadaşın yok. Aşağıdan e-posta veya kullanıcı adı ile ekleyebilirsin." />
             ) : (
               <div className="space-y-2">
                 {friends.map((f) => (

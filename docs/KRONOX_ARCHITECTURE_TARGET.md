@@ -154,6 +154,9 @@ Parity plan:
 ## Cross-Cutting Rules
 
 - Public identity is username only.
+- Friends can be added by email address or registered Kronox username. Username
+  lookup and duplicate/self checks stay backend-owned, and username-based add
+  responses must return only username-safe labels, never the target email.
 - Friend, invite, lobby, notification, and presence surfaces must render
   username-safe labels only. Emails, provider IDs, raw guest IDs, owner keys,
   and internal player keys are never public display fallbacks.

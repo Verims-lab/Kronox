@@ -55,6 +55,10 @@ fallback polling/refetch.
 - Added focused friend/presence coverage so fake-online friend pickers, email
   display fallbacks, unscoped presence reads, and non-current-user presence
   writes fail Health.
+- Added focused friend-add coverage for email-or-username input, server-side
+  username resolution, required username-not-found copy, no client `User.list`
+  lookup, no target-email return on username add, and server-side self,
+  duplicate, and pending-request guards.
 
 ## Required Coverage Areas
 
@@ -66,6 +70,7 @@ fallback polling/refetch.
 | Invite accept verified lobby | Static `verifiedLobby`/`joinedLobby` contract | Deployed function freshness marker or Base44 test-function proof |
 | Notification no-flicker | Executable merge/reducer tests plus static ViewModel guards | Timed UI harness with transient empty fetch injection |
 | Friend online/offline presence | Static backend contract and UI-helper checks for `PlayerPresence`, heartbeat, accepted-friend lookup, offline fallback, and username-only labels | Two-account live proof: user B appears online after heartbeat and offline after expiry/background |
+| Friend add by email/username | Static UI/backend/privacy checks for email-or-username input, server-side username lookup, required username-not-found copy, and no target email return | Two-account live proof for existing email, existing username, missing username, self-add, duplicate friend, and pending request |
 | Solo record congratulations | Static backend context/copy checks | Production-like multi-user record fixture or backend probe |
 | Daily Quest Diamond-only | Static runtime/backend checks | Two-device claim race proof |
 | Leaderboard username-only | Static public payload checks | RLS/BOLA live probe |

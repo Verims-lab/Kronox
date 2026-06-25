@@ -2481,6 +2481,14 @@ import React, { useEffect, useState } from 'react';
 //   • Adds Health/static proof that public category metadata is allowed only
 //     when it exposes no questions, answers, years, full bank, or stale fallbacks.
 //
+// Codex438 — Friend add by email or username:
+//   • Adds backend-owned sendFriendRequest for email/username target
+//     resolution with self, duplicate, and pending guards.
+//   • Keeps username-based add responses username-safe and never returns the
+//     target email to the requester.
+//   • Updates Friends UI copy plus Health/docs for the public-identity
+//     privacy contract.
+//
 // Codex437 — Home wordmark Health wrapper + VAPID guardrail audit:
 //   • Restores a real MainMenu-local KronoxWordmark function while preserving
 //     the shared CSS/motion wordmark visual.
@@ -2502,7 +2510,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex437';
+const BUILD_MARKER = 'Codex438';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

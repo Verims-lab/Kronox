@@ -27,9 +27,9 @@ Mechanical scan from this pass:
 | --- | --- |
 | Audited source/doc/script files in requested folders | 416 |
 | Base44 entity schemas | 35 |
-| Base44 function entry files | 43 |
-| Base44 function manifests in repo | 19 |
-| Files touching `base44.` / SDK calls in source, backend, scripts, or Health | 134 |
+| Base44 function entry files | 44 |
+| Base44 function manifests in repo | 20 |
+| Files touching `base44.` / SDK calls in source, backend, scripts, or Health | 151 |
 | Existing DB gateway start | `src/lib/dbGateway/*`, plus many direct Base44 calls remain |
 | Health coverage | Broad static and some executable cases; live two-account and device proof remain manual |
 
@@ -92,6 +92,9 @@ Mechanical scan from this pass:
 - Added backend-owned `PlayerPresence` plus current-user heartbeat and
   accepted-friend-scoped lookup so friend pickers/lists no longer fake every
   friend as online and no longer display emails as public names.
+- Added backend-owned `sendFriendRequest` so Add Friend accepts email or
+  username while username resolution, self/duplicate/pending guards, and
+  target-email privacy stay server-side.
 - Corrected invite navigation Health expectations from the older
   `lobby: updatedLobby` token to the current `verifiedLobby` / `joinedLobby`
   contract.

@@ -427,7 +427,7 @@ Base44 function config proof:
   economy/Daily Quest/Wheel functions
 * admin-only/internal reporting: AdminUser-guarded report, diagnostic,
   simulation, maintenance, and reset functions
-* configured manifests currently present for 19 functions; additional
+* configured manifests currently present for 20 functions; additional
   `entry.ts` directories are compile-checked but must not be assumed
   platform-published unless a matching `function.jsonc` or Base44 deploy proof
   exists
@@ -443,6 +443,7 @@ Configured function auth/public matrix:
 | `recordPlayerQuestionExposure` | Guest-token or authenticated user | Same player proof model as exposure stats; no request-body identity trust. |
 | `updateProfileSettings` | Guest-token or authenticated user | Guest path verifies token; auth path derives current user. |
 | `linkGuestAccount` | Authenticated user + guest-token | Auth user from `base44.auth.me()` and guest ownership from token hash. |
+| `sendFriendRequest` | Authenticated user | Current user from `base44.auth.me()`; email or username target is resolved server-side, self/duplicate/pending guards run in the function, and username add responses return username-safe labels without target email. |
 | `updatePlayerPresence` | Authenticated user | Current user from `base44.auth.me()`; request body cannot mark another actor online; rows store anonymized owner_key_hash only. |
 | `getFriendPresence` | Authenticated accepted-friend lookup | Current user from `base44.auth.me()`; response is restricted to accepted FriendRequest relationships and returns username-safe presence rows only. |
 | `getSoloLeaderboard` | Authenticated user or completed guest-token | Public-safe rows only; guest path verifies token and strips owner_key/raw guest_id/display_name. |
