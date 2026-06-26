@@ -37,7 +37,7 @@ import soloSuccessPopupSource from './SoloSuccessPopup.jsx?raw';
 import soloFailureCardSource from './SoloFailureCard.jsx?raw';
 import soloLevelTimerSource from './SoloLevelTimer.jsx?raw';
 import gameSoundsSource from '../../lib/gameSounds.js?raw';
-import dbReportingReadinessSource from '../../../docs/KRONOX_DB_REPORTING_READINESS.md?raw';
+import { DB_REPORTING_READINESS_SOURCE as dbReportingReadinessSource } from '@/lib/healthMirrors/dbReportingReadinessMirror';
 import { GET_SOLO_LEADERBOARD_SOURCE as getSoloLeaderboardFunctionSource } from '@/lib/healthMirrors/getSoloLeaderboardMirror';
 import {
   createSoloAttemptInitialState,
