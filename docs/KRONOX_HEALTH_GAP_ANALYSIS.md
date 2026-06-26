@@ -62,7 +62,8 @@ fallback polling/refetch.
 - Added focused friend-invite lifecycle coverage for backend-owned duplicate
   open invite blocking, expired-outgoing delete-before-resend blocking, 72-hour
   friend invite expiry, reverse-pending expiry safety, shared Add
-  Friend/Leaderboard handling, leaderboard double-submit suppression, and
+  Friend/Leaderboard handling, Add Friend and Leaderboard double-submit
+  suppression, function-level `FriendRequestOperationLock` race hardening, and
   username-safe responses.
 - Added focused Online player-selection coverage for online friend / online
   non-friend / offline friend ordering, current-user/unroutable exclusion,
@@ -93,7 +94,7 @@ fallback polling/refetch.
 | Notification no-flicker | Executable merge/reducer tests plus static ViewModel guards | Timed UI harness with transient empty fetch injection |
 | Friend/player online/offline presence | Static backend contract and UI-helper checks for `PlayerPresence`, heartbeat, accepted-friend lookup, online non-friend selection, offline fallback, opaque target refs, and username-only labels | Multi-account live proof: user B appears online after heartbeat, user C appears as an online non-friend, and stale/offline rows fall out correctly |
 | Online non-friend invite | Static backend contract for `createGameInvitesForTargets` resolving fresh target refs without returning email | Live proof that selected online non-friend receives in-app invite and can accept into `verifiedLobby` / `joinedLobby` |
-| Friend add by email/username | Static UI/backend/privacy checks for email-or-username input, server-side username lookup, required username-not-found copy, and no target email return | Two-account live proof for existing email, existing username, missing username, self-add, duplicate friend, and pending request |
+| Friend add by email/username | Static UI/backend/privacy checks for email-or-username input, server-side username lookup, required username-not-found copy, no target email return, Add Friend double-submit guard, and function-level FriendRequest send lock | Two-account live proof for existing email, existing username, missing username, self-add, duplicate friend, pending request, expired resend after cancel/delete, and parallel send attempts |
 | Solo record congratulations | Static backend context/copy checks | Production-like multi-user record fixture or backend probe |
 | Daily Quest Diamond-only | Static runtime/backend checks | Two-device claim race proof |
 | Leaderboard username-only | Static public payload checks | RLS/BOLA live probe |
@@ -130,3 +131,10 @@ fallback polling/refetch.
   two devices without duplicate grant/spend.
 - Privacy: no email/provider/raw guest/owner/internal player ids visible in
   leaderboard, lobby, notification, or push text.
+- Friend invite duplicate/expiry proof: Account A sends a friend invite to
+  Account B from Leaderboard, retries while it is open and sees the open-invite
+  warning, sends from Add Friend by username/email and receives the same
+  duplicate contract, lets an invite expire and confirms resend is blocked
+  until the sender cancels/deletes the expired row, then confirms a new invite
+  can be sent after cancel/delete. Parallel rapid submits should create at most
+  one pending FriendRequest; lock conflicts return a safe retry message.

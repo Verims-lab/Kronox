@@ -59,13 +59,14 @@ Rules:
 ## Friend and Online invite delivery privacy
 
 `sendFriendRequest` must validate the current user, resolve email/username
-targets server-side, check self/friend/open-pending guards, require deletion of
-expired outgoing invites before resend, set `FriendRequest.expires_at` at least
-72 hours after creation, keep open reverse-pending requests actionable through
-Gelen İstekler, ignore/expire stale reverse-pending rows, create the
-`FriendRequest` row first, and only then attempt email delivery. SendEmail
-failure is a soft delivery failure: it must not roll back or delete the pending
-request.
+targets server-side, check self/friend/open-pending guards under
+`FriendRequestOperationLock`, require deletion of expired outgoing invites
+before resend, set `FriendRequest.expires_at` at least 72 hours after creation,
+keep open reverse-pending requests actionable through Gelen İstekler,
+ignore/expire stale reverse-pending rows, create the `FriendRequest` row first,
+and only then attempt email delivery. SendEmail failure is a soft delivery
+failure: it must not roll back or delete the pending request. The lock is a
+function-level race guard, not DB unique/index proof.
 
 Online non-friend game invites use opaque `target_ref` values in the client.
 `createGameInvitesForTargets` resolves those refs backend-side to routable
@@ -493,7 +494,7 @@ Configured function auth/public matrix:
 | `recordPlayerQuestionExposure` | Guest-token or authenticated user | Same player proof model as exposure stats; no request-body identity trust. |
 | `updateProfileSettings` | Guest-token or authenticated user | Guest path verifies token; auth path derives current user. |
 | `linkGuestAccount` | Authenticated user + guest-token | Auth user from `base44.auth.me()` and guest ownership from token hash. |
-| `sendFriendRequest` | Authenticated user | Current user from `base44.auth.me()`; email or username target is resolved server-side, self/open-pending/expired-outgoing guards run in the function, new rows get 72-hour `expires_at`, and username add responses return username-safe labels without target email. |
+| `sendFriendRequest` | Authenticated user | Current user from `base44.auth.me()`; email or username target is resolved server-side, self/open-pending/expired-outgoing guards run under `FriendRequestOperationLock`, new rows get 72-hour `expires_at`, and username add responses return username-safe labels without target email. |
 | `updatePlayerPresence` | Authenticated user | Current user from `base44.auth.me()`; request body cannot mark another actor online; rows store anonymized owner_key_hash plus backend-private user_email for invite routing, never returned by public presence/selection responses. |
 | `getFriendPresence` | Authenticated accepted-friend lookup | Current user from `base44.auth.me()`; response is restricted to accepted FriendRequest relationships and returns username-safe presence rows only. |
 | `getOnlinePlayerSelection` | Authenticated player selection lookup | Current user from `base44.auth.me()`; returns online friends, fresh online non-friends, and offline friends as username + opaque target_ref only; excludes current user and unroutable rows. |

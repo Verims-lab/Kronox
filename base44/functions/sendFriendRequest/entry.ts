@@ -3,7 +3,10 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 const USERNAME_NOT_FOUND_MESSAGE = 'Kronox’ta bu kullanıcı adıyla biri yok.';
 const OPEN_INVITE_EXISTS_MESSAGE = 'Bu kişiye gönderilmiş açık davet var.';
 const EXPIRED_INVITE_REQUIRES_DELETE_MESSAGE = 'Bu kişiye süresi dolmuş bir davetin var. Yeniden davet göndermeden önce eski daveti silmelisin.';
+const FRIEND_REQUEST_IN_PROGRESS_MESSAGE = 'Arkadaşlık isteği işleniyor. Lütfen tekrar dene.';
 const FRIEND_REQUEST_TTL_MS = 3 * 24 * 60 * 60 * 1000;
+const FRIEND_REQUEST_LOCK_TTL_MS = 8_000;
+const FRIEND_REQUEST_LOCK_SETTLE_MS = 80;
 const UNSAFE_PUBLIC_USERNAME_PATTERN = /^(apple|google|firebase|auth0|base44|provider|uid|owner)(?:[\w:-].*)?$/i;
 const INTERNAL_ID_PUBLIC_USERNAME_PATTERN = /^(guest|player|owner|user_key|player_key|g|u)_[A-Za-z0-9_-]{4,}$/i;
 
@@ -119,6 +122,171 @@ async function markExpiredFriendRequestRows(base44: any, rows: any[], nowMs: num
       expired_at: new Date(nowMs).toISOString(),
     }).catch(() => null);
   }));
+}
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function rowId(row: any) {
+  return row?.id || row?._id || null;
+}
+
+function safeLockText(value: unknown, fallback = '') {
+  const text = String(value || '').trim();
+  return text ? text.slice(0, 220) : fallback;
+}
+
+function hashLockComponent(value: unknown) {
+  const text = normalizeEmail(value) || String(value || '').trim().toLowerCase();
+  let hash = 2166136261;
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
+}
+
+function buildFriendRequestLockKey(fromEmail: string, targetEmail: string) {
+  return `friend_request:${hashLockComponent(fromEmail)}:${hashLockComponent(targetEmail)}`;
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function friendRequestOperationLockEntity(base44: any) {
+  // FriendRequestOperationLock is a function-level race guard. It narrows
+  // duplicate-send windows but does not claim DB-level uniqueness.
+  const serviceEntity = base44?.asServiceRole?.entities ? base44.asServiceRole.entities.FriendRequestOperationLock : null;
+  const authEntity = base44?.entities ? base44.entities.FriendRequestOperationLock : null;
+  return serviceEntity || authEntity;
+}
+
+function isSameLockRow(a: any, b: any) {
+  const left = rowId(a);
+  const right = rowId(b);
+  if (left && right) return left === right;
+  return Boolean(a?.operation_id && b?.operation_id && a.operation_id === b.operation_id && a.lock_key === b.lock_key);
+}
+
+function isActiveFriendRequestLock(row: any, nowMs: number) {
+  if (String(row?.status || '') !== 'active') return false;
+  const expiresMs = Date.parse(String(row?.expires_at || ''));
+  return Number.isFinite(expiresMs) ? expiresMs > nowMs : true;
+}
+
+function selectCanonicalFriendRequestLock(rows: any[], nowMs: number) {
+  return (Array.isArray(rows) ? rows : [])
+    .filter((row) => isActiveFriendRequestLock(row, nowMs))
+    .sort((a, b) => {
+      const acquiredDiff = Date.parse(String(a?.acquired_at || '')) - Date.parse(String(b?.acquired_at || ''));
+      if (Number.isFinite(acquiredDiff) && acquiredDiff !== 0) return acquiredDiff;
+      return String(rowId(a) || a?.operation_id || '').localeCompare(String(rowId(b) || b?.operation_id || ''));
+    })[0] || null;
+}
+
+async function findFriendRequestOperationLocks(base44: any, lockKey: string) {
+  const entity = friendRequestOperationLockEntity(base44);
+  if (!entity?.filter) return [];
+  const rows = await entity.filter({ lock_key: lockKey }, '-acquired_at', 25).catch(() => []);
+  return Array.isArray(rows) ? rows : [];
+}
+
+async function markExpiredFriendRequestOperationLocks(base44: any, lockKey: string, nowMs: number) {
+  const entity = friendRequestOperationLockEntity(base44);
+  if (!entity?.update) return;
+  const now = new Date(nowMs).toISOString();
+  const rows = await findFriendRequestOperationLocks(base44, lockKey);
+  await Promise.all(rows
+    .filter((row) => String(row?.status || '') === 'active')
+    .filter((row) => {
+      const expiresMs = Date.parse(String(row?.expires_at || ''));
+      return Number.isFinite(expiresMs) && expiresMs <= nowMs;
+    })
+    .map((row) => entity.update(rowId(row), {
+      status: 'stale',
+      released_at: now,
+      metadata: {
+        ...(row?.metadata && typeof row.metadata === 'object' ? row.metadata : {}),
+        staleRecovery: true,
+      },
+    }).catch(() => null)));
+}
+
+async function releaseFriendRequestOperationLock(base44: any, lock: any, status = 'released') {
+  const entity = friendRequestOperationLockEntity(base44);
+  const id = rowId(lock);
+  if (!entity?.update || !id) return;
+  await entity.update(id, {
+    status,
+    released_at: nowIso(),
+  }).catch(() => null);
+}
+
+async function acquireFriendRequestOperationLock(base44: any, lockKey: string, context: Record<string, unknown>) {
+  const entity = friendRequestOperationLockEntity(base44);
+  if (!entity?.filter || !entity?.create || !entity?.update) {
+    return { ok: false, code: 'friend_request_lock_unavailable', lock: null };
+  }
+  const now = nowIso();
+  const nowMs = Date.parse(now);
+  await markExpiredFriendRequestOperationLocks(base44, lockKey, nowMs);
+  const existing = selectCanonicalFriendRequestLock(await findFriendRequestOperationLocks(base44, lockKey), nowMs);
+  if (existing) return { ok: false, code: 'FRIEND_REQUEST_IN_PROGRESS', lock: existing };
+
+  const created = await entity.create({
+    lock_key: lockKey,
+    actor_key_hash: safeLockText(context.actorKeyHash, ''),
+    target_key_hash: safeLockText(context.targetKeyHash, ''),
+    operation_scope: 'friend_request_send',
+    operation_id: safeLockText(context.operationId, lockKey),
+    status: 'active',
+    acquired_at: now,
+    expires_at: new Date(nowMs + FRIEND_REQUEST_LOCK_TTL_MS).toISOString(),
+    metadata: {
+      phase: 'friend_request_parallel_race_guard_phase_1',
+      ttlMs: FRIEND_REQUEST_LOCK_TTL_MS,
+      ...(context.metadata && typeof context.metadata === 'object' ? context.metadata : {}),
+    },
+  });
+  await sleep(FRIEND_REQUEST_LOCK_SETTLE_MS);
+  const canonical = selectCanonicalFriendRequestLock(await findFriendRequestOperationLocks(base44, lockKey), Date.now());
+  if (!isSameLockRow(canonical, created)) {
+    await releaseFriendRequestOperationLock(base44, created, 'released');
+    return { ok: false, code: 'FRIEND_REQUEST_IN_PROGRESS', lock: canonical };
+  }
+  return { ok: true, code: 'locked', lock: created };
+}
+
+async function withFriendRequestOperationLock(
+  base44: any,
+  lockKey: string,
+  context: Record<string, unknown>,
+  callback: () => Promise<Response>,
+) {
+  const lockResult = await acquireFriendRequestOperationLock(base44, lockKey, context);
+  if (!lockResult.ok) {
+    const unavailable = lockResult.code === 'friend_request_lock_unavailable';
+    const error = unavailable
+      ? 'Arkadaşlık isteği şu an doğrulanamıyor. Lütfen tekrar dene.'
+      : FRIEND_REQUEST_IN_PROGRESS_MESSAGE;
+    return json({
+      ok: false,
+      code: lockResult.code,
+      error,
+      message: error,
+      privacy: {
+        targetEmailReturned: false,
+        publicIdentity: 'username',
+      },
+    }, 409);
+  }
+  try {
+    return await callback();
+  } finally {
+    await releaseFriendRequestOperationLock(base44, lockResult.lock);
+  }
 }
 
 function conflictResponse({
@@ -263,83 +431,95 @@ Deno.serve(async (req) => {
     if (!targetEmail) return json({ ok: false, code: 'target_not_found', error: USERNAME_NOT_FOUND_MESSAGE }, 404);
     if (targetEmail === fromEmail) return json({ ok: false, code: 'self_add', error: 'Kendini ekleyemezsin.' }, 400);
 
-    const [acceptedOut, acceptedIn] = await Promise.all([
-      base44.asServiceRole.entities.FriendRequest.filter({ from_email: fromEmail, to_email: targetEmail, status: 'accepted' }, '-updated_date', 1),
-      base44.asServiceRole.entities.FriendRequest.filter({ from_email: targetEmail, to_email: fromEmail, status: 'accepted' }, '-updated_date', 1),
-    ]);
-    const existingFriend = acceptedOut?.[0] || acceptedIn?.[0] || null;
-    if (existingFriend) {
-      return json({ ok: false, code: 'already_friends', error: 'Bu kullanıcı zaten arkadaşın.' }, 409);
-    }
-
-    const [pendingOut, expiredOut, pendingIn] = await Promise.all([
-      base44.asServiceRole.entities.FriendRequest.filter({ from_email: fromEmail, to_email: targetEmail, status: 'pending' }, '-created_date', 20),
-      base44.asServiceRole.entities.FriendRequest.filter({ from_email: fromEmail, to_email: targetEmail, status: 'expired' }, '-created_date', 20).catch(() => []),
-      base44.asServiceRole.entities.FriendRequest.filter({ from_email: targetEmail, to_email: fromEmail, status: 'pending' }, '-created_date', 20),
-    ]);
-    const nowMs = Date.now();
-    const outgoingConflict = findOutgoingInviteConflict([...(pendingOut || []), ...(expiredOut || [])], nowMs);
-    if (outgoingConflict?.type === 'expired') {
-      return json(conflictResponse({
-        code: 'EXPIRED_INVITE_REQUIRES_DELETE',
-        error: EXPIRED_INVITE_REQUIRES_DELETE_MESSAGE,
+    const lockKey = buildFriendRequestLockKey(fromEmail, targetEmail);
+    return await withFriendRequestOperationLock(base44, lockKey, {
+      actorKeyHash: hashLockComponent(fromEmail),
+      targetKeyHash: hashLockComponent(targetEmail),
+      operationId: lockKey,
+      metadata: {
         inputKind,
-        target,
-        request: outgoingConflict.row,
-      }), 409);
-    }
-    if (outgoingConflict?.type === 'open') {
-      // Duplicate open outgoing request guard: do NOT create a second
-      // FriendRequest. Return a typed safe error and never leak target email.
-      return json(conflictResponse({
-        code: 'OPEN_INVITE_EXISTS',
-        error: OPEN_INVITE_EXISTS_MESSAGE,
-        inputKind,
-        target,
-        request: outgoingConflict.row,
-      }), 409);
-    }
-    const reversePending = findOpenReversePendingRequest(pendingIn || [], nowMs);
-    if (!reversePending) {
-      await markExpiredFriendRequestRows(base44, pendingIn || [], nowMs);
-    }
-    if (reversePending) {
-      return json({ ok: false, code: 'reverse_pending', error: 'Bu kişi sana zaten istek göndermiş — Gelen İstekler listesinden kabul et.' }, 409);
-    }
-
-    const expiresAt = new Date(nowMs + FRIEND_REQUEST_TTL_MS);
-    const created = await base44.asServiceRole.entities.FriendRequest.create({
-      from_email: fromEmail,
-      from_name: senderName,
-      from_username: senderName,
-      to_email: targetEmail,
-      to_name: target.username,
-      to_username: target.username,
-      status: 'pending',
-      expires_at: expiresAt.toISOString(),
-    });
-
-    const appUrl = sanitizeAppUrl(body?.appUrl) || 'https://kronox.base44.app';
-    const emailResult = await sendFriendRequestEmail(base44, {
-      toEmail: targetEmail,
-      senderName,
-      appUrl,
-    });
-
-    return json({
-      ok: true,
-      requestId: created?.id || created?._id || null,
-      requestStatus: 'pending',
-      inputKind,
-      targetLabel: target.username,
-      recipientRegistered: target.registered,
-      emailSent: emailResult.emailSent,
-      emailError: emailResult.emailError,
-      expires_at: expiresAt.toISOString(),
-      privacy: {
+        targetRegistered: target.registered,
         targetEmailReturned: false,
-        publicIdentity: 'username',
       },
+    }, async () => {
+      const [acceptedOut, acceptedIn] = await Promise.all([
+        base44.asServiceRole.entities.FriendRequest.filter({ from_email: fromEmail, to_email: targetEmail, status: 'accepted' }, '-updated_date', 1),
+        base44.asServiceRole.entities.FriendRequest.filter({ from_email: targetEmail, to_email: fromEmail, status: 'accepted' }, '-updated_date', 1),
+      ]);
+      const existingFriend = acceptedOut?.[0] || acceptedIn?.[0] || null;
+      if (existingFriend) {
+        return json({ ok: false, code: 'already_friends', error: 'Bu kullanıcı zaten arkadaşın.' }, 409);
+      }
+
+      const [pendingOut, expiredOut, pendingIn] = await Promise.all([
+        base44.asServiceRole.entities.FriendRequest.filter({ from_email: fromEmail, to_email: targetEmail, status: 'pending' }, '-created_date', 20),
+        base44.asServiceRole.entities.FriendRequest.filter({ from_email: fromEmail, to_email: targetEmail, status: 'expired' }, '-created_date', 20).catch(() => []),
+        base44.asServiceRole.entities.FriendRequest.filter({ from_email: targetEmail, to_email: fromEmail, status: 'pending' }, '-created_date', 20),
+      ]);
+      const nowMs = Date.now();
+      const outgoingConflict = findOutgoingInviteConflict([...(pendingOut || []), ...(expiredOut || [])], nowMs);
+      if (outgoingConflict?.type === 'expired') {
+        return json(conflictResponse({
+          code: 'EXPIRED_INVITE_REQUIRES_DELETE',
+          error: EXPIRED_INVITE_REQUIRES_DELETE_MESSAGE,
+          inputKind,
+          target,
+          request: outgoingConflict.row,
+        }), 409);
+      }
+      if (outgoingConflict?.type === 'open') {
+        // Duplicate open outgoing request guard: do NOT create a second
+        // FriendRequest. Return a typed safe error and never leak target email.
+        return json(conflictResponse({
+          code: 'OPEN_INVITE_EXISTS',
+          error: OPEN_INVITE_EXISTS_MESSAGE,
+          inputKind,
+          target,
+          request: outgoingConflict.row,
+        }), 409);
+      }
+      const reversePending = findOpenReversePendingRequest(pendingIn || [], nowMs);
+      if (!reversePending) {
+        await markExpiredFriendRequestRows(base44, pendingIn || [], nowMs);
+      }
+      if (reversePending) {
+        return json({ ok: false, code: 'reverse_pending', error: 'Bu kişi sana zaten istek göndermiş — Gelen İstekler listesinden kabul et.' }, 409);
+      }
+
+      const expiresAt = new Date(nowMs + FRIEND_REQUEST_TTL_MS);
+      const created = await base44.asServiceRole.entities.FriendRequest.create({
+        from_email: fromEmail,
+        from_name: senderName,
+        from_username: senderName,
+        to_email: targetEmail,
+        to_name: target.username,
+        to_username: target.username,
+        status: 'pending',
+        expires_at: expiresAt.toISOString(),
+      });
+
+      const appUrl = sanitizeAppUrl(body?.appUrl) || 'https://kronox.base44.app';
+      const emailResult = await sendFriendRequestEmail(base44, {
+        toEmail: targetEmail,
+        senderName,
+        appUrl,
+      });
+
+      return json({
+        ok: true,
+        requestId: created?.id || created?._id || null,
+        requestStatus: 'pending',
+        inputKind,
+        targetLabel: target.username,
+        recipientRegistered: target.registered,
+        emailSent: emailResult.emailSent,
+        emailError: emailResult.emailError,
+        expires_at: expiresAt.toISOString(),
+        privacy: {
+          targetEmailReturned: false,
+          publicIdentity: 'username',
+        },
+      });
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Arkadaşlık isteği gönderilemedi.';

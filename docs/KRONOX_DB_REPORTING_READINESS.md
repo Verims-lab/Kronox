@@ -59,6 +59,45 @@ and exports must use username-safe or anonymized labels.
 - DB unique/index proof is not present in repo for several idempotency keys.
 - Coarse device/platform reporting is not defined.
 
+## FriendRequest Duplicate / Expiry Guard Phase 1
+
+The repo does not prove a Base44 entity schema syntax for DB-level unique
+constraints or indexes on active `FriendRequest` rows. Do not add invented
+`unique`, `indexes`, or compound-key declarations until Base44 platform support
+is captured and manually verified.
+
+Phase 1 uses function-level hardening:
+
+- `sendFriendRequest` resolves email/username targets server-side and keeps
+  duplicate/open/expired/self/friend checks backend-owned.
+- `FriendRequestOperationLock` is a short-lived admin-only operational lock for
+  `friend_request_send`.
+- Lock rows store hashed `lock_key`, `actor_key_hash`, and `target_key_hash`;
+  they must not store or expose raw email, provider ID, owner_key, raw guest_id,
+  or internal player_key.
+- The function creates a TTL lock, re-reads active lock rows, selects one
+  deterministic canonical winner, marks expired lock rows stale, and returns a
+  safe in-progress response to losing duplicate sends.
+- The lock is guard evidence, not transactional DB uniqueness proof.
+
+Manual proof checklist before claiming production duplicate/expiry readiness:
+
+- Account A sends an invite to Account B from Leaderboard.
+- Account A retries while the invite is open and sees
+  "Bu kişiye gönderilmiş açık davet var."
+- Account A sends from Add Friend by registered username and by email and gets
+  the same duplicate contract without target email exposure.
+- An expired outgoing invite blocks resend with
+  "Bu kişiye süresi dolmuş bir davetin var. Yeniden davet göndermeden önce eski daveti silmelisin."
+- After Account A cancels/deletes the expired outgoing invite, Account A can
+  send a fresh invite to the same target.
+- Delivery failure does not remove the `FriendRequest` row.
+- Rapid/parallel sends create at most one pending `FriendRequest`; competing
+  calls return `FRIEND_REQUEST_IN_PROGRESS` or the open-invite warning.
+- Public UI, client responses, and exported reports do not show email,
+  provider ID, owner_key, raw guest_id, internal player_key, raw lock key, or
+  lock hashes.
+
 ## Recommended Event Additions
 
 These can be added later without changing existing product behavior:

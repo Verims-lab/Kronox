@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex452 — Follow-up friend invite race hardening:
+//   • Adds FriendRequestOperationLock as a backend-owned function-level duplicate-send guard.
+//   • Blocks Add Friend rapid same-tick submits with a ref guard.
+//   • Updates Health/docs/manual proof checklist without claiming DB unique/index proof.
+//
 // Codex451 — Audit/fix pass for friend invite lifecycle:
 //   • Expired reverse-pending FriendRequest rows no longer block a fresh outgoing request.
 //   • Leaderboard friend-add suppresses duplicate in-flight submissions before backend duplicate guards.
@@ -2560,7 +2565,7 @@ import React, { useEffect, useState } from 'react';
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
 // Verims comment on 25.06.2026
-const BUILD_MARKER = 'Codex451';
+const BUILD_MARKER = 'Codex452';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

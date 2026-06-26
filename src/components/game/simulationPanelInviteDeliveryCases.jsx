@@ -33,6 +33,7 @@ import appSource from '../../App.jsx?raw';
 import {
   getFriendPresenceFnSource,
   getOnlinePlayerSelectionFnSource,
+  friendRequestOperationLockEntitySource,
   playerPresenceEntitySource,
   createGameInvitesForTargetsFnSource,
   sendFriendRequestFnSource,
@@ -302,6 +303,79 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Leaderboard friend-add suppresses duplicate in-flight submissions before the backend duplicate guard is needed.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('invite_delivery', 'add_friend_form_double_submit_guard',
+    'Add Friend form blocks rapid double-submit before the backend duplicate guard is needed',
+    () => {
+      const src = safeStr(addFriendFormSource);
+      const required = [
+        'useRef',
+        'submittingRef',
+        'if (submittingRef.current) return',
+        'submittingRef.current = true',
+        'submittingRef.current = false',
+        'disabled={busy}',
+      ];
+      const missing = required.filter((token) => !src.includes(token));
+      if (missing.length) {
+        return fail('Add Friend form can still issue duplicate same-tick invite calls.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          missing,
+        });
+      }
+      return pass('Add Friend form suppresses rapid duplicate submissions locally before backend locking is needed.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('invite_delivery', 'friend_request_function_level_lock_guard',
+    'sendFriendRequest uses a backend-owned TTL lock for duplicate-send race hardening',
+    () => {
+      const backend = safeStr(sendFriendRequestFnSource);
+      const entity = safeStr(friendRequestOperationLockEntitySource);
+      const requiredBackend = [
+        'FRIEND_REQUEST_LOCK_TTL_MS = 8_000',
+        'FRIEND_REQUEST_LOCK_SETTLE_MS = 80',
+        'friendRequestOperationLockEntity',
+        'buildFriendRequestLockKey',
+        'selectCanonicalFriendRequestLock',
+        'markExpiredFriendRequestOperationLocks',
+        'withFriendRequestOperationLock',
+        'FRIEND_REQUEST_IN_PROGRESS',
+        'friend_request_send',
+        'targetEmailReturned: false',
+      ];
+      const requiredEntity = [
+        '"name": "FriendRequestOperationLock"',
+        'Base44/platform uniqueness is not assumed',
+        'actor_key_hash',
+        'target_key_hash',
+        '"friend_request_send"',
+        '"active","released","stale"',
+        'role": "admin"',
+        'raw email',
+      ];
+      const missingBackend = requiredBackend.filter((token) => !backend.includes(token));
+      const missingEntity = requiredEntity.filter((token) => !entity.includes(token));
+      if (missingBackend.length || missingEntity.length) {
+        return fail('Friend request send still lacks a documented function-level race guard.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          missingBackend,
+          missingEntity,
+        });
+      }
+      return pass('sendFriendRequest has a backend-owned TTL lock and privacy-safe lock entity contract.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
       });

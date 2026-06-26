@@ -43,12 +43,75 @@ export const friendRequestEntitySource = `
   }
 `;
 
+export const friendRequestOperationLockEntitySource = `
+  "name": "FriendRequestOperationLock",
+  "description": "Short-lived backend-owned guard for FriendRequest send mutations. Base44/platform uniqueness is not assumed, so sendFriendRequest creates a TTL lock, re-reads active lock rows, chooses one deterministic winner, and marks expired rows stale. Public UI and exports must never expose lock_key, actor_key_hash, target_key_hash, raw email, provider ID, owner_key, raw guest_id, or internal player_key.",
+  "properties": {
+    "lock_key": {},
+    "actor_key_hash": {},
+    "target_key_hash": {},
+    "operation_scope": { "enum": ["friend_request_send"] },
+    "operation_id": {},
+    "status": { "enum": ["active","released","stale"] },
+    "acquired_at": {},
+    "expires_at": {},
+    "released_at": {},
+    "metadata": {}
+  },
+  "required": ["lock_key","actor_key_hash","target_key_hash","operation_scope","operation_id","status","acquired_at","expires_at"],
+  "rls": {
+    "create": { "user_condition": { "role": "admin" } },
+    "read":   { "user_condition": { "role": "admin" } },
+    "update": { "user_condition": { "role": "admin" } },
+    "delete": { "user_condition": { "role": "admin" } }
+  }
+`;
+
 export const sendFriendRequestFnSource = `
   // Public contract of functions/sendFriendRequest.js — mirrored.
   const USERNAME_NOT_FOUND_MESSAGE = 'Kronox’ta bu kullanıcı adıyla biri yok.';
   const OPEN_INVITE_EXISTS_MESSAGE = 'Bu kişiye gönderilmiş açık davet var.';
   const EXPIRED_INVITE_REQUIRES_DELETE_MESSAGE = 'Bu kişiye süresi dolmuş bir davetin var. Yeniden davet göndermeden önce eski daveti silmelisin.';
+  const FRIEND_REQUEST_IN_PROGRESS_MESSAGE = 'Arkadaşlık isteği işleniyor. Lütfen tekrar dene.';
   const FRIEND_REQUEST_TTL_MS = 3 * 24 * 60 * 60 * 1000;
+  const FRIEND_REQUEST_LOCK_TTL_MS = 8_000;
+  const FRIEND_REQUEST_LOCK_SETTLE_MS = 80;
+  function friendRequestOperationLockEntity(base44) {
+    return base44.asServiceRole.entities.FriendRequestOperationLock || base44.entities.FriendRequestOperationLock;
+  }
+  function buildFriendRequestLockKey(fromEmail, targetEmail) {
+    return 'friend_request:' + hashLockComponent(fromEmail) + ':' + hashLockComponent(targetEmail);
+  }
+  function selectCanonicalFriendRequestLock(rows, nowMs) {
+    return rows.filter((row) => isActiveFriendRequestLock(row, nowMs)).sort((a, b) => Date.parse(a.acquired_at) - Date.parse(b.acquired_at))[0] || null;
+  }
+  async function markExpiredFriendRequestOperationLocks(base44, lockKey, nowMs) {
+    await entity.update(row.id, { status: 'stale', released_at: now, metadata: { staleRecovery: true } });
+  }
+  async function acquireFriendRequestOperationLock(base44, lockKey, context) {
+    await markExpiredFriendRequestOperationLocks(base44, lockKey, nowMs);
+    const existing = selectCanonicalFriendRequestLock(await findFriendRequestOperationLocks(base44, lockKey), nowMs);
+    if (existing) return { ok: false, code: 'FRIEND_REQUEST_IN_PROGRESS', lock: existing };
+    const created = await entity.create({
+      lock_key: lockKey,
+      actor_key_hash: context.actorKeyHash,
+      target_key_hash: context.targetKeyHash,
+      operation_scope: 'friend_request_send',
+      operation_id: context.operationId,
+      status: 'active',
+      acquired_at: now,
+      expires_at: new Date(nowMs + FRIEND_REQUEST_LOCK_TTL_MS).toISOString(),
+    });
+    await sleep(FRIEND_REQUEST_LOCK_SETTLE_MS);
+    const canonical = selectCanonicalFriendRequestLock(await findFriendRequestOperationLocks(base44, lockKey), Date.now());
+    if (!isSameLockRow(canonical, created)) return { ok: false, code: 'FRIEND_REQUEST_IN_PROGRESS', lock: canonical };
+    return { ok: true, code: 'locked', lock: created };
+  }
+  async function withFriendRequestOperationLock(base44, lockKey, context, callback) {
+    const lockResult = await acquireFriendRequestOperationLock(base44, lockKey, context);
+    if (!lockResult.ok) return json({ ok: false, code: lockResult.code, error: FRIEND_REQUEST_IN_PROGRESS_MESSAGE, privacy: { targetEmailReturned: false, publicIdentity: 'username' } }, 409);
+    try { return await callback(); } finally { await releaseFriendRequestOperationLock(base44, lockResult.lock); }
+  }
   function isFriendRequestExpired(row, nowMs) {
     if (String(row?.status || '').toLowerCase() === 'expired') return true;
     const expiresAt = getFriendRequestExpiresAt(row);
@@ -97,6 +160,8 @@ export const sendFriendRequestFnSource = `
   }
   const targetEmail = normalizeEmail(target.email);
   if (targetEmail === fromEmail) return json({ ok: false, code: 'self_add', error: 'Kendini ekleyemezsin.' }, 400);
+  const lockKey = buildFriendRequestLockKey(fromEmail, targetEmail);
+  return await withFriendRequestOperationLock(base44, lockKey, { actorKeyHash: hashLockComponent(fromEmail), targetKeyHash: hashLockComponent(targetEmail), operationId: lockKey }, async () => {
   const existingFriend = acceptedOut?.[0] || acceptedIn?.[0] || null;
   if (existingFriend) return json({ ok: false, code: 'already_friends', error: 'Bu kullanıcı zaten arkadaşın.' }, 409);
   const outgoingConflict = findOutgoingInviteConflict([...(pendingOut || []), ...(expiredOut || [])], nowMs);
@@ -128,6 +193,7 @@ export const sendFriendRequestFnSource = `
     emailSent: emailResult.emailSent,
     emailError: emailResult.emailError,
     privacy: { targetEmailReturned: false, publicIdentity: 'username' },
+  });
   });
 `;
 
