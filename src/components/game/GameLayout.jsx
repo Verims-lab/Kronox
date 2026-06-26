@@ -535,7 +535,8 @@ export default function GameLayout({
               onTouchDragMove={isMyTurn && !interactionPaused ? onTouchDragMove : undefined}
               onTouchDragEnd={isMyTurn && !interactionPaused ? onTouchDragEnd : undefined}
               onTouchDragCancel={isMyTurn && !interactionPaused ? onTouchDragCancel : undefined}
-              soloReadableCard
+              soloReadableCard={!isOnline}
+              onlineReadableCard={isOnline}
             />
             <GuidedDragFingerHint
               active={Boolean(guidedDragHintActive && isMyTurn && !isDragging && !feedback && !winner && !interactionPaused)}

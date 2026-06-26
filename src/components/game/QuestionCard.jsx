@@ -116,7 +116,14 @@ export default function QuestionCard({
   onTouchDragEnd,
   onTouchDragCancel,
   soloReadableCard = false,
+  // Online gameplay reuses the same readable card layout (paper surface,
+  // larger readable text, icon removed) as Solo. `soloReadableCard` keeps
+  // its original meaning (true only for Solo) so the GameLayout render path
+  // can stay `soloReadableCard={!isOnline}`; `onlineReadableCard` carries the
+  // Online side of the parity. Internally both collapse to `readableCard`.
+  onlineReadableCard = false,
 }) {
+  const readableCard = soloReadableCard || onlineReadableCard;
   const [playing, setPlaying] = useState(false);
   const [imgError, setImgError] = useState(false);
   // Codex153 — Live music preview pipeline removed. `audioError` is kept
@@ -197,12 +204,12 @@ export default function QuestionCard({
   };
 
   const neon = categoryNeon[question?.category] || defaultNeon;
-  const QuestionIcon = soloReadableCard ? null : getQuestionIcon(question?.question, question?.category);
+  const QuestionIcon = readableCard ? null : getQuestionIcon(question?.question, question?.category);
 
   const hasAlbumArt = question?.media_url && !imgError;
   const isMuzik = question?.type === 'muzik';
   const isGorsel = question?.type === 'gorsel';
-  const useOldPaperSurface = soloReadableCard && !hasAlbumArt;
+  const useOldPaperSurface = readableCard && !hasAlbumArt;
 
   // For muzik: show title (song name) + artist from question text
   const lines = (question?.question || '').split('\n');
@@ -314,10 +321,10 @@ export default function QuestionCard({
             <p
               className="text-center font-inter leading-snug text-white line-clamp-2"
               style={{
-                fontSize: soloReadableCard ? 13 : 11,
-                lineHeight: soloReadableCard ? 1.28 : 1.35,
-                fontWeight: soloReadableCard ? 600 : 700,
-                letterSpacing: soloReadableCard ? SOLO_READABLE_QUESTION_LETTER_SPACING : '0',
+                fontSize: readableCard ? 13 : 11,
+                lineHeight: readableCard ? 1.28 : 1.35,
+                fontWeight: readableCard ? 600 : 700,
+                letterSpacing: readableCard ? SOLO_READABLE_QUESTION_LETTER_SPACING : '0',
                 ...activeQuestionTextFitStyle,
               }}
             >
@@ -340,32 +347,32 @@ export default function QuestionCard({
         <>
           {/* No media: fallback layout */}
           <div
-            className={`flex flex-1 flex-col items-center justify-center ${soloReadableCard ? 'gap-1 px-4 py-5' : 'gap-2 px-3 py-3'}`}
+            className={`flex flex-1 flex-col items-center justify-center ${readableCard ? 'gap-1 px-4 py-5' : 'gap-2 px-3 py-3'}`}
           >
             {/* Question text */}
             <p
               className="text-center font-inter text-white"
               style={{
                 width: '100%',
-                maxWidth: soloReadableCard ? 136 : undefined,
-                fontSize: useOldPaperSurface ? 'clamp(16px, 5vw, 20px)' : (soloReadableCard ? 'clamp(13px, 3.8vw, 15px)' : (isMuzik ? 11 : 10)),
-                lineHeight: useOldPaperSurface ? 1.28 : (soloReadableCard ? 1.2 : 1.3),
-                fontWeight: soloReadableCard ? 600 : 700,
-                letterSpacing: soloReadableCard ? SOLO_READABLE_QUESTION_LETTER_SPACING : '0',
+                maxWidth: readableCard ? 136 : undefined,
+                fontSize: useOldPaperSurface ? 'clamp(16px, 5vw, 20px)' : (readableCard ? 'clamp(13px, 3.8vw, 15px)' : (isMuzik ? 11 : 10)),
+                lineHeight: useOldPaperSurface ? 1.28 : (readableCard ? 1.2 : 1.3),
+                fontWeight: readableCard ? 600 : 700,
+                letterSpacing: readableCard ? SOLO_READABLE_QUESTION_LETTER_SPACING : '0',
                 color: useOldPaperSurface ? '#162033' : '#ffffff',
                 textWrap: 'balance',
                 ...activeQuestionTextFitStyle,
                 display: '-webkit-box',
                 WebkitBoxOrient: 'vertical',
-                WebkitLineClamp: soloReadableCard ? 8 : undefined,
-                overflow: soloReadableCard ? 'hidden' : undefined,
+                WebkitLineClamp: readableCard ? 8 : undefined,
+                overflow: readableCard ? 'hidden' : undefined,
               }}
             >
               <ActiveQuestionText text={isMuzik ? songTitle : question?.question} />
             </p>
 
             {/* Category icon */}
-            {!soloReadableCard && !isMuzik && (
+            {!readableCard && !isMuzik && (
               <div
                 className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
                 style={{ background: `${neon.border}18`, border: `1.5px solid ${neon.border}50` }}
@@ -383,11 +390,11 @@ export default function QuestionCard({
               <p
                 className="text-center font-inter"
                 style={{
-                  fontSize: soloReadableCard ? 10 : 9,
-                  fontWeight: soloReadableCard ? 600 : 400,
+                  fontSize: readableCard ? 10 : 9,
+                  fontWeight: readableCard ? 600 : 400,
                   color: useOldPaperSurface
                     ? 'rgba(55,43,29,0.78)'
-                    : soloReadableCard ? 'rgba(255,255,255,0.68)' : 'rgba(255,255,255,0.5)',
+                    : readableCard ? 'rgba(255,255,255,0.68)' : 'rgba(255,255,255,0.5)',
                 }}
               >
                 {artistName}
