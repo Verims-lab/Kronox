@@ -13,9 +13,9 @@ import TutorialHandPointer from './TutorialHandPointer.jsx';
 import { playerTextColors } from './playerColors';
 
 const CTA_ACTIVE_SHADOW = [
-  '0 10px 0 rgba(120,53,15,0.92), 0 18px 32px rgba(0,0,0,0.34), 0 0 18px rgba(250,204,21,0.34)',
-  '0 10px 0 rgba(120,53,15,0.92), 0 20px 36px rgba(0,0,0,0.38), 0 0 24px rgba(250,204,21,0.42)',
-  '0 10px 0 rgba(120,53,15,0.92), 0 18px 32px rgba(0,0,0,0.34), 0 0 18px rgba(250,204,21,0.34)',
+  '0 9px 0 rgba(143,94,0,0.92), 0 18px 32px rgba(0,0,0,0.34), 0 0 16px rgba(255,201,40,0.28)',
+  '0 9px 0 rgba(143,94,0,0.92), 0 20px 36px rgba(0,0,0,0.38), 0 0 22px rgba(255,201,40,0.36)',
+  '0 9px 0 rgba(143,94,0,0.92), 0 18px 32px rgba(0,0,0,0.34), 0 0 16px rgba(255,201,40,0.28)',
 ];
 
 function CTAButton({ active, onClick, disabled }) {
@@ -33,10 +33,10 @@ function CTAButton({ active, onClick, disabled }) {
       }}
       whileTap={active ? { scale: 0.965, y: 3 } : { scale: 0.99 }}
       transition={active ? { duration: 1.25, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.18 }}
-      className="relative isolate h-12 w-full max-w-[320px] overflow-hidden rounded-2xl from-primary font-bangers text-xl tracking-wider transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300/70"
+      className="relative isolate h-12 w-full max-w-[320px] overflow-hidden rounded-2xl text-xl tracking-[0.05em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300/70"
       style={{
         background: active
-          ? 'linear-gradient(180deg, rgba(255,255,255,0.38) 0%, rgba(255,255,255,0.08) 18%, transparent 19%), linear-gradient(135deg, #fde047 0%, #facc15 42%, #f59e0b 100%)'
+          ? 'linear-gradient(180deg, rgba(255,255,255,0.30) 0%, rgba(255,255,255,0.08) 18%, transparent 19%), linear-gradient(180deg, #FFE26A 0%, #FFC928 52%, #E7A900 100%)'
           : 'linear-gradient(180deg, rgba(255,255,255,0.09), rgba(255,255,255,0.045))',
         border: active ? '1px solid rgba(255,255,255,0.42)' : '1px solid rgba(255,255,255,0.1)',
         color: active ? '#0a0f23' : 'rgba(255,255,255,0.28)',
@@ -44,6 +44,8 @@ function CTAButton({ active, onClick, disabled }) {
         textShadow: active ? '0 1px 0 rgba(255,255,255,0.34)' : 'none',
         touchAction: 'manipulation',
         WebkitTapHighlightColor: 'transparent',
+        fontFamily: "'Barlow Condensed', sans-serif",
+        fontWeight: 700,
       }}
     >
       <span
@@ -305,8 +307,28 @@ export default function GameLayout({
       className={`kx-viewport-lock kronox-gameplay-root flex flex-col ${isDragging ? 'kronox-game-drag-lock' : ''}`}
       data-kronox-gameplay-root="true"
       style={{
-        background:
-          'radial-gradient(circle at 50% 38%, rgba(85, 216, 255, 0.10) 0%, transparent 46%), linear-gradient(180deg, #07152F 0%, #102C59 52%, #132F68 100%)',
+        minHeight: '100dvh',
+        backgroundColor: '#061225',
+        backgroundImage: `
+          radial-gradient(
+            ellipse at 50% 32%,
+            rgba(58, 137, 220, 0.28) 0%,
+            rgba(25, 77, 139, 0.14) 32%,
+            transparent 62%
+          ),
+          radial-gradient(
+            ellipse at 50% 82%,
+            rgba(35, 88, 160, 0.18) 0%,
+            transparent 55%
+          ),
+          linear-gradient(
+            180deg,
+            #061225 0%,
+            #0A2346 42%,
+            #0B2852 67%,
+            #061225 100%
+          )
+        `,
       }}
     >
       {/* TOP BAR */}
@@ -542,9 +564,15 @@ export default function GameLayout({
         <div
           className="relative rounded-2xl overflow-hidden py-2 transition-all duration-300"
           style={{
-            background: isTimeUp ? 'rgba(239,68,68,0.06)' : 'rgba(255,255,255,0.04)',
-            border: isTimeUp ? '1.5px solid rgba(239,68,68,0.5)' : '1px solid rgba(255,255,255,0.08)',
-            boxShadow: isTimeUp ? '0 0 16px rgba(239,68,68,0.2)' : 'none',
+            background: isTimeUp
+              ? 'linear-gradient(180deg, rgba(88,32,45,0.78), rgba(52,25,40,0.82))'
+              : 'linear-gradient(180deg, #193D70 0%, #173763 100%)',
+            border: isTimeUp
+              ? '1.5px solid rgba(255,93,103,0.62)'
+              : '1px solid rgba(85,216,255,0.20)',
+            boxShadow: isTimeUp
+              ? '0 0 16px rgba(255,93,103,0.18)'
+              : 'inset 0 1px 0 rgba(255,255,255,0.05), 0 10px 26px rgba(0,0,0,0.20)',
           }}
         >
           {currentPlayer && (
@@ -588,7 +616,7 @@ export default function GameLayout({
               <span style={{ fontSize: 11 }}>⏱</span>
             </div>
             <div>
-              <p className="font-bangers tracking-wider text-red-400" style={{ fontSize: 13 }}>SÜRE DOLDU!</p>
+              <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, letterSpacing: "0.05em", fontSize: 13, color: "#FF5D67" }}>SÜRE DOLDU!</p>
               <p className="font-inter text-red-400/70" style={{ fontSize: 10 }}>Bir seçim yapmadan süre bitti.</p>
             </div>
           </div>
@@ -664,11 +692,11 @@ export default function GameLayout({
               className="flex h-[88px] flex-col items-center justify-center rounded-xl"
               style={{
                 background: 'linear-gradient(160deg, rgba(15,20,40,0.72) 0%, rgba(10,15,35,0.72) 100%)',
-                border: '1.5px solid rgba(250,204,21,0.85)',
-                boxShadow: '0 0 12px rgba(250,204,21,0.32)',
+                border: '1.5px solid rgba(255,201,40,0.85)',
+                boxShadow: '0 0 12px rgba(255,201,40,0.28)',
               }}
             >
-              <p className="font-bangers text-xs text-yellow-400 tracking-wide">↓ BIRAK</p>
+              <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 12, letterSpacing: "0.05em", color: "#FFC928" }}>↓ BIRAK</p>
             </div>
           </motion.div>
         )}
