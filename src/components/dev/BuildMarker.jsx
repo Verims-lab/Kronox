@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex454 — Base44 SDK exact pin Health blocker:
+//   • Restores root package.json @base44/sdk exact pin to 0.8.34 after main sync.
+//   • Removes the package-lock root caret spec while keeping installed SDK 0.8.34.
+//   • Leaves Health caret/old-version assertions intact.
+//
 // Codex453 — Question analytics reset copy clarity:
 //   • Replaces the dense admin reset paragraph with report/source-table bullets.
 //   • Clarifies Joker/rhythm ledger limitations and protected non-reset data.
@@ -2570,7 +2575,7 @@ import React, { useEffect, useState } from 'react';
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
 // Verims comment on 25.06.2026
-const BUILD_MARKER = 'Codex453';
+const BUILD_MARKER = 'Codex454';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
