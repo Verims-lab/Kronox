@@ -61,6 +61,16 @@ export const sendFriendRequestFnSource = `
     if (open) return { type: 'open', row: open };
     return null;
   }
+  function findOpenReversePendingRequest(rows, nowMs) {
+    return rows.find((row) => String(row?.status || '').toLowerCase() === 'pending' && !isFriendRequestExpired(row, nowMs)) || null;
+  }
+  async function markExpiredFriendRequestRows(base44, rows, nowMs) {
+    const expiredRows = rows.filter((row) => isFriendRequestExpired(row, nowMs));
+    await Promise.all(expiredRows.map((row) => base44.asServiceRole.entities.FriendRequest.update(row.id, {
+      status: 'expired',
+      expired_at: new Date(nowMs).toISOString(),
+    })));
+  }
   async function findTargetByUsername(base44, username) {
     const normalizedRows = await base44.asServiceRole.entities.User.filter({ username_normalized: usernameKey }, '-updated_date', 2);
     const usernameRows = await base44.asServiceRole.entities.User.filter({ username }, '-updated_date', 2);
@@ -92,7 +102,9 @@ export const sendFriendRequestFnSource = `
   const outgoingConflict = findOutgoingInviteConflict([...(pendingOut || []), ...(expiredOut || [])], nowMs);
   if (outgoingConflict?.type === 'expired') return json(conflictResponse({ code: 'EXPIRED_INVITE_REQUIRES_DELETE', error: EXPIRED_INVITE_REQUIRES_DELETE_MESSAGE, inputKind, target, request: outgoingConflict.row }), 409);
   if (outgoingConflict?.type === 'open') return json(conflictResponse({ code: 'OPEN_INVITE_EXISTS', error: OPEN_INVITE_EXISTS_MESSAGE, inputKind, target, request: outgoingConflict.row }), 409);
-  if (pendingIn?.[0]) return json({ ok: false, code: 'reverse_pending', error: 'Bu kişi sana zaten istek göndermiş — Gelen İstekler listesinden kabul et.' }, 409);
+  const reversePending = findOpenReversePendingRequest(pendingIn || [], nowMs);
+  if (!reversePending) await markExpiredFriendRequestRows(base44, pendingIn || [], nowMs);
+  if (reversePending) return json({ ok: false, code: 'reverse_pending', error: 'Bu kişi sana zaten istek göndermiş — Gelen İstekler listesinden kabul et.' }, 409);
   const expiresAt = new Date(nowMs + FRIEND_REQUEST_TTL_MS);
   const created = await base44.asServiceRole.entities.FriendRequest.create({
     from_email: fromEmail,

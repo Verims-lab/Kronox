@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Gem, Sparkles, Trophy } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 // Codex167 — Liderlik üst barı Home/Solo standardına hizalandı: ortada
@@ -113,6 +113,7 @@ export default function LeaderboardPage() {
     // progress in the child component.
     ownScoreFallback: { totalKronoxScore: 0, totalSoloScore: 0, currentLevel: 1 },
   });
+  const friendInvitePendingTargetsRef = useRef(new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -318,22 +319,31 @@ export default function LeaderboardPage() {
       toast({ title: 'Geçersiz oyuncu.', variant: 'destructive' });
       throw new Error('invalid_target');
     }
+    const usernameKey = username.toLowerCase();
+    if (friendInvitePendingTargetsRef.current.has(usernameKey)) {
+      toast({ title: 'İstek gönderiliyor.' });
+      return null;
+    }
+    friendInvitePendingTargetsRef.current.add(usernameKey);
     try {
       const data = await sendFriendRequest({ me: user, target: username });
-      // The backend already returns existing-state outcomes: already-friends /
-      // self-add / not-found come back as thrown errors (handled in catch);
-      // an existing pending request returns ok:true with alreadyPending.
+      // The backend owns existing-state outcomes. Current deployed code returns
+      // typed lifecycle errors for open/expired duplicates; alreadyPending is
+      // kept only for older function responses.
       if (data?.alreadyPending) {
         toast({ title: data.message || 'Bu kişiye gönderilmiş açık davet var.' });
       } else {
         toast({ title: `${username} kullanıcısına arkadaşlık isteği gönderildi.` });
       }
       // Refresh so the row picks up its "Arkadaş" badge once accepted.
-      loadLeaderboard();
+      await loadLeaderboard();
+      return data;
     } catch (err) {
       const lifecycleWarning = ['OPEN_INVITE_EXISTS', 'EXPIRED_INVITE_REQUIRES_DELETE'].includes(err?.code);
       toast({ title: err?.message || 'İstek gönderilemedi.', variant: lifecycleWarning ? undefined : 'destructive' });
       throw err;
+    } finally {
+      friendInvitePendingTargetsRef.current.delete(usernameKey);
     }
   }, [user, toast, loadLeaderboard]);
 

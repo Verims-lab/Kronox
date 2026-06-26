@@ -61,7 +61,8 @@ fallback polling/refetch.
   duplicate, and pending-request guards.
 - Added focused friend-invite lifecycle coverage for backend-owned duplicate
   open invite blocking, expired-outgoing delete-before-resend blocking, 72-hour
-  friend invite expiry, shared Add Friend/Leaderboard handling, and
+  friend invite expiry, reverse-pending expiry safety, shared Add
+  Friend/Leaderboard handling, leaderboard double-submit suppression, and
   username-safe responses.
 - Added focused Online player-selection coverage for online friend / online
   non-friend / offline friend ordering, current-user/unroutable exclusion,

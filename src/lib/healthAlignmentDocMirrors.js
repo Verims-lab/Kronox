@@ -169,7 +169,9 @@ responses return only username-safe labels, never the target email. Open
 outgoing friend invites are blocked server-side with a stable warning, new
 friend invites expire no earlier than 72 hours after creation, and expired
 outgoing invites must be cancelled/deleted before the sender can invite the
-same target again.
+same target again. Open reverse-pending requests still route the player to
+Gelen İstekler; expired reverse-pending rows are stale and must not block a
+fresh outgoing request.
 
 Loading states expose status semantics with role="status", aria-live, and a
 clear accessible name without changing visual layout. Icon-only controls have
@@ -198,8 +200,9 @@ coverage protects PlayerPresence owner binding, accepted-friend lookup, online
 friend / online non-friend / offline friend ordering, opaque target refs,
 username-only labels, offline fallback, current-user heartbeat wiring,
 backend-only invite target resolution, email-or-username friend add,
-server-side username resolution, required username-not-found copy, and no
-target-email return on username add or player selection. Executable reducer
+server-side username resolution, required username-not-found copy, reverse-pending
+expiry safety, leaderboard double-submit suppression, and no target-email return
+on username add or player selection. Executable reducer
 coverage now protects Online 4-player representation/start/recovery
 transitions and notification transient-empty, terminal, dismiss, accept/reject,
 dedupe, and privacy transitions. Security Pass 3 coverage protects accessible
@@ -325,7 +328,7 @@ Status: Active product contract.
 - Two-account probes remain mandatory for category preferences, friends, invites, lobbies, Daily Quest progress, Daily Wheel, Diamond/Joker economy, push subscriptions, and analytics cleanup.
 - getQuestions serves an authenticated bounded server attempt candidate buffer for signed-in Solo and an explicit capped guest_gameplay_runtime minimal deck for first-time guest Solo; admin/full-bank/diagnostics still require active AdminUser owner/admin authorization. Authenticated candidate reads are bounded to 96 * 3 = 288 rows per active category/query variant before projection.
 - startLobbyGame requires authenticated host, no legacy guest, no client identity override.
-- sendFriendRequest requires authenticated user context, resolves email or username targets server-side, checks self/friend/open-pending guards, requires deletion of expired outgoing invites before resend, sets FriendRequest.expires_at at least 72 hours after creation, creates the FriendRequest row before SendEmail, treats email delivery failure as a soft failure that does not roll back the request, stores username-safe labels, and never returns the target email for username-based add.
+- sendFriendRequest requires authenticated user context, resolves email or username targets server-side, checks self/friend/open-pending guards, requires deletion of expired outgoing invites before resend, sets FriendRequest.expires_at at least 72 hours after creation, keeps open reverse-pending requests actionable through Gelen İstekler, ignores/expires stale reverse-pending rows, creates the FriendRequest row before SendEmail, treats email delivery failure as a soft failure that does not roll back the request, stores username-safe labels, and never returns the target email for username-based add.
 - Online non-friend game invites use opaque target_ref values in the client. createGameInvitesForTargets resolves target refs backend-side to routable recipients, while public player-selection, lobby, invite, notification, and push payloads use username-safe labels and never expose target email, provider IDs, owner keys, raw guest IDs, or internal player keys.
 - Security Pass 1 pins @base44/sdk exactly at 0.8.34 and aligns Base44 Deno function imports to npm:@base44/sdk@0.8.34. Do not reintroduce frontend ^ SDK ranges, unversioned function SDK imports, or npm:@base44/sdk@0.8.25 without a documented Base44 runtime compatibility split.
 - User/admin/question markdown is not rendered as raw HTML. react-markdown is not a runtime dependency, rehype-raw is forbidden for user/content markdown, and dangerouslySetInnerHTML must not be used for user-generated, backend-provided, or markdown-provided content. Static generated CSS should use guarded text children instead of raw HTML injection.
