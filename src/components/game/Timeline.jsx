@@ -576,7 +576,7 @@ export default function Timeline({
             touchAction: isDragMode ? 'none' : 'pan-x',
           }}
         >
-          <div className="relative flex flex-col items-center" style={{ minWidth: '100%', width: 'max-content', paddingLeft: 12, paddingRight: 24 }}>
+          <div className="relative flex flex-col items-center" style={{ minWidth: '100%', width: 'max-content', paddingLeft: 18, paddingRight: 18 }}>
             {/* Codex163 — Placement feedback overlay (visual-only).
                 Lives INSIDE the scroll content so it inherits the same
                 horizontal translation as the cards/drop zones. */}
