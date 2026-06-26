@@ -11,6 +11,7 @@ import {
   rejectIncomingRequest,
   cancelOutgoingRequest,
   removeFriend,
+  OPEN_INVITE_EXISTS_MESSAGE,
 } from '@/lib/friendsApi';
 
 import FriendListItem from '@/components/friends/FriendListItem';
@@ -105,7 +106,7 @@ export default function FriendsPage() {
     if (result) {
       let msg = null;
       if (result.alreadyPending) {
-        msg = 'Bu kişiye zaten bekleyen bir isteğin var.';
+        msg = OPEN_INVITE_EXISTS_MESSAGE;
       } else if (result.emailSent === true) {
         msg = 'Arkadaşlık isteği gönderildi ve e-posta iletildi.';
       } else if (result.recipientRegistered === true) {

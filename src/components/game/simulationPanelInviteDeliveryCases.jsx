@@ -23,6 +23,7 @@ import inviteApiSource from '../../lib/inviteApi.js?raw';
 import useFriendPresenceSource from '../../hooks/useFriendPresence.js?raw';
 import usePresenceHeartbeatSource from '../../hooks/usePresenceHeartbeat.js?raw';
 import friendsPageSource from '../../pages/FriendsPage.jsx?raw';
+import leaderboardPageSource from '../../pages/LeaderboardPage.jsx?raw';
 import addFriendFormSource from '../friends/AddFriendForm.jsx?raw';
 import friendListItemSource from '../friends/FriendListItem.jsx?raw';
 import outgoingRequestItemSource from '../friends/OutgoingRequestItem.jsx?raw';
@@ -222,6 +223,54 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Username friend-add resolves server-side and returns only safe public labels.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('invite_delivery', 'friend_invite_duplicate_and_expired_contract',
+    'Friend invite duplicate and expired-resend contracts are backend-owned and shared by Add Friend / Leaderboard',
+    () => {
+      const backend = safeStr(sendFriendRequestFnSource);
+      const client = `${safeStr(friendsApiSource)}\n${safeStr(friendsPageSource)}\n${safeStr(addFriendFormSource)}`;
+      const leaderboard = safeStr(leaderboardPageSource);
+      const requiredBackend = [
+        'OPEN_INVITE_EXISTS',
+        'EXPIRED_INVITE_REQUIRES_DELETE',
+        'Bu kişiye gönderilmiş açık davet var.',
+        'Bu kişiye süresi dolmuş bir davetin var. Yeniden davet göndermeden önce eski daveti silmelisin.',
+        'findOutgoingInviteConflict',
+        'isFriendRequestExpired',
+        'FRIEND_REQUEST_TTL_MS = 3 * 24 * 60 * 60 * 1000',
+        'expires_at: expiresAt.toISOString()',
+        'targetEmailReturned: false',
+      ];
+      const requiredClient = [
+        'OPEN_INVITE_EXISTS_MESSAGE',
+        'EXPIRED_INVITE_REQUIRES_DELETE_MESSAGE',
+        'makeFriendRequestError',
+        'isFriendRequestExpired',
+      ];
+      const requiredLeaderboard = [
+        'sendFriendRequest({ me: user, target: username })',
+        'OPEN_INVITE_EXISTS',
+        'EXPIRED_INVITE_REQUIRES_DELETE',
+      ];
+      const missingBackend = requiredBackend.filter((token) => !backend.includes(token));
+      const missingClient = requiredClient.filter((token) => !client.includes(token));
+      const missingLeaderboard = requiredLeaderboard.filter((token) => !leaderboard.includes(token));
+      if (missingBackend.length || missingClient.length || missingLeaderboard.length) {
+        return fail('Friend invite duplicate/expired lifecycle contract is incomplete.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          missingBackend,
+          missingClient,
+          missingLeaderboard,
+        });
+      }
+      return pass('Friend invite duplicate/open and expired-before-resend rules are backend-owned, privacy-safe, and shared by Add Friend plus Leaderboard.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
       });

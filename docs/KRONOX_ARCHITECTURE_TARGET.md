@@ -162,6 +162,10 @@ Parity plan:
 - Friends can be added by email address or registered Kronox username. Username
   lookup and duplicate/self checks stay backend-owned, and username-based add
   responses must return only username-safe labels, never the target email.
+- Open outgoing friend invites are blocked server-side with a stable warning.
+  New friend invites expire no earlier than 72 hours after creation, and expired
+  outgoing invites must be cancelled/deleted before the sender can invite the
+  same target again.
 - Friend, invite, lobby, notification, and presence surfaces must render
   username-safe labels only. Emails, provider IDs, raw guest IDs, owner keys,
   and internal player keys are never public display fallbacks.

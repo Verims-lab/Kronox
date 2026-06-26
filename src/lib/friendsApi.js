@@ -10,6 +10,8 @@ import { getPresenceLookupKeyForEmail } from '@/lib/presence';
 import { normalizeSafePublicUsernameInput } from '@/lib/guestProfile';
 
 export const USERNAME_NOT_FOUND_MESSAGE = 'Kronox’ta bu kullanıcı adıyla biri yok.';
+export const OPEN_INVITE_EXISTS_MESSAGE = 'Bu kişiye gönderilmiş açık davet var.';
+export const EXPIRED_INVITE_REQUIRES_DELETE_MESSAGE = 'Bu kişiye süresi dolmuş bir davetin var. Yeniden davet göndermeden önce eski daveti silmelisin.';
 
 export function normalizeEmail(raw) {
   return String(raw || '').trim().toLowerCase();
@@ -38,6 +40,31 @@ export function parseFriendRequestTarget(raw) {
   return username
     ? { kind: 'username', value: username, error: '' }
     : { kind: 'username', value, error: 'Geçerli bir kullanıcı adı gir.' };
+}
+
+function makeFriendRequestError(message, code) {
+  const error = new Error(message || 'İstek gönderilemedi.');
+  if (code) error.code = code;
+  return error;
+}
+
+function parseFriendRequestTime(raw) {
+  if (!raw) return NaN;
+  if (raw instanceof Date) return raw.getTime();
+  if (typeof raw === 'number') return Number.isFinite(raw) ? raw : NaN;
+  const text = String(raw || '').trim();
+  if (!text) return NaN;
+  const normalized = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(text)
+    ? `${text}Z`
+    : text;
+  const parsed = Date.parse(normalized);
+  return Number.isFinite(parsed) ? parsed : NaN;
+}
+
+export function isFriendRequestExpired(request, now = Date.now()) {
+  if (String(request?.status || '').toLowerCase() === 'expired') return true;
+  const expiresAt = parseFriendRequestTime(request?.expires_at || request?.expiresAt);
+  return Number.isFinite(expiresAt) && expiresAt <= now;
 }
 
 async function loadUserPublicProfileByEmail(email) {
@@ -127,18 +154,32 @@ export async function loadIncomingRequests(myEmail) {
     '-created_date',
     100,
   );
-  return rows || [];
+  return (rows || []).filter((row) => !isFriendRequestExpired(row));
 }
 
 export async function loadOutgoingRequests(myEmail) {
   const me = normalizeEmail(myEmail);
   if (!me) return [];
-  const rows = await base44.entities.FriendRequest.filter(
-    { from_email: me, status: 'pending' },
-    '-created_date',
-    100,
-  );
-  return rows || [];
+  const [pendingRows, expiredRows] = await Promise.all([
+    base44.entities.FriendRequest.filter(
+      { from_email: me, status: 'pending' },
+      '-created_date',
+      100,
+    ),
+    base44.entities.FriendRequest.filter(
+      { from_email: me, status: 'expired' },
+      '-created_date',
+      100,
+    ).catch(() => []),
+  ]);
+  const byId = new Map();
+  [...(pendingRows || []), ...(expiredRows || [])].forEach((row) => {
+    const key = row?.id || row?._id;
+    if (key) byId.set(key, row);
+  });
+  return Array.from(byId.values()).sort((a, b) => (
+    parseFriendRequestTime(b?.created_at || b?.created_date) - parseFriendRequestTime(a?.created_at || a?.created_date)
+  ));
 }
 
 export async function sendFriendRequest({ me = null, target = '', toEmail = '' } = {}) {
@@ -159,28 +200,29 @@ export async function sendFriendRequest({ me = null, target = '', toEmail = '' }
   } catch (err) {
     const data = err?.response?.data || err?.data || {};
     if (data?.code === 'username_not_found') throw new Error(USERNAME_NOT_FOUND_MESSAGE);
-    if (data?.error) throw new Error(data.error);
+    if (data?.code === 'OPEN_INVITE_EXISTS') throw makeFriendRequestError(OPEN_INVITE_EXISTS_MESSAGE, data.code);
+    if (data?.code === 'EXPIRED_INVITE_REQUIRES_DELETE') throw makeFriendRequestError(EXPIRED_INVITE_REQUIRES_DELETE_MESSAGE, data.code);
+    if (data?.error) throw makeFriendRequestError(data.error, data.code);
     throw new Error(err?.message || 'İstek gönderilemedi.');
   }
 
   const data = res?.data || {};
   if (!data.ok || data.error) {
     if (data.code === 'username_not_found') throw new Error(USERNAME_NOT_FOUND_MESSAGE);
-    throw new Error(data.error || 'İstek gönderilemedi.');
+    if (data.code === 'OPEN_INVITE_EXISTS') throw makeFriendRequestError(OPEN_INVITE_EXISTS_MESSAGE, data.code);
+    if (data.code === 'EXPIRED_INVITE_REQUIRES_DELETE') throw makeFriendRequestError(EXPIRED_INVITE_REQUIRES_DELETE_MESSAGE, data.code);
+    throw makeFriendRequestError(data.error || 'İstek gönderilemedi.', data.code);
   }
 
-  // Duplicate pending outgoing request is handled idempotently: the backend
-  // already filters its outgoing pendingOut row and returns alreadyPending
-  // instead of creating a second FriendRequest. We surface a stable
-  // user-facing message and a normalized pendingOut flag, never the target
-  // email when the request was made by username.
+  // Backward-compatible fallback for older deployed functions. The current
+  // backend returns OPEN_INVITE_EXISTS as a typed error instead.
   const pendingOut = data.alreadyPending === true;
   if (pendingOut) {
     return {
       ...data,
       pendingOut: true,
       duplicatePending: true,
-      message: 'Bu kişiye zaten bekleyen bir isteğin var.',
+      message: OPEN_INVITE_EXISTS_MESSAGE,
     };
   }
 
@@ -197,7 +239,10 @@ export async function rejectIncomingRequest(requestId) {
 
 export async function cancelOutgoingRequest(requestId) {
   if (!requestId) throw new Error('Geçersiz istek.');
-  await base44.entities.FriendRequest.update(requestId, { status: 'cancelled' });
+  await base44.entities.FriendRequest.update(requestId, {
+    status: 'cancelled',
+    cancelled_at: new Date().toISOString(),
+  });
 }
 
 export async function acceptIncomingRequest(requestOrId) {

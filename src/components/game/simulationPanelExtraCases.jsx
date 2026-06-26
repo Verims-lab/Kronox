@@ -547,7 +547,7 @@ export const EXTRA_TESTS = [
     'Duplicate pending outgoing request handled idempotently',
     'friendsApi.js + base44/functions/sendFriendRequest',
     `${friendsApiSource}\n${sendFriendRequestFnSource}`,
-    ['bekleyen bir isteğin var', 'pendingOut']),
+    ['OPEN_INVITE_EXISTS', 'Bu kişiye gönderilmiş açık davet var.', 'pendingOut']),
   sourceHas('friends_validation', 'reverse_pending_surfaced',
     'Reverse pending request from target → me is surfaced to user',
     'friendsApi.js + base44/functions/sendFriendRequest',

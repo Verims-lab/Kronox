@@ -33,10 +33,26 @@
         "pending",
         "accepted",
         "rejected",
-        "cancelled"
+        "cancelled",
+        "expired"
       ],
       "default": "pending",
       "description": "Lifecycle state of the friend request"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Server-owned expiry timestamp. New friend requests expire no earlier than 72 hours after creation."
+    },
+    "expired_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Server-owned timestamp when an expired pending request is marked expired."
+    },
+    "cancelled_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp when the sender/recipient cancels or removes the request."
     },
     "description": {
       "type": "string",

@@ -28,6 +28,25 @@ function json(payload, status = 200) {
   return Response.json(payload, { status });
 }
 
+function parseTime(raw) {
+  if (!raw) return NaN;
+  if (raw instanceof Date) return raw.getTime();
+  if (typeof raw === 'number') return Number.isFinite(raw) ? raw : NaN;
+  const text = String(raw || '').trim();
+  if (!text) return NaN;
+  const normalized = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(text)
+    ? `${text}Z`
+    : text;
+  const parsed = Date.parse(normalized);
+  return Number.isFinite(parsed) ? parsed : NaN;
+}
+
+function isFriendRequestExpired(row) {
+  if (String(row?.status || '').toLowerCase() === 'expired') return true;
+  const expiresAt = parseTime(row?.expires_at || row?.expiresAt);
+  return Number.isFinite(expiresAt) && expiresAt <= Date.now();
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -62,6 +81,13 @@ Deno.serve(async (req) => {
     // Status guard: only pending or already-accepted is valid.
     if (fr.status !== 'pending' && fr.status !== 'accepted') {
       return json({ ok: false, error: `Request is already ${fr.status}` }, 409);
+    }
+    if (fr.status === 'pending' && isFriendRequestExpired(fr)) {
+      await base44.asServiceRole.entities.FriendRequest.update(requestId, {
+        status: 'expired',
+        expired_at: new Date().toISOString(),
+      }).catch(() => null);
+      return json({ ok: false, code: 'friend_request_expired', error: 'Davetin süresi doldu.' }, 409);
     }
 
     // Idempotent flip. If status is already accepted, this is a no-op success.

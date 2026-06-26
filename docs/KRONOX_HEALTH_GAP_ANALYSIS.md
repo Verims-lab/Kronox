@@ -59,6 +59,10 @@ fallback polling/refetch.
   username resolution, required username-not-found copy, no client `User.list`
   lookup, no target-email return on username add, and server-side self,
   duplicate, and pending-request guards.
+- Added focused friend-invite lifecycle coverage for backend-owned duplicate
+  open invite blocking, expired-outgoing delete-before-resend blocking, 72-hour
+  friend invite expiry, shared Add Friend/Leaderboard handling, and
+  username-safe responses.
 - Added focused Online player-selection coverage for online friend / online
   non-friend / offline friend ordering, current-user/unroutable exclusion,
   opaque target refs, backend-only invite recipient resolution, and no
