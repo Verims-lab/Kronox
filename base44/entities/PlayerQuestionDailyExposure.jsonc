@@ -1,7 +1,7 @@
 {
   "name": "PlayerQuestionDailyExposure",
   "type": "object",
-  "description": "Codex390 — Daily per-player question exposure projection for last-7/last-30-day anonymous coverage analytics. Logical unique key is date_utc + player_key + question_id + mode, stored in daily_exposure_key. Rows are written only for actual shown cards, never candidate pools or unused deck buffers.",
+  "description": "Codex390 \u2014 Daily per-player question exposure projection for last-7/last-30-day anonymous coverage analytics. Logical unique key is date_utc + player_key + question_id + mode, stored in daily_exposure_key. Rows are written only for actual shown cards, never candidate pools or unused deck buffers.",
   "properties": {
     "daily_exposure_key": {
       "type": "string",
@@ -97,24 +97,43 @@
   ],
   "rls": {
     "create": {
-      "user_condition": {
-        "role": "admin"
-      }
+      "data.player_key": "{{user.id}}"
     },
     "read": {
-      "user_condition": {
-        "role": "admin"
-      }
+      "$or": [
+        {
+          "data.player_key": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     },
     "update": {
-      "user_condition": {
-        "role": "admin"
-      }
+      "$or": [
+        {
+          "data.player_key": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     },
     "delete": {
-      "user_condition": {
-        "role": "admin"
-      }
+      "$or": [
+        {
+          "data.player_key": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     }
   }
 }

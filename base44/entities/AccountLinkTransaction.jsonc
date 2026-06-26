@@ -1,7 +1,7 @@
 {
   "name": "AccountLinkTransaction",
   "type": "object",
-  "description": "Codex379 — One-time guest-to-authenticated account link audit log. idempotency_key is the logical unique key; linkGuestAccount verifies guest token plus authenticated user, applies user-benefit merge once, marks GuestProfile linked, and records a compact merge summary. This row is an audit/read model, not a source of truth for balances.",
+  "description": "Codex379 \u2014 One-time guest-to-authenticated account link audit log. idempotency_key is the logical unique key; linkGuestAccount verifies guest token plus authenticated user, applies user-benefit merge once, marks GuestProfile linked, and records a compact merge summary. This row is an audit/read model, not a source of truth for balances.",
   "properties": {
     "idempotency_key": {
       "type": "string",
@@ -64,19 +64,49 @@
   ],
   "rls": {
     "create": {
-      "user_condition": {
-        "role": "admin"
-      }
+      "$or": [
+        {
+          "data.linked_user_email": "{{user.email}}"
+        },
+        {
+          "data.guest_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     },
     "read": {
-      "user_condition": {
-        "role": "admin"
-      }
+      "$or": [
+        {
+          "data.linked_user_email": "{{user.email}}"
+        },
+        {
+          "data.guest_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     },
     "update": {
-      "user_condition": {
-        "role": "admin"
-      }
+      "$or": [
+        {
+          "data.linked_user_email": "{{user.email}}"
+        },
+        {
+          "data.guest_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     },
     "delete": {
       "user_condition": {

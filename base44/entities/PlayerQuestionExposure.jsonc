@@ -1,7 +1,7 @@
 {
   "name": "PlayerQuestionExposure",
   "type": "object",
-  "description": "Codex390 — Per-player question exposure projection for Solo anti-repeat selection. Logical unique key is player_key + question_id + mode, stored in exposure_key because Base44 uniqueness is enforced by write helpers. player_key is an internal owner-style hash; reports must anonymize it and never display email, provider ids, raw guest ids, raw guest tokens, owner_key, or public username.",
+  "description": "Codex390 \u2014 Per-player question exposure projection for Solo anti-repeat selection. Logical unique key is player_key + question_id + mode, stored in exposure_key because Base44 uniqueness is enforced by write helpers. player_key is an internal owner-style hash; reports must anonymize it and never display email, provider ids, raw guest ids, raw guest tokens, owner_key, or public username.",
   "properties": {
     "exposure_key": {
       "type": "string",
@@ -116,24 +116,43 @@
   ],
   "rls": {
     "create": {
-      "user_condition": {
-        "role": "admin"
-      }
+      "data.player_key": "{{user.id}}"
     },
     "read": {
-      "user_condition": {
-        "role": "admin"
-      }
+      "$or": [
+        {
+          "data.player_key": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     },
     "update": {
-      "user_condition": {
-        "role": "admin"
-      }
+      "$or": [
+        {
+          "data.player_key": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     },
     "delete": {
-      "user_condition": {
-        "role": "admin"
-      }
+      "$or": [
+        {
+          "data.player_key": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     }
   }
 }
