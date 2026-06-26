@@ -5,9 +5,8 @@ import { Play, Pause, Globe, Landmark, FlaskConical, Trophy, Palette, Cpu, Music
 import {
   OLD_PAPER_CARD_BACKGROUND,
   OLD_PAPER_INSET_SHADOW,
-  OLD_PAPER_MUTED_TEXT_COLOR,
-  OLD_PAPER_TEXT_COLOR,
 } from './cardSurfaceStyles';
+import { getQuestionTextFitTokens } from '@/lib/questionTextFit';
 // Codex153 — Deezer preview proxy removed for security. Music questions
 // no longer fetch a live preview URL at runtime; if a question carries a
 // pre-stored `media_url`, the card still renders the song title/artist +
@@ -61,6 +60,45 @@ const categoryNeon = {
 
 const defaultNeon = { border: '#facc15', glow: 'rgba(250,204,21,0.5)' };
 const SOLO_READABLE_QUESTION_LETTER_SPACING = '0.01em';
+
+/** @type {import('react').CSSProperties} */
+const activeQuestionTextFitStyle = {
+  wordBreak: 'normal',
+  overflowWrap: 'normal',
+  hyphens: 'none',
+  whiteSpace: 'pre-wrap',
+};
+
+function ActiveQuestionText({ text }) {
+  const tokens = getQuestionTextFitTokens(text);
+  return tokens.map((token) => {
+    if (token.isWhitespace) {
+      return <React.Fragment key={token.key}>{token.text}</React.Fragment>;
+    }
+
+    return (
+      <span
+        key={token.key}
+        data-kronox-question-word-fit={token.shouldFit ? 'long-word' : 'normal'}
+        data-kronox-question-word-length={token.length}
+        data-kronox-question-word-scale={token.shouldFit ? token.scale.toFixed(3) : undefined}
+        style={token.shouldFit ? {
+          display: 'inline-block',
+          maxWidth: '100%',
+          fontSize: `${token.scale.toFixed(3)}em`,
+          lineHeight: 1,
+          verticalAlign: 'baseline',
+          wordBreak: 'normal',
+          overflowWrap: 'normal',
+          hyphens: 'none',
+          whiteSpace: 'nowrap',
+        } : undefined}
+      >
+        {token.text}
+      </span>
+    );
+  });
+}
 
 export default function QuestionCard({
   question,
@@ -280,9 +318,10 @@ export default function QuestionCard({
                 lineHeight: soloReadableCard ? 1.28 : 1.35,
                 fontWeight: soloReadableCard ? 600 : 700,
                 letterSpacing: soloReadableCard ? SOLO_READABLE_QUESTION_LETTER_SPACING : '0',
+                ...activeQuestionTextFitStyle,
               }}
             >
-              {isMuzik ? songTitle : question?.question}
+              <ActiveQuestionText text={isMuzik ? songTitle : question?.question} />
             </p>
 
             {/* Artist name for music */}
@@ -315,14 +354,14 @@ export default function QuestionCard({
                 letterSpacing: soloReadableCard ? SOLO_READABLE_QUESTION_LETTER_SPACING : '0',
                 color: useOldPaperSurface ? '#162033' : '#ffffff',
                 textWrap: 'balance',
-                overflowWrap: 'break-word',
+                ...activeQuestionTextFitStyle,
                 display: '-webkit-box',
                 WebkitBoxOrient: 'vertical',
                 WebkitLineClamp: soloReadableCard ? 8 : undefined,
                 overflow: soloReadableCard ? 'hidden' : undefined,
               }}
             >
-              {isMuzik ? songTitle : question?.question}
+              <ActiveQuestionText text={isMuzik ? songTitle : question?.question} />
             </p>
 
             {/* Category icon */}

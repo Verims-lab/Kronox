@@ -2574,8 +2574,12 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
+// Codex460 — Active question long-word fit:
+//   • Adds a shared per-word text-fit helper for Solo and Online QuestionCard text.
+//   • Uses Unicode-safe 11/wordLength scaling with a 0.52 readable minimum.
+//   • Prevents arbitrary mid-word active question splitting without touching gameplay.
 // Codex459 — Timeline initial viewport: partial edge slots + full middle slot.
-const BUILD_MARKER = 'Codex459';
+const BUILD_MARKER = 'Codex460';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

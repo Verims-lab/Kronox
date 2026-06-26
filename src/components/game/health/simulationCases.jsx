@@ -45,6 +45,13 @@ import questionCacheSource from '../../../lib/questionCache.js?raw';
 
 import { getNextPlayerIndex, hasPlayerWon, isCorrectPlacement, selectNextQuestion } from '../../../lib/gameRules';
 import { normalizeCode, removePlayerByIdentity, summarizePlayers } from '../../../lib/lobbyUtils';
+import {
+  QUESTION_WORD_MIN_SCALE,
+  QUESTION_WORD_SAFE_LENGTH,
+  getQuestionTextFitTokens,
+  getQuestionWordLength,
+  getQuestionWordScale,
+} from '../../../lib/questionTextFit';
 
 // Case registry (modular Solo / leaderboard / etc. cases live there).
 import {
@@ -480,6 +487,57 @@ export const TESTS = [
 
   sourceHas('visual_guardrails', 'primary_gameplay_buttons_tactile', 'primary gameplay buttons have tactile/pressed states detectable by class/style', 'GameLayout/QuestionCard', `${SRC.GameLayout}\n${SRC.QuestionCard}`, ['whileTap', 'active:', 'shadow']),
   sourceHas('visual_guardrails', 'kronox_tokens_used', 'gameplay surfaces use Kronox visual tokens/classes where available', 'GameLayout/Timeline/CSS', `${SRC.GameLayout}\n${SRC.Timeline}\n${SRC.IndexCss}`, ['kx-viewport-lock', 'font-bangers', 'from-primary', '#facc15']),
+  makeCase('visual_guardrails', 'active_question_long_word_fit_formula', 'active question long-word fit uses Unicode length and 11/wordLength scaling', () => {
+    const sample17 = 'abcdefghijklmnopq';
+    const turkishSample = 'Çağdaşlaşma';
+    const checks = [
+      getQuestionWordScale('abcdefghijkl') === 11 / 12,
+      getQuestionWordScale('abcdefghijklm') === 11 / 13,
+      getQuestionWordScale(sample17) === 11 / 17,
+      getQuestionWordScale('abcdefghijklmnopqrstuvwxyz') === QUESTION_WORD_MIN_SCALE,
+      getQuestionWordLength(turkishSample) === Array.from(turkishSample.normalize('NFC')).length,
+      QUESTION_WORD_SAFE_LENGTH === 11,
+    ];
+    const tokens = getQuestionTextFitTokens(`Kısa ${sample17} kelime`);
+    const fitted = tokens.find((token) => token.text === sample17);
+    return checks.every(Boolean) && fitted?.shouldFit === true && Math.abs(fitted.scale - (11 / 17)) < 0.0001
+      ? pass('Long-word scale formula is per-word, Unicode-safe, and clamped to the readable minimum.', {
+        actual: { safeLength: QUESTION_WORD_SAFE_LENGTH, minScale: QUESTION_WORD_MIN_SCALE, sample17Scale: fitted.scale },
+      })
+      : fail('Long-word fit formula regressed.', {
+        expected: '12->11/12, 13->11/13, 17->11/17, long words clamp at 0.52, Turkish characters count as characters',
+        actual: { checks, fitted },
+      });
+  }),
+  makeCase('visual_guardrails', 'active_question_long_word_fit_render_path', 'Solo and Online active question cards shrink only long words without arbitrary mid-word splitting', () => {
+    const source = `${SRC.GameLayout}\n${SRC.QuestionCard}`;
+    const required = [
+      'soloReadableCard={!isOnline}',
+      'getQuestionTextFitTokens',
+      'data-kronox-question-word-fit',
+      'data-kronox-question-word-scale',
+      "fontSize: `${token.scale.toFixed(3)}em`",
+      "wordBreak: 'normal'",
+      "overflowWrap: 'normal'",
+      "hyphens: 'none'",
+      "whiteSpace: 'nowrap'",
+    ];
+    const forbidden = [
+      "overflowWrap: 'break-word'",
+      "overflowWrap: 'anywhere'",
+      "wordBreak: 'break-all'",
+    ];
+    const missing = missingTokens(source, required);
+    const presentForbidden = forbidden.filter((token) => source.includes(token));
+    return missing.length || presentForbidden.length
+      ? fail('Active question long-word fit render contract is incomplete.', {
+        expected: { required, forbidden },
+        actual: { missing, presentForbidden },
+      })
+      : pass('Shared QuestionCard applies per-word long-word fitting to both Solo and Online active question cards.', {
+        verification: 'STATIC_CONTRACT',
+      });
+  }),
   sourceLacks('visual_guardrails', 'no_plain_default_buttons_gameplay', 'no plain default button styling in gameplay critical controls', 'GameLayout/QuestionCard/Timeline', `${SRC.GameLayout}\n${SRC.QuestionCard}\n${SRC.Timeline}`, ['<button>Confirm', '<button>Submit']),
   sourceLacks('visual_guardrails', 'no_debug_clutter_gameplay', 'no debug/log visual clutter in gameplay', 'Game/GameLayout', `${SRC.Game}\n${SRC.GameLayout}`, ['QA PROTECTION SYSTEM', 'console.log(']),
   makeCase('visual_guardrails', 'lobby_settings_mismatch_reported', 'lobby/settings visual mismatch is reported as WARNING if detectable', () => notAutomatable('Lobby/settings visual mismatch is human visual QA proof, not a machine Warning JSON item.', { verification: 'NOT_AUTOMATABLE', verificationLabels: ['NOT_AUTOMATABLE', 'HUMAN_VISUAL_REVIEW', 'MANUAL_REQUIRED'], actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW })),
