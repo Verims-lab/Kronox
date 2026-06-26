@@ -6,15 +6,6 @@ import { sounds } from '@/lib/gameSounds';
 // focused sibling component so Timeline's own logic stays untouched.
 import PlacementFeedbackOverlay from './PlacementFeedbackOverlay.jsx';
 
-function DotSeparator() {
-  return (
-    <div className="flex items-center gap-1 flex-shrink-0 px-1">
-      <div className="w-1.5 h-1.5 rounded-full bg-white/40" />
-      <div className="w-1.5 h-1.5 rounded-full bg-white/25" />
-    </div>
-  );
-}
-
 function DropZone({ index, isActive, isDragMode, isMagnetic, isBeginnerHint, isGuidedTarget, onSelect, isTimeUp }) {
   const showBeginnerHint = Boolean(isBeginnerHint && isDragMode && !isActive && !isTimeUp);
   const showGuidedTarget = Boolean(isGuidedTarget && !isActive && !isTimeUp);
@@ -524,7 +515,6 @@ export default function Timeline({
     );
 
     if (i < groupedCards.length) {
-      cardRowItems.push(<DotSeparator key={`dot-${i}`} />);
       cardRowItems.push(
         <div key={`card-${i}`} ref={el => (cardItemRefs.current[i] = el)} className="flex flex-col items-center flex-shrink-0">
           <div className="flex flex-col items-center mb-0.5" style={{ height: 20 }}>
@@ -545,7 +535,6 @@ export default function Timeline({
           />
         </div>
       );
-      cardRowItems.push(<DotSeparator key={`dot-after-${i}`} />);
     }
   }
 
