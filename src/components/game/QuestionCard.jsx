@@ -221,10 +221,14 @@ export default function QuestionCard({
           : useOldPaperSurface
             ? OLD_PAPER_CARD_BACKGROUND
             : 'linear-gradient(160deg, #0f1428 0%, #0a0f23 100%)',
-        border: `2px solid ${neon.border}`,
-        boxShadow: isDraggingNow
-          ? `0 0 36px ${neon.glow}, 0 0 16px ${neon.glow}, 0 12px 32px rgba(0,0,0,0.6)${useOldPaperSurface ? `, ${OLD_PAPER_INSET_SHADOW}` : ''}`
-          : `0 0 20px ${neon.glow}, 0 0 8px ${neon.glow}${useOldPaperSurface ? `, ${OLD_PAPER_INSET_SHADOW}` : ''}`,
+        border: useOldPaperSurface ? '2px solid #FFC928' : `2px solid ${neon.border}`,
+        boxShadow: useOldPaperSurface
+          ? (isDraggingNow
+              ? `0 0 28px rgba(255,201,40,0.52), 0 8px 24px rgba(0,0,0,0.22), ${OLD_PAPER_INSET_SHADOW}`
+              : `0 0 16px rgba(255,201,40,0.38), 0 8px 24px rgba(0,0,0,0.22), ${OLD_PAPER_INSET_SHADOW}`)
+          : (isDraggingNow
+              ? `0 0 36px ${neon.glow}, 0 0 16px ${neon.glow}, 0 12px 32px rgba(0,0,0,0.6)`
+              : `0 0 20px ${neon.glow}, 0 0 8px ${neon.glow}`),
         touchAction: draggable ? 'none' : 'auto',
         transition: 'box-shadow 0.15s ease',
       }}
@@ -305,11 +309,11 @@ export default function QuestionCard({
               style={{
                 width: '100%',
                 maxWidth: soloReadableCard ? 136 : undefined,
-                fontSize: soloReadableCard ? 'clamp(13px, 3.8vw, 15px)' : (isMuzik ? 11 : 10),
-                lineHeight: soloReadableCard ? 1.2 : 1.3,
+                fontSize: useOldPaperSurface ? 'clamp(16px, 5vw, 20px)' : (soloReadableCard ? 'clamp(13px, 3.8vw, 15px)' : (isMuzik ? 11 : 10)),
+                lineHeight: useOldPaperSurface ? 1.28 : (soloReadableCard ? 1.2 : 1.3),
                 fontWeight: soloReadableCard ? 600 : 700,
                 letterSpacing: soloReadableCard ? SOLO_READABLE_QUESTION_LETTER_SPACING : '0',
-                color: useOldPaperSurface ? OLD_PAPER_TEXT_COLOR : '#ffffff',
+                color: useOldPaperSurface ? '#162033' : '#ffffff',
                 textWrap: 'balance',
                 overflowWrap: 'break-word',
                 display: '-webkit-box',
@@ -388,9 +392,11 @@ export default function QuestionCard({
             <p
               className="font-inter text-center"
               style={{
-                fontSize: 9,
-                color: useOldPaperSurface ? OLD_PAPER_MUTED_TEXT_COLOR : neon.border,
-                opacity: useOldPaperSurface ? 0.9 : 0.7,
+                fontSize: useOldPaperSurface ? 10 : 9,
+                fontWeight: 400,
+                lineHeight: 1.2,
+                color: useOldPaperSurface ? '#877B68' : neon.border,
+                opacity: useOldPaperSurface ? 1 : 0.7,
               }}
             >
               Bu olay ne zaman gerçekleşti?

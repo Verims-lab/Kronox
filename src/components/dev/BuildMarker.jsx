@@ -2575,7 +2575,7 @@ import React, { useEffect, useState } from 'react';
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
 // Verims comment on 25.06.2026
-const BUILD_MARKER = 'Codex455';
+const BUILD_MARKER = 'Codex456';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
