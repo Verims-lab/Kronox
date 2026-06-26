@@ -10,6 +10,65 @@ const PERIOD_OPTIONS = [
   { value: 30, label: 'Son 30 gün' },
 ];
 
+const RESET_REPORT_SCOPE_ITEMS = [
+  {
+    title: 'Kategori Bazında Gösterim',
+    tables: ['QuestionAttemptEvent', 'PlayerQuestionDailyExposure', 'Question', 'Category', 'UserCategoryPreference'],
+    effect: 'QuestionAttemptEvent gösterim/cevap/zaman metriklerini, PlayerQuestionDailyExposure anonim kişi bazlı coverage tablolarını sıfırlar; havuz/tercih tabloları korunur.',
+  },
+  {
+    title: 'En Çok Soru Gören 10 Anonim Kullanıcı',
+    tables: ['PlayerQuestionDailyExposure', 'Category'],
+    effect: 'PlayerQuestionDailyExposure temizliği anonim kişi bazlı gösterim listesini sıfırlar.',
+  },
+  {
+    title: 'Tekrar Riski En Yüksek 10 Anonim Kullanıcı',
+    tables: ['PlayerQuestionDailyExposure', 'Category'],
+    effect: 'PlayerQuestionDailyExposure temizliği anonim tekrar riski hesaplarını sıfırlar.',
+  },
+  {
+    title: 'En Çok Gösterilen Sorular',
+    tables: ['QuestionAttemptEvent', 'Question', 'Category'],
+    effect: 'QuestionAttemptEvent temizliği soru gösterim sayaçlarını sıfırlar; Question/Category satırları korunur.',
+  },
+  {
+    title: 'En Çok Yanlış Yapılan Sorular',
+    tables: ['QuestionAttemptEvent', 'Question'],
+    effect: 'QuestionAttemptEvent temizliği yanlış/doğru/cevap süresi metriklerini sıfırlar; soru havuzu korunur.',
+  },
+  {
+    title: 'Joker Kullanımı Analizi',
+    tables: ['QuestionAttemptEvent', 'JokerTransaction', 'UserJokerInventory', 'Question', 'Category'],
+    effect: 'QuestionAttemptEvent temizliği event-backed joker kırılımını sıfırlar. JokerTransaction ve UserJokerInventory ekonomi/ledger verisidir; bu reset onları silmez.',
+    subReports: [
+      'Joker Tipi Özeti — QuestionAttemptEvent + JokerTransaction',
+      'Joker Kullanımı - Kategori / Zorluk Kırılımı — QuestionAttemptEvent + Question + Category',
+      'Joker Stok / Ekonomi Sinyali — UserJokerInventory + JokerTransaction',
+    ],
+  },
+  {
+    title: 'Oynanma Zamanı ve Kullanım Ritmi',
+    tables: ['QuestionAttemptEvent', 'DiamondTransaction', 'DailyWheelSpin'],
+    effect: 'QuestionAttemptEvent temizliği saat/gün oynanma metriklerini sıfırlar. Aktivite sinyalindeki Daily Quest, Daily Wheel ve market sayımları korunan ledgerlardan okunur.',
+    subReports: [
+      'Saat Bazında Oynanma — QuestionAttemptEvent timestamp / attempt_id',
+      'Gün Bazında Oynanma — QuestionAttemptEvent timestamp',
+      'Aktivite Sinyali — QuestionAttemptEvent + DiamondTransaction + DailyWheelSpin',
+    ],
+  },
+];
+
+const PROTECTED_RESET_EXCLUSIONS = [
+  'Question / Category',
+  'User / GuestProfile / PlayerProfile',
+  'UserCategoryPreference',
+  'UserJokerInventory',
+  'JokerTransaction',
+  'DiamondTransaction',
+  'Daily Wheel / Daily Quest',
+  'Leaderboard / skor / ekonomi kayıtları',
+];
+
 function unwrapFunctionResponse(response) {
   if (response?.data?.data && typeof response.data.data === 'object') return response.data.data;
   if (response?.data && typeof response.data === 'object') return response.data;
@@ -126,15 +185,44 @@ export default function QuestionAnalyticsReportTool() {
           </div>
           <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 p-3">
             <p className="mb-2 font-inter text-xs font-semibold text-amber-100">Soru Analitik Verilerini Sıfırla</p>
-            <p className="font-inter text-xs leading-5 text-amber-100/85">
-              Bu işlem şu anda manuel DB temizliği ile yapılır. Function reset yolu devre dışı.
-              Soru gösterim/cevap/zaman geçmişinin aktif kaynağı QuestionAttemptEvent tablosudur; mevcut 9 bölümlü rapor ham olaylardan hesaplanır.
-              Manuel reset için QuestionAttemptEvent, PlayerQuestionDailyExposure, QuestionStatsProjection ve CategoryStatsProjection temizlenir.
-              QuestionStatsProjection ve CategoryStatsProjection manuel aggregateQuestionStats refresh ile oluşan opsiyonel özet tablolardır; boş olmaları normal olabilir.
-              Oyuncu bazlı soru tekrar hafızasını da sıfırlamak istersen PlayerQuestionExposure ayrıca temizlenir; bu tablo silinirse sistemin aynı oyuncuya aynı soruyu tekrar göstermeme hafızası da sıfırlanır.
-              Soru havuzu, Category, User/GuestProfile/PlayerProfile, UserCategoryPreference, UserJokerInventory, JokerTransaction, DiamondTransaction, Daily Wheel/Daily Quest, leaderboard/skor/seviye ilerleme ve ekonomi kayıtları silinmez.
-              Not: Joker Kullanımı Analizi ledger verisinden besleniyorsa bu resetten etkilenmez; Oynanma Zamanı metrikleri QuestionAttemptEvent temizliğiyle sıfırlanır.
-            </p>
+            <div className="space-y-3 font-inter text-xs leading-5 text-amber-100/85">
+              <p>
+                Bu işlem yalnızca soru analitiği raporlarını sıfırlar. Function reset yolu devre dışıdır; reset şu anda manuel DB bakımıdır. Oyun ilerlemesi, ekonomi kayıtları, kullanıcı profilleri ve soru havuzu silinmez.
+              </p>
+              <p>
+                Manuel reset kapsamı: QuestionAttemptEvent, PlayerQuestionDailyExposure, QuestionStatsProjection ve CategoryStatsProjection. PlayerQuestionExposure sadece aynı oyuncuya aynı soruyu tekrar göstermeme hafızası da sıfırlanacaksa ayrıca temizlenir.
+              </p>
+              <div>
+                <p className="mb-1 font-semibold text-amber-100">Sıfırlanacak raporlar ve kaynak tablolar:</p>
+                <ul className="space-y-2">
+                  {RESET_REPORT_SCOPE_ITEMS.map((item) => (
+                    <li key={item.title} className="rounded-lg border border-amber-300/15 bg-black/10 px-2.5 py-2">
+                      <p className="font-semibold text-amber-50">• {item.title}</p>
+                      <p>Kaynak tablolar: {item.tables.join(', ')}</p>
+                      <p>Reset etkisi: {item.effect}</p>
+                      {item.subReports && (
+                        <div className="mt-1">
+                          <p className="font-semibold text-amber-100/95">Alt raporlar:</p>
+                          <ul className="ml-3 list-disc space-y-0.5">
+                            {item.subReports.map((subReport) => (
+                              <li key={subReport}>{subReport}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <p className="mb-1 font-semibold text-amber-100">Silinmeyen / etkilenmeyen veriler:</p>
+                <ul className="grid gap-1 sm:grid-cols-2">
+                  {PROTECTED_RESET_EXCLUSIONS.map((item) => (
+                    <li key={item}>• {item}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
           </div>
           {message && (
             <p className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 font-inter text-xs font-semibold text-emerald-100">

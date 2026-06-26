@@ -82,6 +82,9 @@ fallback polling/refetch.
   labeled custom modals, profile/onboarding form feedback semantics,
   incremental unused-import lint behavior, the menubar `displayName` cleanup,
   and the scoped admin-auth / SimulationPanel cleanup decision.
+- Updated question analytics reset coverage so the Admin card must list
+  report names, actual source tables, Joker/rhythm sub-reports, and protected
+  non-reset data instead of a dense paragraph.
 
 ## Required Coverage Areas
 
