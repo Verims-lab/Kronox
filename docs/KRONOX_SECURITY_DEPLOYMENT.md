@@ -61,9 +61,11 @@ Rules:
 `sendFriendRequest` must validate the current user, resolve email/username
 targets server-side, check self/friend/open-pending guards, require deletion of
 expired outgoing invites before resend, set `FriendRequest.expires_at` at least
-72 hours after creation, create the `FriendRequest` row first, and only then
-attempt email delivery. SendEmail failure is a soft delivery failure: it must
-not roll back or delete the pending request.
+72 hours after creation, keep open reverse-pending requests actionable through
+Gelen İstekler, ignore/expire stale reverse-pending rows, create the
+`FriendRequest` row first, and only then attempt email delivery. SendEmail
+failure is a soft delivery failure: it must not roll back or delete the pending
+request.
 
 Online non-friend game invites use opaque `target_ref` values in the client.
 `createGameInvitesForTargets` resolves those refs backend-side to routable

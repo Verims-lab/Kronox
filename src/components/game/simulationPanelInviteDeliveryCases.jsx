@@ -241,8 +241,12 @@ export const EXTRA_TESTS = [
         'Bu kişiye gönderilmiş açık davet var.',
         'Bu kişiye süresi dolmuş bir davetin var. Yeniden davet göndermeden önce eski daveti silmelisin.',
         'findOutgoingInviteConflict',
+        'findOpenReversePendingRequest',
+        'markExpiredFriendRequestRows',
         'isFriendRequestExpired',
         'FRIEND_REQUEST_TTL_MS = 3 * 24 * 60 * 60 * 1000',
+        "status: 'expired'",
+        'expired_at: new Date(nowMs).toISOString()',
         'expires_at: expiresAt.toISOString()',
         'targetEmailReturned: false',
       ];
@@ -271,6 +275,33 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Friend invite duplicate/open and expired-before-resend rules are backend-owned, privacy-safe, and shared by Add Friend plus Leaderboard.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('invite_delivery', 'leaderboard_friend_invite_double_submit_guard',
+    'Leaderboard friend-add blocks double-submit while the first request is in flight',
+    () => {
+      const src = safeStr(leaderboardPageSource);
+      const required = [
+        'friendInvitePendingTargetsRef',
+        '.has(usernameKey)',
+        '.add(usernameKey)',
+        '.delete(usernameKey)',
+        'İstek gönderiliyor.',
+      ];
+      const missing = required.filter((token) => !src.includes(token));
+      if (missing.length) {
+        return fail('Leaderboard friend-add can still issue duplicate in-flight invite calls.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          missing,
+        });
+      }
+      return pass('Leaderboard friend-add suppresses duplicate in-flight submissions before the backend duplicate guard is needed.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
       });

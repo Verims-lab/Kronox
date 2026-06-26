@@ -101,6 +101,26 @@ function findOutgoingInviteConflict(rows: any[], nowMs: number) {
   return null;
 }
 
+function findOpenReversePendingRequest(rows: any[], nowMs: number) {
+  return (Array.isArray(rows) ? rows : []).find((row) => (
+    String(row?.status || '').toLowerCase() === 'pending'
+    && !isFriendRequestExpired(row, nowMs)
+  )) || null;
+}
+
+async function markExpiredFriendRequestRows(base44: any, rows: any[], nowMs: number) {
+  const expiredRows = (Array.isArray(rows) ? rows : []).filter((row) => isFriendRequestExpired(row, nowMs));
+  if (!expiredRows.length) return;
+  await Promise.all(expiredRows.map(async (row) => {
+    const id = row?.id || row?._id;
+    if (!id) return;
+    await base44.asServiceRole.entities.FriendRequest.update(id, {
+      status: 'expired',
+      expired_at: new Date(nowMs).toISOString(),
+    }).catch(() => null);
+  }));
+}
+
 function conflictResponse({
   code,
   error,
@@ -255,7 +275,7 @@ Deno.serve(async (req) => {
     const [pendingOut, expiredOut, pendingIn] = await Promise.all([
       base44.asServiceRole.entities.FriendRequest.filter({ from_email: fromEmail, to_email: targetEmail, status: 'pending' }, '-created_date', 20),
       base44.asServiceRole.entities.FriendRequest.filter({ from_email: fromEmail, to_email: targetEmail, status: 'expired' }, '-created_date', 20).catch(() => []),
-      base44.asServiceRole.entities.FriendRequest.filter({ from_email: targetEmail, to_email: fromEmail, status: 'pending' }, '-created_date', 1),
+      base44.asServiceRole.entities.FriendRequest.filter({ from_email: targetEmail, to_email: fromEmail, status: 'pending' }, '-created_date', 20),
     ]);
     const nowMs = Date.now();
     const outgoingConflict = findOutgoingInviteConflict([...(pendingOut || []), ...(expiredOut || [])], nowMs);
@@ -279,7 +299,11 @@ Deno.serve(async (req) => {
         request: outgoingConflict.row,
       }), 409);
     }
-    if (pendingIn?.[0]) {
+    const reversePending = findOpenReversePendingRequest(pendingIn || [], nowMs);
+    if (!reversePending) {
+      await markExpiredFriendRequestRows(base44, pendingIn || [], nowMs);
+    }
+    if (reversePending) {
       return json({ ok: false, code: 'reverse_pending', error: 'Bu kişi sana zaten istek göndermiş — Gelen İstekler listesinden kabul et.' }, 409);
     }
 

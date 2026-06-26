@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex451 — Audit/fix pass for friend invite lifecycle:
+//   • Expired reverse-pending FriendRequest rows no longer block a fresh outgoing request.
+//   • Leaderboard friend-add suppresses duplicate in-flight submissions before backend duplicate guards.
+//   • Health/docs/mirrors cover reverse-pending expiry and double-submit suppression.
+//
 // Codex450 — Friend invite lifecycle contract:
 //   • Blocks duplicate open outgoing friend invites with a stable backend code/copy.
 //   • Gives new FriendRequest rows a 72-hour expires_at and blocks resend until expired outgoing rows are cancelled.
@@ -2555,7 +2560,7 @@ import React, { useEffect, useState } from 'react';
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
 // Verims comment on 25.06.2026
-const BUILD_MARKER = 'Codex450';
+const BUILD_MARKER = 'Codex451';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
