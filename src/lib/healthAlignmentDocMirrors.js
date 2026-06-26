@@ -42,7 +42,7 @@ Status: Active product workflow contract.
 - Eğitime Devam is only for true tutorial_in_progress; tutorial_completed routes to profile setup, profile complete plus category pending routes to category selection, and onboarding_complete routes to Ana Sayfa.
 - Home / Ana Sayfa must not render Google, Apple, Email, Hesabını bağla, or progress-protection account-link CTAs; account linking belongs under Profile. The first-launch welcome may show Hesabım Var only as a route to Profile account connection, not as an inline provider/login surface.
 - Public identity is username. display_name / Görünen Ad is a legacy/internal projection mirror, not a separate public editable identity or public leaderboard response field.
-- Friends can be added by email address or registered Kronox username. Username lookup is backend-owned and username-based add responses must not reveal the target email.
+- Friends can be added by email address or registered Kronox username. Username lookup is backend-owned and username-based add responses must not reveal the target email. FriendRequest sends use a function-level FriendRequestOperationLock race guard because DB/entity unique constraints are not repo-proven.
 - Category selection uses current active Category metadata and getCategoryMetadata; stale hardcoded category fallback arrays and old seed category names are forbidden as runtime fallbacks.
 - Authenticated category preference save minimum is 3 active valid categories; guest category selection is advisory and empty guest selections mean all active Solo categories remain eligible.
 - Online category list is sorted by category_id ASC and Online is not a BottomNav item.
@@ -120,7 +120,8 @@ fallbacks.
 
 Friend add now uses backend-owned sendFriendRequest so email or username input
 shares one server-side path for target resolution, self/duplicate/pending
-guards, and no target-email return on username add.
+guards, function-level FriendRequestOperationLock race hardening, and no
+target-email return on username add.
 `;
 
 export const ARCHITECTURE_TARGET_DOC = `# Kronox Architecture Target
@@ -171,7 +172,9 @@ friend invites expire no earlier than 72 hours after creation, and expired
 outgoing invites must be cancelled/deleted before the sender can invite the
 same target again. Open reverse-pending requests still route the player to
 Gelen İstekler; expired reverse-pending rows are stale and must not block a
-fresh outgoing request.
+fresh outgoing request. Add Friend and Leaderboard suppress duplicate
+in-flight submissions locally, while FriendRequestOperationLock narrows
+backend parallel-send races without claiming DB-level uniqueness proof.
 
 Loading states expose status semantics with role="status", aria-live, and a
 clear accessible name without changing visual layout. Icon-only controls have
@@ -201,8 +204,9 @@ friend / online non-friend / offline friend ordering, opaque target refs,
 username-only labels, offline fallback, current-user heartbeat wiring,
 backend-only invite target resolution, email-or-username friend add,
 server-side username resolution, required username-not-found copy, reverse-pending
-expiry safety, leaderboard double-submit suppression, and no target-email return
-on username add or player selection. Executable reducer
+expiry safety, Add Friend and Leaderboard double-submit suppression,
+function-level FriendRequestOperationLock race hardening, and no target-email
+return on username add or player selection. Executable reducer
 coverage now protects Online 4-player representation/start/recovery
 transitions and notification transient-empty, terminal, dismiss, accept/reject,
 dedupe, and privacy transitions. Security Pass 3 coverage protects accessible
@@ -232,6 +236,18 @@ rows with invite_target_ref, recipient_relation, and created_source metadata.
 Public reports may aggregate by day/status/relation/source, but must not
 export from_email, to_email, user_email, raw target_ref, provider ID,
 owner_key, raw guest_id, internal player_key, or full question data.
+
+FriendRequest Duplicate / Expiry Guard Phase 1 uses a backend-owned
+FriendRequestOperationLock for friend_request_send races because the repo does
+not prove Base44 unique/index schema syntax for active FriendRequest rows.
+sendFriendRequest creates a TTL lock, re-reads active locks, selects one
+canonical winner, marks expired locks stale, and returns
+FRIEND_REQUEST_IN_PROGRESS or the open-invite warning to duplicate sends. The
+manual proof checklist covers Leaderboard sends, Add Friend username/email
+sends, open duplicate warning, expired invite cancel/delete before resend,
+delivery failure preserving the row, parallel rapid submits creating at most
+one pending FriendRequest, and no email/provider/owner/raw guest/internal
+player/lock identifiers in public UI, client responses, or exports.
 
 SoloLevelAttemptEvent Phase 1 defines actor_key_hash, player_type, level,
 rules_version, passed, used_moves, elapsed_seconds, stars,
@@ -328,7 +344,7 @@ Status: Active product contract.
 - Two-account probes remain mandatory for category preferences, friends, invites, lobbies, Daily Quest progress, Daily Wheel, Diamond/Joker economy, push subscriptions, and analytics cleanup.
 - getQuestions serves an authenticated bounded server attempt candidate buffer for signed-in Solo and an explicit capped guest_gameplay_runtime minimal deck for first-time guest Solo; admin/full-bank/diagnostics still require active AdminUser owner/admin authorization. Authenticated candidate reads are bounded to 96 * 3 = 288 rows per active category/query variant before projection.
 - startLobbyGame requires authenticated host, no legacy guest, no client identity override.
-- sendFriendRequest requires authenticated user context, resolves email or username targets server-side, checks self/friend/open-pending guards, requires deletion of expired outgoing invites before resend, sets FriendRequest.expires_at at least 72 hours after creation, keeps open reverse-pending requests actionable through Gelen İstekler, ignores/expires stale reverse-pending rows, creates the FriendRequest row before SendEmail, treats email delivery failure as a soft failure that does not roll back the request, stores username-safe labels, and never returns the target email for username-based add.
+- sendFriendRequest requires authenticated user context, resolves email or username targets server-side, checks self/friend/open-pending guards under FriendRequestOperationLock, requires deletion of expired outgoing invites before resend, sets FriendRequest.expires_at at least 72 hours after creation, keeps open reverse-pending requests actionable through Gelen İstekler, ignores/expires stale reverse-pending rows, creates the FriendRequest row before SendEmail, treats email delivery failure as a soft failure that does not roll back the request, stores username-safe labels, and never returns the target email for username-based add. FriendRequestOperationLock is a function-level guard, not DB unique/index proof.
 - Online non-friend game invites use opaque target_ref values in the client. createGameInvitesForTargets resolves target refs backend-side to routable recipients, while public player-selection, lobby, invite, notification, and push payloads use username-safe labels and never expose target email, provider IDs, owner keys, raw guest IDs, or internal player keys.
 - Security Pass 1 pins @base44/sdk exactly at 0.8.34 and aligns Base44 Deno function imports to npm:@base44/sdk@0.8.34. Do not reintroduce frontend ^ SDK ranges, unversioned function SDK imports, or npm:@base44/sdk@0.8.25 without a documented Base44 runtime compatibility split.
 - User/admin/question markdown is not rendered as raw HTML. react-markdown is not a runtime dependency, rehype-raw is forbidden for user/content markdown, and dangerouslySetInnerHTML must not be used for user-generated, backend-provided, or markdown-provided content. Static generated CSS should use guarded text children instead of raw HTML injection.
@@ -635,6 +651,7 @@ Status: Implementation tracking doc.
 - Service-role functions bind every user-owned object to authenticated user/admin context before reading, writing, updating, or deleting it.
 - If Base44 cannot enforce a DB-level unique/index constraint, the service layer remains responsible for idempotency and duplicate detection.
 - EconomyOperationLock is a function-level TTL/stale-recovery guard for player economy mutations; it reduces parallel read-modify-write races but does not prove DB-level atomic compare-and-swap.
+- FriendRequestOperationLock is a function-level TTL/stale-recovery guard for friend_request_send duplicate races; it reduces same sender/target parallel creates but does not prove DB-level uniqueness.
 - Solo QuestionAttemptEvent runtime writes are enabled best-effort; Online analytics remains deferred.
 - Manual admin question analytics full email-body report exists with no scheduled trigger and no active PDF attachment requirement.
 - Manual DB reset path can reset question analytics history/projections after replacing the question pool.

@@ -167,7 +167,9 @@ Parity plan:
   outgoing invites must be cancelled/deleted before the sender can invite the
   same target again. Open reverse-pending requests still route the player to
   Gelen İstekler; expired reverse-pending rows are stale and must not block a
-  fresh outgoing request.
+  fresh outgoing request. `FriendRequestOperationLock` is a function-level
+  duplicate-send race guard; DB unique/index proof remains a manual/platform
+  gate.
 - Friend, invite, lobby, notification, and presence surfaces must render
   username-safe labels only. Emails, provider IDs, raw guest IDs, owner keys,
   and internal player keys are never public display fallbacks.

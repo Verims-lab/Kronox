@@ -99,7 +99,9 @@ Mechanical scan from this pass:
   `GameInvite.to_email` rows.
 - Added backend-owned `sendFriendRequest` so Add Friend accepts email or
   username while username resolution, self/duplicate/pending guards, and
-  target-email privacy stay server-side.
+  target-email privacy stay server-side. The current duplicate-send race
+  hardening is a function-level `FriendRequestOperationLock`, not DB unique
+  proof.
 - Corrected invite navigation Health expectations from the older
   `lobby: updatedLobby` token to the current `verifiedLobby` / `joinedLobby`
   contract.

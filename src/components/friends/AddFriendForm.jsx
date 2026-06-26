@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AtSign, UserPlus, Loader2, AlertCircle } from 'lucide-react';
 import { parseFriendRequestTarget } from '@/lib/friendsApi';
@@ -11,6 +11,7 @@ export default function AddFriendForm({ onSubmit }) {
   const [target, setTarget] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const submittingRef = useRef(false);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -27,6 +28,8 @@ export default function AddFriendForm({ onSubmit }) {
       setError(parsed.error || 'E-posta veya kullanıcı adı gir.');
       return;
     }
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setBusy(true);
     try {
       // Codex129 — Parent (FriendsPage) now owns the precise success/warning
@@ -38,6 +41,7 @@ export default function AddFriendForm({ onSubmit }) {
     } catch (err) {
       setError(err.message || 'İstek gönderilemedi.');
     } finally {
+      submittingRef.current = false;
       setBusy(false);
     }
   };

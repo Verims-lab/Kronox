@@ -1,0 +1,95 @@
+{
+  "name": "FriendRequestOperationLock",
+  "type": "object",
+  "description": "Short-lived backend-owned guard for FriendRequest send mutations. Base44/platform uniqueness is not assumed, so sendFriendRequest creates a TTL lock, re-reads active lock rows, chooses one deterministic winner, and marks expired rows stale. Public UI and exports must never expose lock_key, actor_key_hash, target_key_hash, raw email, provider ID, owner_key, raw guest_id, or internal player_key.",
+  "properties": {
+    "lock_key": {
+      "type": "string",
+      "description": "Internal hashed per sender/target send key. Logical unique active key; never public."
+    },
+    "actor_key_hash": {
+      "type": "string",
+      "description": "Internal hash of the sender routing key. Never public and not reversible by UI."
+    },
+    "target_key_hash": {
+      "type": "string",
+      "description": "Internal hash of the target routing key. Never public and not reversible by UI."
+    },
+    "operation_scope": {
+      "type": "string",
+      "enum": [
+        "friend_request_send"
+      ],
+      "description": "Friend request operation type guarded by this lock."
+    },
+    "operation_id": {
+      "type": "string",
+      "description": "Debug-safe operation id derived from the lock key. Must not contain raw email or user identifiers."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "released",
+        "stale"
+      ],
+      "description": "active while the guarded send is running, released after normal completion, stale after TTL recovery."
+    },
+    "acquired_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when the lock row was created."
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp after which a future send may mark this lock stale and continue."
+    },
+    "released_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when the lock was released or marked stale."
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Debug-safe metadata only. Must not contain raw email, provider ID, owner_key, raw guest_id, internal player_key, or question data."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional admin/audit note."
+    }
+  },
+  "required": [
+    "lock_key",
+    "actor_key_hash",
+    "target_key_hash",
+    "operation_scope",
+    "operation_id",
+    "status",
+    "acquired_at",
+    "expires_at"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
