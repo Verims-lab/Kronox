@@ -69,32 +69,20 @@
   ],
   "rls": {
     "create": {
-      "data.owner_key": "{{user.id}}"
+      "user_condition": {
+        "role": "admin"
+      }
     },
     "read": {},
     "update": {
-      "$or": [
-        {
-          "data.owner_key": "{{user.id}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
+      "user_condition": {
+        "role": "admin"
+      }
     },
     "delete": {
-      "$or": [
-        {
-          "data.owner_key": "{{user.id}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
+      "user_condition": {
+        "role": "admin"
+      }
     }
   }
 }
