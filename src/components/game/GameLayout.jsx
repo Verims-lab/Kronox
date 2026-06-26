@@ -535,7 +535,7 @@ export default function GameLayout({
               onTouchDragMove={isMyTurn && !interactionPaused ? onTouchDragMove : undefined}
               onTouchDragEnd={isMyTurn && !interactionPaused ? onTouchDragEnd : undefined}
               onTouchDragCancel={isMyTurn && !interactionPaused ? onTouchDragCancel : undefined}
-              soloReadableCard={!isOnline}
+              soloReadableCard
             />
             <GuidedDragFingerHint
               active={Boolean(guidedDragHintActive && isMyTurn && !isDragging && !feedback && !winner && !interactionPaused)}
@@ -600,7 +600,7 @@ export default function GameLayout({
               guidedScrollHintActive={timelineSwipeHintVisible}
               onGuidedScrollHintInteraction={guidedTimelineScrollHintActive ? onTimelineSwipeHintInteraction : undefined}
               correctStreak={correctStreak}
-              soloYearOnlyCards={!isOnline}
+              soloYearOnlyCards
             />
           )}
           <GuidedTimelineSwipeHint
