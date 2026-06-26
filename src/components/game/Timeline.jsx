@@ -6,7 +6,7 @@ import { sounds } from '@/lib/gameSounds';
 // focused sibling component so Timeline's own logic stays untouched.
 import PlacementFeedbackOverlay from './PlacementFeedbackOverlay.jsx';
 
-function DropZone({ index, isActive, isDragMode, isMagnetic, isBeginnerHint, isGuidedTarget, onSelect, isTimeUp }) {
+function DropZone({ index, isActive, isDragMode, isMagnetic, isBeginnerHint, isGuidedTarget, onSelect, isTimeUp, isEdgePeek }) {
   const showBeginnerHint = Boolean(isBeginnerHint && isDragMode && !isActive && !isTimeUp);
   const showGuidedTarget = Boolean(isGuidedTarget && !isActive && !isTimeUp);
   // Resting "+" insertion slot: only when the timeline is idle (no drag, not
@@ -14,6 +14,16 @@ function DropZone({ index, isActive, isDragMode, isMagnetic, isBeginnerHint, isG
   // this purely affects the at-rest visual so the empty gap reads as a
   // card-sized "kart buraya gelecek" target.
   const showPlusSlot = Boolean(!isDragMode && !isActive && !isTimeUp && !showBeginnerHint && !showGuidedTarget);
+  // At-rest outer slots (the first and last drop zones) render as a narrow
+  // peek so the opening viewport shows: partial slot · card · full slot ·
+  // card · partial slot. Middle resting slots stay full card-sized. Visual
+  // only — never affects drag sizing or hit-testing.
+  const showEdgePeek = Boolean(showPlusSlot && isEdgePeek);
+  // 'left' edge slot (before first card) reveals its right portion; 'right'
+  // edge slot (after last card) reveals its left portion.
+  const peekSide = isEdgePeek === 'right' ? 'right' : 'left';
+  const restingWrapperWidth = showEdgePeek ? 40 : 80;
+  const restingBoxWidth = 72;
   const borderColor = isTimeUp
     ? '#ef4444'
     : isActive
@@ -40,8 +50,8 @@ function DropZone({ index, isActive, isDragMode, isMagnetic, isBeginnerHint, isG
   return (
     <div
       onClick={() => { if (onSelect) { sounds.tap(); onSelect(index); } }}
-      className="flex-shrink-0 flex flex-col items-center justify-center cursor-pointer"
-      style={{ width: isActive ? 88 : isMagnetic ? 70 : isDragMode ? 56 : showPlusSlot ? 80 : 32, height: 108, position: 'relative', transition: 'width 0.15s ease' }}
+      className={`flex-shrink-0 flex flex-col cursor-pointer ${showEdgePeek ? (peekSide === 'right' ? 'items-start' : 'items-end') : 'items-center'} justify-center`}
+      style={{ width: isActive ? 88 : isMagnetic ? 70 : isDragMode ? 56 : showPlusSlot ? restingWrapperWidth : 32, height: 108, position: 'relative', transition: 'width 0.15s ease', overflow: showEdgePeek ? 'hidden' : 'visible' }}
     >
       <AnimatePresence>
         {isActive && !isTimeUp && (
@@ -65,7 +75,7 @@ function DropZone({ index, isActive, isDragMode, isMagnetic, isBeginnerHint, isG
         transition={(isMagnetic || showBeginnerHint || showGuidedTarget) && !isActive ? { duration: showGuidedTarget ? 1.2 : showBeginnerHint ? 1.15 : 0.7, repeat: Infinity, ease: 'easeInOut' } : {}}
         className="rounded-2xl flex items-center justify-center"
         style={{
-          width: isActive ? 80 : isMagnetic ? 62 : isDragMode ? 48 : showPlusSlot ? 72 : 26,
+          width: isActive ? 80 : isMagnetic ? 62 : isDragMode ? 48 : showPlusSlot ? restingBoxWidth : 26,
           height: showPlusSlot && !isActive && !isMagnetic && !isDragMode ? 108 : 100,
           position: 'relative',
           border: `2px dashed ${borderColor}`,
@@ -529,6 +539,7 @@ export default function Timeline({
             isGuidedTarget={isGuidedTarget}
             onSelect={onSelectZone}
             isTimeUp={isTimeUp}
+            isEdgePeek={i === 0 ? 'left' : (i === totalZones - 1 ? 'right' : false)}
           />
         </div>
       )}

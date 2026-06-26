@@ -2574,8 +2574,8 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-// Codex458 — Timeline initial centering + card-sized "+" insertion slot.
-const BUILD_MARKER = 'Codex458';
+// Codex459 — Timeline initial viewport: partial edge slots + full middle slot.
+const BUILD_MARKER = 'Codex459';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
