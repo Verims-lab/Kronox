@@ -213,7 +213,10 @@ dedupe, and privacy transitions. Security Pass 3 coverage protects accessible
 loading/status semantics, labeled custom modals, profile/onboarding form
 feedback semantics, incremental unused-import lint behavior, the menubar
 displayName cleanup, and the scoped admin-auth / SimulationPanel cleanup
-decision. Two-account, realtime, push, RLS/BOLA, keyboard/screen-reader,
+decision. Question analytics reset coverage requires the Admin card to list
+report names, actual source tables, Joker/rhythm sub-reports, and protected
+non-reset data instead of a dense paragraph. Two-account, realtime, push,
+RLS/BOLA, keyboard/screen-reader,
 device, and store proof remain manual/live probes.
 The Online lobby/start/reconnect contract remains an architecture target and
 manual live-proof area even when reducer/static Health checks pass.
@@ -230,6 +233,23 @@ changes, leaderboard movement, category preference distribution, question
 exposure/difficulty, Online lobby lifecycle, invite lifecycle, notification
 lifecycle, platform split, retention cohorts, and economy fraud/race anomalies.
 Missing event tables must be backward-compatible and privacy-safe.
+
+Question analytics manual reset remains manual DB maintenance only; function
+reset is disabled. The reset card maps Kategori Bazında Gösterim to
+QuestionAttemptEvent, PlayerQuestionDailyExposure, Question, Category, and
+UserCategoryPreference; anonymous most-shown and repeat-risk reports to
+PlayerQuestionDailyExposure plus Category labels; top-shown and most-wrong
+reports to QuestionAttemptEvent plus current Question/Category labels; Joker
+Kullanımı Analizi to QuestionAttemptEvent plus protected JokerTransaction and
+UserJokerInventory signals; and Oynanma Zamanı ve Kullanım Ritmi to
+QuestionAttemptEvent plus protected DiamondTransaction and DailyWheelSpin
+activity notes. Manual reset clears QuestionAttemptEvent,
+PlayerQuestionDailyExposure, and populated QuestionStatsProjection /
+CategoryStatsProjection rows; PlayerQuestionExposure is optional anti-repeat
+memory reset. It must not delete Question, Category, User, GuestProfile,
+PlayerProfile, UserCategoryPreference, UserJokerInventory, JokerTransaction,
+DiamondTransaction, Daily Wheel, Daily Quest, leaderboard, score, progress,
+gameplay, or economy records.
 
 Online player selection / invite reporting Phase 1 uses existing GameInvite
 rows with invite_target_ref, recipient_relation, and created_source metadata.

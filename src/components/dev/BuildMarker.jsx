@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex453 — Question analytics reset copy clarity:
+//   • Replaces the dense admin reset paragraph with report/source-table bullets.
+//   • Clarifies Joker/rhythm ledger limitations and protected non-reset data.
+//   • Updates targeted Health/docs/mirrors for reset-scope clarity.
+//
 // Codex452 — Follow-up friend invite race hardening:
 //   • Adds FriendRequestOperationLock as a backend-owned function-level duplicate-send guard.
 //   • Blocks Add Friend rapid same-tick submits with a ref guard.
@@ -2565,7 +2570,7 @@ import React, { useEffect, useState } from 'react';
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
 // Verims comment on 25.06.2026
-const BUILD_MARKER = 'Codex452';
+const BUILD_MARKER = 'Codex453';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

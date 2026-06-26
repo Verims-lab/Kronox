@@ -59,6 +59,40 @@ and exports must use username-safe or anonymized labels.
 - DB unique/index proof is not present in repo for several idempotency keys.
 - Coarse device/platform reporting is not defined.
 
+## Question Analytics Manual Reset Scope
+
+The admin `Soru Analitik Verilerini Sıfırla` card is guidance for manual DB
+maintenance only; the function reset path remains disabled. The current email
+report is admin-only and derives report sections from these sources:
+
+- `Kategori Bazında Gösterim`: `QuestionAttemptEvent`,
+  `PlayerQuestionDailyExposure`, `Question`, `Category`,
+  `UserCategoryPreference`.
+- `En Çok Soru Gören 10 Anonim Kullanıcı` and
+  `Tekrar Riski En Yüksek 10 Anonim Kullanıcı`:
+  `PlayerQuestionDailyExposure` plus `Category` labels.
+- `En Çok Gösterilen Sorular` and `En Çok Yanlış Yapılan Sorular`:
+  `QuestionAttemptEvent` plus current `Question` / `Category` labels.
+- `Joker Kullanımı Analizi`: `QuestionAttemptEvent` for event-backed joker
+  signals, plus protected `JokerTransaction` and `UserJokerInventory` ledger /
+  current-state data for economy signals.
+- `Oynanma Zamanı ve Kullanım Ritmi`: `QuestionAttemptEvent` timestamps for
+  hour/day metrics, plus protected `DiamondTransaction` and `DailyWheelSpin`
+  counts for activity notes.
+
+Manual analytics reset clears `QuestionAttemptEvent`,
+`PlayerQuestionDailyExposure`, and any populated `QuestionStatsProjection` /
+`CategoryStatsProjection` manual aggregate rows. `PlayerQuestionExposure` is
+optional and should be cleared only when the same-player anti-repeat memory
+must restart.
+
+The reset must not delete `Question`, `Category`, `User`, `GuestProfile`,
+`PlayerProfile`, `UserCategoryPreference`, `UserJokerInventory`,
+`JokerTransaction`, `DiamondTransaction`, Daily Wheel, Daily Quest,
+leaderboard, score, progress, gameplay, or economy records. Ledger-derived
+Joker/economy/activity signals can remain visible after a question analytics
+reset because those protected ledgers are outside reset scope.
+
 ## FriendRequest Duplicate / Expiry Guard Phase 1
 
 The repo does not prove a Base44 entity schema syntax for DB-level unique
