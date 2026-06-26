@@ -30,7 +30,10 @@ export const friendRequestEntitySource = `
     "to_email": {},
     "to_name": {},
     "to_username": {},
-    "status": { "enum": ["pending","accepted","rejected","cancelled"] }
+    "status": { "enum": ["pending","accepted","rejected","cancelled","expired"] },
+    "expires_at": {},
+    "expired_at": {},
+    "cancelled_at": {}
   },
   "rls": {
     "create": { "data.from_email": "{{user.email}}" },
@@ -43,6 +46,21 @@ export const friendRequestEntitySource = `
 export const sendFriendRequestFnSource = `
   // Public contract of functions/sendFriendRequest.js — mirrored.
   const USERNAME_NOT_FOUND_MESSAGE = 'Kronox’ta bu kullanıcı adıyla biri yok.';
+  const OPEN_INVITE_EXISTS_MESSAGE = 'Bu kişiye gönderilmiş açık davet var.';
+  const EXPIRED_INVITE_REQUIRES_DELETE_MESSAGE = 'Bu kişiye süresi dolmuş bir davetin var. Yeniden davet göndermeden önce eski daveti silmelisin.';
+  const FRIEND_REQUEST_TTL_MS = 3 * 24 * 60 * 60 * 1000;
+  function isFriendRequestExpired(row, nowMs) {
+    if (String(row?.status || '').toLowerCase() === 'expired') return true;
+    const expiresAt = getFriendRequestExpiresAt(row);
+    return Number.isFinite(expiresAt) && expiresAt <= nowMs;
+  }
+  function findOutgoingInviteConflict(rows, nowMs) {
+    const expired = rows.find((row) => isFriendRequestExpired(row, nowMs));
+    if (expired) return { type: 'expired', row: expired };
+    const open = rows.find((row) => String(row?.status || '').toLowerCase() === 'pending');
+    if (open) return { type: 'open', row: open };
+    return null;
+  }
   async function findTargetByUsername(base44, username) {
     const normalizedRows = await base44.asServiceRole.entities.User.filter({ username_normalized: usernameKey }, '-updated_date', 2);
     const usernameRows = await base44.asServiceRole.entities.User.filter({ username }, '-updated_date', 2);
@@ -71,8 +89,11 @@ export const sendFriendRequestFnSource = `
   if (targetEmail === fromEmail) return json({ ok: false, code: 'self_add', error: 'Kendini ekleyemezsin.' }, 400);
   const existingFriend = acceptedOut?.[0] || acceptedIn?.[0] || null;
   if (existingFriend) return json({ ok: false, code: 'already_friends', error: 'Bu kullanıcı zaten arkadaşın.' }, 409);
-  if (pendingOut?.[0]) return json({ ok: true, alreadyPending: true, duplicatePending: true, message: 'Bu kişiye zaten bekleyen bir isteğin var.', requestStatus: 'pending', inputKind, targetLabel: target.username, recipientRegistered: target.registered, emailSent: false, emailError: null, privacy: { targetEmailReturned: false, publicIdentity: 'username' } });
+  const outgoingConflict = findOutgoingInviteConflict([...(pendingOut || []), ...(expiredOut || [])], nowMs);
+  if (outgoingConflict?.type === 'expired') return json(conflictResponse({ code: 'EXPIRED_INVITE_REQUIRES_DELETE', error: EXPIRED_INVITE_REQUIRES_DELETE_MESSAGE, inputKind, target, request: outgoingConflict.row }), 409);
+  if (outgoingConflict?.type === 'open') return json(conflictResponse({ code: 'OPEN_INVITE_EXISTS', error: OPEN_INVITE_EXISTS_MESSAGE, inputKind, target, request: outgoingConflict.row }), 409);
   if (pendingIn?.[0]) return json({ ok: false, code: 'reverse_pending', error: 'Bu kişi sana zaten istek göndermiş — Gelen İstekler listesinden kabul et.' }, 409);
+  const expiresAt = new Date(nowMs + FRIEND_REQUEST_TTL_MS);
   const created = await base44.asServiceRole.entities.FriendRequest.create({
     from_email: fromEmail,
     from_name: senderName,
@@ -81,6 +102,7 @@ export const sendFriendRequestFnSource = `
     to_name: target.username,
     to_username: target.username,
     status: 'pending',
+    expires_at: expiresAt.toISOString(),
   });
   const appUrl = sanitizeAppUrl(body?.appUrl) || 'https://kronox.base44.app';
   const emailResult = await sendFriendRequestEmail(base44, { toEmail: targetEmail, senderName, appUrl });

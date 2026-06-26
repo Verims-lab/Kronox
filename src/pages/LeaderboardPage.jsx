@@ -324,14 +324,15 @@ export default function LeaderboardPage() {
       // self-add / not-found come back as thrown errors (handled in catch);
       // an existing pending request returns ok:true with alreadyPending.
       if (data?.alreadyPending) {
-        toast({ title: `${username} için istek zaten gönderilmiş.` });
+        toast({ title: data.message || 'Bu kişiye gönderilmiş açık davet var.' });
       } else {
         toast({ title: `${username} kullanıcısına arkadaşlık isteği gönderildi.` });
       }
       // Refresh so the row picks up its "Arkadaş" badge once accepted.
       loadLeaderboard();
     } catch (err) {
-      toast({ title: err?.message || 'İstek gönderilemedi.', variant: 'destructive' });
+      const lifecycleWarning = ['OPEN_INVITE_EXISTS', 'EXPIRED_INVITE_REQUIRES_DELETE'].includes(err?.code);
+      toast({ title: err?.message || 'İstek gönderilemedi.', variant: lifecycleWarning ? undefined : 'destructive' });
       throw err;
     }
   }, [user, toast, loadLeaderboard]);

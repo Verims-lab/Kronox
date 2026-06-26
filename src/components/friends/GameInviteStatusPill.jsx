@@ -1,6 +1,23 @@
 import React from 'react';
 import { isGameInviteExpired } from '@/lib/inviteApi';
 
+function hasFriendRequestShape(invite) {
+  return Boolean(
+    (invite?.from_email || invite?.to_email)
+      && !invite?.lobby_id
+      && !invite?.lobby_code
+      && !invite?.invite_target_ref
+  );
+}
+
+function isFriendRequestExpiredForDisplay(invite) {
+  if (String(invite?.status || '').toLowerCase() === 'expired') return true;
+  const raw = invite?.expires_at || invite?.expiresAt;
+  if (!raw) return false;
+  const parsed = Date.parse(String(raw));
+  return Number.isFinite(parsed) && parsed <= Date.now();
+}
+
 /**
  * GameInviteStatusPill — Codex099
  *
@@ -39,9 +56,12 @@ const LABEL_BY_STATUS = {
 export default function GameInviteStatusPill({ invite, className = '' }) {
   if (!invite?.status) return null;
 
-  // TTL-aware override: a pending GameInvite past its expires_at is shown as
-  // expired even before the backend flips the row.
-  const effectiveStatus = invite.status === 'pending' && isGameInviteExpired(invite)
+  // TTL-aware override: GameInvite can derive expiry from created_at, while
+  // FriendRequest expiry is explicit 72h expires_at only.
+  const expired = hasFriendRequestShape(invite)
+    ? isFriendRequestExpiredForDisplay(invite)
+    : isGameInviteExpired(invite);
+  const effectiveStatus = invite.status === 'pending' && expired
     ? 'expired'
     : invite.status;
 

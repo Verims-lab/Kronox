@@ -1,6 +1,9 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 
 const USERNAME_NOT_FOUND_MESSAGE = 'Kronox’ta bu kullanıcı adıyla biri yok.';
+const OPEN_INVITE_EXISTS_MESSAGE = 'Bu kişiye gönderilmiş açık davet var.';
+const EXPIRED_INVITE_REQUIRES_DELETE_MESSAGE = 'Bu kişiye süresi dolmuş bir davetin var. Yeniden davet göndermeden önce eski daveti silmelisin.';
+const FRIEND_REQUEST_TTL_MS = 3 * 24 * 60 * 60 * 1000;
 const UNSAFE_PUBLIC_USERNAME_PATTERN = /^(apple|google|firebase|auth0|base44|provider|uid|owner)(?:[\w:-].*)?$/i;
 const INTERNAL_ID_PUBLIC_USERNAME_PATTERN = /^(guest|player|owner|user_key|player_key|g|u)_[A-Za-z0-9_-]{4,}$/i;
 
@@ -62,6 +65,70 @@ function sanitizeAppUrl(raw: unknown) {
 
 function escapeText(value: unknown) {
   return String(value || '').replace(/[\u0000-\u001F\u007F]/g, '').slice(0, 200);
+}
+
+function parseTime(raw: unknown) {
+  if (!raw) return NaN;
+  if (raw instanceof Date) return raw.getTime();
+  if (typeof raw === 'number') return Number.isFinite(raw) ? raw : NaN;
+  const text = String(raw || '').trim();
+  if (!text) return NaN;
+  let normalized = text;
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(text)) {
+    normalized = `${text}Z`;
+  }
+  const parsed = Date.parse(normalized);
+  return Number.isFinite(parsed) ? parsed : NaN;
+}
+
+function getFriendRequestExpiresAt(row: any) {
+  return parseTime(row?.expires_at || row?.expiresAt);
+}
+
+function isFriendRequestExpired(row: any, nowMs: number) {
+  const status = String(row?.status || '').toLowerCase();
+  if (status === 'expired') return true;
+  const expiresAt = getFriendRequestExpiresAt(row);
+  return Number.isFinite(expiresAt) && expiresAt <= nowMs;
+}
+
+function findOutgoingInviteConflict(rows: any[], nowMs: number) {
+  const candidates = (Array.isArray(rows) ? rows : []).filter(Boolean);
+  const expired = candidates.find((row) => isFriendRequestExpired(row, nowMs));
+  if (expired) return { type: 'expired', row: expired };
+  const open = candidates.find((row) => String(row?.status || '').toLowerCase() === 'pending');
+  if (open) return { type: 'open', row: open };
+  return null;
+}
+
+function conflictResponse({
+  code,
+  error,
+  inputKind,
+  target,
+  request,
+}: {
+  code: string;
+  error: string;
+  inputKind: string;
+  target: { username: string; registered: boolean };
+  request?: any;
+}) {
+  return {
+    ok: false,
+    code,
+    error,
+    message: error,
+    requestStatus: request?.status || null,
+    requestId: request?.id || request?._id || null,
+    inputKind,
+    targetLabel: target.username,
+    recipientRegistered: target.registered,
+    privacy: {
+      targetEmailReturned: false,
+      publicIdentity: 'username',
+    },
+  };
 }
 
 async function findCurrentUser(base44: any, authUser: any, email: string) {
@@ -185,35 +252,38 @@ Deno.serve(async (req) => {
       return json({ ok: false, code: 'already_friends', error: 'Bu kullanıcı zaten arkadaşın.' }, 409);
     }
 
-    const [pendingOut, pendingIn] = await Promise.all([
-      base44.asServiceRole.entities.FriendRequest.filter({ from_email: fromEmail, to_email: targetEmail, status: 'pending' }, '-created_date', 1),
+    const [pendingOut, expiredOut, pendingIn] = await Promise.all([
+      base44.asServiceRole.entities.FriendRequest.filter({ from_email: fromEmail, to_email: targetEmail, status: 'pending' }, '-created_date', 20),
+      base44.asServiceRole.entities.FriendRequest.filter({ from_email: fromEmail, to_email: targetEmail, status: 'expired' }, '-created_date', 20).catch(() => []),
       base44.asServiceRole.entities.FriendRequest.filter({ from_email: targetEmail, to_email: fromEmail, status: 'pending' }, '-created_date', 1),
     ]);
-    if (pendingOut?.[0]) {
-      // Idempotent duplicate guard: an outgoing pending request already
-      // exists, so we do NOT create a second FriendRequest. Return a stable
-      // user-facing message and never leak the target email.
-      return json({
-        ok: true,
-        alreadyPending: true,
-        duplicatePending: true,
-        message: 'Bu kişiye zaten bekleyen bir isteğin var.',
-        requestStatus: 'pending',
+    const nowMs = Date.now();
+    const outgoingConflict = findOutgoingInviteConflict([...(pendingOut || []), ...(expiredOut || [])], nowMs);
+    if (outgoingConflict?.type === 'expired') {
+      return json(conflictResponse({
+        code: 'EXPIRED_INVITE_REQUIRES_DELETE',
+        error: EXPIRED_INVITE_REQUIRES_DELETE_MESSAGE,
         inputKind,
-        targetLabel: target.username,
-        recipientRegistered: target.registered,
-        emailSent: false,
-        emailError: null,
-        privacy: {
-          targetEmailReturned: false,
-          publicIdentity: 'username',
-        },
-      });
+        target,
+        request: outgoingConflict.row,
+      }), 409);
+    }
+    if (outgoingConflict?.type === 'open') {
+      // Duplicate open outgoing request guard: do NOT create a second
+      // FriendRequest. Return a typed safe error and never leak target email.
+      return json(conflictResponse({
+        code: 'OPEN_INVITE_EXISTS',
+        error: OPEN_INVITE_EXISTS_MESSAGE,
+        inputKind,
+        target,
+        request: outgoingConflict.row,
+      }), 409);
     }
     if (pendingIn?.[0]) {
       return json({ ok: false, code: 'reverse_pending', error: 'Bu kişi sana zaten istek göndermiş — Gelen İstekler listesinden kabul et.' }, 409);
     }
 
+    const expiresAt = new Date(nowMs + FRIEND_REQUEST_TTL_MS);
     const created = await base44.asServiceRole.entities.FriendRequest.create({
       from_email: fromEmail,
       from_name: senderName,
@@ -222,6 +292,7 @@ Deno.serve(async (req) => {
       to_name: target.username,
       to_username: target.username,
       status: 'pending',
+      expires_at: expiresAt.toISOString(),
     });
 
     const appUrl = sanitizeAppUrl(body?.appUrl) || 'https://kronox.base44.app';
@@ -240,6 +311,7 @@ Deno.serve(async (req) => {
       recipientRegistered: target.registered,
       emailSent: emailResult.emailSent,
       emailError: emailResult.emailError,
+      expires_at: expiresAt.toISOString(),
       privacy: {
         targetEmailReturned: false,
         publicIdentity: 'username',

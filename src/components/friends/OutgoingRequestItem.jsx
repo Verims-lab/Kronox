@@ -2,14 +2,15 @@ import React, { useState } from 'react';
 import { UserRound, X, Loader2 } from 'lucide-react';
 import GameInviteStatusPill from '@/components/friends/GameInviteStatusPill';
 import { getSafeRequestTargetName } from '@/lib/publicIdentity';
+import { isFriendRequestExpired } from '@/lib/friendsApi';
 
 /**
  * One pending request the current user has sent — can be cancelled.
  *
  * Codex099 — adds user-friendly status pill so the sender can see
  * Bekliyor / Kabul edildi / Reddedildi / İptal edildi at a glance.
- * Cancel control is only active for "pending" rows. FriendRequest has no TTL,
- * so we do not render a countdown here (that is GameInvite-only).
+ * Expired outgoing rows remain cancelable so the sender can delete the old
+ * invite before sending again.
  */
 export default function OutgoingRequestItem({ request, onCancel }) {
   const [busy, setBusy] = useState(false);
@@ -17,7 +18,8 @@ export default function OutgoingRequestItem({ request, onCancel }) {
 
   const display = getSafeRequestTargetName(request);
   const status = request.status || 'pending';
-  const isPending = status === 'pending';
+  const isExpired = isFriendRequestExpired(request);
+  const canCancel = status === 'pending' || status === 'expired' || isExpired;
 
   const handleCancel = async () => {
     setBusy(true);
@@ -52,14 +54,14 @@ export default function OutgoingRequestItem({ request, onCancel }) {
             <GameInviteStatusPill invite={request} />
           </div>
         </div>
-        {isPending && (
+        {canCancel && (
           <button
             type="button"
             disabled={busy}
             onClick={handleCancel}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white/70 disabled:opacity-50"
             style={{ background: 'rgba(255,255,255,0.05)', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.15)' }}
-            aria-label="İsteği iptal et"
+            aria-label={isExpired ? 'Süresi dolmuş isteği sil' : 'İsteği iptal et'}
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
           </button>
