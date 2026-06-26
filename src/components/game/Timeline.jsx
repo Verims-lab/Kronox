@@ -9,6 +9,11 @@ import PlacementFeedbackOverlay from './PlacementFeedbackOverlay.jsx';
 function DropZone({ index, isActive, isDragMode, isMagnetic, isBeginnerHint, isGuidedTarget, onSelect, isTimeUp }) {
   const showBeginnerHint = Boolean(isBeginnerHint && isDragMode && !isActive && !isTimeUp);
   const showGuidedTarget = Boolean(isGuidedTarget && !isActive && !isTimeUp);
+  // Resting "+" insertion slot: only when the timeline is idle (no drag, not
+  // the selected zone, no hint). Drag-mode sizing/hit-testing is untouched —
+  // this purely affects the at-rest visual so the empty gap reads as a
+  // card-sized "kart buraya gelecek" target.
+  const showPlusSlot = Boolean(!isDragMode && !isActive && !isTimeUp && !showBeginnerHint && !showGuidedTarget);
   const borderColor = isTimeUp
     ? '#ef4444'
     : isActive
@@ -36,7 +41,7 @@ function DropZone({ index, isActive, isDragMode, isMagnetic, isBeginnerHint, isG
     <div
       onClick={() => { if (onSelect) { sounds.tap(); onSelect(index); } }}
       className="flex-shrink-0 flex flex-col items-center justify-center cursor-pointer"
-      style={{ width: isActive ? 88 : isMagnetic ? 70 : isDragMode ? 56 : 32, height: 108, position: 'relative', transition: 'width 0.15s ease' }}
+      style={{ width: isActive ? 88 : isMagnetic ? 70 : isDragMode ? 56 : showPlusSlot ? 80 : 32, height: 108, position: 'relative', transition: 'width 0.15s ease' }}
     >
       <AnimatePresence>
         {isActive && !isTimeUp && (
@@ -60,8 +65,8 @@ function DropZone({ index, isActive, isDragMode, isMagnetic, isBeginnerHint, isG
         transition={(isMagnetic || showBeginnerHint || showGuidedTarget) && !isActive ? { duration: showGuidedTarget ? 1.2 : showBeginnerHint ? 1.15 : 0.7, repeat: Infinity, ease: 'easeInOut' } : {}}
         className="rounded-2xl flex items-center justify-center"
         style={{
-          width: isActive ? 80 : isMagnetic ? 62 : isDragMode ? 48 : 26,
-          height: 100,
+          width: isActive ? 80 : isMagnetic ? 62 : isDragMode ? 48 : showPlusSlot ? 72 : 26,
+          height: showPlusSlot && !isActive && !isMagnetic && !isDragMode ? 108 : 100,
           position: 'relative',
           border: `2px dashed ${borderColor}`,
           background: bgColor,
@@ -77,6 +82,22 @@ function DropZone({ index, isActive, isDragMode, isMagnetic, isBeginnerHint, isG
           transition: 'box-shadow 0.15s ease, border-color 0.15s ease, width 0.15s ease',
         }}
       >
+        {showPlusSlot && (
+          <span
+            aria-hidden="true"
+            className="pointer-events-none select-none"
+            style={{
+              fontFamily: "'Barlow Condensed', sans-serif",
+              fontWeight: 700,
+              fontSize: 34,
+              lineHeight: 1,
+              color: 'rgba(255,255,255,0.42)',
+              textShadow: '0 0 10px rgba(250,204,21,0.18)',
+            }}
+          >
+            +
+          </span>
+        )}
         <AnimatePresence>
           {showBeginnerHint && (
             <motion.div
@@ -555,7 +576,7 @@ export default function Timeline({
             touchAction: isDragMode ? 'none' : 'pan-x',
           }}
         >
-          <div className="relative flex flex-col" style={{ minWidth: 'max-content', paddingLeft: 12, paddingRight: 24 }}>
+          <div className="relative flex flex-col items-center" style={{ minWidth: '100%', width: 'max-content', paddingLeft: 12, paddingRight: 24 }}>
             {/* Codex163 — Placement feedback overlay (visual-only).
                 Lives INSIDE the scroll content so it inherits the same
                 horizontal translation as the cards/drop zones. */}
