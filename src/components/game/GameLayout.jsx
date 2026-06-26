@@ -33,7 +33,7 @@ function CTAButton({ active, onClick, disabled }) {
       }}
       whileTap={active ? { scale: 0.965, y: 3 } : { scale: 0.99 }}
       transition={active ? { duration: 1.25, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.18 }}
-      className="relative isolate h-12 w-full max-w-[320px] overflow-hidden rounded-2xl text-xl tracking-[0.05em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300/70"
+      className="relative isolate h-12 w-full max-w-[320px] overflow-hidden rounded-2xl from-primary text-xl tracking-[0.05em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300/70"
       style={{
         background: active
           ? 'linear-gradient(180deg, rgba(255,255,255,0.30) 0%, rgba(255,255,255,0.08) 18%, transparent 19%), linear-gradient(180deg, #FFE26A 0%, #FFC928 52%, #E7A900 100%)'
