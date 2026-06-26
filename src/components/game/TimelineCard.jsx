@@ -5,7 +5,8 @@ import {
   OLD_PAPER_INSET_SHADOW,
 } from './cardSurfaceStyles';
 
-// Per-index neon colors cycling
+// Per-index neon colors cycling (non-yearOnly media cards keep the legacy
+// palette so question artwork variety is preserved).
 const cardColors = [
   { border: '#22c55e', year: '#22c55e', bg: 'rgba(34,197,94,0.08)' },    // green
   { border: '#818cf8', year: '#818cf8', bg: 'rgba(129,140,248,0.08)' },  // indigo
@@ -14,6 +15,14 @@ const cardColors = [
   { border: '#facc15', year: '#facc15', bg: 'rgba(250,204,21,0.08)' },   // yellow
   { border: '#c084fc', year: '#c084fc', bg: 'rgba(192,132,252,0.08)' },  // purple
 ];
+
+// Unified cyan timeline year-card visual contract (Solo + Online share this).
+const TIMELINE_YEAR_CARD_BORDER = '1.5px solid rgba(85, 216, 255, 0.45)';
+const TIMELINE_YEAR_CARD_SHADOW = [
+  '0 5px 14px rgba(0, 0, 0, 0.20)',
+  'inset 0 1px 0 rgba(255, 255, 255, 0.16)',
+].join(', ');
+const TIMELINE_YEAR_TEXT_COLOR = '#123A63';
 
 const TIMELINE_CARD_WIDTH = 80;
 const TIMELINE_CARD_HEIGHT = 120;
@@ -55,9 +64,9 @@ export default function TimelineCard({ card, index, distanceFromCenter = 0, year
       )}
 
       <motion.div
-        initial={{ scale: 0.5, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ delay: index * 0.05, type: 'spring', stiffness: 300, damping: 24 }}
+        initial={yearOnly ? { scale: 0.96, opacity: 0.85 } : { scale: 0.5, opacity: 0 }}
+        animate={yearOnly ? { scale: [0.96, 1.03, 1], opacity: [0.85, 1, 1] } : { scale: 1, opacity: 1 }}
+        transition={yearOnly ? { duration: 0.24 } : { delay: index * 0.05, type: 'spring', stiffness: 300, damping: 24 }}
         className="relative flex flex-col items-center rounded-2xl select-none z-10"
         style={{
           width: TIMELINE_CARD_WIDTH,
@@ -67,9 +76,9 @@ export default function TimelineCard({ card, index, distanceFromCenter = 0, year
           background: card.media_url
             ? (yearOnly ? yearOnlyBackground : 'transparent')
             : (yearOnly ? yearOnlyBackground : `linear-gradient(160deg, rgba(15,20,40,0.95) 0%, rgba(10,15,35,0.98) 100%)`),
-          border: `2px solid ${color.border}`,
+          border: yearOnly ? TIMELINE_YEAR_CARD_BORDER : `2px solid ${color.border}`,
           boxShadow: yearOnly
-            ? `0 0 12px ${color.border}50, 0 0 4px ${color.border}30, ${OLD_PAPER_INSET_SHADOW}`
+            ? `${TIMELINE_YEAR_CARD_SHADOW}, ${OLD_PAPER_INSET_SHADOW}`
             : `0 0 12px ${color.border}50, 0 0 4px ${color.border}30`,
           padding: yearOnly ? 0 : (card.media_url ? '0' : '8px 6px 6px'),
           overflow: 'hidden',
@@ -81,13 +90,14 @@ export default function TimelineCard({ card, index, distanceFromCenter = 0, year
             <span
               className="kronox-timeline-number"
               style={{
-                fontSize: 30,
-                color: color.year,
+                fontSize: 'clamp(30px, 8vw, 42px)',
+                color: TIMELINE_YEAR_TEXT_COLOR,
                 lineHeight: 1,
+                letterSpacing: '0.03em',
                 maxWidth: '100%',
                 textAlign: 'center',
-                textShadow: `0 1px 0 rgba(255,255,255,0.34), 0 2px 0 rgba(67,39,12,0.24), 0 0 6px ${color.border}38`,
-                WebkitTextStroke: '0.25px rgba(67,39,12,0.42)',
+                textShadow: '0 1px 0 rgba(255,255,255,0.34)',
+                WebkitTextStroke: '0.25px rgba(18,58,99,0.28)',
               }}
             >
               {card.year}

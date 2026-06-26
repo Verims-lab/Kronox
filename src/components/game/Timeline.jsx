@@ -24,6 +24,10 @@ function DropZone({ index, isActive, isDragMode, isMagnetic, isBeginnerHint, isG
   const peekSide = isEdgePeek === 'right' ? 'right' : 'left';
   const restingWrapperWidth = showEdgePeek ? 40 : 80;
   const restingBoxWidth = 72;
+  // Cyan timeline slot visual contract. Idle/drag-available/hovered states use
+  // the unified cyan palette; active-selection (yellow), guided, beginner, and
+  // time-up states keep their existing tokens (Health/tutorial depend on them).
+  const isHovered = isMagnetic; // valid slot the dragged card is over
   const borderColor = isTimeUp
     ? '#ef4444'
     : isActive
@@ -32,9 +36,11 @@ function DropZone({ index, isActive, isDragMode, isMagnetic, isBeginnerHint, isG
         ? 'rgba(250,204,21,0.98)'
       : showBeginnerHint
         ? 'rgba(125,211,252,0.78)'
-        : isMagnetic
-          ? 'rgba(250,204,21,0.55)'
-          : 'rgba(255,255,255,0.2)';
+        : isHovered
+          ? '#55D8FF'
+          : isDragMode
+            ? 'rgba(85,216,255,0.52)'
+            : 'rgba(167,196,229,0.36)';
   const bgColor = isTimeUp
     ? 'rgba(239,68,68,0.06)'
     : isActive
@@ -43,9 +49,11 @@ function DropZone({ index, isActive, isDragMode, isMagnetic, isBeginnerHint, isG
         ? 'rgba(250,204,21,0.16)'
       : showBeginnerHint
         ? 'rgba(56,189,248,0.08)'
-        : isMagnetic
-          ? 'rgba(250,204,21,0.05)'
-          : 'transparent';
+        : isHovered
+          ? 'rgba(85,216,255,0.09)'
+          : isDragMode
+            ? 'rgba(85,216,255,0.035)'
+            : 'rgba(255,255,255,0.015)';
 
   return (
     <div
@@ -78,7 +86,8 @@ function DropZone({ index, isActive, isDragMode, isMagnetic, isBeginnerHint, isG
           width: isActive ? 80 : isMagnetic ? 62 : isDragMode ? 48 : showPlusSlot ? restingBoxWidth : 26,
           height: showPlusSlot && !isActive && !isMagnetic && !isDragMode ? 108 : 100,
           position: 'relative',
-          border: `2px dashed ${borderColor}`,
+          borderRadius: 16,
+          border: isHovered ? `2px solid ${borderColor}` : `2px dashed ${borderColor}`,
           background: bgColor,
           boxShadow: isActive
             ? `0 0 24px rgba(250,204,21,0.5), inset 0 0 16px rgba(250,204,21,0.08)`
@@ -86,23 +95,31 @@ function DropZone({ index, isActive, isDragMode, isMagnetic, isBeginnerHint, isG
               ? `0 0 30px rgba(250,204,21,0.66), 0 0 54px rgba(250,204,21,0.28), inset 0 0 18px rgba(250,204,21,0.16)`
             : showBeginnerHint
               ? `0 0 16px rgba(56,189,248,0.34), inset 0 0 14px rgba(56,189,248,0.08)`
-            : isMagnetic
-              ? `0 0 12px rgba(250,204,21,0.25)`
+            : isHovered
+              ? `0 0 14px rgba(85,216,255,0.34), inset 0 0 16px rgba(85,216,255,0.09)`
+            : showPlusSlot
+              ? `inset 0 0 12px rgba(85,216,255,0.025)`
               : 'none',
           transition: 'box-shadow 0.15s ease, border-color 0.15s ease, width 0.15s ease',
         }}
       >
-        {showPlusSlot && (
+        {(showPlusSlot || (isDragMode && !isActive && !isTimeUp)) && (
           <span
             aria-hidden="true"
             className="pointer-events-none select-none"
             style={{
-              fontFamily: "'Barlow Condensed', sans-serif",
+              fontFamily: "'Inter', sans-serif",
               fontWeight: 700,
-              fontSize: 34,
+              fontSize: 17,
               lineHeight: 1,
-              color: 'rgba(255,255,255,0.42)',
-              textShadow: '0 0 10px rgba(250,204,21,0.18)',
+              color: isHovered
+                ? '#A7ECFF'
+                : isDragMode
+                  ? 'rgba(167,236,255,0.80)'
+                  : 'rgba(255,255,255,0.42)',
+              transform: isHovered ? 'scale(1.12)' : 'none',
+              animation: isHovered ? 'slotPulse 1.1s ease-in-out infinite' : 'none',
+              textShadow: '0 0 10px rgba(85,216,255,0.18)',
             }}
           >
             +
@@ -551,13 +568,21 @@ export default function Timeline({
         <div key={`card-${i}`} ref={el => (cardItemRefs.current[i] = el)} className="flex flex-col items-center flex-shrink-0">
           <div className="flex flex-col items-center mb-0.5" style={{ height: 20 }}>
             {!soloYearOnlyCards && (
-              <>
-                <span className="kronox-timeline-number" style={{ fontSize: 13, color: '#facc15', lineHeight: 1 }}>
-                  {groupedCards[i].year}
-                </span>
-                <div className="w-px h-2 mt-0.5" style={{ background: '#facc15' }} />
-              </>
+              <span className="kronox-timeline-number" style={{ fontSize: 13, color: '#facc15', lineHeight: 1 }}>
+                {groupedCards[i].year}
+              </span>
             )}
+            {/* Timeline node — sits over the main line connecting each card. */}
+            <div
+              className="mt-auto"
+              style={{
+                width: 9,
+                height: 9,
+                borderRadius: '9999px',
+                background: '#173763',
+                border: '2px solid #7EA9D6',
+              }}
+            />
           </div>
           <TimelineCard
             card={groupedCards[i]}
@@ -609,7 +634,7 @@ export default function Timeline({
                   height: 2,
                   background: isTimeUp
                     ? 'linear-gradient(to right, rgba(239,68,68,0.15), rgba(239,68,68,0.6), rgba(239,68,68,0.15))'
-                    : 'linear-gradient(to right, rgba(250,204,21,0.05), rgba(250,204,21,0.4), rgba(250,204,21,0.05))',
+                    : 'rgba(126,169,214,0.62)',
                   zIndex: 0,
                 }}
               />

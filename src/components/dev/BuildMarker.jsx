@@ -2578,8 +2578,8 @@ import React, { useEffect, useState } from 'react';
 //   • Adds a shared per-word text-fit helper for Solo and Online QuestionCard text.
 //   • Uses Unicode-safe 11/wordLength scaling with a 0.52 readable minimum.
 //   • Prevents arbitrary mid-word active question splitting without touching gameplay.
-// Codex459 — Timeline initial viewport: partial edge slots + full middle slot.
-const BUILD_MARKER = 'Codex460';
+// Codex461 — Timeline cyan visual pass: year cards, slots, line, nodes, drop anim.
+const BUILD_MARKER = 'Codex461';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
