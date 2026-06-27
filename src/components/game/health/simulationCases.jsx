@@ -15,6 +15,7 @@
 //     append-only.
 
 import appSource from '../../../App.jsx?raw';
+import mainSource from '../../../main.jsx?raw';
 import indexCssSource from '../../../index.css?raw';
 import mainMenuSource from '../../../pages/MainMenu.jsx?raw';
 import gamePageSource from '../../../pages/Game.jsx?raw';
@@ -26,12 +27,15 @@ import testSuiteSource from '../../../pages/TestSuite.jsx?raw';
 import lobbyCreateJoinPanelSource from '../../lobby/LobbyCreateJoinPanel.jsx?raw';
 import waitingRoomPanelSource from '../../lobby/WaitingRoomPanel.jsx?raw';
 import buildMarkerSource from '../../dev/BuildMarker.jsx?raw';
+import appDiagnosticsSource from '../../dev/AppDiagnostics.jsx?raw';
 import gameDebugLogSource from '../GameDebugLog.jsx?raw';
 import gameLayoutSource from '../GameLayout.jsx?raw';
 import questionCardSource from '../QuestionCard.jsx?raw';
 import timelineSource from '../Timeline.jsx?raw';
 import timelineCardSource from '../TimelineCard.jsx?raw';
 import useGameActionsSource from '../../../hooks/useGameActions.js?raw';
+import useDailyQuestsSource from '../../../hooks/useDailyQuests.js?raw';
+import useDailyWheelSource from '../../../hooks/useDailyWheel.js?raw';
 import useLobbySyncSource from '../../../hooks/useLobbySync.js?raw';
 import useWaitingRoomSyncSource from '../../../hooks/useWaitingRoomSync.js?raw';
 import useOfflineQuestionsSource from '../../../hooks/useOfflineQuestions.js?raw';
@@ -151,6 +155,7 @@ export const SUITES = [...BASE_SUITES, ...EXTRA_SUITES];
 export const SRC = {
   App: appSource,
   AdminPage: adminPageSource,
+  AppDiagnostics: appDiagnosticsSource,
   BuildMarker: buildMarkerSource,
   DebugLog: debugLogSource,
   FindLobbyByCode: findLobbyByCodeSource,
@@ -164,6 +169,7 @@ export const SRC = {
   LobbyRoom: lobbyRoomSource,
   LobbyUtils: lobbyUtilsSource,
   MainMenu: mainMenuSource,
+  Main: mainSource,
   OnlineGameStart: onlineGameStartSource,
   OnlineGameNavigation: onlineGameNavigationSource,
   QuestionCache: questionCacheSource,
@@ -176,6 +182,8 @@ export const SRC = {
   TimelineCard: timelineCardSource,
   UpdateLobbyGameState: updateLobbyGameStateSource,
   UseGameActions: useGameActionsSource,
+  UseDailyQuests: useDailyQuestsSource,
+  UseDailyWheel: useDailyWheelSource,
   UseLobbySync: useLobbySyncSource,
   UseOfflineQuestions: useOfflineQuestionsSource,
   UseWaitingRoomSync: useWaitingRoomSyncSource,
@@ -484,6 +492,43 @@ export const TESTS = [
     const supported = ['largest-contentful-paint', 'event', 'layout-shift'].filter(type => types.includes(type));
     return notAutomatable('Web Vitals-like metrics require live observer lifecycle in browser/CI, not a static warning.', { actual: supported, verification: 'NOT_AUTOMATABLE', verificationLabels: ['NOT_AUTOMATABLE', 'MANUAL_REQUIRED'], actionType: ACTION_TYPES.CI_ENVIRONMENT });
   }),
+  sourceLacks('performance_ux', 'app_bootstrap_avoids_duplicate_auth_me', 'App shell does not duplicate AuthContext auth bootstrap', 'App.jsx', SRC.App, ['base44.auth.me(']),
+  makeCase('performance_ux', 'game_bootstrap_reuses_auth_context', 'Game first-open user bootstrap reuses AuthContext state', () => {
+    const required = ['authChecked', 'isLoadingAuth', 'setCurrentUser(authUser || null)', 'setCurrentUserLoaded(true)'];
+    const missing = missingTokens(SRC.Game, required);
+    const hasOldMountAuthFetch = SRC.Game.includes('base44.auth.me()\n      .then');
+    if (missing.length || hasOldMountAuthFetch) {
+      return fail('Game bootstrap still looks like it performs an extra auth fetch before Solo setup.', {
+        verification: 'STATIC_CONTRACT',
+        file: 'Game.jsx',
+        expected: required,
+        actual: { missing, hasOldMountAuthFetch },
+      });
+    }
+    return pass('Game bootstrap uses AuthContext readiness instead of a duplicate startup auth request.', {
+      verification: 'STATIC_CONTRACT',
+      file: 'Game.jsx',
+      actual: 'AuthContext handoff present',
+    });
+  }),
+  sourceHas('performance_ux', 'startup_defers_optional_work', 'Optional app startup work is deferred or lazy-loaded', 'App/main/AppDiagnostics', `${SRC.App}\n${SRC.Main}\n${SRC.AppDiagnostics}`, [
+    "lazyWithRetry(() => import('./components/invites/GameInviteNotifier')",
+    "lazyWithRetry(() => import('./components/settings/CategoryPreferenceOnboardingModal')",
+    'scheduleKronoxServiceWorkerRegistration',
+    'requestIdleCallback',
+    'VisibleAppDiagnosticsPanel',
+  ]),
+  sourceHas('performance_ux', 'question_text_fit_tokens_memoized', 'Question text fit tokens are memoized per active text', 'QuestionCard.jsx', SRC.QuestionCard, ['useMemo(() => getQuestionTextFitTokens(text), [text])']),
+  sourceHas('performance_ux', 'home_rewards_preserve_cached_status_during_refresh', 'Home reward panels preserve cached status during background refresh', 'useDailyWheel/useDailyQuests', `${SRC.UseDailyWheel}\n${SRC.UseDailyQuests}`, [
+    'DAILY_REWARD_STATUS_CACHE_TTL_MS',
+    'readDailyWheelStatusCache',
+    'writeDailyWheelStatusCache',
+    'applyDailyWheelStatusBody',
+    'DAILY_QUEST_STATUS_CACHE_TTL_MS',
+    'readDailyQuestStatusCache',
+    'writeDailyQuestStatusCache',
+    'applyDailyQuestStatusBody',
+  ]),
 
   sourceHas('visual_guardrails', 'primary_gameplay_buttons_tactile', 'primary gameplay buttons have tactile/pressed states detectable by class/style', 'GameLayout/QuestionCard', `${SRC.GameLayout}\n${SRC.QuestionCard}`, ['whileTap', 'active:', 'shadow']),
   sourceHas('visual_guardrails', 'kronox_tokens_used', 'gameplay surfaces use Kronox visual tokens/classes where available', 'GameLayout/Timeline/CSS', `${SRC.GameLayout}\n${SRC.Timeline}\n${SRC.IndexCss}`, ['kx-viewport-lock', 'font-bangers', 'from-primary', '#facc15']),

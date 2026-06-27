@@ -375,7 +375,7 @@ export default function Game() {
   const isGuidedSoloTutorial = Boolean(isSoloLevelMode && (routeState.onboardingTutorial === true || soloLevel?.onboardingTutorial === true));
   const currentQuestionIdFromState = routeState.currentQuestionId ?? null;
   const [currentUser, setCurrentUser] = useState(null);
-  const { user: authUser, adminStatus, guestProfile } = useAuth();
+  const { user: authUser, adminStatus, guestProfile, authChecked, isLoadingAuth } = useAuth();
   const guestDailyQuestPayload = useMemo(
     () => getCompletedGuestCredentialsPayload(guestProfile),
     [guestProfile],
@@ -563,13 +563,13 @@ export default function Game() {
   });
 
   useEffect(() => {
-    let active = true;
-    base44.auth.me()
-      .then(u => { if (active) setCurrentUser(u || null); })
-      .catch(() => { if (active) setCurrentUser(null); })
-      .finally(() => { if (active) setCurrentUserLoaded(true); });
-    return () => { active = false; };
-  }, []);
+    if (!authChecked && isLoadingAuth) {
+      setCurrentUserLoaded(false);
+      return;
+    }
+    setCurrentUser(authUser || null);
+    setCurrentUserLoaded(true);
+  }, [authChecked, authUser, isLoadingAuth]);
 
   useEffect(() => {
     let active = true;
