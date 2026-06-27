@@ -48,6 +48,13 @@ export function isAppDiagEnabled(_currentUser) {
 export default function AppDiagnostics({ currentUser }) {
   const location = useLocation();
   const visible = isAppDiagEnabled(currentUser);
+
+  if (!visible) return null;
+
+  return <VisibleAppDiagnosticsPanel currentUser={currentUser} location={location} />;
+}
+
+function VisibleAppDiagnosticsPanel({ currentUser, location }) {
   const [snapshot, setSnapshot] = useState(() => getAppDiagSnapshot());
   const [prevPath, setPrevPath] = useState(null);
 
@@ -60,8 +67,6 @@ export default function AppDiagnostics({ currentUser }) {
     setPrevPath((p) => (p !== location.pathname ? location.pathname : p));
     // Track previous pathname AFTER the new path is observed
   }, [location.pathname]);
-
-  if (!visible) return null;
 
   const blackScreenReason = deriveBlackScreenReason(snapshot, location);
 

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { sounds } from '@/lib/gameSounds';
 import { Play, Pause, Globe, Landmark, FlaskConical, Trophy, Palette, Cpu, Music, BookOpen, Zap, Rocket, Building2, HeartPulse, Leaf, Film } from 'lucide-react';
@@ -70,7 +70,7 @@ const activeQuestionTextFitStyle = {
 };
 
 function ActiveQuestionText({ text }) {
-  const tokens = getQuestionTextFitTokens(text);
+  const tokens = useMemo(() => getQuestionTextFitTokens(text), [text]);
   return tokens.map((token) => {
     if (token.isWhitespace) {
       return <React.Fragment key={token.key}>{token.text}</React.Fragment>;

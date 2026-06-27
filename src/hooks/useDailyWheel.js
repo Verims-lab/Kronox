@@ -16,6 +16,36 @@ function promptSessionKey(user, serverDate) {
   return `kronox_daily_wheel_prompt_seen:${email}:${serverDate || todayFallbackKey()}`;
 }
 
+const DAILY_REWARD_STATUS_CACHE_TTL_MS = 60 * 1000;
+const dailyWheelStatusCache = new Map();
+
+function buildDailyWheelStatusCacheKey(user, guestCredentials) {
+  const email = String(user?.email || user?.user_email || '').trim().toLowerCase();
+  const guestId = String(guestCredentials?.guest_id || '').trim();
+  if (email) return `auth:${email}:${todayFallbackKey()}`;
+  if (guestId) return `guest:${guestId}:${todayFallbackKey()}`;
+  return null;
+}
+
+function readDailyWheelStatusCache(cacheKey) {
+  if (!cacheKey) return null;
+  const cached = dailyWheelStatusCache.get(cacheKey);
+  if (!cached) return null;
+  if (Date.now() - cached.cachedAt > DAILY_REWARD_STATUS_CACHE_TTL_MS) {
+    dailyWheelStatusCache.delete(cacheKey);
+    return null;
+  }
+  return cached.body || null;
+}
+
+function writeDailyWheelStatusCache(cacheKey, body) {
+  if (!cacheKey || !body) return;
+  dailyWheelStatusCache.set(cacheKey, {
+    cachedAt: Date.now(),
+    body,
+  });
+}
+
 function userSafeDailyWheelError(err, fallback) {
   const body = err?.response?.data || err?.body || null;
   return body?.error || fallback;
@@ -60,6 +90,10 @@ export function useDailyWheel({ user, guestProfile, onUserUpdated } = {}) {
 
   const guestCredentials = useMemo(() => getCompletedGuestCredentialsPayload(guestProfile), [guestProfile]);
   const dailyWheelPayload = useMemo(() => guestCredentials || {}, [guestCredentials]);
+  const dailyWheelCacheKey = useMemo(
+    () => buildDailyWheelStatusCacheKey(user, guestCredentials),
+    [guestCredentials, user?.email, user?.user_email],
+  );
   const isSignedIn = Boolean(user?.email || user?.user_email || guestCredentials);
   const isAvailable = status === 'available';
   const isClaimed = status === 'claimed';
@@ -72,6 +106,22 @@ export function useDailyWheel({ user, guestProfile, onUserUpdated } = {}) {
     }
   }, [user, wheel?.serverDate]);
 
+  const applyDailyWheelStatusBody = useCallback((body) => {
+    setWheel(body);
+    const nextStatus = body.available ? 'available' : 'claimed';
+    setStatus(nextStatus);
+
+    if (body.available) {
+      const key = promptSessionKey(user, body.serverDate);
+      const alreadySeen = (() => {
+        try { return sessionStorage.getItem(key) === '1'; } catch { return true; }
+      })();
+      setShowPrompt(!alreadySeen);
+    } else {
+      setShowPrompt(false);
+    }
+  }, [user]);
+
   const refresh = useCallback(async () => {
     setError('');
     if (!isSignedIn) {
@@ -80,22 +130,16 @@ export function useDailyWheel({ user, guestProfile, onUserUpdated } = {}) {
       setShowPrompt(false);
       return null;
     }
-    setStatus('loading');
+    const cachedBody = readDailyWheelStatusCache(dailyWheelCacheKey);
+    if (cachedBody) {
+      applyDailyWheelStatusBody(cachedBody);
+    } else {
+      setStatus('loading');
+    }
     try {
       const body = await invokeDailyWheelFunction('getDailyWheelStatus', dailyWheelPayload);
-      setWheel(body);
-      const nextStatus = body.available ? 'available' : 'claimed';
-      setStatus(nextStatus);
-
-      if (body.available) {
-        const key = promptSessionKey(user, body.serverDate);
-        const alreadySeen = (() => {
-          try { return sessionStorage.getItem(key) === '1'; } catch { return true; }
-        })();
-        setShowPrompt(!alreadySeen);
-      } else {
-        setShowPrompt(false);
-      }
+      writeDailyWheelStatusCache(dailyWheelCacheKey, body);
+      applyDailyWheelStatusBody(body);
       return body;
     } catch (err) {
       if (err?.code === 'unauthenticated') {
@@ -104,11 +148,11 @@ export function useDailyWheel({ user, guestProfile, onUserUpdated } = {}) {
         setShowPrompt(false);
         return null;
       }
-      setStatus('error');
+      if (!cachedBody) setStatus('error');
       setError(userSafeDailyWheelError(err, 'Günlük Çark durumu alınamadı. Lütfen tekrar dene.'));
       return null;
     }
-  }, [dailyWheelPayload, isSignedIn, user]);
+  }, [applyDailyWheelStatusBody, dailyWheelCacheKey, dailyWheelPayload, isSignedIn]);
 
   useEffect(() => {
     let cancelled = false;
@@ -144,7 +188,7 @@ export function useDailyWheel({ user, guestProfile, onUserUpdated } = {}) {
       setShowPrompt(false);
       setLastResult(body);
       setShowResult(true);
-      setWheel({
+      const claimedWheelStatus = {
         available: false,
         alreadyClaimedToday: true,
         serverDate: body.serverDate,
@@ -160,7 +204,9 @@ export function useDailyWheel({ user, guestProfile, onUserUpdated } = {}) {
           nextAvailableAt: body.nextAvailableAt,
         },
         diamondTotal: body.updatedDiamondTotal,
-      });
+      };
+      writeDailyWheelStatusCache(dailyWheelCacheKey, claimedWheelStatus);
+      setWheel(claimedWheelStatus);
       setStatus('claimed');
       if (body.userPatch && typeof onUserUpdated === 'function') onUserUpdated(body.userPatch);
       return body;
@@ -174,7 +220,7 @@ export function useDailyWheel({ user, guestProfile, onUserUpdated } = {}) {
       claimingRef.current = false;
       setClaiming(false);
     }
-  }, [claiming, dailyWheelPayload, isSignedIn, markPromptSeen, onUserUpdated]);
+  }, [claiming, dailyWheelCacheKey, dailyWheelPayload, isSignedIn, markPromptSeen, onUserUpdated]);
 
   return useMemo(() => ({
     status,

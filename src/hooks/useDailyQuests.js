@@ -31,6 +31,40 @@ function buildClaimKey(quest, serverDate) {
   return questKey ? `${questKey}:${questDate}` : '';
 }
 
+const DAILY_QUEST_STATUS_CACHE_TTL_MS = 60 * 1000;
+const dailyQuestStatusCache = new Map();
+
+function todayFallbackKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function buildDailyQuestStatusCacheKey(user, guestCredentials) {
+  const email = String(user?.email || user?.user_email || '').trim().toLowerCase();
+  const guestId = String(guestCredentials?.guest_id || '').trim();
+  if (email) return `auth:${email}:${todayFallbackKey()}`;
+  if (guestId) return `guest:${guestId}:${todayFallbackKey()}`;
+  return null;
+}
+
+function readDailyQuestStatusCache(cacheKey) {
+  if (!cacheKey) return null;
+  const cached = dailyQuestStatusCache.get(cacheKey);
+  if (!cached) return null;
+  if (Date.now() - cached.cachedAt > DAILY_QUEST_STATUS_CACHE_TTL_MS) {
+    dailyQuestStatusCache.delete(cacheKey);
+    return null;
+  }
+  return cached.body || null;
+}
+
+function writeDailyQuestStatusCache(cacheKey, body) {
+  if (!cacheKey || !body) return;
+  dailyQuestStatusCache.set(cacheKey, {
+    cachedAt: Date.now(),
+    body,
+  });
+}
+
 export function useDailyQuests({ user, guestProfile, onUserUpdated } = {}) {
   const [status, setStatus] = useState('loading');
   const [quests, setQuests] = useState([]);
@@ -44,7 +78,22 @@ export function useDailyQuests({ user, guestProfile, onUserUpdated } = {}) {
 
   const guestCredentials = useMemo(() => getCompletedGuestCredentialsPayload(guestProfile), [guestProfile]);
   const dailyQuestPayload = useMemo(() => guestCredentials || {}, [guestCredentials]);
+  const dailyQuestCacheKey = useMemo(
+    () => buildDailyQuestStatusCacheKey(user, guestCredentials),
+    [guestCredentials, user?.email, user?.user_email],
+  );
   const isSignedIn = Boolean(user?.email || user?.user_email || guestCredentials);
+
+  const applyDailyQuestStatusBody = useCallback((body) => {
+    const nextQuests = Array.isArray(body?.quests) ? body.quests.map(normalizeQuest) : [];
+    setQuests(nextQuests);
+    setServerDate(body?.serverDate || null);
+    setAdminWarning(body?.adminWarning || null);
+    setActiveDefinitionCount(Math.max(0, Math.floor(Number(body?.activeDefinitionCount) || 0)));
+    setEmptyStateReason(body?.emptyStateReason || (nextQuests.length ? '' : 'no_active_definitions'));
+    setStatus(nextQuests.length ? 'ready' : 'empty');
+    return nextQuests;
+  }, []);
 
   const refresh = useCallback(async () => {
     setError('');
@@ -57,25 +106,27 @@ export function useDailyQuests({ user, guestProfile, onUserUpdated } = {}) {
       setEmptyStateReason('');
       return null;
     }
-    setStatus('loading');
+    const cachedBody = readDailyQuestStatusCache(dailyQuestCacheKey);
+    if (cachedBody) {
+      applyDailyQuestStatusBody(cachedBody);
+    } else {
+      setStatus('loading');
+    }
     try {
       const body = await getDailyQuestStatus(dailyQuestPayload);
-      const nextQuests = Array.isArray(body?.quests) ? body.quests.map(normalizeQuest) : [];
-      setQuests(nextQuests);
-      setServerDate(body?.serverDate || null);
-      setAdminWarning(body?.adminWarning || null);
-      setActiveDefinitionCount(Math.max(0, Math.floor(Number(body?.activeDefinitionCount) || 0)));
-      setEmptyStateReason(body?.emptyStateReason || (nextQuests.length ? '' : 'no_active_definitions'));
-      setStatus(nextQuests.length ? 'ready' : 'empty');
+      writeDailyQuestStatusCache(dailyQuestCacheKey, body);
+      applyDailyQuestStatusBody(body);
       return body;
     } catch (err) {
-      setStatus('error');
+      if (!cachedBody) {
+        setStatus('error');
+        setQuests([]);
+        setEmptyStateReason('fetch_error');
+      }
       setError(err?.message || 'Günlük görevler yüklenemedi.');
-      setQuests([]);
-      setEmptyStateReason('fetch_error');
       return null;
     }
-  }, [dailyQuestPayload, isSignedIn]);
+  }, [applyDailyQuestStatusBody, dailyQuestCacheKey, dailyQuestPayload, isSignedIn]);
 
   useEffect(() => {
     let cancelled = false;

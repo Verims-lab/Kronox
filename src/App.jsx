@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes, useLocation, Navigate } from 'react-router-dom';
-import React, { Suspense, useEffect, useState } from 'react';
+import React, { Suspense, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
@@ -14,10 +14,7 @@ import { NavigationStackProvider } from '@/lib/NavigationStackContext';
 import BuildMarker from '@/components/dev/BuildMarker';
 import AppDiagnostics from '@/components/dev/AppDiagnostics';
 import AppErrorBoundary from '@/components/dev/AppErrorBoundary';
-import GameInviteNotifier from '@/components/invites/GameInviteNotifier';
 import { appDiagSetBuildMarker, pushAppDiag } from '@/lib/appDiagBus';
-import { base44 } from '@/api/base44Client';
-import CategoryPreferenceOnboardingModal from '@/components/settings/CategoryPreferenceOnboardingModal';
 import { isGuestOnboardingComplete } from '@/lib/guestProfile';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import usePresenceHeartbeat from '@/hooks/usePresenceHeartbeat';
@@ -36,6 +33,8 @@ const TestSuite = lazyWithRetry(() => import('./pages/TestSuite'), 'TestSuite');
 const AccountDeletionPage = lazyWithRetry(() => import('./pages/AccountDeletionPage'), 'AccountDeletionPage');
 const PrivacyPolicy = lazyWithRetry(() => import('./pages/PrivacyPolicy'), 'PrivacyPolicy');
 const OnboardingPage = lazyWithRetry(() => import('./pages/OnboardingPage'), 'OnboardingPage');
+const GameInviteNotifier = lazyWithRetry(() => import('./components/invites/GameInviteNotifier'), 'GameInviteNotifier');
+const CategoryPreferenceOnboardingModal = lazyWithRetry(() => import('./components/settings/CategoryPreferenceOnboardingModal'), 'CategoryPreferenceOnboardingModal');
 
 function PageLoader() {
   return <SplashScreen />;
@@ -74,12 +73,6 @@ const AuthenticatedApp = () => {
   // Codex102 — Only home + game lock viewport. All other screens scroll
   // normally and host their own ScreenHeader.
   const isViewportLockedPage = location.pathname === '/' || isGamePage;
-
-  // Codex085 — fetch current user for App-level diagnostics gating.
-  const [currentUser, setCurrentUser] = useState(null);
-  useEffect(() => {
-    base44.auth.me().then(u => setCurrentUser(u || null)).catch(() => setCurrentUser(null));
-  }, [isAuthenticated]);
 
   const handleCategoryPreferenceOnboardingComplete = () => {
     checkUserAuth?.();
@@ -129,7 +122,7 @@ const AuthenticatedApp = () => {
   if (isLoadingAuth && !isPublicStandalonePage) {
     return (
       <>
-        <AppDiagnostics currentUser={currentUser} />
+        <AppDiagnostics currentUser={user} />
         <SplashScreen />
       </>
     );
@@ -140,7 +133,7 @@ const AuthenticatedApp = () => {
     if (authError.type === 'user_not_registered') {
       return (
         <>
-          <AppDiagnostics currentUser={currentUser} />
+          <AppDiagnostics currentUser={user} />
           <UserNotRegisteredError />
         </>
       );
@@ -163,7 +156,7 @@ const AuthenticatedApp = () => {
   // Render the main app
   return (
     <div style={viewportShellStyle} data-kx-route-locked={isViewportLockedPage ? 'true' : 'false'}>
-      <AppDiagnostics currentUser={currentUser} />
+      <AppDiagnostics currentUser={user} />
       {/* Codex102 — Global AppHeader removed. Each screen renders its own
           ScreenHeader so the title/back/avatar match the active page. */}
       <Suspense fallback={<PageLoader />}>
@@ -218,11 +211,18 @@ const AuthenticatedApp = () => {
           </AnimatePresence>
         )}
       </Suspense>
-      {!isPublicStandalonePage && !isOnboardingPage && (
-        <CategoryPreferenceOnboardingModal
-          user={user}
-          onCompleted={handleCategoryPreferenceOnboardingComplete}
-        />
+      {isAuthenticated && !isPublicStandalonePage && (
+        <Suspense fallback={null}>
+          <GameInviteNotifier />
+        </Suspense>
+      )}
+      {isAuthenticated && !isPublicStandalonePage && !isOnboardingPage && (
+        <Suspense fallback={null}>
+          <CategoryPreferenceOnboardingModal
+            user={user}
+            onCompleted={handleCategoryPreferenceOnboardingComplete}
+          />
+        </Suspense>
       )}
       {!isOnboardingPage && (
         !isPublicStandalonePage && <BottomNav />
@@ -233,9 +233,9 @@ const AuthenticatedApp = () => {
 
 
 function App() {
-  // Codex463 — push current build marker into diag bus once at app boot
+  // Codex464 — push current build marker into diag bus once at app boot
   useEffect(() => {
-    appDiagSetBuildMarker('Codex463');
+    appDiagSetBuildMarker('Codex464');
     // Codex176 — App booted successfully, so any prior stale-chunk reload
     // recovered. Clear the one-time reload guards so a future deploy can
     // self-heal again.
@@ -252,7 +252,6 @@ function App() {
         <Router>
           <NavigationStackProvider>
             <BuildMarker />
-            <GameInviteNotifier />
             <AuthenticatedApp />
           </NavigationStackProvider>
         </Router>
