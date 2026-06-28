@@ -108,6 +108,23 @@ fallback polling/refetch.
 | Public UI private identifiers | Static forbidden-token checks | Visual/manual walkthrough for lobbies, leaderboard, notifications |
 | Accessibility loading/forms/modals | Static status/label/dialog/form-feedback checks | Keyboard, TalkBack/VoiceOver, and real mobile focus-order proof |
 
+## Candidate UX Quality Health Gaps
+
+These are candidate checks for future tasks. They are not claimed as existing
+Health coverage until executable/static cases are added.
+
+| UX guardrail | Candidate static/executable check | Manual proof still needed |
+| --- | --- | --- |
+| Profile/Settings route ownership | Profile menu and `/profile/edit` keep `Profil Bilgileri`, Friends, Settings, privacy, and account deletion on their intended screens | Mobile route walkthrough and back-stack proof |
+| BottomNav ownership | Visible tabs remain `Ana Sayfa`, `Liderlik`, `Profil`; Online remains Home CTA-owned | PWA/native wrapper navigation behavior |
+| Solo/Online question-card fit parity | Shared or parallel fit helpers protect long Turkish words without raw question-bank client fallback | Real device gameplay with long content |
+| Timeline visual safety | Visual changes around drop zones avoid layout-heavy animation and preserve drag/drop source contracts | Real touch drag, invalid drop, scroll containment |
+| Public identifier privacy | Public Profile, Leaderboard, lobby, invite, notification, and push text forbid email, provider ID, owner_key, raw guest_id, and internal player_key | Visual walkthrough with guest and linked accounts |
+| Focused visual task scope | UX polish tasks do not introduce broad redesign, new motion libraries, package changes, or backend/entity edits without explicit scope | Human review of diff intent |
+| Gameplay performance | Heavy blur/glow/animation tokens stay out of gameplay-critical paths or are labeled manual proof gates | Low-end Android/WebView smoothness proof |
+| Loading/empty/error states | Profile, Settings, Friends, Invites, Online lobby, Leaderboard, and Admin/reporting have local loading/error/empty handling markers where relevant | Timing and failure-injection UI proof |
+| Asset readiness | New visual assets include optimization/dimension/fallback notes and avoid startup/game-start critical loads | Bundle size and device image-decode proof |
+
 ## Health Design Rules
 
 - Keep static checks precise and product-contract oriented.
