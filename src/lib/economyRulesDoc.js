@@ -32,6 +32,7 @@ neither DB/entity unique nor function-level guard is High.
 
 ## Active sources
 - starter_bonus (one-time, guarded by User.starter_bonus_granted_at)
+- first_login_reward (one-time Profile account-link reward, guarded by User.first_login_reward_granted_at and DiamondTransaction idempotency_key first_login_reward:<email>)
 - daily_login (guarded by User.last_daily_diamond_reward_date)
 - daily_wheel (server-backed Daily Wheel claim; Diamonds only, no Kronox Puan)
 - market_purchase (server-backed Mağaza joker purchase; Diamond spend only)
@@ -87,6 +88,15 @@ First authenticated entry grants +100 once. Same-day daily login grants +20 once
 First-day total: \`120\` Diamonds. This combines starter 100 Diamonds plus
 daily login 20 Diamonds only; it does not imply Kronox Puan and does not affect
 leaderboard rank.
+
+Profile account linking grants a one-time first_login_reward of 80 Diamonds
+only after a token-proven GuestProfile is successfully linked to a real
+account. The grant is server-backed in linkGuestAccount, writes
+DiamondTransaction.source = first_login_reward with direction = earn, and uses
+first_login_reward:<email> as the durable idempotency key. Reopening the login
+sheet, retrying the same merge, or switching providers must not grant the
+reward again. The reward does not grant Kronox Puan and does not affect
+leaderboard sorting or rank.
 
 ## Mağaza / Joker purchases
 Mağaza Phase 1 sells only Solo jokers for Diamonds:

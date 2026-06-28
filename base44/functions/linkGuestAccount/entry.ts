@@ -6,6 +6,9 @@ const USERNAME_PREFIX = 'KronoxUser';
 const JOKER_TYPES = ['mistake_shield', 'card_swap', 'time_freeze'] as const;
 const ACCOUNT_LINK_SOURCE = 'account_link_merge';
 const ACCOUNT_LINK_RELATED_TYPE = 'account_link';
+const FIRST_LOGIN_REWARD_SOURCE = 'first_login_reward';
+const FIRST_LOGIN_REWARD_AMOUNT = 80;
+const FIRST_LOGIN_REWARD_RELATED_TYPE = 'account_link_first_login_reward';
 const GENDER_VALUES = new Set(['', 'female', 'male', 'non_binary', 'prefer_not_to_say', 'custom']);
 const UNSAFE_PUBLIC_USERNAME_PATTERN = /^(apple|google|firebase|auth0|base44|provider|uid|owner)(?:[\w:-].*)?$/i;
 const INTERNAL_ID_PUBLIC_USERNAME_PATTERN = /^(guest|player|owner|user_key|player_key|g|u)_[A-Za-z0-9_-]{4,}$/i;
@@ -392,6 +395,73 @@ async function createDiamondTransaction(base44: any, payload: Record<string, unk
   });
   const confirmed = await findDiamondTransaction(base44, email, idempotencyKey);
   return confirmed || created;
+}
+
+async function grantFirstLoginRewardIfEligible(
+  base44: any,
+  user: any,
+  email: string,
+  guestId: string,
+  currentBalance: number,
+  eligible: boolean,
+) {
+  const idempotencyKey = `${FIRST_LOGIN_REWARD_SOURCE}:${email}`;
+  const existingReward = await findDiamondTransaction(base44, email, idempotencyKey);
+  const existingBalanceAfter = normalizeNonNegativeInteger(existingReward?.balance_after);
+  const rewardAlreadyGuarded = Boolean(user?.first_login_reward_granted_at);
+  const rewardAlreadyRecorded = Boolean(existingReward || rewardAlreadyGuarded);
+  const timestamp = nowIso();
+
+  if (!eligible || rewardAlreadyRecorded) {
+    return {
+      granted: false,
+      alreadyGranted: rewardAlreadyRecorded,
+      amount: FIRST_LOGIN_REWARD_AMOUNT,
+      diamondBalance: existingBalanceAfter ? Math.max(currentBalance, existingBalanceAfter) : currentBalance,
+      idempotencyKey,
+      guardPatch: existingReward && !rewardAlreadyGuarded ? {
+        first_login_reward_granted_at: existingReward?.created_at || timestamp,
+        first_login_reward_amount: FIRST_LOGIN_REWARD_AMOUNT,
+        economy_updated_at: timestamp,
+      } : {},
+      transactionId: rowId(existingReward),
+    };
+  }
+
+  const balanceBefore = currentBalance;
+  const balanceAfter = balanceBefore + FIRST_LOGIN_REWARD_AMOUNT;
+  const transaction = await createDiamondTransaction(base44, {
+    user_email: email,
+    amount: FIRST_LOGIN_REWARD_AMOUNT,
+    balance_before: balanceBefore,
+    balance_after: balanceAfter,
+    source: FIRST_LOGIN_REWARD_SOURCE,
+    direction: 'earn',
+    idempotency_key: idempotencyKey,
+    related_entity_type: FIRST_LOGIN_REWARD_RELATED_TYPE,
+    related_entity_id: guestId,
+    created_at: timestamp,
+    metadata: {
+      firstLoginReward: true,
+      accountLinkMerge: true,
+      guestId,
+      rawGuestTokenServerStored: false,
+    },
+  });
+
+  return {
+    granted: true,
+    alreadyGranted: false,
+    amount: FIRST_LOGIN_REWARD_AMOUNT,
+    diamondBalance: balanceAfter,
+    idempotencyKey,
+    guardPatch: {
+      first_login_reward_granted_at: timestamp,
+      first_login_reward_amount: FIRST_LOGIN_REWARD_AMOUNT,
+      economy_updated_at: timestamp,
+    },
+    transactionId: rowId(transaction),
+  };
 }
 
 async function findInventory(base44: any, email: string, jokerType: string) {
@@ -925,6 +995,16 @@ Deno.serve(async (req: Request) => {
         });
       }
     }
+    const firstLoginRewardEligible = additiveAllowed && !guestAlreadyLinkedToThisUser && linkedGuestIds.length === 0;
+    const firstLoginReward = await grantFirstLoginRewardIfEligible(
+      base44,
+      user,
+      email,
+      guestId,
+      diamondBalance,
+      firstLoginRewardEligible,
+    );
+    diamondBalance = normalizeNonNegativeInteger(firstLoginReward.diamondBalance);
 
     const jokerMerge = await mergeJokerBalances(base44, email, guestId, guest?.joker_balances, additiveAllowed);
     const categoryMerge = await syncCategoryPreferences(base44, user, email, selectedCategoryIds);
@@ -954,6 +1034,7 @@ Deno.serve(async (req: Request) => {
         ? (user?.category_preferences_onboarding_completed_at || nowIso())
         : user?.category_preferences_onboarding_completed_at,
       ...dailyRewardPatch,
+      ...firstLoginReward.guardPatch,
     };
     const updatedUser = await updateCurrentUser(base44, user, userPatch);
     const leaderboard = username
@@ -980,6 +1061,9 @@ Deno.serve(async (req: Request) => {
       dailyQuestHistoryMerged: dailyRewardHistory.quest.merged,
       dailyQuestHistoryUpdated: dailyRewardHistory.quest.updated,
       dailyRewardSameDayGuardsPreserved: Object.keys(dailyRewardPatch).length > 0,
+      firstLoginRewardGranted: Boolean(firstLoginReward.granted),
+      firstLoginRewardAmount: FIRST_LOGIN_REWARD_AMOUNT,
+      firstLoginRewardAlreadyGranted: Boolean(firstLoginReward.alreadyGranted),
       usernameDisplayApplied: Boolean(username),
       usernameMergeSource: usernameChoice.source,
       usernameMissingRequiresProfileSetup: !username,

@@ -11,6 +11,7 @@ export const DIAMOND_DAILY_WHEEL_IDEMPOTENCY_PREFIX = 'daily_wheel:';
 
 export const DIAMOND_REWARD_SOURCES = Object.freeze({
   STARTER_BONUS: 'starter_bonus',
+  FIRST_LOGIN_REWARD: 'first_login_reward',
   DAILY_LOGIN: 'daily_login',
   DAILY_WHEEL: 'daily_wheel',
   MARKET_PURCHASE: 'market_purchase',

@@ -35,6 +35,7 @@
       "type": "string",
       "enum": [
         "starter_bonus",
+        "first_login_reward",
         "daily_login",
         "daily_wheel",
         "market_purchase",
@@ -49,7 +50,7 @@
         "special_event_future",
         "admin_adjustment"
       ],
-      "description": "Economy source. Active sources include starter_bonus, daily_login, daily_wheel, market_purchase, daily_quest_reward, account_link_merge, and admin_adjustment. Daily Quest Runtime v1 claims write daily_quest_reward with direction earn; Daily Quest grants diamonds only, does not grant Kronox Puan, and has no leaderboard impact."
+      "description": "Economy source. Active sources include starter_bonus, first_login_reward, daily_login, daily_wheel, market_purchase, daily_quest_reward, account_link_merge, and admin_adjustment. first_login_reward is the one-time Profile account-link reward written by linkGuestAccount. Daily Quest Runtime v1 claims write daily_quest_reward with direction earn; Daily Quest grants diamonds only, does not grant Kronox Puan, and has no leaderboard impact."
     },
     "direction": {
       "type": "string",

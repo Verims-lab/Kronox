@@ -80,6 +80,7 @@ Current active sources:
 
 ```text
 starter_bonus
+first_login_reward
 daily_login
 daily_wheel
 market_purchase
@@ -120,6 +121,15 @@ leaderboard impact. Daily Quest does not affect leaderboard.
 
 Do not implement client-side quest reward diamond grants, Kronox Puan rewards,
 Online quest progress, or leaderboard scoring from Daily Quest.
+
+Profile account linking grants a one-time `first_login_reward` of 80 Diamonds
+only after a token-proven GuestProfile is successfully linked to a real
+account. The grant is server-backed in `linkGuestAccount`, writes
+`DiamondTransaction.source = first_login_reward` with `direction = earn`, and
+uses `first_login_reward:<email>` as the durable idempotency key. Reopening the
+login sheet, retrying the same merge, or switching providers must not grant the
+reward again. The reward does not grant Kronox Puan and does not affect
+leaderboard sorting or rank.
 
 ---
 

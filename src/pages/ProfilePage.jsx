@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Users, Trophy, Sparkles, Gem, Settings, ChevronRight, LogOut, UserRound, LogIn, Shield, RefreshCw, Snowflake, ShieldAlert } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Users, Trophy, Sparkles, Gem, Settings, ChevronRight, LogOut, UserRound, LogIn, Shield, RefreshCw, Snowflake, ShieldAlert, X, Gift, FileText, Trash2 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
 import { isAdminUser, withAdminStatus } from '@/lib/admin';
@@ -46,6 +46,8 @@ import {
 import KronoxStatTile from '@/components/ui/KronoxStatTile';
 import AuthProviderButtons from '@/components/auth/AuthProviderButtons';
 
+const FIRST_LOGIN_REWARD_AMOUNT = 80;
+
 /**
  * ProfilePage — first-pass shell.
  * Sections: Arkadaşlarım, Stats (Puan / Seviye / Elmas), Ayarlar.
@@ -76,6 +78,7 @@ export default function ProfilePage() {
     balances: emptyJokerBalances(),
   });
   const [jokerReloadKey, setJokerReloadKey] = useState(0);
+  const [loginSheetOpen, setLoginSheetOpen] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -178,13 +181,17 @@ export default function ProfilePage() {
   const isAdmin = isAdminUser(user);
 
   const goSettings = () => { sounds.tap(); navigate('/settings'); };
+  const goProfileSettings = () => { sounds.tap(); navigate('/settings?focus=profile', { state: { focusProfileSettings: true } }); };
   const goAdmin = () => { sounds.tap(); navigate('/admin'); };
   const handleLogin = () => {
     sounds.tap();
-    prepareGuestAccountLink({ provider: 'email', soloProgress: readSoloProgress(null) })
-      .finally(() => base44.auth.redirectToLogin('/profile'));
+    setLoginSheetOpen(true);
   };
   const handleLogout = () => { sounds.tap(); base44.auth.logout('/'); };
+  const prepareAccountLinkForProvider = useCallback(({ provider }) => prepareGuestAccountLink({
+    provider,
+    soloProgress: readSoloProgress(null),
+  }), []);
   const shouldOpenAccountLink = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return params.get('open') === 'account-link' || location.state?.openAccountLink === true;
@@ -261,10 +268,7 @@ export default function ProfilePage() {
           <div ref={accountLinkRef} tabIndex={-1} data-kronox-account-link-panel>
             <Section label="Hesabını Bağla">
               <SecureGuestProgressCard
-                onBeforeStart={({ provider }) => prepareGuestAccountLink({
-                  provider,
-                  soloProgress: readSoloProgress(null),
-                })}
+                onOpenLogin={handleLogin}
               />
             </Section>
           </div>
@@ -293,8 +297,13 @@ export default function ProfilePage() {
           />
         </Section>
 
-        {/* Arkadaşlarım */}
-        <Section label="Sosyal">
+        <Section label="Profil">
+          <RowCard
+            icon={<UserRound className="w-4 h-4" />}
+            title="Profil Bilgileri"
+            desc="Kullanıcı adı, yaş ve özel profil bilgileri"
+            onClick={goProfileSettings}
+          />
           <RowCard
             icon={<Users className="w-4 h-4" />}
             title="Arkadaşlarım"
@@ -303,13 +312,24 @@ export default function ProfilePage() {
           />
         </Section>
 
-        {/* Ayarlar — moves under Profile */}
-        <Section label="Hesap">
+        <Section label="Ayarlar ve Güvenlik">
           <RowCard
             icon={<Settings className="w-4 h-4" />}
             title="Ayarlar"
-            desc="Hesap ve yardım"
+            desc="Kişisel ayarlar ve kategori tercihleri"
             onClick={goSettings}
+          />
+          <RowCard
+            icon={<FileText className="w-4 h-4" />}
+            title="Gizlilik Politikası"
+            desc="Veri kullanımı ve kullanıcı hakları"
+            onClick={() => { sounds.tap(); navigate('/privacy'); }}
+          />
+          <RowCard
+            icon={<Trash2 className="w-4 h-4" />}
+            title="Hesap Silme"
+            desc={user ? 'Kalıcı silme işlemini Ayarlar’da başlat' : 'Hesap silme bilgi sayfası'}
+            onClick={() => { sounds.tap(); navigate(user ? '/settings?focus=delete' : '/account-deletion', user ? { state: { focusDeleteAccount: true } } : undefined); }}
           />
         </Section>
 
@@ -324,6 +344,11 @@ export default function ProfilePage() {
           </Section>
         )}
       </div>
+      <LoginEntrySheet
+        open={loginSheetOpen}
+        onClose={() => setLoginSheetOpen(false)}
+        onBeforeStart={prepareAccountLinkForProvider}
+      />
     </div>
   );
 }
@@ -496,8 +521,8 @@ function IdentityCard({ loading, user, guestProfile, isAdmin, onLogin, onLogout 
             </>
           ) : (
             <>
-              <p className="font-cinzel text-base tracking-wider text-white">{guestDisplayName}</p>
-              <p className="font-inter text-[11px] text-blue-100/70">Giriş yaparak ilerlemeni kaydet</p>
+              <p className="truncate font-cinzel text-base tracking-wider text-white">{guestDisplayName}</p>
+              <p className="font-inter text-[11px] text-blue-100/70">Misafir oyuncu • giriş yapmadan oynayabilirsin</p>
             </>
           )}
         </div>
@@ -515,22 +540,36 @@ function IdentityCard({ loading, user, guestProfile, isAdmin, onLogin, onLogout 
           <button
             type="button"
             onClick={onLogin}
-            className="flex h-10 items-center gap-1 rounded-full px-3 font-inter text-[12px] font-black text-amber-100"
+            className="flex h-10 shrink-0 items-center gap-1 rounded-full px-3 font-inter text-[12px] font-black text-amber-100"
             style={{
               background: 'linear-gradient(180deg, rgba(250,204,21,0.18), rgba(185,122,6,0.12))',
               boxShadow: 'inset 0 0 0 1px rgba(250,204,21,0.55), 0 0 12px rgba(250,204,21,0.30)',
             }}
             aria-label="Giriş yap"
           >
-            <LogIn className="h-4 w-4" /> Giriş
+            <LogIn className="h-4 w-4" /> Giriş Yap
           </button>
         ))}
       </div>
+      {!loading && !user && (
+        <button
+          type="button"
+          onClick={onLogin}
+          className="mt-3 inline-flex max-w-full items-center gap-2 rounded-full px-3 py-2 text-left font-inter text-[11px] font-black text-amber-950"
+          style={{
+            background: 'linear-gradient(180deg, #ffe066, #f59e0b)',
+            boxShadow: '0 10px 24px rgba(250,204,21,0.18), inset 0 1px 0 rgba(255,255,255,0.55)',
+          }}
+        >
+          <Gift className="h-4 w-4 shrink-0" />
+          İlk giriş ödülünüzü alın: {FIRST_LOGIN_REWARD_AMOUNT} Elmas
+        </button>
+      )}
     </motion.div>
   );
 }
 
-function SecureGuestProgressCard({ onBeforeStart }) {
+function SecureGuestProgressCard({ onOpenLogin }) {
   return (
     <div
       className="rounded-2xl p-4"
@@ -543,12 +582,117 @@ function SecureGuestProgressCard({ onBeforeStart }) {
       <p className="mt-1 font-inter text-[12px] font-semibold leading-relaxed text-blue-100/72">
         İlerlemeni kaybetmemek için hesabını bağla. İstersen misafir olarak oynamaya devam edebilirsin.
       </p>
-      <AuthProviderButtons
-        fromUrl="/profile"
-        onBeforeStart={onBeforeStart}
-        className="mt-3"
-      />
+      <div
+        className="mt-3 rounded-2xl px-3 py-2 font-inter text-[11px] font-black text-amber-100"
+        style={{
+          background: 'rgba(250,204,21,0.10)',
+          boxShadow: 'inset 0 0 0 1px rgba(250,204,21,0.35)',
+        }}
+      >
+        İlk başarılı hesap bağlamanda tek seferlik {FIRST_LOGIN_REWARD_AMOUNT} Elmas ödülü verilir.
+      </div>
+      <button
+        type="button"
+        onClick={onOpenLogin}
+        className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-full font-inter text-sm font-black text-amber-950 active:scale-[0.98]"
+        style={{
+          background: 'linear-gradient(180deg, #ffe066, #f59e0b)',
+          boxShadow: '0 10px 24px rgba(250,204,21,0.18), inset 0 1px 0 rgba(255,255,255,0.55)',
+        }}
+      >
+        <LogIn className="h-4 w-4" />
+        Giriş Yap
+      </button>
     </div>
+  );
+}
+
+function LoginEntrySheet({ open, onClose, onBeforeStart }) {
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="fixed inset-0 z-[140] flex items-end justify-center bg-slate-950/72 px-3 pb-3 backdrop-blur-sm"
+          style={{
+            paddingTop: 'calc(env(safe-area-inset-top) + 1rem)',
+            paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.75rem)',
+          }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="profile-login-sheet-title"
+        >
+          <button
+            type="button"
+            className="absolute inset-0"
+            onClick={onClose}
+            aria-label="Giriş ekranını kapat"
+          />
+          <motion.div
+            className="relative w-full max-w-md overflow-hidden rounded-[28px] p-5"
+            style={{
+              background:
+                'radial-gradient(circle at 50% 0%, rgba(59,130,246,0.32), transparent 45%), linear-gradient(180deg, rgba(20,33,69,0.98), rgba(5,10,24,0.98))',
+              boxShadow:
+                'inset 0 0 0 1.5px rgba(120,170,255,0.34), inset 0 1px 0 rgba(255,255,255,0.10), 0 24px 60px rgba(0,0,0,0.45)',
+            }}
+            initial={{ y: 28, scale: 0.98 }}
+            animate={{ y: 0, scale: 1 }}
+            exit={{ y: 24, scale: 0.98 }}
+            transition={{ type: 'spring', stiffness: 340, damping: 30 }}
+          >
+            <button
+              type="button"
+              onClick={onClose}
+              className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full text-blue-100/70 active:scale-95"
+              style={{ background: 'rgba(255,255,255,0.07)', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.11)' }}
+              aria-label="Kapat"
+            >
+              <X className="h-4 w-4" />
+            </button>
+
+            <div className="pt-4 text-center">
+              <div
+                className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-[24px] text-amber-950"
+                style={{
+                  background: 'radial-gradient(circle at 35% 25%, #fff1a8, #facc15 45%, #b97a06 100%)',
+                  boxShadow: '0 0 34px rgba(250,204,21,0.40), inset 0 1px 0 rgba(255,255,255,0.55), inset 0 -8px 12px rgba(120,68,7,0.46)',
+                }}
+              >
+                <Trophy className="h-10 w-10" strokeWidth={2.6} />
+              </div>
+              <h2 id="profile-login-sheet-title" className="font-cinzel text-2xl font-black tracking-wide text-white">
+                Kronox Hesabını Bağla
+              </h2>
+              <p className="mx-auto mt-2 max-w-[19rem] font-inter text-sm font-semibold leading-relaxed text-blue-100/72">
+                Misafir ilerlemeni güvene al. İlk başarılı hesap bağlamanda tek seferlik ödül kazanırsın.
+              </p>
+              <div
+                className="mx-auto mt-4 inline-flex items-center gap-2 rounded-full px-3 py-2 font-inter text-[12px] font-black text-amber-950"
+                style={{
+                  background: 'linear-gradient(180deg, #ffe066, #f59e0b)',
+                  boxShadow: '0 10px 24px rgba(250,204,21,0.20), inset 0 1px 0 rgba(255,255,255,0.55)',
+                }}
+              >
+                <Gem className="h-4 w-4" />
+                İlk giriş ödülünüzü alın: {FIRST_LOGIN_REWARD_AMOUNT} Elmas
+              </div>
+            </div>
+
+            <AuthProviderButtons
+              fromUrl="/profile"
+              onBeforeStart={onBeforeStart}
+              className="mt-5"
+            />
+            <p className="mt-4 px-2 text-center font-inter text-[11px] font-semibold leading-relaxed text-blue-100/55">
+              Google, Apple veya Email ile devam edebilirsin.
+            </p>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 

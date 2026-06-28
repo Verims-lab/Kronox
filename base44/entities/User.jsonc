@@ -200,6 +200,15 @@
       "format": "date-time",
       "description": "ISO timestamp when the one-time +100 starter Diamond bonus was granted. Durable guard used with DiamondTransaction idempotency_key starter_bonus:<email>."
     },
+    "first_login_reward_granted_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when the one-time +80 Profile account-link first login reward was granted. Durable guard used with DiamondTransaction idempotency_key first_login_reward:<email>."
+    },
+    "first_login_reward_amount": {
+      "type": "number",
+      "description": "Diamond amount granted by the one-time first_login_reward account-link reward. Current product amount is 80."
+    },
     "last_daily_diamond_reward_date": {
       "type": "string",
       "description": "UTC YYYY-MM-DD key for the latest +20 daily login Diamond reward. Durable guard used with DiamondTransaction idempotency_key daily_login:<email>:<YYYY-MM-DD>."

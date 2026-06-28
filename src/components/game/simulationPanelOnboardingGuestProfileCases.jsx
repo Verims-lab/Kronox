@@ -540,6 +540,12 @@ export const EXTRA_TESTS = [
         'Apple ile devam et',
         'Google ile devam et',
         'E-posta ile devam et',
+        'Giriş Yap',
+        'İlk giriş ödülünüzü alın',
+      ]);
+      const providerForbidden = presentTokens(`${profilePageSource}\n${authProviderButtonsSource}`, [
+        'Facebook',
+        'facebook',
       ]);
       const guestContinueMissing = missingTokens(`${authContextSource}\n${onboardingPageSource}\n${mainMenuSource}`, [
         'ensureGuestProfile',
@@ -566,7 +572,7 @@ export const EXTRA_TESTS = [
         'function SecureProgressStep',
         'İlerlemeni Güvenceye Al',
       ]);
-      if (profileMissing.length || guestContinueMissing.length || forbiddenHome.length || forbiddenNonProfile.length) {
+      if (profileMissing.length || providerForbidden.length || guestContinueMissing.length || forbiddenHome.length || forbiddenNonProfile.length) {
         return fail('Guest account linking placement drifted from the Profile-only contract.', {
           verification: 'STATIC_CONTRACT',
           files: [
@@ -577,11 +583,45 @@ export const EXTRA_TESTS = [
             'src/components/auth/AuthProviderButtons.jsx',
           ],
           expected: 'Home/onboarding/deprecated setup have no provider buttons or secure-progress card; Profile guest card links with Apple, Google, and email while guest flow can continue to Home/Solo.',
-          actual: { profileMissing, guestContinueMissing, forbiddenHome, forbiddenNonProfile },
+          actual: { profileMissing, providerForbidden, guestContinueMissing, forbiddenHome, forbiddenNonProfile },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
       return pass('Guest account linking is Profile-only; Home stays playable without provider buttons, and Apple/Google/email remain together in Profile.', {
+        verification: 'STATIC_CONTRACT',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('first_login_reward_server_backed_once',
+    'First login reward is server-backed, one-time, and idempotent',
+    () => {
+      const combined = `${linkGuestAccountSource}\n${profilePageSource}`;
+      const missing = missingTokens(combined, [
+        'FIRST_LOGIN_REWARD_SOURCE',
+        'FIRST_LOGIN_REWARD_AMOUNT = 80',
+        'grantFirstLoginRewardIfEligible',
+        "idempotencyKey = `${FIRST_LOGIN_REWARD_SOURCE}:${email}`",
+        'findDiamondTransaction(base44, email, idempotencyKey)',
+        'source: FIRST_LOGIN_REWARD_SOURCE',
+        'first_login_reward_granted_at',
+        'firstLoginRewardGranted',
+        'İlk giriş ödülünüzü alın',
+      ]);
+      const forbidden = presentTokens(profilePageSource, [
+        'DiamondTransaction.create',
+        'first_login_reward:<email>',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('First-login reward is not fully locked to the backend account-link path.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['src/pages/ProfilePage.jsx', 'base44/functions/linkGuestAccount/entry.ts'],
+          expected: 'Profile shows reward copy only; linkGuestAccount grants +80 Diamonds once through DiamondTransaction idempotency and User guard fields.',
+          actual: { missing, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('First-login reward is displayed in Profile but granted only by the server account-link function with a stable idempotency key.', {
         verification: 'STATIC_CONTRACT',
         actionType: ACTION_TYPES.CODE_FIX,
       });

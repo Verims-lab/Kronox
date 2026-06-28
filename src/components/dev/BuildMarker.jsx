@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex465 — Profile redesign + login sheet + first-login reward:
+//   • Adds Kronox-style Profile landing, grouped real menu actions, and a Google/Apple/Email login sheet.
+//   • Grants a one-time server-backed first_login_reward through linkGuestAccount and DiamondTransaction.
+//   • Refreshes Settings list rows, economy docs/mirrors, and targeted Health coverage.
+//
 // Codex464 — Performance pass:
 //   • Removes duplicate app/game auth bootstrap reads from App.jsx and Game.jsx.
 //   • Defers optional service worker, invite notifier, and category modal startup work.
@@ -2584,7 +2589,7 @@ import React, { useEffect, useState } from 'react';
 //   • Uses Unicode-safe 11/wordLength scaling with a 0.52 readable minimum.
 //   • Prevents arbitrary mid-word active question splitting without touching gameplay.
 // Codex463 — Health fix: restore soloReadableCard={!isOnline} render contract + exact-pin @base44/sdk 0.8.34.
-const BUILD_MARKER = 'Codex464';
+const BUILD_MARKER = 'Codex465';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

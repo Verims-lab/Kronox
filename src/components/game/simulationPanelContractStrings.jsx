@@ -603,6 +603,8 @@ export const userEntitySource = `
     "game_invite_notifications_enabled": {},
     "diamonds": {},
     "starter_bonus_granted_at": {},
+    "first_login_reward_granted_at": {},
+    "first_login_reward_amount": {},
     "last_daily_diamond_reward_date": {},
     "economy_updated_at": {},
     "daily_quest_last_claim_date": {
@@ -665,6 +667,7 @@ export const diamondTransactionEntitySource = `
     "source": {
       "enum": [
         "starter_bonus",
+        "first_login_reward",
         "daily_login",
         "daily_wheel",
         "market_purchase",
