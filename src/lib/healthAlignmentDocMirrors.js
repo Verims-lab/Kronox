@@ -230,6 +230,13 @@ RLS/BOLA, keyboard/screen-reader,
 device, and store proof remain manual/live probes.
 The Online lobby/start/reconnect contract remains an architecture target and
 manual live-proof area even when reducer/static Health checks pass.
+Static Health coverage now exists for the strongest current UX contracts:
+Profile/Settings route ownership, BottomNav ownership, own leaderboard-row
+navigation, public identifier privacy, Solo/Online active question long-word
+fit, focused visual scope, heavy-effect manual proof gates, and asset/readiness
+docs. Manual proof remains required for mobile route walkthrough, PWA/native
+wrapper navigation, real touch drag, failure-injection UI timing, low-end
+Android/WebView smoothness, and bundle/device image-decode behavior.
 `;
 
 export const DB_REPORTING_READINESS_DOC = `# Kronox DB Reporting Readiness
@@ -357,6 +364,42 @@ icons/splash assets, responsive high-density variants, lazy/preload strategy,
 asset naming, fallback behavior, and future CDN/storage planning. This pass makes
 no full visual redesign. Assets must not include secrets, private identifiers, or
 the full question bank, and must preserve mobile performance.
+`;
+
+export const UX_QUALITY_GUARDRAILS_DOC = `# Kronox UX Quality Guardrails
+
+Status: AI-assisted UX audit guardrails.
+
+This document is adapted guidance, not vendored skill content. It translates
+Taste Skill inspiration into Kronox-specific rules and does not copy external
+SKILL.md content into Kronox.
+
+Kronox is a mobile-first social timeline trivia game with dark navy fantasy /
+arcade identity, blue/gold heroic surfaces, readable Turkish copy, strong
+numbers, thumb-safe controls, and low-end Android/WebView-safe performance.
+
+Do not start a full visual redesign unless explicitly requested. Do not start a
+framework, routing, Tailwind, animation-library, Base44, adapter, gameplay-rule,
+Solo/Online logic, or question-bank exposure migration during focused UX polish.
+
+Profile > Profil Bilgileri owns username, optional private profile fields, and
+Kategori seçimi. Settings owns privacy, account, and app preferences rather
+than category gameplay selection. BottomNav remains exactly \`Ana Sayfa\`,
+\`Liderlik\`, \`Profil\`, and Online remains Home CTA-owned.
+
+Public identity is username only. Do not render email, provider ID, owner_key,
+raw guest_id, internal player_key, raw guest token, answer years, correct
+answers, or full question bank content in public UI.
+
+Prefer transform and opacity for animation. Avoid layout-heavy animation,
+repeated blur loops, and large glowing stacks around gameplay. Do not introduce GSAP, Motion, or a new animation library unless a future task explicitly
+approves the dependency and validates bundle/performance impact. Low-end Android/WebView smoothness is a release proof concern, not something static
+Health can prove.
+
+Health is a contract guard. It is not release proof. Static checks can verify
+source contracts for route ownership, public identity, long-word fit, visual
+scope, and heavy-effect gates, but real mobile/device/gameplay confidence still
+requires manual proof.
 `;
 
 export const PROFILE_FIELDS_DOC = `# Kronox Profile Fields

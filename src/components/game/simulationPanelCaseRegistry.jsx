@@ -219,6 +219,10 @@ import * as onboardingGuestProfileCases from './simulationPanelOnboardingGuestPr
 // Security Pass 3: accessible loading/status contracts, custom modal labels,
 // incremental lint/code-quality decisions, and SimulationPanel scope audit.
 import * as a11yQualityCases from './simulationPanelA11yQualityCases';
+// Health Center recent-contract update audit: Profile/Settings route ownership,
+// Leaderboard own row, presence/invite/admin reporting, performance/visual
+// guardrails, UX docs, and SDK pin Health coverage inventory.
+import * as healthUpdateAuditCases from './simulationPanelHealthUpdateAuditCases';
 
 const MODULES = [
   soloProgressCases,
@@ -274,6 +278,7 @@ const MODULES = [
   mobileCompatibilityCases,
   onboardingGuestProfileCases,
   a11yQualityCases,
+  healthUpdateAuditCases,
 ];
 
 function flatten(key) {

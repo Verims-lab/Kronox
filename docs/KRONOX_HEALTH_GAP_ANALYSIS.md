@@ -118,12 +118,15 @@ fallback polling/refetch.
 | Admin Kullanıcı Raporu | Static source checks for AdminUser gate, aggregate-only response, no delete action, username/logged-in/score/inactive metrics, and coarse platform tracking | Deployed admin/non-admin function probe; historical completeness of last_app_open_at for older rows |
 | Admin inactive guest username cleanup | Static source checks for AdminUser gate, dry-run before delete, typed confirmation, server-side eligibility, username release, audit log, and privacy-safe response | Deployed admin/non-admin function probe; backup/export policy; manual sample proof that an eligible released username can be claimed again |
 
-## Candidate UX Quality Health Gaps
+## UX Quality Health Coverage And Remaining Gaps
 
-These are candidate checks for future tasks. They are not claimed as existing
-Health coverage until executable/static cases are added.
+Static Health coverage now exists for the strongest current UX contracts:
+Profile/Settings route ownership, BottomNav ownership, own leaderboard-row
+navigation, public identifier privacy, Solo/Online active question long-word
+fit, focused visual scope, heavy-effect manual proof gates, and asset/readiness
+docs. Health is still a contract guard, not release proof.
 
-| UX guardrail | Candidate static/executable check | Manual proof still needed |
+| UX guardrail | Current static/executable coverage | Manual proof still needed |
 | --- | --- | --- |
 | Profile/Settings route ownership | Profile menu and `/profile/edit` keep `Profil Bilgileri`, Friends, Settings, privacy, and account deletion on their intended screens | Mobile route walkthrough and back-stack proof |
 | BottomNav ownership | Visible tabs remain `Ana Sayfa`, `Liderlik`, `Profil`; Online remains Home CTA-owned | PWA/native wrapper navigation behavior |
@@ -134,6 +137,10 @@ Health coverage until executable/static cases are added.
 | Gameplay performance | Heavy blur/glow/animation tokens stay out of gameplay-critical paths or are labeled manual proof gates | Low-end Android/WebView smoothness proof |
 | Loading/empty/error states | Profile, Settings, Friends, Invites, Online lobby, Leaderboard, and Admin/reporting have local loading/error/empty handling markers where relevant | Timing and failure-injection UI proof |
 | Asset readiness | New visual assets include optimization/dimension/fallback notes and avoid startup/game-start critical loads | Bundle size and device image-decode proof |
+
+Manual proof remains required for mobile route walkthrough, PWA/native wrapper
+navigation, real touch drag, failure-injection UI timing, low-end
+Android/WebView smoothness, and bundle/device image-decode behavior.
 
 ## Health Design Rules
 
