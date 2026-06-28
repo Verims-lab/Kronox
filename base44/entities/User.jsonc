@@ -179,6 +179,31 @@
       "format": "date-time",
       "description": "Latest server-side profile settings update timestamp for username/display_name/age/gender merge decisions."
     },
+    "last_app_open_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Server-owned latest app-open timestamp written by recordAppOpen for admin retention/user reports. Client timestamps are ignored."
+    },
+    "last_seen_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Server-owned latest general activity timestamp for admin reports. Not a public identity or Online presence source."
+    },
+    "app_platform": {
+      "type": "string",
+      "description": "Coarse platform class for admin aggregate reporting only. No precise device identifiers or fingerprinting.",
+      "enum": [
+        "ios",
+        "android",
+        "other",
+        "unknown"
+      ]
+    },
+    "app_platform_updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Server timestamp when app_platform was last refreshed by recordAppOpen."
+    },
     "linked_guest_ids": {
       "type": "array",
       "description": "GuestProfile ids already merged into this authenticated account. linkGuestAccount uses this as a duplicate-protection guard for additive diamonds/jokers.",

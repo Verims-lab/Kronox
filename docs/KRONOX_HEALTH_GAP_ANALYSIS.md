@@ -86,6 +86,10 @@ fallback polling/refetch.
 - Updated question analytics reset coverage so the Admin card must list
   report names, actual source tables, Joker/rhythm sub-reports, and protected
   non-reset data instead of a dense paragraph.
+- Added admin user-report coverage for the `Kullanıcı Raporu` aggregate-only
+  privacy contract and server-time `recordAppOpen` latest-open/coarse-platform
+  tracking. This proves source contracts only; deployed admin/non-admin access,
+  historical activity completeness, and cleanup-policy decisions remain manual.
 
 ## Required Coverage Areas
 
@@ -107,6 +111,7 @@ fallback polling/refetch.
 | Economy idempotency | Static guard checks plus function-level operation lock/recheck coverage | Platform unique/index proof or transactional replacement |
 | Public UI private identifiers | Static forbidden-token checks | Visual/manual walkthrough for lobbies, leaderboard, notifications |
 | Accessibility loading/forms/modals | Static status/label/dialog/form-feedback checks | Keyboard, TalkBack/VoiceOver, and real mobile focus-order proof |
+| Admin Kullanıcı Raporu | Static source checks for AdminUser gate, aggregate-only response, no delete action, username/logged-in/score/inactive metrics, and coarse platform tracking | Deployed admin/non-admin function probe; historical completeness of last_app_open_at for older rows |
 
 ## Candidate UX Quality Health Gaps
 

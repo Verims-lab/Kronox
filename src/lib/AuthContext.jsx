@@ -7,6 +7,7 @@ import { applyUserProgressResetMarker } from '@/lib/progressResetCache';
 import { ensureGuestProfile, linkPendingGuestAccount, repairGuestOnboardingCompletionIfNeeded } from '@/lib/guestProfile';
 import { readSoloProgress } from '@/lib/soloLevels';
 import { hydrateAuthenticatedUserProfile } from '@/lib/userProfileHydration';
+import { recordAppOpenActivity } from '@/lib/appActivity';
 
 const AuthContext = createContext();
 
@@ -158,10 +159,17 @@ export const AuthProvider = ({ children }) => {
         }
       }
 
-      setUser(currentUser || null);
-      setGuestProfile(currentUser?.email ? null : currentGuestProfile);
+      const nextUser = currentUser || null;
+      const nextGuestProfile = currentUser?.email ? null : currentGuestProfile;
+      setUser(nextUser);
+      setGuestProfile(nextGuestProfile);
       setIsAuthenticated(!!currentUser);
       setAuthError(null);
+      recordAppOpenActivity({ user: nextUser, guestProfile: nextGuestProfile }).catch((activityError) => {
+        console.warn('[appActivity] app-open tracking skipped', {
+          reason: String(activityError?.message || 'record_app_open_failed').slice(0, 120),
+        });
+      });
 
       // Yalnızca geçerli oturum onaylandıktan sonra OAuth parametrelerini temizle.
       if (currentUser) {
@@ -184,6 +192,9 @@ export const AuthProvider = ({ children }) => {
       setAdminStatus(EMPTY_ADMIN_STATUS);
       const fallbackGuestProfile = await ensureGuestProfile().catch(() => null);
       setGuestProfile(fallbackGuestProfile);
+      if (fallbackGuestProfile) {
+        recordAppOpenActivity({ user: null, guestProfile: fallbackGuestProfile }).catch(() => null);
+      }
       // auth_required = uygulama public, login gerektirmiyor — hata değil
       if (error?.message?.includes('user_not_registered')) {
         setAuthError({ type: 'user_not_registered', message: 'User not registered' });

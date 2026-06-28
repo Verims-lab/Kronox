@@ -237,10 +237,30 @@ guest vs linked users, Solo level funnel/pass/fail/moves/time, Solo record
 counts, daily reward claims, joker earn/spend/purchase, Diamond balance
 changes, leaderboard movement, category preference distribution, question
 exposure/difficulty, Online lobby lifecycle, invite lifecycle, notification
-lifecycle, platform split, retention cohorts, and economy fraud/race anomalies.
-Missing event tables must be backward-compatible and privacy-safe.
+lifecycle, platform split, retention cohorts, admin user-report aggregates, and
+economy fraud/race anomalies. Missing event tables must be backward-compatible
+and privacy-safe.
 Daily reward claim reports should keep first-login account-link rewards distinct
 through DiamondTransaction.source first_login_reward.
+
+Admin User Report Phase 1: Kullanıcı Raporu is AdminUser-gated, read-only, and
+aggregate-only. It counts distinct valid username across User and GuestProfile,
+logged-in users from User email/user_email server-side only, guest-only
+GuestProfile usernames, users with >0 Kronox Puan from
+SoloLeaderboardEntry.total_kronox_score plus safe kronox_puan_total repair,
+inactive 10+ day users from server-written last_app_open_at / last_seen_at,
+unknown/no-last-open users separately, new users in 7 days, active users in
+1/7/30 days, and coarse app_platform iOS/Android/Other/Unknown. The report does
+not delete users, mutate score/economy data, return raw rows, expose email,
+provider ID, owner_key, raw guest_id, internal player_key, or start cleanup
+policy.
+
+recordAppOpen writes latest app-open support using server time. Authenticated
+users are derived from auth.me and updated through base44.auth.updateMe; guests
+require guest_id + raw guest token proof against GuestProfile.guest_token_hash.
+The function writes last_app_open_at, last_seen_at, and coarse app_platform
+only. Client timestamps are ignored, frontend calls are best-effort/throttled,
+and no precise device identifier or fingerprint is stored.
 
 Question analytics manual reset remains manual DB maintenance only; function
 reset is disabled. The reset card maps Kategori Bazında Gösterim to

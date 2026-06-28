@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex473 — Admin Kullanıcı Raporu:
+//   • Adds AdminUser-gated aggregate-only getUserReport for username/logged-in/score/inactive/platform counts.
+//   • Adds recordAppOpen server-time last_app_open_at / last_seen_at and coarse app_platform tracking.
+//   • Wires a read-only Admin Kullanıcı Raporu card plus reporting docs/Health contracts.
+//
 // Codex472 — Security Cleanup Health blocker (KRONOX-MQXSBA4X):
 //   • Root package.json @base44/sdk pin changed from "^0.8.34" to exact "0.8.34".
 //   • package-lock.json root dependency spec de-carated to "0.8.34" (resolved 0.8.34 tarball preserved; no version bump).
@@ -41,7 +46,7 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps Home reward panels visible from a short-lived cache while revalidating and memoizes question text fit tokens.
 //
 
-const BUILD_MARKER = 'Codex472';
+const BUILD_MARKER = 'Codex473';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

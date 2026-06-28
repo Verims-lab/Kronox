@@ -26,6 +26,10 @@ import resetTestAccountProgressSource from '../../../base44/functions/resetTestA
 import diagnoseSoloQuestionStartQuerySource from '../../../base44/functions/diagnoseSoloQuestionStartQuery/entry.ts?raw';
 import runTestSuiteSource from '../../../base44/functions/runTestSuite/entry.ts?raw';
 import sendQuestionAnalyticsReportEmailSource from '../../../base44/functions/sendQuestionAnalyticsReportEmail/entry.ts?raw';
+import getUserReportSource from '../../../base44/functions/getUserReport/entry.ts?raw';
+import getUserReportConfigSource from '../../../base44/functions/getUserReport/function.jsonc?raw';
+import recordAppOpenSource from '../../../base44/functions/recordAppOpen/entry.ts?raw';
+import recordAppOpenConfigSource from '../../../base44/functions/recordAppOpen/function.jsonc?raw';
 import createDailyQuestDefinitionSource from '../../../base44/functions/createDailyQuestDefinition/entry.ts?raw';
 import aggregateQuestionStatsSource from '../../../base44/functions/aggregateQuestionStats/entry.ts?raw';
 import cancelStaleLobbiesSource from '../../../base44/functions/cancelStaleLobbies/entry.ts?raw';
@@ -33,6 +37,7 @@ import simulateOnlineGameSource from '../../../base44/functions/simulateOnlineGa
 import getQuestionsSource from '../../../base44/functions/getQuestions/entry.ts?raw';
 import adminMaintenanceLogSchemaSource from '../../../base44/entities/AdminMaintenanceLog.jsonc?raw';
 import userSchemaSource from '../../../base44/entities/User.jsonc?raw';
+import guestProfileSchemaSource from '../../../base44/entities/GuestProfile.jsonc?raw';
 // Codex — Vite cannot `?raw`-import markdown outside /src on this host
 // (.md?raw breaks the build). Use the in-src JS doc mirrors instead.
 import {
@@ -43,11 +48,13 @@ import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
 import adminPageSource from '../../pages/AdminPage.jsx?raw';
 import testSuitePageSource from '../../pages/TestSuite.jsx?raw';
 import resetUserProgressToolSource from '../../components/admin/ResetUserProgressTool.jsx?raw';
+import userReportToolSource from '../../components/admin/UserReportTool.jsx?raw';
 import authContextSource from '../../lib/AuthContext.jsx?raw';
 import adminSource from '../../lib/admin.js?raw';
 import appParamsSource from '../../lib/app-params.js?raw';
 import base44ClientSource from '../../api/base44Client.js?raw';
 import progressResetCacheSource from '../../lib/progressResetCache.js?raw';
+import appActivitySource from '../../lib/appActivity.js?raw';
 
 // Codex212 merge alignment: the callable admin-status implementation now lives
 // in the Base44 function mirror; keep the static Health aggregate pointed at
@@ -819,6 +826,108 @@ export const EXTRA_TESTS = [
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+  ),
+
+  makeCase(
+    'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
+    'admin_user_report_aggregate_privacy_contract',
+    'Kullanıcı Raporu is admin-only, aggregate-only, read-only, and privacy-safe',
+    () => {
+      const combined = `${getUserReportSource}\n${getUserReportConfigSource}\n${userReportToolSource}\n${adminPageSource}`;
+      const required = [
+        '"name": "getUserReport"',
+        'requireAdmin',
+        'base44.asServiceRole.entities.User',
+        'base44.asServiceRole.entities.GuestProfile',
+        'base44.asServiceRole.entities.SoloLeaderboardEntry',
+        'totalUsersByDistinctValidUsername',
+        'loggedInUsers',
+        'usersWithKronoxPuanGreaterThanZero',
+        'inactive10DaysUsers',
+        'noLastOpenUsers',
+        'platformBreakdown',
+        'adminOnly: true',
+        'aggregateOnly: true',
+        'readOnly: true',
+        'deletesUsers: false',
+        'mutatesScoreOrEconomy: false',
+        'exposesEmail: false',
+        'exposesProviderId: false',
+        'exposesOwnerKey: false',
+        'exposesRawGuestId: false',
+        'exposesInternalPlayerKey: false',
+        'Kullanıcı Raporu',
+        'Bu rapor kullanıcı, giriş, puan ve son aktiflik özetlerini gösterir. Silme işlemi yapmaz.',
+      ].filter((token) => !combined.includes(token));
+      const forbidden = [
+        'entities.User.delete',
+        'entities.GuestProfile.delete',
+        'base44.asServiceRole.entities.User.delete',
+        'base44.asServiceRole.entities.GuestProfile.delete',
+      ].filter((token) => combined.includes(token));
+      if (required.length || forbidden.length) {
+        return fail('Admin user report does not satisfy the aggregate read-only privacy contract.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'AdminUser-gated getUserReport returns aggregate counts only, includes username/logged-in/score/inactive metrics, and exposes no private identifiers or delete path.',
+          actual: { missing: required, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Kullanıcı Raporu is AdminUser-gated, aggregate-only, read-only, score-source aligned, and privacy-safe.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+      });
+    },
+  ),
+
+  makeCase(
+    'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
+    'record_app_open_server_time_coarse_platform_contract',
+    'App-open tracking uses server time, guest token proof, and coarse platform only',
+    () => {
+      const combined = `${recordAppOpenSource}\n${recordAppOpenConfigSource}\n${appActivitySource}\n${authContextSource}\n${userSchemaSource}\n${guestProfileSchemaSource}`;
+      const required = [
+        '"name": "recordAppOpen"',
+        'last_app_open_at: now',
+        'last_seen_at: now',
+        'app_platform: platform',
+        'app_platform_updated_at: now',
+        'serverTimeUsed: true',
+        'clientTimestampIgnored: true',
+        'preciseDeviceFingerprintStored: false',
+        'hashGuestToken',
+        'guest_id',
+        'guest_token',
+        'base44.auth.updateMe',
+        'recordAppOpenActivity',
+        'platform_class: detectCoarsePlatform()',
+        'ACTIVITY_THROTTLE_MS',
+        '"last_app_open_at"',
+        '"app_platform"',
+      ].filter((token) => !combined.includes(token));
+      const forbidden = [
+        'device_id',
+        'deviceId',
+        'fingerprint_id',
+        'client_timestamp',
+        'body?.last_app_open_at',
+        'body?.last_seen_at',
+      ].filter((token) => combined.includes(token));
+      if (required.length || forbidden.length) {
+        return fail('App-open tracking is not clearly server-time/coarse-platform safe.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'recordAppOpen updates User/GuestProfile with server time, token-proves guests, captures only ios/android/other/unknown, and ignores client timestamps.',
+          actual: { missing: required, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('recordAppOpen records last_app_open_at/last_seen_at with server time, guest proof, and coarse platform only.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
       });
     },
   ),
