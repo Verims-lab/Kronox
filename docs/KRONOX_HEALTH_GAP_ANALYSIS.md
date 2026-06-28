@@ -123,8 +123,8 @@ fallback polling/refetch.
 Static Health coverage now exists for the strongest current UX contracts:
 Profile/Settings route ownership, BottomNav ownership, own leaderboard-row
 navigation, public identifier privacy, Solo/Online active question long-word
-fit, focused visual scope, heavy-effect manual proof gates, and asset/readiness
-docs. Health is still a contract guard, not release proof.
+fit, focused visual scope, heavy-effect manual proof gates, Timeline visual safety,
+and asset/readiness docs. Health is still a contract guard, not release proof.
 
 | UX guardrail | Current static/executable coverage | Manual proof still needed |
 | --- | --- | --- |
@@ -132,7 +132,7 @@ docs. Health is still a contract guard, not release proof.
 | BottomNav ownership | Visible tabs remain `Ana Sayfa`, `Liderlik`, `Profil`; Online remains Home CTA-owned | PWA/native wrapper navigation behavior |
 | Solo/Online question-card fit parity | Shared or parallel fit helpers protect long Turkish words without raw question-bank client fallback | Real device gameplay with long content |
 | Timeline visual safety | Visual changes around drop zones avoid layout-heavy animation and preserve drag/drop source contracts | Real touch drag, invalid drop, scroll containment |
-| Public identifier privacy | Public Profile, Leaderboard, lobby, invite, notification, and push text forbid email, provider ID, owner_key, raw guest_id, and internal player_key | Visual walkthrough with guest and linked accounts |
+| Public identifier privacy | Public Profile, Leaderboard, lobby, invite, notification, and push text keep the no email/provider/owner/raw guest/internal identifier contract, including no email, provider ID, owner_key, raw guest_id, or internal player_key | Visual walkthrough with guest and linked accounts |
 | Focused visual task scope | UX polish tasks do not introduce broad redesign, new motion libraries, package changes, or backend/entity edits without explicit scope | Human review of diff intent |
 | Gameplay performance | Heavy blur/glow/animation tokens stay out of gameplay-critical paths or are labeled manual proof gates | Low-end Android/WebView smoothness proof |
 | Loading/empty/error states | Profile, Settings, Friends, Invites, Online lobby, Leaderboard, and Admin/reporting have local loading/error/empty handling markers where relevant | Timing and failure-injection UI proof |

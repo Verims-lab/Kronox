@@ -327,7 +327,7 @@ function evaluateGuest(row: any, context: any) {
   const activity = latestActivity(row);
   const cutoffMs = context.nowMs - INACTIVE_DAYS * 24 * 60 * 60 * 1000;
 
-  if (!id || !guestId) reasons.push('ambiguous_guest_identity');
+  if (!id || !guestId) reasons.push('ambiguous_guest_reference');
   if (!usernameKey) reasons.push('invalid_or_unsafe_username');
   if (!activity.ms) reasons.push('missing_or_uncertain_last_open');
   else if (activity.ms >= cutoffMs) reasons.push('active_within_10_days');
@@ -536,73 +536,77 @@ Deno.serve(async (req: Request) => {
       return json({ ok: true, dryRun: true, preview: safePreview });
     }
 
-    const confirmText = String(body?.confirmText || body?.confirmationText || '').trim();
-    const previewCandidateCount = Number(body?.previewCandidateCount ?? body?.candidateCount);
-    if (confirmText !== CONFIRM_TEXT) {
-      return json({ ok: false, code: 'confirmation_required', error: 'Silme için SİL onayı gerekli.' }, 400);
+    if (action === 'execute') {
+      const confirmText = String(body?.confirmText || body?.confirmationText || '').trim();
+      const previewCandidateCount = Number(body?.previewCandidateCount ?? body?.candidateCount);
+      if (confirmText !== CONFIRM_TEXT) {
+        return json({ ok: false, code: 'confirmation_required', error: 'Silme için SİL onayı gerekli.' }, 400);
+      }
+      if (!Number.isFinite(previewCandidateCount) || Math.floor(previewCandidateCount) !== preview.totalCandidateCount) {
+        return json({
+          ok: false,
+          code: 'preview_count_changed',
+          error: 'Aday sayısı değişti. Lütfen yeniden önizleme al.',
+          currentCandidateCount: preview.totalCandidateCount,
+        }, 409);
+      }
+
+      const executeLimit = Math.max(1, Math.min(Number(body?.executeLimit) || MAX_EXECUTE_ROWS, MAX_EXECUTE_ROWS));
+      const selected = preview._internalCandidates.slice(0, executeLimit);
+      const results = [];
+      for (const candidate of selected) {
+        results.push(await cleanupCandidate(base44, candidate));
+      }
+
+      const nowIso = new Date().toISOString();
+      const summary = {
+        ok: true,
+        dryRun: false,
+        executedAt: nowIso,
+        deletedReleasedCount: results.length,
+        skippedCount: Math.max(0, context.guests.length - results.length),
+        remainingCandidateCount: Math.max(0, preview.totalCandidateCount - results.length),
+        skippedReasonCounts: preview.skippedReasonCounts,
+        results: results.map((item) => ({
+          username: item.username,
+          released: true,
+          guestProfileDeleted: item.guestProfileDeleted,
+          leaderboardRowsDeleted: item.leaderboardRowsDeleted,
+          presenceRowsDeleted: item.presenceRowsDeleted,
+        })),
+        contract: {
+          adminOnly: true,
+          serverSideEligibilityRechecked: true,
+          noAutomaticCleanup: true,
+          usernamesReleasedForReuse: true,
+          loggedInUsersDeleted: false,
+          positiveScoreUsersDeleted: false,
+          usersWithFriendsDeleted: false,
+          missingLastOpenDeleted: false,
+          privateIdsReturnedToClient: false,
+        },
+      };
+
+      const log = await writeAdminMaintenanceLog(base44, {
+        action: 'inactive_guest_username_cleanup_execute',
+        job_name: JOB_NAME,
+        admin_email: normalizeEmail(actor?.email),
+        target_email: '__guest_username_cleanup__',
+        result: 'success',
+        retention_status: 'active',
+        created_at: nowIso,
+        metadata: {
+          deletedReleasedCount: summary.deletedReleasedCount,
+          remainingCandidateCount: summary.remainingCandidateCount,
+          skippedReasonCounts: summary.skippedReasonCounts,
+          privateIdsReturnedToClient: false,
+        },
+      });
+
+      return json({ ...summary, auditLog: { available: log.available, created: log.created } });
     }
-    if (!Number.isFinite(previewCandidateCount) || Math.floor(previewCandidateCount) !== preview.totalCandidateCount) {
-      return json({
-        ok: false,
-        code: 'preview_count_changed',
-        error: 'Aday sayısı değişti. Lütfen yeniden önizleme al.',
-        currentCandidateCount: preview.totalCandidateCount,
-      }, 409);
-    }
 
-    const executeLimit = Math.max(1, Math.min(Number(body?.executeLimit) || MAX_EXECUTE_ROWS, MAX_EXECUTE_ROWS));
-    const selected = preview._internalCandidates.slice(0, executeLimit);
-    const results = [];
-    for (const candidate of selected) {
-      results.push(await cleanupCandidate(base44, candidate));
-    }
-
-    const nowIso = new Date().toISOString();
-    const summary = {
-      ok: true,
-      dryRun: false,
-      executedAt: nowIso,
-      deletedReleasedCount: results.length,
-      skippedCount: Math.max(0, context.guests.length - results.length),
-      remainingCandidateCount: Math.max(0, preview.totalCandidateCount - results.length),
-      skippedReasonCounts: preview.skippedReasonCounts,
-      results: results.map((item) => ({
-        username: item.username,
-        released: true,
-        guestProfileDeleted: item.guestProfileDeleted,
-        leaderboardRowsDeleted: item.leaderboardRowsDeleted,
-        presenceRowsDeleted: item.presenceRowsDeleted,
-      })),
-      contract: {
-        adminOnly: true,
-        serverSideEligibilityRechecked: true,
-        noAutomaticCleanup: true,
-        usernamesReleasedForReuse: true,
-        loggedInUsersDeleted: false,
-        positiveScoreUsersDeleted: false,
-        usersWithFriendsDeleted: false,
-        missingLastOpenDeleted: false,
-        privateIdsReturnedToClient: false,
-      },
-    };
-
-    const log = await writeAdminMaintenanceLog(base44, {
-      action: 'inactive_guest_username_cleanup_execute',
-      job_name: JOB_NAME,
-      admin_email: normalizeEmail(actor?.email),
-      target_email: '__guest_username_cleanup__',
-      result: 'success',
-      retention_status: 'active',
-      created_at: nowIso,
-      metadata: {
-        deletedReleasedCount: summary.deletedReleasedCount,
-        remainingCandidateCount: summary.remainingCandidateCount,
-        skippedReasonCounts: summary.skippedReasonCounts,
-        privateIdsReturnedToClient: false,
-      },
-    });
-
-    return json({ ...summary, auditLog: { available: log.available, created: log.created } });
+    return json({ ok: false, code: 'invalid_action', error: 'Geçersiz işlem.' }, 400);
   } catch (error) {
     if (base44 && actor?.email) {
       await writeAdminMaintenanceLog(base44, {
