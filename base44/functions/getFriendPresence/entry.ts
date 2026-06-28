@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 
 const PRESENCE_ONLINE_TTL_MS = 75 * 1000;
+const PRESENCE_SCAN_LIMIT = 20;
 
 const normalizeEmail = (value: unknown) => String(value || '').trim().toLowerCase();
 const json = (body: unknown, status = 200) => Response.json(body, { status });
@@ -104,12 +105,14 @@ Deno.serve(async (req) => {
     });
 
     const nowMs = Date.now();
+    const limit = PRESENCE_SCAN_LIMIT;
+    const scanLimit = Math.max(limit, PRESENCE_SCAN_LIMIT);
     const presence = [];
     for (const friend of allowedFriends) {
       const presenceKey = makeOwnerKeyHash(friend.email);
       const rows = await base44.asServiceRole.entities.PlayerPresence.filter({
         owner_key_hash: presenceKey,
-      }, '-last_seen_at', 20);
+      }, '-last_seen_at', scanLimit);
       const freshOnline = (rows || []).find((row: any) => isOnlinePresence(row, nowMs));
       const latest = freshOnline || rows?.[0] || null;
       const username = latest?.username

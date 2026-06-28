@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex471 — Presence Health blockers (KRONOX-MQXRO5ZO):
+//   • getFriendPresence adds a bounded PRESENCE_SCAN_LIMIT per-friend scan (Math.max(limit, PRESENCE_SCAN_LIMIT)) and returns last_heartbeat_at/presence_expires_at freshness.
+//   • PlayerPresence / updatePlayerPresence / getFriendPresence Health mirror strings re-synced to the live owner-bound (auth.me or token-proven GuestProfile), accepted-friend-scoped, privacy-safe contract.
+//   • Freshness contract locked: 75s backend TTL, 25s visible heartbeat, 12s visible Online refresh. No gameplay/lobby/invite behavior change.
+//
 // Codex469 — Health blocker fix:
 //   • Profile Info screen title is visibly "Profil Bilgileri" and owns category selection.
 //   • Route ownership Health expects Profile subroutes including /profile/edit.
@@ -31,7 +36,7 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps Home reward panels visible from a short-lived cache while revalidating and memoizes question text fit tokens.
 //
 
-const BUILD_MARKER = 'Codex470';
+const BUILD_MARKER = 'Codex471';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

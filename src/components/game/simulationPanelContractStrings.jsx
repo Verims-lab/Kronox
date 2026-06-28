@@ -244,7 +244,7 @@ export const pushSubscriptionEntitySource = `
 
 export const playerPresenceEntitySource = `
   "name": "PlayerPresence",
-  "description": "Best-effort Online/social presence rows written only through backend functions. Rows store anonymized owner_key_hash plus session metadata and a backend-private user_email used only for invite routing. Public responses never return email/provider ids/raw guest ids/player keys.",
+  "description": "Best-effort Online/social presence rows written only through backend functions. Rows store anonymized owner_key_hash plus session metadata and a backend-private user_email used only for invite routing. Guest rows are token-proven through GuestProfile guest_token_hash before any presence write. Public responses never return email/provider ids/raw guest ids/player keys. Freshness is backend-authoritative via last_heartbeat_at and presence_expires_at (75s TTL).",
   "properties": {
     "owner_key_hash": {},
     "user_email": {},
@@ -252,7 +252,9 @@ export const playerPresenceEntitySource = `
     "username": {},
     "session_id": {},
     "status": { "enum": ["online", "offline"] },
+    "last_heartbeat_at": {},
     "last_seen_at": {},
+    "presence_expires_at": {},
     "expires_at": {},
     "source": {}
   },
@@ -266,20 +268,70 @@ export const playerPresenceEntitySource = `
 `;
 
 export const updatePlayerPresenceFnSource = `
-  const user = await base44.auth.me();
-  if (!user?.email) return json({ ok: false, error: 'Unauthorized' }, 401);
+  // Public contract of functions/updatePlayerPresence.js — mirrored.
+  // Presence writes are backend owner-bound: the writer is resolved from
+  // auth.me() (linked) or token-proven GuestProfile (guest). Client-supplied
+  // user/player/owner ids are ignored; only session_id + status are trusted.
+  const PRESENCE_ONLINE_TTL_MS = 75 * 1000;
+  async function hashGuestToken(guestId, guestToken) {
+    return sha256Base64Url('kronox_guest_v1:' + guestId + ':' + guestToken);
+  }
+  function makeGuestOwnerKeyHash(guestId) { return 'g_' + fnvHash(String(guestId || '').toLowerCase()); }
+  async function verifyGuestProfile(base44, body) {
+    const guestId = normalizeGuestId(body?.guest_id);
+    const guestToken = normalizeGuestToken(body?.guest_token);
+    if (!guestId || !guestToken) return { ok: false, response: json({ ok: false, error: 'Unauthorized' }, 401), actor: null };
+    const rows = await guestProfileEntity(base44).filter({ guest_id: guestId }, '-created_at', 5).catch(() => []);
+    const guest = rows?.[0] || null;
+    const expectedHash = String(guest?.guest_token_hash || '');
+    const providedHash = await hashGuestToken(guestId, guestToken);
+    if (!guest || !expectedHash || expectedHash !== providedHash) return { ok: false, response: json({ ok: false, error: 'invalid_guest_token' }, 401), actor: null };
+    return { ok: true, response: null, actor: { ownerKeyHash: makeGuestOwnerKeyHash(guestId), userEmail: '', playerType: 'guest', username: safePublicUsername(guest?.username || guest?.display_name, guestId) } };
+  }
+  async function resolvePresenceActor(base44, body) {
+    const user = await base44.auth.me().catch(() => null);
+    if (user?.email) {
+      const myEmail = normalizeEmail(user.email);
+      const ownerKeyHash = makeOwnerKeyHash(myEmail);
+      return { ok: true, response: null, actor: { ownerKeyHash, userEmail: myEmail, playerType: 'linked', username: safePublicUsername(user.username || user.public_username || user.display_name || user.full_name, myEmail) } };
+    }
+    return verifyGuestProfile(base44, body);
+  }
   const sessionId = normalizeSessionId(body?.session_id);
-  const myEmail = normalizeEmail(user.email);
-  const ownerKeyHash = makeOwnerKeyHash(myEmail);
+  if (!sessionId) return json({ ok: false, error: 'session_id is required' }, 400);
+  const resolved = await resolvePresenceActor(base44, body);
+  if (!resolved.ok) return resolved.response;
+  const actor = resolved.actor;
+  if (!actor?.ownerKeyHash) return json({ ok: false, error: 'Invalid actor' }, 400);
   const status = body?.status === 'offline' ? 'offline' : 'online';
-  const username = safePublicUsername(user.username || user.public_username || user.display_name || user.full_name, myEmail);
-  const payload = { owner_key_hash: ownerKeyHash, user_email: myEmail, username, status };
+  const now = new Date();
+  const expiresAt = new Date(status === 'online' ? now.getTime() + PRESENCE_ONLINE_TTL_MS : now.getTime());
+  const payload = {
+    owner_key_hash: actor.ownerKeyHash,
+    user_email: actor.userEmail,
+    player_type: actor.playerType,
+    username: actor.username,
+    session_id: sessionId,
+    status,
+    last_heartbeat_at: now.toISOString(),
+    last_seen_at: now.toISOString(),
+    presence_expires_at: expiresAt.toISOString(),
+    expires_at: expiresAt.toISOString(),
+    source: 'app_heartbeat',
+  };
   await base44.asServiceRole.entities.PlayerPresence.update(existing[0].id, payload);
   await base44.asServiceRole.entities.PlayerPresence.create(payload);
-  return json({ ok: true, presence: { presence_key: ownerKeyHash, username, status } });
+  return json({ ok: true, presence: { presence_key: actor.ownerKeyHash, username: actor.username, status, last_seen_at: payload.last_heartbeat_at, expires_at: payload.presence_expires_at } });
 `;
 
 export const getFriendPresenceFnSource = `
+  // Public contract of functions/getFriendPresence.js — mirrored.
+  // Reads are accepted-friend scoped (FriendRequest status:'accepted', both
+  // directions). Freshness is backend-authoritative via presence_expires_at /
+  // last_heartbeat_at against server now (75s TTL). Responses expose only
+  // presence_key + username + online/offline + safe timestamps.
+  const PRESENCE_ONLINE_TTL_MS = 75 * 1000;
+  const PRESENCE_SCAN_LIMIT = 20;
   const user = await base44.auth.me();
   if (!user?.email) return json({ ok: false, error: 'Unauthorized' }, 401);
   const requestedEmails = normalizeRequestedEmails(body?.friend_emails);
@@ -290,8 +342,19 @@ export const getFriendPresenceFnSource = `
     base44.asServiceRole.entities.FriendRequest.filter({ from_email: myEmail, status: 'accepted' }, '-updated_date', 200),
   ]);
   return !requestedSet.size || requestedSet.has(friend.email);
-  const rows = await base44.asServiceRole.entities.PlayerPresence.filter({ owner_key_hash: presenceKey }, '-last_seen_at', 20);
-  presence.push({ presence_key: presenceKey, username, online: Boolean(freshOnline), status: freshOnline ? 'online' : 'offline' });
+  const limit = PRESENCE_SCAN_LIMIT;
+  const scanLimit = Math.max(limit, PRESENCE_SCAN_LIMIT);
+  const rows = await base44.asServiceRole.entities.PlayerPresence.filter({ owner_key_hash: presenceKey }, '-last_seen_at', scanLimit);
+  const freshOnline = (rows || []).find((row) => isOnlinePresence(row, nowMs));
+  const latest = freshOnline || rows?.[0] || null;
+  presence.push({
+    presence_key: presenceKey,
+    username,
+    online: Boolean(freshOnline),
+    status: freshOnline ? 'online' : 'offline',
+    last_seen_at: latest?.last_heartbeat_at || latest?.last_seen_at || null,
+    expires_at: latest?.presence_expires_at || latest?.expires_at || null,
+  });
   return json({ ok: true, presence });
 `;
 
