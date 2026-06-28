@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex475 — Health Center recent-contract audit:
+//   • Adds a modular Health suite for recent Profile/Settings, Leaderboard, presence/invite, admin, performance, visual, UX, and SDK coverage inventory.
+//   • Adds a runtime mirror for UX quality guardrails and updates Health gap docs from candidate-only to static coverage plus manual proof gates.
+//   • No product behavior changes; full Health remains user-run/manual.
+//
 // Codex474 — Admin inactive guest username cleanup:
 //   • Adds AdminUser-gated cleanupInactiveGuestUsernames with dry-run preview, SİL confirmation, server-side recheck, audit log, and username release.
 //   • Adds Admin card for inactive zero-score guest-only username cleanup without exposing private/internal IDs.
@@ -51,7 +56,7 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps Home reward panels visible from a short-lived cache while revalidating and memoizes question text fit tokens.
 //
 
-const BUILD_MARKER = 'Codex474';
+const BUILD_MARKER = 'Codex475';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
