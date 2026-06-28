@@ -28,6 +28,8 @@ import runTestSuiteSource from '../../../base44/functions/runTestSuite/entry.ts?
 import sendQuestionAnalyticsReportEmailSource from '../../../base44/functions/sendQuestionAnalyticsReportEmail/entry.ts?raw';
 import getUserReportSource from '../../../base44/functions/getUserReport/entry.ts?raw';
 import getUserReportConfigSource from '../../../base44/functions/getUserReport/function.jsonc?raw';
+import cleanupInactiveGuestUsernamesSource from '../../../base44/functions/cleanupInactiveGuestUsernames/entry.ts?raw';
+import cleanupInactiveGuestUsernamesConfigSource from '../../../base44/functions/cleanupInactiveGuestUsernames/function.jsonc?raw';
 import recordAppOpenSource from '../../../base44/functions/recordAppOpen/entry.ts?raw';
 import recordAppOpenConfigSource from '../../../base44/functions/recordAppOpen/function.jsonc?raw';
 import createDailyQuestDefinitionSource from '../../../base44/functions/createDailyQuestDefinition/entry.ts?raw';
@@ -49,6 +51,7 @@ import adminPageSource from '../../pages/AdminPage.jsx?raw';
 import testSuitePageSource from '../../pages/TestSuite.jsx?raw';
 import resetUserProgressToolSource from '../../components/admin/ResetUserProgressTool.jsx?raw';
 import userReportToolSource from '../../components/admin/UserReportTool.jsx?raw';
+import inactiveGuestCleanupToolSource from '../../components/admin/InactiveGuestCleanupTool.jsx?raw';
 import authContextSource from '../../lib/AuthContext.jsx?raw';
 import adminSource from '../../lib/admin.js?raw';
 import appParamsSource from '../../lib/app-params.js?raw';
@@ -158,6 +161,7 @@ const TARGET_FUNCTIONS = [
   { name: 'diagnoseSoloQuestionStartQuery', file: 'base44/functions/diagnoseSoloQuestionStartQuery/entry.ts', source: diagnoseSoloQuestionStartQuerySource },
   { name: 'runTestSuite', file: 'base44/functions/runTestSuite/entry.ts', source: runTestSuiteSource },
   { name: 'sendQuestionAnalyticsReportEmail', file: 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts', source: sendQuestionAnalyticsReportEmailSource },
+  { name: 'cleanupInactiveGuestUsernames', file: 'base44/functions/cleanupInactiveGuestUsernames/entry.ts', source: cleanupInactiveGuestUsernamesSource },
   { name: 'createDailyQuestDefinition', file: 'base44/functions/createDailyQuestDefinition/entry.ts', source: createDailyQuestDefinitionSource },
   { name: 'aggregateQuestionStats', file: 'base44/functions/aggregateQuestionStats/entry.ts', source: aggregateQuestionStatsSource },
   { name: 'cancelStaleLobbies', file: 'base44/functions/cancelStaleLobbies/entry.ts', source: cancelStaleLobbiesSource },
@@ -879,6 +883,89 @@ export const EXTRA_TESTS = [
       return pass('Kullanıcı Raporu is AdminUser-gated, aggregate-only, read-only, score-source aligned, and privacy-safe.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
+      });
+    },
+  ),
+
+  makeCase(
+    'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
+    'inactive_guest_username_cleanup_contract',
+    'Inactive zero-score guest username cleanup is admin-only, dry-run first, confirmed, and privacy-safe',
+    () => {
+      const backend = `${cleanupInactiveGuestUsernamesSource}\n${cleanupInactiveGuestUsernamesConfigSource}`;
+      const ui = `${inactiveGuestCleanupToolSource}\n${adminPageSource}`;
+      const combined = `${backend}\n${ui}\n${adminMaintenanceLogSchemaSource}`;
+      const required = [
+        '"name": "cleanupInactiveGuestUsernames"',
+        'requireAdmin',
+        'buildCleanupContext',
+        'buildPreview',
+        'action === \'preview\'',
+        'action === \'execute\'',
+        'dryRunNoMutation: true',
+        'confirmText !== CONFIRM_TEXT',
+        'preview_count_changed',
+        'previewCandidateCount',
+        'serverSideEligibilityRechecked: true',
+        'missing_or_uncertain_last_open',
+        'active_within_10_days',
+        'score_not_zero',
+        'score_source_missing_or_ambiguous',
+        'linked_or_logged_in',
+        'not_guest_only',
+        'has_friends',
+        'has_active_social_relation',
+        'active_presence',
+        'economy_state_not_empty',
+        'base44.asServiceRole.entities',
+        'entities.GuestProfile.delete',
+        'entities.SoloLeaderboardEntry',
+        'entities.PlayerPresence',
+        'releasesUsernameForReuse: true',
+        'usernamesReleasedForReuse: true',
+        'privateIdsReturnedToClient: false',
+        'exposesEmail: false',
+        'exposesProviderId: false',
+        'exposesOwnerKey: false',
+        'exposesRawGuestId: false',
+        'exposesInternalPlayerKey: false',
+        'AdminMaintenanceLog',
+        'inactive_guest_username_cleanup_preview',
+        'inactive_guest_username_cleanup_execute',
+        'Pasif Guest Kullanıcı Adlarını Temizle',
+        'Adayları Bul',
+        'Seçili/Aday Kullanıcı Adlarını Sil',
+        'Sil ve Serbest Bırak',
+      ].filter((token) => !combined.includes(token));
+      const forbiddenBackend = [
+        'setInterval(',
+        'cron',
+        'scheduled',
+        'base44.asServiceRole.entities.User.delete',
+        'DiamondTransaction.delete',
+        'JokerTransaction.delete',
+      ].filter((token) => backend.includes(token));
+      const forbiddenUi = [
+        'guest_id',
+        'guestId',
+        'owner_key',
+        'player_key',
+        'provider',
+        'email',
+      ].filter((token) => ui.includes(token));
+      if (required.length || forbiddenBackend.length || forbiddenUi.length) {
+        return fail('Inactive guest username cleanup does not satisfy the destructive admin safety contract.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'AdminUser-gated cleanupInactiveGuestUsernames with preview-only dry-run, execute confirmation, server-side recheck, no automatic cleanup, username release, audit log, and no private identifiers in UI/API response.',
+          actual: { missing: required, forbiddenBackend, forbiddenUi },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Inactive guest username cleanup is server-gated, dry-run first, confirmed, audit-logged, username-release oriented, and privacy-safe.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
       });
     },
   ),

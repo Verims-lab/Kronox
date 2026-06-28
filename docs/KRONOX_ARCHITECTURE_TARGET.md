@@ -214,6 +214,13 @@ Parity plan:
   AdminUser-gated functions, return counts instead of private rows, and avoid
   delete/cleanup actions unless a future task explicitly adds a separate
   confirmed maintenance flow.
+- The confirmed maintenance exception is `cleanupInactiveGuestUsernames`: it is
+  AdminUser-gated, dry-run first, typed-confirmed, server-side rechecked, and
+  deletes only eligible inactive zero-score guest-only `GuestProfile` username
+  sources plus that guest-owner zero-score leaderboard/presence residue so the
+  username can be reused. It must not delete linked users, scored users, users
+  with social relations, users with missing last-open data, or real auth
+  accounts.
 
 ## UX Polish Governance
 

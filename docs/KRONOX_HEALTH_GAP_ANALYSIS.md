@@ -90,6 +90,10 @@ fallback polling/refetch.
   privacy contract and server-time `recordAppOpen` latest-open/coarse-platform
   tracking. This proves source contracts only; deployed admin/non-admin access,
   historical activity completeness, and cleanup-policy decisions remain manual.
+- Added admin inactive guest username cleanup coverage for the AdminUser-gated
+  dry-run/confirm/delete contract, server-side eligibility recheck, username
+  release, audit log, no automatic scheduler, no linked/scored/social/missing
+  last-open deletion, and no private identifier response.
 
 ## Required Coverage Areas
 
@@ -112,6 +116,7 @@ fallback polling/refetch.
 | Public UI private identifiers | Static forbidden-token checks | Visual/manual walkthrough for lobbies, leaderboard, notifications |
 | Accessibility loading/forms/modals | Static status/label/dialog/form-feedback checks | Keyboard, TalkBack/VoiceOver, and real mobile focus-order proof |
 | Admin Kullanıcı Raporu | Static source checks for AdminUser gate, aggregate-only response, no delete action, username/logged-in/score/inactive metrics, and coarse platform tracking | Deployed admin/non-admin function probe; historical completeness of last_app_open_at for older rows |
+| Admin inactive guest username cleanup | Static source checks for AdminUser gate, dry-run before delete, typed confirmation, server-side eligibility, username release, audit log, and privacy-safe response | Deployed admin/non-admin function probe; backup/export policy; manual sample proof that an eligible released username can be claimed again |
 
 ## Candidate UX Quality Health Gaps
 

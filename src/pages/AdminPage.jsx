@@ -6,6 +6,7 @@ import { base44 } from '@/api/base44Client';
 import ResetUserProgressTool from '@/components/admin/ResetUserProgressTool';
 import QuestionAnalyticsReportTool from '@/components/admin/QuestionAnalyticsReportTool';
 import UserReportTool from '@/components/admin/UserReportTool';
+import InactiveGuestCleanupTool from '@/components/admin/InactiveGuestCleanupTool';
 import DailyQuestDefinitionManager from '@/components/admin/DailyQuestDefinitionManager';
 import StandardTopBar from '@/components/layout/StandardTopBar';
 import PullToRefresh from '@/components/mobile/PullToRefresh';
@@ -170,6 +171,7 @@ export default function AdminPage() {
               />
               <QuestionAnalyticsReportTool />
               <UserReportTool />
+              <InactiveGuestCleanupTool />
               <DailyQuestDefinitionManager />
               <ResetUserProgressTool />
             </AdminRefreshContext.Provider>
