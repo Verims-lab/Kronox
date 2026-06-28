@@ -1,7 +1,8 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 
-const PRESENCE_ONLINE_TTL_MS = 2 * 60 * 1000;
+const PRESENCE_ONLINE_TTL_MS = 75 * 1000;
 const MAX_SELECTION_ROWS = 200;
+const PRESENCE_SCAN_LIMIT = 600;
 
 const normalizeEmail = (value: unknown) => String(value || '').trim().toLowerCase();
 const json = (body: unknown, status = 200) => Response.json(body, { status });
@@ -46,9 +47,9 @@ function readTime(value: unknown) {
 
 function isOnlinePresence(row: any, nowMs: number) {
   if (!row || row.status !== 'online') return false;
-  const expiresAt = readTime(row.expires_at);
+  const expiresAt = readTime(row.presence_expires_at || row.expires_at);
   if (Number.isFinite(expiresAt)) return expiresAt > nowMs;
-  const lastSeenAt = readTime(row.last_seen_at);
+  const lastSeenAt = readTime(row.last_heartbeat_at || row.last_seen_at);
   return Number.isFinite(lastSeenAt) && lastSeenAt + PRESENCE_ONLINE_TTL_MS > nowMs;
 }
 
@@ -119,7 +120,7 @@ function latestPresenceByOwner(rows: any[], nowMs: number) {
     const key = String(row?.owner_key_hash || '').trim();
     if (!key) continue;
     const existing = byOwner.get(key);
-    if (!existing || readTime(row?.last_seen_at) > readTime(existing?.last_seen_at)) {
+    if (!existing || readTime(row?.last_heartbeat_at || row?.last_seen_at) > readTime(existing?.last_heartbeat_at || existing?.last_seen_at)) {
       byOwner.set(key, row);
     }
   }
@@ -149,7 +150,7 @@ Deno.serve(async (req) => {
     const onlinePresenceRows = await base44.asServiceRole.entities.PlayerPresence.filter(
       { status: 'online' },
       '-last_seen_at',
-      limit,
+      Math.max(limit, PRESENCE_SCAN_LIMIT),
     ).catch(() => []);
     const { freshOnline } = latestPresenceByOwner(onlinePresenceRows || [], nowMs);
 
@@ -179,8 +180,8 @@ Deno.serve(async (req) => {
         username: safePublicUsername(latest?.username || friend.username, friend.email),
         relation: 'friend',
         online,
-        lastSeenAt: latest?.last_seen_at || null,
-        expiresAt: latest?.expires_at || null,
+        lastSeenAt: latest?.last_heartbeat_at || latest?.last_seen_at || null,
+        expiresAt: latest?.presence_expires_at || latest?.expires_at || null,
       }));
     }
 
@@ -193,8 +194,8 @@ Deno.serve(async (req) => {
         username: safePublicUsername(presence?.username, targetRef),
         relation: 'not_friend',
         online: true,
-        lastSeenAt: presence?.last_seen_at || null,
-        expiresAt: presence?.expires_at || null,
+        lastSeenAt: presence?.last_heartbeat_at || presence?.last_seen_at || null,
+        expiresAt: presence?.presence_expires_at || presence?.expires_at || null,
       }));
     }
 

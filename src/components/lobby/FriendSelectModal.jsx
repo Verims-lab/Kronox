@@ -6,6 +6,7 @@ import {
   loadOnlinePlayerSelection,
   ONLINE_PLAYER_SELECTION_GROUPS,
 } from '@/lib/onlinePlayerSelection';
+import { PRESENCE_REFRESH_MS } from '@/lib/presence';
 
 /**
  * Kronox Online — Friend Select Modal (Codex159 redesign).
@@ -53,15 +54,41 @@ export default function FriendSelectModal({
 
   useEffect(() => {
     if (!open) return undefined;
-    if (!user?.email) { setPlayers([]); return undefined; }
+    if (!user?.email) {
+      setPlayers([]);
+      setLoading(false);
+      setError('');
+      return undefined;
+    }
     let cancelled = false;
-    setLoading(true);
-    setError('');
-    loadOnlinePlayerSelection()
-      .then((rows) => { if (!cancelled) setPlayers(rows || []); })
-      .catch((err) => { if (!cancelled) setError(err?.message || 'Oyuncular yüklenemedi.'); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
+    const refresh = async ({ showLoading = false } = {}) => {
+      if (cancelled) return;
+      if (showLoading) setLoading(true);
+      setError('');
+      try {
+        const rows = await loadOnlinePlayerSelection();
+        if (!cancelled) setPlayers(rows || []);
+      } catch (err) {
+        if (!cancelled) setError(err?.message || 'Oyuncular yüklenemedi.');
+      } finally {
+        if (!cancelled && showLoading) setLoading(false);
+      }
+    };
+    const refreshIfVisible = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    refresh({ showLoading: true });
+    const intervalId = window.setInterval(refreshIfVisible, PRESENCE_REFRESH_MS);
+    document.addEventListener('visibilitychange', refreshIfVisible);
+    window.addEventListener('focus', refreshIfVisible);
+    window.addEventListener('online', refreshIfVisible);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', refreshIfVisible);
+      window.removeEventListener('focus', refreshIfVisible);
+      window.removeEventListener('online', refreshIfVisible);
+    };
   }, [open, user?.email]);
 
   useEffect(() => {
@@ -189,9 +216,9 @@ export default function FriendSelectModal({
               className="flex-1 overflow-y-auto px-5 pt-2 pb-2"
               style={{ overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}
             >
-              {loading ? (
+              {loading && players.length === 0 ? (
                 <FriendsSkeleton />
-              ) : error ? (
+              ) : error && players.length === 0 ? (
                 <ErrorHint text={error} />
               ) : players.length === 0 ? (
                 <EmptyPlayers onGoFriends={onGoFriends} onClose={onClose} />

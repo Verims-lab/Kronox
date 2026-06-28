@@ -512,11 +512,17 @@ export const EXTRA_TESTS = [
         '"name": "PlayerPresence"',
         'owner_key_hash',
         'backend-private user_email used only for invite routing',
+        'Guest rows are token-proven',
         'Public responses never return email/provider ids/raw guest ids/player keys',
-        'const user = await base44.auth.me()',
+        'const user = await base44.auth.me().catch(() => null)',
         'const myEmail = normalizeEmail(user.email)',
         'const ownerKeyHash = makeOwnerKeyHash(myEmail)',
-        'user_email: myEmail',
+        'verifyGuestProfile',
+        'hashGuestToken',
+        'guest_token_hash',
+        'makeGuestOwnerKeyHash',
+        'owner_key_hash: actor.ownerKeyHash',
+        'user_email: actor.userEmail',
         "FriendRequest.filter({ to_email: myEmail, status: 'accepted' }",
         "FriendRequest.filter({ from_email: myEmail, status: 'accepted' }",
         'requestedSet.has(friend.email)',
@@ -693,26 +699,111 @@ export const EXTRA_TESTS = [
     { actionType: ACTION_TYPES.CODE_FIX }),
 
   makeCase('invite_delivery', 'presence_heartbeat_registered_from_app_shell',
-    'Authenticated app shell starts the current user presence heartbeat',
+    'App shell starts one linked-or-guest presence heartbeat with runtime session safety',
     () => {
       const src = `${safeStr(appSource)}\n${safeStr(usePresenceHeartbeatSource)}\n${safeStr(presenceSource)}`;
       const required = [
-        'usePresenceHeartbeat(user)',
+        'usePresenceHeartbeat(user, guestProfile)',
         "functions.invoke('updatePlayerPresence'",
         'PRESENCE_HEARTBEAT_MS',
+        'PRESENCE_REFRESH_MS',
+        'getOrCreateRuntimeSessionId',
+        'getStoredGuestCredentials',
+        'guestCredentials',
         'document.visibilityState',
+        "window.addEventListener('focus'",
+        "window.addEventListener('online'",
         'PRESENCE_STATUS.OFFLINE',
       ];
+      const forbidden = [
+        'localStorage.setItem(STORAGE_KEY',
+        "localStorage.getItem(STORAGE_KEY",
+      ];
       const missing = required.filter((token) => !src.includes(token));
-      if (missing.length) {
+      const foundForbidden = forbidden.filter((token) => src.includes(token));
+      if (missing.length || foundForbidden.length) {
         return fail('Presence heartbeat is not wired from the authenticated app shell.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
           missing,
+          foundForbidden,
         });
       }
-      return pass('Authenticated users emit best-effort online/offline heartbeats.', {
+      return pass('Linked and token-proven guest actors emit best-effort online/offline heartbeats from one app-shell runtime session.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('invite_delivery', 'presence_freshness_and_refresh_contract',
+    'Presence freshness uses 75s backend TTL, 25s heartbeat, and 12s visible UI refresh',
+    () => {
+      const src = `${safeStr(playerPresenceEntitySource)}\n${safeStr(updatePlayerPresenceFnSource)}\n${safeStr(getFriendPresenceFnSource)}\n${safeStr(getOnlinePlayerSelectionFnSource)}\n${safeStr(presenceSource)}\n${safeStr(useFriendPresenceSource)}\n${safeStr(friendSelectModalSource)}\n${safeStr(createLobbyInvitePanelSource)}`;
+      const required = [
+        'PRESENCE_ONLINE_TTL_MS = 75 * 1000',
+        'PRESENCE_HEARTBEAT_MS = 25 * 1000',
+        'PRESENCE_REFRESH_MS = 12 * 1000',
+        'last_heartbeat_at',
+        'presence_expires_at',
+        'latest?.last_heartbeat_at || latest?.last_seen_at',
+        'latest?.presence_expires_at || latest?.expires_at',
+        'PRESENCE_SCAN_LIMIT',
+        'Math.max(limit, PRESENCE_SCAN_LIMIT)',
+        'window.setInterval(refreshIfVisible, PRESENCE_REFRESH_MS)',
+        "window.addEventListener('focus'",
+        "window.addEventListener('online'",
+      ];
+      const forbidden = [
+        'PRESENCE_ONLINE_TTL_MS = 2 * 60 * 1000',
+        'PRESENCE_HEARTBEAT_MS = 45 * 1000',
+      ];
+      const missing = required.filter((token) => !src.includes(token));
+      const foundForbidden = forbidden.filter((token) => src.includes(token));
+      if (missing.length || foundForbidden.length) {
+        return fail('Presence freshness/refresh timing can still leave users stale or invisible.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          missing,
+          foundForbidden,
+        });
+      }
+      return pass('Presence uses short server TTL plus visible-window refresh/reconnect hooks.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('invite_delivery', 'presence_transient_failure_keeps_previous_rows',
+    'Presence UI keeps previous safe rows through transient fetch failure',
+    () => {
+      const src = `${safeStr(useFriendPresenceSource)}\n${safeStr(friendSelectModalSource)}\n${safeStr(createLobbyInvitePanelSource)}`;
+      const required = [
+        "setError(err?.message || 'Arkadaş durumu yüklenemedi.')",
+        "setError(err?.message || 'Oyuncular yüklenemedi.')",
+        'loading && players.length === 0',
+        'playersError && players.length === 0',
+        'error && players.length === 0',
+      ];
+      const forbidden = [
+        'catch (err) {\n      setPresenceByKey({});',
+        "setPlayers([]);\n      setError(err?.message || 'Oyuncular yüklenemedi.')",
+      ];
+      const missing = required.filter((token) => !src.includes(token));
+      const foundForbidden = forbidden.filter((token) => src.includes(token));
+      if (missing.length || foundForbidden.length) {
+        return fail('Transient presence fetch failures can still clear actionable online rows.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          missing,
+          foundForbidden,
+        });
+      }
+      return pass('Presence readers preserve previous safe state while revalidating after transient failures.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
       });

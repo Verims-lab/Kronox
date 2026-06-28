@@ -111,12 +111,14 @@ lifecycle transitions to the notification reducer.
 The Online/social presence and player-selection foundation adds backend-owned
 PlayerPresence, updatePlayerPresence, getFriendPresence,
 getOnlinePlayerSelection, createGameInvitesForTargets, usePresenceHeartbeat,
-useFriendPresence, and src/lib/onlinePlayerSelection.js. Presence writes are
-current-user-bound, friend reads are accepted-friend-scoped, player selection
-returns online friends, online non-friends, then offline friends as username +
-opaque target_ref only, stale/missing presence displays offline, and public
-surfaces render username-safe labels instead of email/provider/internal id
-fallbacks.
+useFriendPresence, and src/lib/onlinePlayerSelection.js. Presence uses a 25s
+visible heartbeat, 75s server-owned TTL, runtime session ids, and token-proven
+GuestProfile support. Presence writes are current-user-bound, friend reads are
+accepted-friend-scoped, player selection returns online friends, online
+non-friends, then offline friends as username + opaque target_ref only,
+stale/missing presence displays offline, transient refresh failures preserve
+previous safe rows, and public surfaces render username-safe labels instead of
+email/provider/internal id fallbacks.
 
 Friend add now uses backend-owned sendFriendRequest so email or username input
 shares one server-side path for target resolution, self/duplicate/pending
@@ -155,14 +157,16 @@ src/hooks/useFriendPresence.js, src/lib/onlinePlayerSelection.js,
 base44/entities/PlayerPresence.jsonc, base44/functions/updatePlayerPresence,
 base44/functions/getFriendPresence, base44/functions/getOnlinePlayerSelection,
 and base44/functions/createGameInvitesForTargets. Presence is best-effort and
-relationship-scoped for friend reads: users heartbeat only their own session,
-friend lookup is restricted to accepted FriendRequest rows, and stale/missing
-presence displays offline rather than online. Online non-friend discovery is
-fresh-presence-only. Friend, invite, lobby, notification, presence, and player
-selection surfaces render username-safe labels only; email, provider ID, raw
-guest ID, owner_key, and internal player_key values are never public display
-fallbacks. The UI stores opaque target_ref values and backend functions resolve
-recipient email privately for GameInvite creation.
+relationship-scoped for friend reads: users heartbeat only their own runtime
+session, linked actors derive identity from auth.me, guest actors require
+GuestProfile token proof, friend lookup is restricted to accepted FriendRequest
+rows, and stale/missing presence displays offline rather than online. Explicit
+offline is session-scoped and TTL is the final safety net. Online non-friend
+discovery is fresh-presence-only. Friend, invite, lobby, notification, presence,
+and player selection surfaces render username-safe labels only; email, provider
+ID, raw guest ID, owner_key, and internal player_key values are never public
+display fallbacks. The UI stores opaque target_ref values and backend functions
+resolve recipient email privately for GameInvite creation.
 
 Friends can be added by email address or registered Kronox username. Username
 lookup and duplicate/self checks stay backend-owned, and username-based add
@@ -199,10 +203,12 @@ no-flicker, Solo backend record context, Daily Quest Diamond-only rewards,
 leaderboard username-only payloads, Online category isolation, no raw
 Question.list gameplay fallback, economy idempotency guards, and private
 identifier display. Focused presence, player-selection, and friend-add
-coverage protects PlayerPresence owner binding, accepted-friend lookup, online
+coverage protects PlayerPresence owner binding, GuestProfile token proof, 75s
+TTL / 25s heartbeat / 12s visible refresh, accepted-friend lookup, online
 friend / online non-friend / offline friend ordering, opaque target refs,
-username-only labels, offline fallback, current-user heartbeat wiring,
-backend-only invite target resolution, email-or-username friend add,
+username-only labels, offline fallback, previous-row preservation,
+current-user heartbeat wiring, backend-only invite target resolution,
+email-or-username friend add,
 server-side username resolution, required username-not-found copy, reverse-pending
 expiry safety, Add Friend and Leaderboard double-submit suppression,
 function-level FriendRequestOperationLock race hardening, and no target-email
@@ -252,6 +258,15 @@ memory reset. It must not delete Question, Category, User, GuestProfile,
 PlayerProfile, UserCategoryPreference, UserJokerInventory, JokerTransaction,
 DiamondTransaction, Daily Wheel, Daily Quest, leaderboard, score, progress,
 gameplay, or economy records.
+
+Online Presence Operational Contract: PlayerPresence is operational state, not
+a public analytics table. updatePlayerPresence derives linked actors from
+auth.me and guest actors from guest_id + raw guest token proof against
+GuestProfile.guest_token_hash, then writes server-owned last_heartbeat_at and
+presence_expires_at. Freshness uses a 75 second TTL, the frontend sends a 25s
+visible heartbeat and 12s visible presence refresh, explicit offline writes are
+session-scoped, public responses return username/status/opaque refs only, and
+Base44 index/unique proof remains manual.
 
 Online player selection / invite reporting Phase 1 uses existing GameInvite
 rows with invite_target_ref, recipient_relation, and created_source metadata.

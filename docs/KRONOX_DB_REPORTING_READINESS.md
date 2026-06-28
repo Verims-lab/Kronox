@@ -184,6 +184,36 @@ DB unique/index proof remains a manual/platform gate for
 race diagnostics as function-level guard evidence rather than transactional DB
 proof.
 
+## Online Presence Operational Contract
+
+`PlayerPresence` is operational state for Online/social availability, not a
+public analytics/reporting table. Runtime writes go only through
+`updatePlayerPresence`.
+
+Current contract:
+
+- linked actors are derived from `auth.me`;
+- guest actors require `guest_id + raw guest token` proof against
+  `GuestProfile.guest_token_hash`;
+- server writes `last_heartbeat_at` and `presence_expires_at`;
+- online freshness uses a 75 second TTL;
+- the frontend sends a visible heartbeat every 25 seconds and refreshes
+  friend/player presence every 12 seconds while visible;
+- explicit offline writes are session-scoped, with TTL as the final safety net;
+- public responses return username/status/opaque refs only.
+
+Privacy rules:
+
+- no email in public presence/player-selection responses;
+- no provider ID;
+- no owner_key;
+- no raw guest_id or guest token;
+- no internal player_key in public UI/export.
+
+Base44 index/unique syntax is still not repo-proven for presence. `PlayerPresence`
+therefore relies on backend guards plus bounded queries today; live two-device
+proof and platform index/unique proof remain manual release gates.
+
 ## Online Player Selection / Invite Reporting Phase 1
 
 Phase 1 does not add a broad invite analytics table. It adds small

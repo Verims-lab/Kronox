@@ -144,11 +144,16 @@ Phase 1 foundation:
   provide the focused Online/social presence foundation. Presence writes go
   through `updatePlayerPresence`, reads go through `getFriendPresence`, and
   both remain backend-owned instead of letting UI mark arbitrary users online.
+  Heartbeats use a runtime app-session id, a 25 second visible interval, and a
+  75 second server-owned TTL. Authenticated actors are derived from `auth.me`;
+  guest actors must prove GuestProfile ownership with `guest_id + guest_token`.
 - Online player selection goes through `getOnlinePlayerSelection` and
   `src/lib/onlinePlayerSelection.js`. The picker order is online friends,
   online non-friends, then offline friends; offline non-friends are excluded.
   The UI stores opaque `target_ref` values only. `createGameInvitesForTargets`
   resolves those refs backend-side to existing `GameInvite` recipients.
+  Player-selection and friend-presence UI refresh while visible, refetch on
+  focus/reconnect, and preserve previous safe rows through transient failures.
 
 Parity plan:
 - Preserve exact user-facing behavior: dismissing a toast is visual only;
@@ -176,6 +181,8 @@ Parity plan:
 - Presence is best-effort and relationship-scoped: the current user can only
   heartbeat their own session, friend lookup is restricted to accepted
   friendships, and stale/missing presence displays offline rather than online.
+  Explicit offline updates only the same runtime session row; TTL expiry is the
+  final safety net for missed closes/background events.
 - Online non-friend discovery is presence-fresh only. Public selection payloads
   must not return email, provider ID, raw guest ID, owner_key, or internal
   player_key; backend-private routing data is allowed only inside service-role

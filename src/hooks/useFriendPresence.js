@@ -3,10 +3,10 @@ import {
   getFriendDisplayPresence,
   getPresenceLookupKeyForEmail,
   loadFriendPresence,
-  PRESENCE_HEARTBEAT_MS,
+  PRESENCE_REFRESH_MS,
 } from '@/lib/presence';
 
-export default function useFriendPresence(friends, { enabled = true, pollMs = PRESENCE_HEARTBEAT_MS } = {}) {
+export default function useFriendPresence(friends, { enabled = true, pollMs = PRESENCE_REFRESH_MS } = {}) {
   const [presenceByKey, setPresenceByKey] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -34,7 +34,6 @@ export default function useFriendPresence(friends, { enabled = true, pollMs = PR
       setPresenceByKey(next);
       return next;
     } catch (err) {
-      setPresenceByKey({});
       setError(err?.message || 'Arkadaş durumu yüklenemedi.');
       return {};
     } finally {
@@ -53,13 +52,21 @@ export default function useFriendPresence(friends, { enabled = true, pollMs = PR
 
     const run = async () => {
       if (cancelled) return;
+      if (document.visibilityState !== 'visible') return;
       await refresh();
     };
     run();
     const intervalId = window.setInterval(run, pollMs);
+    const handleResume = () => { run(); };
+    document.addEventListener('visibilitychange', handleResume);
+    window.addEventListener('focus', handleResume);
+    window.addEventListener('online', handleResume);
     return () => {
       cancelled = true;
       window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleResume);
+      window.removeEventListener('focus', handleResume);
+      window.removeEventListener('online', handleResume);
     };
   }, [enabled, friendPresenceKeys, pollMs, refresh]);
 

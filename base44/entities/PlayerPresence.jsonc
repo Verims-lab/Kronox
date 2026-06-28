@@ -1,7 +1,7 @@
 {
   "name": "PlayerPresence",
   "type": "object",
-  "description": "Best-effort Online/social presence rows written only through backend functions. Rows store anonymized owner_key_hash plus session metadata and a backend-private user_email used only for invite routing. Public responses never return email/provider ids/raw guest ids/player keys.",
+  "description": "Best-effort Online/social presence rows written only through backend functions. Rows store anonymized owner_key_hash plus session metadata and a backend-private user_email used only for invite routing when the actor is linked. Guest rows are token-proven and carry no raw guest id. Public responses never return email/provider ids/raw guest ids/player keys.",
   "properties": {
     "owner_key_hash": {
       "type": "string",
@@ -27,7 +27,7 @@
     },
     "session_id": {
       "type": "string",
-      "description": "Client session id scoped to this actor and overwritten server-side only for the authenticated caller."
+      "description": "Runtime app-session id scoped to this actor. Explicit offline only updates the matching session row so another active tab/device remains online by TTL."
     },
     "status": {
       "type": "string",
@@ -41,12 +41,22 @@
     "last_seen_at": {
       "type": "string",
       "format": "date-time",
-      "description": "Latest server write time."
+      "description": "Legacy-compatible latest server heartbeat/write time."
+    },
+    "last_heartbeat_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Latest server-owned heartbeat timestamp. Client-provided timestamps are ignored."
     },
     "expires_at": {
       "type": "string",
       "format": "date-time",
-      "description": "Freshness cutoff for online state."
+      "description": "Legacy-compatible freshness cutoff for online state."
+    },
+    "presence_expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Server-owned freshness cutoff; online if any session row is online and this value is still in the future."
     },
     "source": {
       "type": "string",

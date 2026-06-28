@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex468 — Reliable Online presence:
+//   • Presence heartbeat uses a runtime session id, 25s visible heartbeat, and 75s backend TTL.
+//   • updatePlayerPresence supports token-proven GuestProfile actors and server-owned heartbeat expiry aliases.
+//   • Online player selection/friend presence refetch while visible and keep previous safe rows through transient failures.
+//
 // Codex467 — Profile menu navigation + Profile Info / Settings split:
 //   • Profile menu keeps Profil Bilgileri, Arkadaşlarım, and Ayarlar as screen navigation rows.
 //   • Settings owns Gizlilik Politikası and guarded Hesap Silme flow.
@@ -2599,7 +2604,7 @@ import React, { useEffect, useState } from 'react';
 //   • Uses Unicode-safe 11/wordLength scaling with a 0.52 readable minimum.
 //   • Prevents arbitrary mid-word active question splitting without touching gameplay.
 // Codex463 — Health fix: restore soloReadableCard={!isOnline} render contract + exact-pin @base44/sdk 0.8.34.
-const BUILD_MARKER = 'Codex467';
+const BUILD_MARKER = 'Codex468';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

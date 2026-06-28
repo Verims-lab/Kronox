@@ -58,7 +58,7 @@ function AdminRoute({ children }) {
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, authError, isAuthenticated, user, guestProfile, checkUserAuth } = useAuth();
-  usePresenceHeartbeat(user);
+  usePresenceHeartbeat(user, guestProfile);
   const location = useLocation();
   const prevPathRef = React.useRef(location.pathname);
   const isGamePage = location.pathname === '/game';
@@ -235,9 +235,9 @@ const AuthenticatedApp = () => {
 
 
 function App() {
-  // Codex467 — push current build marker into diag bus once at app boot
+  // Codex468 — push current build marker into diag bus once at app boot
   useEffect(() => {
-    appDiagSetBuildMarker('Codex467');
+    appDiagSetBuildMarker('Codex468');
     // Codex176 — App booted successfully, so any prior stale-chunk reload
     // recovered. Clear the one-time reload guards so a future deploy can
     // self-heal again.
