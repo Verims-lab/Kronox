@@ -768,7 +768,7 @@ export const EXTRA_TESTS = [
         'Profil Bilgileri',
         'Takma Ad',
         'Kategori seçimi',
-        "['/profile', '/friends', '/settings', '/admin', '/test-suite', '/account-deletion']",
+        "['/profile', '/profile/edit', '/friends', '/settings', '/admin', '/test-suite', '/account-deletion']",
         "Ana Sayfa",
         "Liderlik",
         "Profil",
