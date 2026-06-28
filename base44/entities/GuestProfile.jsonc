@@ -238,18 +238,9 @@
   ],
   "rls": {
     "create": {
-      "$or": [
-        {
-          "data.guest_id": {
-            "$exists": true
-          }
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
+      "user_condition": {
+        "role": "admin"
+      }
     },
     "read": {
       "$or": [

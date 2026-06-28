@@ -69,7 +69,7 @@
           "data.linked_user_email": "{{user.email}}"
         },
         {
-          "data.guest_id": "{{user.id}}"
+          "data.linked_auth_user_id": "{{user.id}}"
         },
         {
           "user_condition": {
@@ -84,7 +84,7 @@
           "data.linked_user_email": "{{user.email}}"
         },
         {
-          "data.guest_id": "{{user.id}}"
+          "data.linked_auth_user_id": "{{user.id}}"
         },
         {
           "user_condition": {
@@ -99,7 +99,7 @@
           "data.linked_user_email": "{{user.email}}"
         },
         {
-          "data.guest_id": "{{user.id}}"
+          "data.linked_auth_user_id": "{{user.id}}"
         },
         {
           "user_condition": {
