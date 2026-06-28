@@ -688,11 +688,11 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('profile_settings_editable_for_guest_and_registered_users',
-    'Profile settings let guest and registered users edit username, age group, and gender',
+    'Profile Info lets guest and registered users edit username, age group, and gender',
     () => {
-      const missing = missingTokens(`${settingsPageSource}\n${profileEditPageSource}\n${profileSettingsClientSource}\n${updateProfileSettingsSource}`, [
+      const missing = missingTokens(`${profilePageSource}\n${profileEditPageSource}\n${profileSettingsClientSource}\n${updateProfileSettingsSource}`, [
         'Profil Bilgileri',
-        'Kullanıcı Adı',
+        'Takma Ad',
         'Yaş grubu',
         'Cinsiyet',
         'Kaydet',
@@ -702,19 +702,19 @@ export const EXTRA_TESTS = [
         'guestTokenProofRequired',
         'authUserVerifiedServerSide',
       ]);
-      const forbidden = presentTokens(settingsPageSource, [
+      const forbidden = presentTokens(`${profileEditPageSource}\n${settingsPageSource}`, [
         'Görünen Ad',
         'setDisplayName',
       ]);
       if (missing.length || forbidden.length) {
-        return fail('Profile settings edit form or server-authoritative update path is missing.', {
+        return fail('Profile Info edit form or server-authoritative update path is missing.', {
           verification: 'STATIC_CONTRACT',
-          files: ['src/pages/SettingsPage.jsx', 'src/lib/profileSettings.js', 'base44/functions/updateProfileSettings/entry.ts'],
+          files: ['src/pages/ProfilePage.jsx', 'src/pages/ProfileEditPage.jsx', 'src/lib/profileSettings.js', 'base44/functions/updateProfileSettings/entry.ts'],
           actual: { missing, forbidden },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Profile > Ayarlar supports token-proven guest updates and authenticated user updates.', {
+      return pass('Profile Info supports token-proven guest updates and authenticated user updates.', {
         verification: 'STATIC_CONTRACT',
         actionType: ACTION_TYPES.CODE_FIX,
       });
@@ -731,6 +731,8 @@ export const EXTRA_TESTS = [
         'Takma Ad',
         'Cinsiyet',
         'Yaş grubu',
+        'Kategori seçimi',
+        'CategoryPreferencesSection',
         'PROFILE_AGE_GROUP_OPTIONS',
         'age_group',
         'ageGroupPublicFields: false',
@@ -758,6 +760,61 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Profile name area opens a private-safe profile edit screen for username, gender, and age group.', {
+        verification: 'STATIC_CONTRACT',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('profile_menu_navigation_screens_structure',
+    'Profile menu rows navigate to dedicated screens and Settings owns privacy/delete',
+    () => {
+      const profileMissing = missingTokens(profilePageSource, [
+        'title="Profil Bilgileri"',
+        'onClick={goProfileEdit}',
+        'title="Arkadaşlarım"',
+        "navigate('/friends')",
+        'title="Ayarlar"',
+        'onClick={goSettings}',
+      ]);
+      const settingsMissing = missingTokens(settingsPageSource, [
+        'title="Gizlilik Politikası"',
+        "navigate('/privacy')",
+        'title="Hesap Silme"',
+        'requestAccountDeletion(base44, user)',
+        'accountSectionRef',
+        'Hesabı Sil',
+      ]);
+      const profileInfoMissing = missingTokens(`${profileEditPageSource}\n${userCategoryPreferencesSource}`, [
+        'Takma Ad',
+        'Yaş grubu',
+        'Cinsiyet',
+        'Kategori seçimi',
+        'CategoryPreferencesSection',
+        'loadActiveCategories',
+        'saveUserCategoryPreferences',
+        'legacyHardcodedCategoryFallbackAllowed: false',
+      ]);
+      const forbiddenProfileRows = presentTokens(profilePageSource, [
+        'title="Gizlilik Politikası"',
+        'title="Hesap Silme"',
+        '?focus=profile',
+        'focusProfileSettings',
+      ]);
+      const forbiddenSettingsRows = presentTokens(settingsPageSource, [
+        'title="Profil Bilgileri"',
+        'title="İlgi Alanlarım"',
+        'ProfileSettingsSection',
+      ]);
+      if (profileMissing.length || settingsMissing.length || profileInfoMissing.length || forbiddenProfileRows.length || forbiddenSettingsRows.length) {
+        return fail('Profile menu navigation or Settings/Profile Info ownership drifted.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['src/pages/ProfilePage.jsx', 'src/pages/SettingsPage.jsx', 'src/pages/ProfileEditPage.jsx', 'src/lib/userCategoryPreferences.js'],
+          expected: 'Profile menu rows route to screens; privacy/delete live under Settings; Profile Info owns username, age group, gender, and canonical category preference UI.',
+          actual: { profileMissing, settingsMissing, profileInfoMissing, forbiddenProfileRows, forbiddenSettingsRows },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Profile menu rows navigate to screens, Settings owns privacy/delete, and Profile Info carries canonical profile/category fields.', {
         verification: 'STATIC_CONTRACT',
         actionType: ACTION_TYPES.CODE_FIX,
       });

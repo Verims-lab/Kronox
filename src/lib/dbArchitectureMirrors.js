@@ -26,8 +26,8 @@ Analytics/statistics entities implemented now:
 - PlayerQuestionExposure
 - PlayerQuestionDailyExposure
 - LobbyMatchStats
-- UserCategoryPreference stores app-open popup and Settings main Category interest choices per user.
-- UserSubCategoryPreference is retained legacy data from the earlier SubCategory preference phase and is not used by current Settings preferences.
+- UserCategoryPreference stores app-open popup and Profile Info main Category interest choices per user.
+- UserSubCategoryPreference is retained legacy data from the earlier SubCategory preference phase and is not used by current Profile Info preferences.
 - Question loading for Game first attempts online getQuestions when online or network state is unknown. The signed-in gameplay response is an authenticated bounded minimal server attempt candidate buffer, not a fixed 1200 source-pool projection; first-time guest Solo uses only the explicit capped guest_gameplay_runtime minimal projection, while admin/full-bank/diagnostics still require AdminUser authorization. Empty local question cache is not offline; offline/no-cache is reserved for known offline plus failed fetch plus no usable cache. Question-set/category-projection replacements invalidate stale local cache by question-runtime-v10-solo-architecture version. Gameplay fetches request the v2 per-category projection and server_attempt_candidate_buffer_v1 explicitly; getQuestions fetches numeric/string main_category_id and category_id variants per active Category before the bounded response cap, returns getQuestionsRuntimeMarker for both authenticated and guest modes, exposes projectionDiagnostics only for admin/debug diagnostics, reports sourcePoolCapRemoved and responseCapApplied in the response/diagnostics contract, returns an empty/retryable state instead of fallback IDs when Category read fails, and Question category fields are not capped to the original 1-6 seed set. Authenticated candidate reads are bounded to 96 * 3 = 288 rows per active category/query variant before projection.
 - UserJokerInventory stores current user-owned joker balances per normalized user_email + joker_type and is used by Profile, Solo joker balance display/spend, and Mağaza joker purchases. Missing or partial UserJokerInventory rows self-heal for authenticated users; duplicate or malformed rows do not crash Joker Çantası, and repair preserves existing balances.
 - JokerTransaction stores joker ledger/idempotency rows; starter_grant, Solo solo_use, and Mağaza market_purchase rows are active.
@@ -50,14 +50,14 @@ Analytics/statistics entities implemented now:
 - UserDailyQuestProgress stores the active Daily Quest Runtime v1 selected player/day row. getDailyQuestStatus ensures 1 UTC-day quest idempotently from active definitions, recordDailyQuestProgress increments Solo-only events, and claimDailyQuestReward grants diamonds only with DiamondTransaction source daily_quest_reward. Runtime functions explicitly bind UserDailyQuestProgress, Home copy says Günlük Görevleri Yap, Elmasları Kazan!, completed guests use token-proven GuestProfile.diamonds and internal guest:<g_owner_key> keys, Daily Quest has no leaderboard impact, Daily Quest does not affect leaderboard, does not grant Kronox Puan, and one claim per quest per UTC day is enforced by progress/ledger idempotency keys. Daily Wheel remains separate from Daily Quest definitions. Daily Wheel and Daily Quest are separate. daily_wheel:<playerKey>:<YYYY-MM-DD>. daily_quest_reward:<playerKey>:<YYYY-MM-DD>:<quest_key>.
 
 Category preference status:
-- Settings İlgi Alanlarım reads active Category rows.
+- Profile > Profil Bilgileri Kategori seçimi reads active Category rows.
 - Category interests are stored in UserCategoryPreference rows scoped to user_email.
 - Minimum selection count is 3. There is no maximum selection.
 - Any authenticated user with fewer than 3 active valid Category preferences sees an optional personalization popup; this applies to new and existing users, can be deferred, and must not block gameplay.
 - The source of truth is active valid UserCategoryPreference count.
 - Only active categories are selectable and count.
 - Passive or removed Category selections are ignored in UI/save state and must not be resaved as active preferences.
-- Users can later change selections under Profile / Settings / İlgi Alanlarım.
+- Users can later change selections under Profile > Profil Bilgileri > Kategori seçimi.
 - Authenticated users with no saved preferences or empty preferences use all active categories for Solo; missing authentication uses the explicit capped guest Solo projection and must not expose raw questions. Insufficient preferences also use all active categories for Solo. Game.jsx explicitly resolves getValidActiveSelectedCategoryIds(preferences, activeCategories) in the Solo-only path before passing selected IDs to the deck builder. Saved preferences target 70% selected user categories and 30% full eligible pool only when at least 3 active valid preferences are available. getQuestions derives active playable category IDs from active Category rows; stale hardcoded seed-category ID subsets must not exclude newer active categories from runtime projection. Active category status aliases accepted by runtime are missing/blank, a, active, and aktif; category_id normalization accepts any positive live DB id.
 - This is a soft weighting target with fallback, not hard filtering. The selected-category 70% lane uses selected user categories with difficulty 1 and 2 eligible; the global 30% lane first uses all active categories with difficulty 1, then selected-category shortage or global difficulty-1 shortage fills from the broader active global pool before clean failure.
 - Online question selection is not affected by Solo preferences: startLobbyGame
@@ -66,7 +66,7 @@ Category preference status:
   that persisted deck instead of the Solo getQuestions buffer.
 - UserCategoryPreference should have a user_email + category_id unique key where Base44 supports it.
 - The save helper collapses duplicate active preference rows by passivating duplicateRows.
-- SubCategory entity still exists for future normalized metadata, but current Settings preferences use Category.
+- SubCategory entity still exists for future normalized metadata, but current Profile Info preferences use Category.
 
 SEO/GEO boundary implemented now:
 - QuestionPublicProjection is opt-in public-safe projection.
@@ -136,7 +136,7 @@ Legacy entity status:
 - Friendship is kept as legacy/candidate, no deletion without reference proof.
 - GameRecord is kept as legacy/candidate, no deletion without reference proof.
 - LobbyMessage is kept as legacy/candidate, no deletion without reference proof.
-- UserSubCategoryPreference rows are retained legacy data and are not the current Settings source-of-truth.
+- UserSubCategoryPreference rows are retained legacy data and are not the current Profile Info source-of-truth.
 
 Implemented now:
 - QuestionAttemptEvent gateway exists and analytics writes are best-effort.

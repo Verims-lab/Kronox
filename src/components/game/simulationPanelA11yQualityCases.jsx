@@ -10,6 +10,7 @@ import splashScreenSource from '../SplashScreen.jsx?raw';
 import adminPageSource from '../../pages/AdminPage.jsx?raw';
 import testSuiteSource from '../../pages/TestSuite.jsx?raw';
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
+import profileEditPageSource from '../../pages/ProfileEditPage.jsx?raw';
 import onboardingPageSource from '../../pages/OnboardingPage.jsx?raw';
 import gamePageSource from '../../pages/Game.jsx?raw';
 import onlineBootstrapSource from './OnlineGameBootstrapFallback.jsx?raw';
@@ -196,9 +197,9 @@ export const EXTRA_TESTS = [
     () => {
       const missing = missingBySource([
         {
-          label: 'Settings profile form',
-          source: settingsPageSource,
-          tokens: ['<label className="block space-y-1.5">', 'name="username"', 'role="alert"', 'role="status"', 'aria-live="polite"'],
+          label: 'Profile Info edit form',
+          source: profileEditPageSource,
+          tokens: ['role="dialog"', 'profile-edit-sheet-title', 'autoComplete="nickname"', 'role="alert"', 'role="status"', 'aria-live="polite"'],
         },
         {
           label: 'Onboarding profile/category forms',

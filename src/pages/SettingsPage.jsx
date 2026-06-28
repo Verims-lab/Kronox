@@ -1,47 +1,25 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trash2, AlertTriangle, Loader2, ChevronRight, FileText, UserRound, Save, SlidersHorizontal, ShieldCheck, Sparkles } from 'lucide-react';
+import { Trash2, AlertTriangle, Loader2, ChevronRight, FileText, SlidersHorizontal, ShieldCheck } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
 import StandardTopBar from '@/components/layout/StandardTopBar';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 import { ACCOUNT_DELETION_ERROR_COPY, requestAccountDeletion } from '@/lib/accountDeletion';
-import CategoryPreferencesSection from '@/components/settings/CategoryPreferencesSection';
 import { useAuth } from '@/lib/AuthContext';
-import {
-  PROFILE_AGE_GROUP_OPTIONS,
-  PROFILE_GENDER_OPTIONS,
-  ageToAgeGroup,
-  normalizeProfileAgeGroupValue,
-  normalizeProfileSettingsError,
-  updateProfileSettings,
-} from '@/lib/profileSettings';
-import { normalizeSafePublicUsernameInput, resolveSafePublicUsername } from '@/lib/guestProfile';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, guestProfile, isLoadingAuth, checkUserAuth } = useAuth();
-  const profileSettingsRef = useRef(null);
-  const categoryPreferencesRef = useRef(null);
+  const { user, isLoadingAuth } = useAuth();
   const accountSectionRef = useRef(null);
-  const [localUser, setLocalUser] = useState(user);
-  const [localGuestProfile, setLocalGuestProfile] = useState(guestProfile);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
 
-  useEffect(() => { setLocalUser(user); }, [user]);
-  useEffect(() => { setLocalGuestProfile(guestProfile); }, [guestProfile]);
-
-  const effectiveUser = localUser || user;
-  const effectiveGuestProfile = effectiveUser ? null : (localGuestProfile || guestProfile);
+  const effectiveUser = user;
   const diamondValue = getLeaderboardDiamondValue(effectiveUser);
-  const shouldFocusProfileSettings = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    return params.get('focus') === 'profile' || location.state?.focusProfileSettings === true;
-  }, [location.search, location.state?.focusProfileSettings]);
   const shouldFocusDeleteAccount = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return params.get('focus') === 'delete' || location.state?.focusDeleteAccount === true;
@@ -50,14 +28,6 @@ export default function SettingsPage() {
   const scrollToSection = (ref) => {
     ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
-
-  useEffect(() => {
-    if (isLoadingAuth || !shouldFocusProfileSettings) return;
-    const frameId = window.requestAnimationFrame(() => {
-      profileSettingsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-    return () => window.cancelAnimationFrame(frameId);
-  }, [isLoadingAuth, shouldFocusProfileSettings]);
 
   useEffect(() => {
     if (isLoadingAuth || !shouldFocusDeleteAccount) return;
@@ -111,24 +81,8 @@ export default function SettingsPage() {
       </div>
 
       <div className="px-4 space-y-5">
-        <Section label="Kişisel">
+        <Section label="Ayarlar ve Güvenlik">
           <div className="overflow-hidden rounded-2xl border border-border/35 bg-secondary/20">
-            {(effectiveUser || effectiveGuestProfile) && (
-              <SettingsListRow
-                icon={<UserRound className="h-4 w-4" />}
-                title="Profil Bilgileri"
-                desc="Kullanıcı adı, yaş ve cinsiyet"
-                onClick={() => scrollToSection(profileSettingsRef)}
-              />
-            )}
-            {effectiveUser && (
-              <SettingsListRow
-                icon={<Sparkles className="h-4 w-4" />}
-                title="İlgi Alanlarım"
-                desc="Solo kategori tercihleri"
-                onClick={() => scrollToSection(categoryPreferencesRef)}
-              />
-            )}
             <SettingsListRow
               icon={<FileText className="h-4 w-4" />}
               title="Gizlilik Politikası"
@@ -146,31 +100,7 @@ export default function SettingsPage() {
           </div>
         </Section>
 
-        {(effectiveUser || effectiveGuestProfile) && (
-          <div ref={profileSettingsRef} data-kx-profile-settings-anchor="true">
-            <Section label="Profil Bilgileri">
-              <ProfileSettingsSection
-                user={effectiveUser}
-                guestProfile={effectiveGuestProfile}
-                onSaved={async (result) => {
-                  if (result?.mode === 'registered' && result?.user) setLocalUser(result.user);
-                  if (result?.mode === 'guest' && result?.profile) setLocalGuestProfile(result.profile);
-                  await checkUserAuth?.();
-                }}
-              />
-            </Section>
-          </div>
-        )}
-
-        {effectiveUser && (
-          <div ref={categoryPreferencesRef}>
-            <Section label="İlgi Alanlarım">
-              <CategoryPreferencesSection user={effectiveUser} />
-            </Section>
-          </div>
-        )}
-
-        {/* Hesap — tüm kullanıcılar */}
+        {/* Hesap — oturum açmış kullanıcılar */}
         {effectiveUser && (
           <div ref={accountSectionRef}>
             <Section label="Hesap">
@@ -259,131 +189,4 @@ function SettingsListRow({ icon, title, desc, onClick, danger = false, isLast = 
       <ChevronRight className={`h-4 w-4 ${danger ? 'text-destructive/45' : 'text-muted-foreground/45'}`} />
     </button>
   );
-}
-
-function ProfileSettingsSection({ user, guestProfile, onSaved }) {
-  const source = user || guestProfile || {};
-  const fallbackUsername = useMemo(() => (
-    isSafeUsername(source?.username)
-      ? source.username
-      : resolveSafePublicUsername('', user?.email || user?.id || guestProfile?.guest_id || '')
-  ), [guestProfile?.guest_id, source?.username, user?.email, user?.id]);
-  const [username, setUsername] = useState('');
-  const [ageGroup, setAgeGroup] = useState('');
-  const [gender, setGender] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    const nextUsername = isSafeUsername(source?.username)
-      ? source.username
-      : fallbackUsername;
-    setUsername(nextUsername);
-    setAgeGroup(normalizeProfileAgeGroupValue(source?.age_group) || ageToAgeGroup(source?.age));
-    setGender(String(source?.gender || ''));
-    setMessage('');
-    setError('');
-  }, [fallbackUsername, source?.age, source?.age_group, source?.gender, source?.username]);
-
-  const handleSave = async (event) => {
-    event.preventDefault();
-    setSaving(true);
-    setMessage('');
-    setError('');
-    try {
-      const finalUsername = username.trim() || fallbackUsername;
-      const result = await updateProfileSettings({
-        username: finalUsername,
-        age_group: ageGroup,
-        gender,
-      });
-      await onSaved?.(result);
-      setMessage('Profil ayarların kaydedildi.');
-    } catch (saveError) {
-      setError(normalizeProfileSettingsError(saveError));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <form
-      onSubmit={handleSave}
-      className="space-y-4 rounded-2xl border border-border/40 bg-secondary/20 p-4"
-    >
-      <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-primary/25 bg-primary/10 text-primary">
-          <UserRound className="h-4 w-4" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="font-inter text-sm font-black text-foreground">Profil Ayarları</p>
-          <p className="mt-1 font-inter text-xs leading-relaxed text-muted-foreground">
-            Kullanıcı adın liderlik tablosunda görünür. Yaş ve cinsiyet bilgileri isteğe bağlıdır ve herkese açık gösterilmez.
-          </p>
-        </div>
-      </div>
-
-      <label className="block space-y-1.5">
-        <span className="font-inter text-xs font-black text-foreground">Kullanıcı Adı</span>
-        <input
-          name="username"
-          value={username}
-          onChange={(event) => setUsername(event.target.value)}
-          maxLength={24}
-          autoComplete="nickname"
-          className="h-11 w-full rounded-xl border border-border/50 bg-background/70 px-3 font-inter text-sm font-bold text-foreground outline-none transition-colors focus:border-primary"
-          placeholder="KronoxUser4827"
-        />
-      </label>
-
-      <div className="grid grid-cols-2 gap-3">
-        <label className="block space-y-1.5">
-          <span className="font-inter text-xs font-black text-foreground">Yaş grubu</span>
-          <select
-            value={ageGroup}
-            onChange={(event) => setAgeGroup(event.target.value)}
-            className="h-11 w-full rounded-xl border border-border/50 bg-background/70 px-3 font-inter text-sm font-bold text-foreground outline-none transition-colors focus:border-primary"
-          >
-            {PROFILE_AGE_GROUP_OPTIONS.map((option) => (
-              <option key={option.value || 'blank'} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-        </label>
-
-        <label className="block space-y-1.5">
-          <span className="font-inter text-xs font-black text-foreground">Cinsiyet</span>
-          <select
-            value={gender}
-            onChange={(event) => setGender(event.target.value)}
-            className="h-11 w-full rounded-xl border border-border/50 bg-background/70 px-3 font-inter text-sm font-bold text-foreground outline-none transition-colors focus:border-primary"
-          >
-            {PROFILE_GENDER_OPTIONS.map((option) => (
-              <option key={option.value || 'blank'} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      {error && (
-        <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 font-inter text-xs font-semibold text-destructive" role="alert">
-          {error}
-        </p>
-      )}
-      {message && (
-        <p className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 font-inter text-xs font-semibold text-emerald-100" role="status" aria-live="polite">
-          {message}
-        </p>
-      )}
-
-      <Button type="submit" disabled={saving} className="w-full gap-2">
-        {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Save className="h-4 w-4" aria-hidden="true" />}
-        Kaydet
-      </Button>
-    </form>
-  );
-}
-
-function isSafeUsername(value) {
-  return Boolean(normalizeSafePublicUsernameInput(value));
 }

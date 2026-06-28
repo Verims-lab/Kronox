@@ -209,7 +209,7 @@ Guest category setup:
 
 Authenticated preferences:
 
-* live under Profile / Settings / `İlgi Alanlarım`
+* live under Profile > Profil Bilgileri > `Kategori seçimi`
 * persist as `UserCategoryPreference`
 * require at least 3 active valid selections when saving
 * affect Solo only as soft weighting

@@ -69,7 +69,7 @@ Status: Active technical flow contract.
 - /admin has a route-level UX guard that waits for AuthContext/AdminUser status before mounting AdminPage; non-admin users are redirected without an admin-tool flash, while server-side AdminUser guards remain the real security boundary.
 - Dependency cleanup result: unused direct Stripe, Three, React Leaflet, React Quill, Moment, jsPDF, html2canvas, and Lodash packages were removed; recharts and embla-carousel-react stay because UI primitives import them.
 - UserCategoryPreference is authenticated Settings/Profile data. Fewer than 3 active valid preferences means Solo uses all active categories; 3+ enables Solo-only soft weighting.
-- SubCategory/UserSubCategoryPreference are future/legacy data and not current Settings preference UI.
+- SubCategory/UserSubCategoryPreference are future/legacy data and not current Profile Info preference UI.
 - Solo runtime uses getQuestions bounded projections and buildSoloAttemptDeck; raw Question.list gameplay fallback and full-bank exposure are forbidden.
 - PlayerQuestionExposure is private per-player anti-repeat memory; PlayerQuestionDailyExposure is daily anonymous exposure summary; actual reports source history from QuestionAttemptEvent.
 - UserJokerInventory is the current joker balance source and JokerTransaction is the ledger. purchaseJokerWithDiamonds writes DiamondTransaction plus JokerTransaction under EconomyOperationLock.
@@ -311,10 +311,10 @@ Status: Active profile/onboarding contract.
 - Seviye uses the same Solo progress helper as the Solo level path.
 - Elmas uses persisted User.diamonds through the shared Diamond display helper.
 - Joker Çantası uses UserJokerInventory current balances through getUserJokerBalances; JokerTransaction is ledger/audit only and is not a Profile render-time balance source.
-- User Category preferences are Solo-only soft 70/30 weighting input when at least 3 active valid preferences exist. Empty or fewer-than-3 preferences use all active categories for Solo. Online question selection is not affected.
+- User Category preferences are Solo-only soft 70/30 weighting input when at least 3 active valid preferences exist. Empty or fewer-than-3 preferences use all active categories for Solo. Online question selection is not affected. Kategori seçimi is edited from Profile > Profil Bilgileri for authenticated users through UserCategoryPreference; Settings owns privacy/account actions instead.
 - GuestProfile public identity uses username; display_name is only a legacy/internal projection mirror and is not a public fallback identity. Email, Google ID, Apple ID, provider UID, raw guest id, internal owner_key, and internal player_key values are not public display names.
 - GuestProfile is app-owned; Firebase anonymous auth and Base44 anonymous auth are not used. Default username format is KronoxUser#### / KronoxUser#####.
-- Profile > Ayarlar exposes username plus optional private age_group and gender for guest and authenticated users. age is a legacy/private compatibility field; current Profile edit UI collects age_group only and does not ask for exact birthdate or exact age. age, age_group, and gender are private optional profile fields only and must not appear in leaderboard rows, public projections, scoring, matchmaking, Solo category weighting, or Online game selection. getSoloLeaderboard returns sanitized username plus opaque leaderboard_id and strips owner_key/display_name/email/provider ids/raw guest id/internal player_key; completed guests can open Liderlik and appear only as username.
+- Profile > Profil Bilgileri exposes username plus optional private age_group and gender for guest and authenticated users. The Profile landing routes Profil Bilgileri, Arkadaşlarım, and Ayarlar to dedicated screens; Gizlilik Politikası and Hesap Silme live under Settings, with signed-in deletion still guarded by the in-app confirmation flow. age is a legacy/private compatibility field; current Profile edit UI collects age_group only and does not ask for exact birthdate or exact age. age, age_group, and gender are private optional profile fields only and must not appear in leaderboard rows, public projections, scoring, matchmaking, Solo category weighting, or Online game selection. getSoloLeaderboard returns sanitized username plus opaque leaderboard_id and strips owner_key/display_name/email/provider ids/raw guest id/internal player_key; completed guests can open Liderlik and appear only as username.
 - Guest account linking is implemented through linkGuestAccount and belongs under Profile. It preserves guest Diamonds, Daily Wheel/Daily Quest guard fields/history, leaderboard username identity, category preferences, progress, and inventory where applicable. Home / Ana Sayfa must not render Google, Apple, email, Hesabını bağla, or progress-protection account-link prompts. The first-launch welcome may show only Hesabım Var as a secondary route into the Profile account-connection card; it must not duplicate Apple / Google / Email buttons.
 - Guest onboarding Phase 2 status values include guest_created, tutorial_in_progress, tutorial_completed, profile_setup_pending, category_setup_pending, and onboarding_complete.
 - Eğitime Devam is valid only for true resumable tutorial_in_progress state; stale tutorial_in_progress cannot override tutorial_completed, profile_setup_pending, category_setup_pending, or onboarding_complete.
@@ -396,9 +396,9 @@ Status: Active product contract.
 - resetTestAccountProgress uses AdminUser-backed authorization and exact target-email confirmation; KRONOX_TEST_RESET_EMAILS and TEST_RESET_EMAILS are deprecated and must not control runtime access.
 - Client admin UI consumes the backend getAdminStatus status hint; /getAdminStatus is the callable status path.
 - AdminUser rows remain private and are not listed by normal users.
-- Profile normal-user actions are Sosyal / Arkadaşlarım and Hesap / Ayarlar.
+- Profile normal-user actions include screen-navigation rows for Profil Bilgileri, Arkadaşlarım, and Ayarlar; privacy/account-deletion actions live under Settings.
 - Active AdminUser owner/admin users additionally see Admin Ekranı on Profile.
-- Admin Ekranı contains admin-only maintenance/report tools; Settings remains account/help/preferences focused.
+- Admin Ekranı contains admin-only maintenance/report tools; Settings remains account/security focused.
 - BottomNav visible items are Ana Sayfa, Liderlik, and Profil; Online is launched from Home through Online Kapışma, not exposed as a bottom tab.
 - Direct /admin access by normal users is blocked or redirected safely.
 - admin-only maintenance functions verify AdminUser-backed authorization server-side.
@@ -462,7 +462,7 @@ Status: Active product contract.
 - Question analytics report sections render with section-level warnings instead of truncating the whole email.
 - unrelated user progress admin reset retains question analytics rows; account deletion anonymizes user-owned analytics identity.
 - retained QuestionAttemptEvent analytics rows no longer contain deleted user identity after account deletion.
-- UserCategoryPreference rows are user-scoped Settings data.
+- UserCategoryPreference rows are user-scoped Profile Info data.
 - normal users can read/update only their own preference rows.
 - passive Category.status = P/p rows are not selectable.
 - Any authenticated user with fewer than 3 active valid Category preferences sees an optional personalization popup; this applies to new and existing users, can be deferred, and must not block gameplay.
@@ -470,7 +470,7 @@ Status: Active product contract.
 - Only active categories are selectable and count.
 - Passive or removed Category selections are filtered from UI/save state and are not resaved as active preferences.
 - completing the popup saves UserCategoryPreference rows before marking the user profile onboarding flag complete.
-- Users can later change selections under Profile / Settings / İlgi Alanlarım.
+- Users can later change selections under Profile > Profil Bilgileri > Kategori seçimi.
 - first-time guest onboarding can load category-selection metadata without login; the allowed public getCategoryMetadata response scope is category_id, name, description, and status from current active Category rows only.
 - getCategoryMetadata is public by design for unauthenticated guest category selection and must not return questions, answers, years, full question-bank rows, user data, admin/internal fields, hidden notes, deleted/passive categories, or stale hardcoded seed arrays.
 - seedQuestionCategories is removed; category creation/backfill is manual/admin content management and runtime code must not restore stale hardcoded seed arrays, QUESTION_CATEGORIES, fixed historical category ID lists, or deployable fallback names.
@@ -481,7 +481,7 @@ Status: Active product contract.
 - getQuestions/category helpers accept active status aliases a, active, and aktif, and category_id normalization accepts any positive live DB id so categories added after the original seed set can enter the Solo candidate pool.
 - Online question selection, getQuestions, and analytics do not read preferences for question selection. Online start uses startLobbyGame to reconcile accepted invite participants, then persist a bounded shared online_question_deck/current_question_id on Lobby, selected 100% from active lobby-selected categories with difficulty 1/2 only; missing/invalid selected categories or Category read failures must not fall back to legacy category names, Lobby.category, or old seeded arrays; Game reads/refetches that persisted deck instead of the Solo getQuestions buffer, and waiting-room clients can transition from realtime or polling if a subscription event is missed.
 - two-account preference RLS proof remains manual/NOT_AUTOMATABLE.
-- old UserSubCategoryPreference rows are retained but not used by the current Settings preference UI.
+- old UserSubCategoryPreference rows are retained but not used by the current Profile Info preference UI.
 `;
 
 export const RELEASE_PROOF_CHECKLIST_DOC = `# Kronox Release Proof Checklist
@@ -609,8 +609,8 @@ behavior. Do not mark this complete from static Health alone.
 Verify tablet, foldable, and resizable behavior in Play Console and on device.
 Do not mark this complete from static Health alone.
 
-## Settings Category Preferences
-Settings shows İlgi Alanlarım for authenticated users. Active Category
+## Profile Info Category Preferences
+Profile > Profil Bilgileri shows Kategori seçimi for authenticated users. Active Category
 rows load as selectable interests, passive rows are hidden, users must select
 at least 3 Category interests. There is no maximum selection. Preferences are
 persisted per user in UserCategoryPreference. Solo question selection targets
@@ -627,7 +627,7 @@ The source of truth is active valid UserCategoryPreference count, only active
 categories are selectable and count, passive or removed Category selections are
 filtered from active UI/save state, completion prevents repeat prompts only while
 the user still has 3 or more active valid preferences, and Users can later change
-selections under Profile / Settings / İlgi Alanlarım. First-time guest onboarding
+selections under Profile > Profil Bilgileri > Kategori seçimi. First-time guest onboarding
 loads category metadata without login through current Category rows or
 getCategoryMetadata. The public getCategoryMetadata response contains only
 category_id, name, description, and status, and must not include questions,
@@ -639,8 +639,8 @@ no saved preferences or empty preferences use all active categories for Solo;
 missing authentication uses the explicit capped guest Solo projection and must
 not expose raw questions. Category preference save validation remains separate from gameplay
 start. Insufficient preferences also use all active categories for Solo.
-SubCategory entity still exists, but Settings currently uses Category interests.
-The Settings Category preference surface is custom touch UI with no raw native select in the targeted section; save validation and user scoping remain unchanged.
+SubCategory entity still exists, but Profile Info currently uses Category interests.
+The Profile Info Category preference surface is custom touch UI with no raw native select in the targeted section; save validation and user scoping remain unchanged.
 Mobile wrapping/long-name visual proof and two-account preference RLS proof
 remain manual/NOT_AUTOMATABLE.
 `;
@@ -684,15 +684,15 @@ Status: Implementation tracking doc.
 - Long event-based detail sections are row-limited for email readability.
 - Legacy candidates kept without deletion: Friendship, GameRecord, LobbyMessage.
 - Raw Question remains protected.
-- UserCategoryPreference stores app-open popup and Settings Category preferences per user; minimum 3 selections. There is no maximum selection.
+- UserCategoryPreference stores app-open popup and Profile Info Category preferences per user; minimum 3 selections. There is no maximum selection.
 - Authenticated users with no saved preferences or empty preferences use all active categories for Solo; missing authentication uses the explicit capped guest Solo projection and must not expose raw questions. Insufficient preferences also use all active categories for Solo. Saved preferences target 70% selected user categories plus 30% full eligible pool only when at least 3 active valid preferences are available.
 - This is a soft weighting target with fallback, not hard filtering. The selected-category 70% lane uses selected user categories with difficulty 1 and 2 eligible; the global 30% lane first uses all active categories with difficulty 1, then selected-category shortage or global difficulty-1 shortage fills from the broader active global pool before clean failure.
 - Online question selection is not affected by Solo preferences: startLobbyGame reconciles accepted invite participants, persists a bounded shared online_question_deck/current_question_id on Lobby, selected 100% from active lobby-selected categories with difficulty 1/2 only, and Game reads/refetches that persisted deck instead of the Solo getQuestions buffer.
 - Any authenticated user with fewer than 3 active valid Category preferences sees an optional personalization popup; this applies to new and existing users, can be deferred, and must not block gameplay.
 - The source of truth is active valid UserCategoryPreference count.
 - Only active categories are selectable and count.
-- Users can later change selections under Profile / Settings / İlgi Alanlarım.
+- Users can later change selections under Profile > Profil Bilgileri > Kategori seçimi.
 - UserCategoryPreference duplicate active rows are collapsed/passivated by the save helper; platform unique-key proof remains manual.
 - UserCategoryPreference RLS runtime proof remains manual/NOT_AUTOMATABLE.
-- UserSubCategoryPreference rows are retained legacy data and are not the current Settings source-of-truth.
+- UserSubCategoryPreference rows are retained legacy data and are not the current Profile Info source-of-truth.
 `;

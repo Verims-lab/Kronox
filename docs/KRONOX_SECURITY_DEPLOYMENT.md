@@ -648,10 +648,12 @@ After deployment, verify:
 * runtime reset proof checks unauthenticated blocked, normal user blocked,
   disabled admin blocked, and active owner/admin allowed only with exact target
   email confirmation
-* Profile shows normal users only `Sosyal / Arkadaşlarım` and `Hesap / Ayarlar`
+* Profile shows normal users screen-navigation rows for `Profil Bilgileri`,
+  `Arkadaşlarım`, and `Ayarlar`; privacy/account-deletion actions live under
+  Settings
 * active `AdminUser` role `owner`/`admin` users additionally see `Admin Ekranı`
 * `Admin Ekranı` contains admin-only maintenance/report tools; Settings remains
-  normal-user account/help/preferences UI
+  normal-user account/security UI
 * BottomNav visible items are `Ana Sayfa`, `Liderlik`, and `Profil`; Online is
   launched from Home through `Online Kapışma`, not exposed as a bottom tab
 * direct `/admin` access by normal users is blocked or redirected safely
@@ -687,11 +689,11 @@ After deployment, verify:
 
 ## User Category Preferences
 
-* `UserCategoryPreference` rows are user-scoped Settings data
+* `UserCategoryPreference` rows are user-scoped Profile Info data
 * normal users can read/update only their own preference rows
 * passive `Category.status = P/p` rows are not selectable
 * Category preference selection UI is a custom touch selector; raw native
-  selects are not required for the targeted Settings surface, and save
+  selects are not required for the targeted Profile Info surface, and save
   validation remains server/user scoped
 * Category preference popup prompts any authenticated user with fewer than 3
   active valid Category preferences, including existing users
@@ -705,8 +707,8 @@ After deployment, verify:
   below-3 rule
 * completing the popup saves `UserCategoryPreference` rows before marking the
   user profile onboarding flag complete
-* users can later change selections under Profile / Settings /
-  `İlgi Alanlarım`
+* users can later change selections under Profile > Profil Bilgileri >
+  `Kategori seçimi`
 * first-time guest onboarding can load category-selection metadata without
   login; the allowed surface is current `Category` id/name/description/status
   metadata from entity read or `getCategoryMetadata`, never raw `Question.list`,
@@ -753,7 +755,7 @@ After deployment, verify:
   category arrays.
 * two-account preference RLS proof remains manual/NOT_AUTOMATABLE
 * old `UserSubCategoryPreference` rows are retained but not used by the
-  current Settings preference UI
+  current Profile Info preference UI
 
 ## Invites / Lobby / Push
 
@@ -1040,12 +1042,12 @@ category IDs. `display_name` is mirrored from username for legacy projections.
 It must not trust guest_id alone, request-body role claims, auth-provider IDs,
 or client-provided admin state.
 
-Profile > Ayarlar post-onboarding edits use `updateProfileSettings`.
+Profile > Profil Bilgileri post-onboarding edits use `updateProfileSettings`.
 Authenticated users are verified server-side with `base44.auth.me()` and guest
 users are verified with `guest_id + raw guest token`. The endpoint enforces
 case-insensitive public username uniqueness via `username_normalized`, rejects
 email/provider-like public names, and never logs raw guest tokens, auth headers,
-provider credentials, or full request bodies. Optional `age` and `gender` are
+provider credentials, or full request bodies. Optional `age_group` and `gender` are
 private profile fields and must not be returned in public leaderboard/projection
 payloads.
 

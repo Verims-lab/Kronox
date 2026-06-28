@@ -69,8 +69,8 @@ Do not add sub_category_id or migrate Question rows in the schema-only
 preparation phase.
 
 ## 1b. User Category preferences
-Users can select active main Category interests under Settings in the
-"İlgi Alanlarım" section.
+Users can select active main Category interests under Profile > Profil Bilgileri
+in the "Kategori seçimi" section.
 UserCategoryPreference stores preferences per user with fields:
 - id
 - user_id
@@ -79,7 +79,7 @@ UserCategoryPreference stores preferences per user with fields:
 - created_date
 - updated_date
 
-Settings shows active Category.status = A/a options and hides passive
+Profile Info shows active Category.status = A/a options and hides passive
 Category.status = P/p rows. Minimum selection count is 3. There is no maximum
 selection. Any authenticated user with fewer than 3 active valid Category
 preferences sees the optional personalization popup; this applies to new and
@@ -87,7 +87,7 @@ existing users, but it can be deferred and must not block gameplay. The source
 of truth is active valid UserCategoryPreference count. Only active categories
 are selectable and count. Passive or removed Category selections are ignored in
 UI/save state and must not be resaved as active preferences. Users can later
-change selections under Profile / Settings / İlgi Alanlarım. Authenticated users
+change selections under Profile > Profil Bilgileri > Kategori seçimi. Authenticated users
 with no saved preferences or empty preferences use all active categories for
 Solo; missing authentication uses the explicit capped guest Solo projection and
 must not expose raw questions. Insufficient preferences also use all active categories for Solo.

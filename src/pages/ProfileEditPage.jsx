@@ -4,6 +4,7 @@ import { ArrowLeft, Check, ChevronRight, Loader2, Pencil, UserRound, X } from 'l
 import { useNavigate } from 'react-router-dom';
 import { sounds } from '@/lib/gameSounds';
 import { useAuth } from '@/lib/AuthContext';
+import CategoryPreferencesSection from '@/components/settings/CategoryPreferencesSection';
 import { normalizeSafePublicUsernameInput, resolveSafePublicUsername } from '@/lib/guestProfile';
 import {
   PROFILE_AGE_GROUP_OPTIONS,
@@ -179,6 +180,15 @@ export default function ProfileEditPage() {
           />
         </div>
 
+        <section className="mt-6 space-y-2">
+          <h2 className="font-inter text-lg font-bold text-white">Kategori seçimi</h2>
+          {user ? (
+            <CategoryPreferencesSection user={user} />
+          ) : (
+            <GuestCategoryPreferenceNotice />
+          )}
+        </section>
+
         {message && (
           <p
             className="mt-5 rounded-2xl border border-emerald-300/25 bg-emerald-300/10 px-4 py-3 font-inter text-xs font-bold text-emerald-100"
@@ -204,6 +214,23 @@ export default function ProfileEditPage() {
         onSave={saveProfile}
       />
     </ProfileEditShell>
+  );
+}
+
+function GuestCategoryPreferenceNotice() {
+  return (
+    <div
+      className="rounded-2xl px-4 py-4"
+      style={{
+        background: 'linear-gradient(180deg, rgba(31,41,55,0.92), rgba(18,25,35,0.95))',
+        boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.06)',
+      }}
+    >
+      <p className="font-inter text-sm font-black text-white">Misafir kategori kurulumu hazır.</p>
+      <p className="mt-1 font-inter text-xs font-semibold leading-relaxed text-blue-100/64">
+        Kalıcı kategori tercihlerini hesabını bağladıktan sonra burada güncelleyebilirsin.
+      </p>
+    </div>
   );
 }
 

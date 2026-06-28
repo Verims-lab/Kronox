@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Users, Trophy, Sparkles, Gem, Settings, ChevronRight, LogOut, UserRound, LogIn, Shield, RefreshCw, Snowflake, ShieldAlert, X, Gift, FileText, Trash2 } from 'lucide-react';
+import { Users, Trophy, Sparkles, Gem, Settings, ChevronRight, LogOut, UserRound, LogIn, Shield, RefreshCw, Snowflake, ShieldAlert, X, Gift } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
 import { isAdminUser, withAdminStatus } from '@/lib/admin';
@@ -181,7 +181,6 @@ export default function ProfilePage() {
   const isAdmin = isAdminUser(user);
 
   const goSettings = () => { sounds.tap(); navigate('/settings'); };
-  const goProfileSettings = () => { sounds.tap(); navigate('/settings?focus=profile', { state: { focusProfileSettings: true } }); };
   const goProfileEdit = () => { sounds.tap(); navigate('/profile/edit'); };
   const goAdmin = () => { sounds.tap(); navigate('/admin'); };
   const handleLogin = () => {
@@ -303,8 +302,8 @@ export default function ProfilePage() {
           <RowCard
             icon={<UserRound className="w-4 h-4" />}
             title="Profil Bilgileri"
-            desc="Kullanıcı adı, yaş ve özel profil bilgileri"
-            onClick={goProfileSettings}
+            desc="Kullanıcı adı, yaş aralığı, cinsiyet ve kategori seçimi"
+            onClick={goProfileEdit}
           />
           <RowCard
             icon={<Users className="w-4 h-4" />}
@@ -318,20 +317,8 @@ export default function ProfilePage() {
           <RowCard
             icon={<Settings className="w-4 h-4" />}
             title="Ayarlar"
-            desc="Kişisel ayarlar ve kategori tercihleri"
+            desc="Gizlilik ve hesap güvenliği"
             onClick={goSettings}
-          />
-          <RowCard
-            icon={<FileText className="w-4 h-4" />}
-            title="Gizlilik Politikası"
-            desc="Veri kullanımı ve kullanıcı hakları"
-            onClick={() => { sounds.tap(); navigate('/privacy'); }}
-          />
-          <RowCard
-            icon={<Trash2 className="w-4 h-4" />}
-            title="Hesap Silme"
-            desc={user ? 'Kalıcı silme işlemini Ayarlar’da başlat' : 'Hesap silme bilgi sayfası'}
-            onClick={() => { sounds.tap(); navigate(user ? '/settings?focus=delete' : '/account-deletion', user ? { state: { focusDeleteAccount: true } } : undefined); }}
           />
         </Section>
 

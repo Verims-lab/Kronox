@@ -1017,10 +1017,10 @@ platform supports unique indexes, configure them; until then, `createGuestProfil
 must retry collisions and later username-change/linking functions must repeat the
 same uniqueness guard.
 
-Post-onboarding Profile > Ayarlar edits use `updateProfileSettings`.
+Post-onboarding Profile > Profil Bilgileri edits use `updateProfileSettings`.
 Authenticated users are verified with `base44.auth.me()` and guest users with
 `guest_id + token`. The editable fields are public `username` / `display_name`
-plus optional private `age` / `gender`. Username uniqueness uses
-`username_normalized` for case-insensitive checks. `age` and `gender` are not
+plus optional private `age_group` / `gender`. Username uniqueness uses
+`username_normalized` for case-insensitive checks. `age_group` and `gender` are not
 leaderboard projection fields and must not influence scoring, economy,
 matchmaking, Online selection, or Solo category weighting.
