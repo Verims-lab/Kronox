@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex466 — Profile name click opens edit profile screen:
+//   • Adds /profile/edit as a Kronox-style private-safe edit surface.
+//   • Profile identity/name area opens Takma Ad, Cinsiyet, and Yaş grubu edits.
+//   • Stores current age-group edits as private age_group instead of exact age.
+//
 // Codex465 — Profile redesign + login sheet + first-login reward:
 //   • Adds Kronox-style Profile landing, grouped real menu actions, and a Google/Apple/Email login sheet.
 //   • Grants a one-time server-backed first_login_reward through linkGuestAccount and DiamondTransaction.
@@ -2589,7 +2594,7 @@ import React, { useEffect, useState } from 'react';
 //   • Uses Unicode-safe 11/wordLength scaling with a 0.52 readable minimum.
 //   • Prevents arbitrary mid-word active question splitting without touching gameplay.
 // Codex463 — Health fix: restore soloReadableCard={!isOnline} render contract + exact-pin @base44/sdk 0.8.34.
-const BUILD_MARKER = 'Codex465';
+const BUILD_MARKER = 'Codex466';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

@@ -84,6 +84,18 @@
       "type": "number",
       "description": "Optional self-reported age from profile setup. Not required for gameplay."
     },
+    "age_group": {
+      "type": "string",
+      "description": "Optional self-reported age group from profile edit. Private profile preference only; current UI edits this instead of exact age.",
+      "enum": [
+        "",
+        "13_17",
+        "18_24",
+        "25_34",
+        "35_44",
+        "45_plus"
+      ]
+    },
     "gender": {
       "type": "string",
       "description": "Optional self-reported gender/profile value. Not required for gameplay.",

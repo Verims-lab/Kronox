@@ -24,6 +24,7 @@ const ONBOARDING_STATES = new Set([
 const TUTORIAL_STATES = new Set(['not_started', 'in_progress', 'completed', 'skipped']);
 const SETUP_STATES = new Set(['pending', 'completed']);
 const GENDER_VALUES = new Set(['', 'female', 'male', 'non_binary', 'prefer_not_to_say', 'custom']);
+const AGE_GROUP_VALUES = new Set(['', '13_17', '18_24', '25_34', '35_44', '45_plus']);
 const TOP_LEVEL_FIELDS = new Set(['guest_id', 'guest_token', 'action', 'patch', 'client_install_id']);
 const CREATE_FIELDS = new Set(['client_install_id']);
 const UPDATE_ONBOARDING_PATCH_FIELDS = new Set([
@@ -34,6 +35,7 @@ const UPDATE_ONBOARDING_PATCH_FIELDS = new Set([
   'username',
   'display_name',
   'age',
+  'age_group',
   'gender',
   'selected_category_ids',
 ]);
@@ -397,6 +399,7 @@ function publicGuestProfile(row: any) {
     profile_setup_status: String(row?.profile_setup_status || 'pending'),
     category_setup_status: String(row?.category_setup_status || 'pending'),
     age: Number.isFinite(Number(row?.age)) ? Number(row.age) : null,
+    age_group: String(row?.age_group || ''),
     gender: String(row?.gender || ''),
     selected_category_ids: selectedCategoryIds,
     created_at: row?.created_at || row?.created_date || null,
@@ -657,6 +660,11 @@ function normalizeGender(value: unknown) {
   return GENDER_VALUES.has(text) ? text : undefined;
 }
 
+function normalizeAgeGroup(value: unknown) {
+  const text = String(value || '').trim();
+  return AGE_GROUP_VALUES.has(text) ? text : undefined;
+}
+
 function validatePatchShape(action: string, patch: unknown) {
   if (patch === undefined || patch === null) return { ok: true, response: null };
   if (!isPlainObject(patch)) return { ok: false, response: safeError('invalid_patch', 400) };
@@ -797,6 +805,13 @@ async function updateGuestOnboarding(base44: any, guestId: string, guestToken: s
   if (Object.prototype.hasOwnProperty.call(patch, 'age')) {
     const age = normalizeAge(patch.age);
     if (age !== undefined) update.age = age;
+    profileSettingsTouched = true;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(patch, 'age_group')) {
+    const ageGroup = normalizeAgeGroup(patch.age_group);
+    if (ageGroup === undefined) return json({ ok: false, error: 'invalid_age_group' }, 400);
+    update.age_group = ageGroup;
     profileSettingsTouched = true;
   }
 

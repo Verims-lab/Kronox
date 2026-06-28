@@ -68,8 +68,12 @@ Profile > Ayarlar includes editable profile fields for both guest and
 authenticated users:
 
 * `username`
-* optional `age`
+* optional `age_group`
 * optional `gender`
+
+`age` is a legacy/private numeric profile field for older rows and onboarding
+compatibility. Current Profile edit UI collects `age_group` only and does not
+ask for exact birthdate or exact age.
 
 `updateProfileSettings` is the server-authoritative update path. Authenticated
 users are verified with `base44.auth.me()`. Guest users are verified with
@@ -83,7 +87,7 @@ case-insensitively through
 missing or provider-like public names. Username changes refresh the existing
 `SoloLeaderboardEntry` internal projection mirror when a row exists, and
 `getSoloLeaderboard` returns sanitized `username` plus opaque `leaderboard_id`
-instead of `display_name` or `owner_key`. `age` and `gender` are private
+instead of `display_name` or `owner_key`. `age`, `age_group`, and `gender` are private
 optional profile fields only; they must not appear in leaderboard rows, public
 projections, scoring, matchmaking, Solo category weighting, or Online game
 selection.

@@ -9,7 +9,14 @@ import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 import { ACCOUNT_DELETION_ERROR_COPY, requestAccountDeletion } from '@/lib/accountDeletion';
 import CategoryPreferencesSection from '@/components/settings/CategoryPreferencesSection';
 import { useAuth } from '@/lib/AuthContext';
-import { PROFILE_GENDER_OPTIONS, normalizeProfileSettingsError, updateProfileSettings } from '@/lib/profileSettings';
+import {
+  PROFILE_AGE_GROUP_OPTIONS,
+  PROFILE_GENDER_OPTIONS,
+  ageToAgeGroup,
+  normalizeProfileAgeGroupValue,
+  normalizeProfileSettingsError,
+  updateProfileSettings,
+} from '@/lib/profileSettings';
 import { normalizeSafePublicUsernameInput, resolveSafePublicUsername } from '@/lib/guestProfile';
 
 export default function SettingsPage() {
@@ -262,7 +269,7 @@ function ProfileSettingsSection({ user, guestProfile, onSaved }) {
       : resolveSafePublicUsername('', user?.email || user?.id || guestProfile?.guest_id || '')
   ), [guestProfile?.guest_id, source?.username, user?.email, user?.id]);
   const [username, setUsername] = useState('');
-  const [age, setAge] = useState('');
+  const [ageGroup, setAgeGroup] = useState('');
   const [gender, setGender] = useState('');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -273,11 +280,11 @@ function ProfileSettingsSection({ user, guestProfile, onSaved }) {
       ? source.username
       : fallbackUsername;
     setUsername(nextUsername);
-    setAge(Number.isFinite(Number(source?.age)) ? String(source.age) : '');
+    setAgeGroup(normalizeProfileAgeGroupValue(source?.age_group) || ageToAgeGroup(source?.age));
     setGender(String(source?.gender || ''));
     setMessage('');
     setError('');
-  }, [fallbackUsername, source?.age, source?.gender, source?.username]);
+  }, [fallbackUsername, source?.age, source?.age_group, source?.gender, source?.username]);
 
   const handleSave = async (event) => {
     event.preventDefault();
@@ -288,7 +295,7 @@ function ProfileSettingsSection({ user, guestProfile, onSaved }) {
       const finalUsername = username.trim() || fallbackUsername;
       const result = await updateProfileSettings({
         username: finalUsername,
-        age: age === '' ? null : age,
+        age_group: ageGroup,
         gender,
       });
       await onSaved?.(result);
@@ -332,15 +339,16 @@ function ProfileSettingsSection({ user, guestProfile, onSaved }) {
 
       <div className="grid grid-cols-2 gap-3">
         <label className="block space-y-1.5">
-          <span className="font-inter text-xs font-black text-foreground">Yaş</span>
-          <input
-            value={age}
-            onChange={(event) => setAge(event.target.value.replace(/[^\d]/g, '').slice(0, 3))}
-            inputMode="numeric"
-            autoComplete="off"
+          <span className="font-inter text-xs font-black text-foreground">Yaş grubu</span>
+          <select
+            value={ageGroup}
+            onChange={(event) => setAgeGroup(event.target.value)}
             className="h-11 w-full rounded-xl border border-border/50 bg-background/70 px-3 font-inter text-sm font-bold text-foreground outline-none transition-colors focus:border-primary"
-            placeholder="Opsiyonel"
-          />
+          >
+            {PROFILE_AGE_GROUP_OPTIONS.map((option) => (
+              <option key={option.value || 'blank'} value={option.value}>{option.label}</option>
+            ))}
+          </select>
         </label>
 
         <label className="block space-y-1.5">

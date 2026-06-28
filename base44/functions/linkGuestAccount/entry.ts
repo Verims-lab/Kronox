@@ -10,6 +10,7 @@ const FIRST_LOGIN_REWARD_SOURCE = 'first_login_reward';
 const FIRST_LOGIN_REWARD_AMOUNT = 80;
 const FIRST_LOGIN_REWARD_RELATED_TYPE = 'account_link_first_login_reward';
 const GENDER_VALUES = new Set(['', 'female', 'male', 'non_binary', 'prefer_not_to_say', 'custom']);
+const AGE_GROUP_VALUES = new Set(['', '13_17', '18_24', '25_34', '35_44', '45_plus']);
 const UNSAFE_PUBLIC_USERNAME_PATTERN = /^(apple|google|firebase|auth0|base44|provider|uid|owner)(?:[\w:-].*)?$/i;
 const INTERNAL_ID_PUBLIC_USERNAME_PATTERN = /^(guest|player|owner|user_key|player_key|g|u)_[A-Za-z0-9_-]{4,}$/i;
 
@@ -76,6 +77,11 @@ function normalizeAge(value: unknown) {
 function normalizeGender(value: unknown) {
   const text = String(value || '').trim();
   return GENDER_VALUES.has(text) ? text : '';
+}
+
+function normalizeAgeGroup(value: unknown) {
+  const text = String(value || '').trim();
+  return AGE_GROUP_VALUES.has(text) ? text : '';
 }
 
 function timestampValue(value: unknown) {
@@ -953,6 +959,7 @@ Deno.serve(async (req: Request) => {
     const userProfileUpdatedAt = user?.profile_settings_updated_at || user?.updated_at || user?.updated_date || user?.created_date;
     const guestProfileUpdatedAt = guest?.profile_settings_updated_at || guest?.profile_setup_completed_at || guest?.updated_at || guest?.created_at || guest?.created_date;
     const mergedAge = normalizeAge(preferGuestProfileValue(user?.age, guest?.age, userProfileUpdatedAt, guestProfileUpdatedAt));
+    const mergedAgeGroup = normalizeAgeGroup(preferGuestProfileValue(user?.age_group, guest?.age_group, userProfileUpdatedAt, guestProfileUpdatedAt));
     const mergedGender = normalizeGender(preferGuestProfileValue(user?.gender, guest?.gender, userProfileUpdatedAt, guestProfileUpdatedAt));
     const mergedSoloProgress = mergeSoloProgress(user?.solo_progress, guest?.solo_progress);
     const mergedOnlineProgress = mergeOnlineProgress(user?.online_progress, guest?.online_progress);
@@ -1026,6 +1033,7 @@ Deno.serve(async (req: Request) => {
       diamonds: diamondBalance,
       ...identityPatch,
       age: mergedAge,
+      age_group: mergedAgeGroup,
       gender: mergedGender,
       profile_settings_updated_at: nowIso(),
       linked_guest_ids: nextLinkedGuestIds,

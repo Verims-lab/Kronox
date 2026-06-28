@@ -21,7 +21,7 @@ export function getTabRootForPathname(pathname = '/') {
   if (pathname === '/privacy') return null;
   if (pathname === '/lobby') return TAB_ROOTS.home;
   if (pathname === '/leaderboard') return TAB_ROOTS.leaderboard;
-  if (['/profile', '/friends', '/settings', '/admin', '/test-suite', '/account-deletion'].includes(pathname)) {
+  if (['/profile', '/profile/edit', '/friends', '/settings', '/admin', '/test-suite', '/account-deletion'].includes(pathname)) {
     return TAB_ROOTS.profile;
   }
   if (['/', '/market', '/solo', '/setup'].includes(pathname)) return TAB_ROOTS.home;
