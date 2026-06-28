@@ -233,6 +233,8 @@ changes, leaderboard movement, category preference distribution, question
 exposure/difficulty, Online lobby lifecycle, invite lifecycle, notification
 lifecycle, platform split, retention cohorts, and economy fraud/race anomalies.
 Missing event tables must be backward-compatible and privacy-safe.
+Daily reward claim reports should keep first-login account-link rewards distinct
+through DiamondTransaction.source first_login_reward.
 
 Question analytics manual reset remains manual DB maintenance only; function
 reset is disabled. The reset card maps Kategori Bazında Gösterim to

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trash2, AlertTriangle, Loader2, ChevronRight, FileText, UserRound, Save } from 'lucide-react';
+import { Trash2, AlertTriangle, Loader2, ChevronRight, FileText, UserRound, Save, SlidersHorizontal, ShieldCheck, Sparkles } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
@@ -17,6 +17,8 @@ export default function SettingsPage() {
   const location = useLocation();
   const { user, guestProfile, isLoadingAuth, checkUserAuth } = useAuth();
   const profileSettingsRef = useRef(null);
+  const categoryPreferencesRef = useRef(null);
+  const accountSectionRef = useRef(null);
   const [localUser, setLocalUser] = useState(user);
   const [localGuestProfile, setLocalGuestProfile] = useState(guestProfile);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -33,6 +35,14 @@ export default function SettingsPage() {
     const params = new URLSearchParams(location.search);
     return params.get('focus') === 'profile' || location.state?.focusProfileSettings === true;
   }, [location.search, location.state?.focusProfileSettings]);
+  const shouldFocusDeleteAccount = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('focus') === 'delete' || location.state?.focusDeleteAccount === true;
+  }, [location.search, location.state?.focusDeleteAccount]);
+
+  const scrollToSection = (ref) => {
+    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   useEffect(() => {
     if (isLoadingAuth || !shouldFocusProfileSettings) return;
@@ -41,6 +51,14 @@ export default function SettingsPage() {
     });
     return () => window.cancelAnimationFrame(frameId);
   }, [isLoadingAuth, shouldFocusProfileSettings]);
+
+  useEffect(() => {
+    if (isLoadingAuth || !shouldFocusDeleteAccount) return;
+    const frameId = window.requestAnimationFrame(() => {
+      accountSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    return () => window.cancelAnimationFrame(frameId);
+  }, [isLoadingAuth, shouldFocusDeleteAccount]);
 
   const handleDeleteAccount = async () => {
     setDeleteError('');
@@ -86,6 +104,41 @@ export default function SettingsPage() {
       </div>
 
       <div className="px-4 space-y-5">
+        <Section label="Kişisel">
+          <div className="overflow-hidden rounded-2xl border border-border/35 bg-secondary/20">
+            {(effectiveUser || effectiveGuestProfile) && (
+              <SettingsListRow
+                icon={<UserRound className="h-4 w-4" />}
+                title="Profil Bilgileri"
+                desc="Kullanıcı adı, yaş ve cinsiyet"
+                onClick={() => scrollToSection(profileSettingsRef)}
+              />
+            )}
+            {effectiveUser && (
+              <SettingsListRow
+                icon={<Sparkles className="h-4 w-4" />}
+                title="İlgi Alanlarım"
+                desc="Solo kategori tercihleri"
+                onClick={() => scrollToSection(categoryPreferencesRef)}
+              />
+            )}
+            <SettingsListRow
+              icon={<FileText className="h-4 w-4" />}
+              title="Gizlilik Politikası"
+              desc="Veri kullanımı ve hakların"
+              onClick={() => navigate('/privacy')}
+            />
+            <SettingsListRow
+              icon={<ShieldCheck className="h-4 w-4" />}
+              title="Hesap Silme"
+              desc={effectiveUser ? 'Kalıcı silme işlemini başlat' : 'Bilgi ve destek kanalı'}
+              onClick={() => (effectiveUser ? scrollToSection(accountSectionRef) : navigate('/account-deletion'))}
+              danger={Boolean(effectiveUser)}
+              isLast
+            />
+          </div>
+        </Section>
+
         {(effectiveUser || effectiveGuestProfile) && (
           <div ref={profileSettingsRef} data-kx-profile-settings-anchor="true">
             <Section label="Profil Bilgileri">
@@ -103,75 +156,69 @@ export default function SettingsPage() {
         )}
 
         {effectiveUser && (
-          <Section label="İlgi Alanlarım">
-            <CategoryPreferencesSection user={effectiveUser} />
-          </Section>
+          <div ref={categoryPreferencesRef}>
+            <Section label="İlgi Alanlarım">
+              <CategoryPreferencesSection user={effectiveUser} />
+            </Section>
+          </div>
         )}
-
-        {/* Yardım */}
-        <Section label="Yardım">
-          <ToolCard
-            icon={<FileText className="w-4 h-4" />}
-            title="Gizlilik Politikası"
-            desc="Veri kullanımı ve kullanıcı hakları"
-            onClick={() => navigate('/privacy')}
-          />
-        </Section>
 
         {/* Hesap — tüm kullanıcılar */}
         {effectiveUser && (
-          <Section label="Hesap">
-            <AnimatePresence mode="wait">
-              {!confirmDelete ? (
-                <motion.button
-                  key="delete-btn"
-                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                  onClick={handleDeleteAccount}
-                  className="w-full flex items-center gap-3 p-4 rounded-2xl border border-destructive/30 bg-destructive/5 hover:bg-destructive/10 transition-colors text-left"
-                >
-                  <div className="w-8 h-8 rounded-xl bg-destructive/10 flex items-center justify-center flex-shrink-0">
-                    <Trash2 className="w-4 h-4 text-destructive" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-inter text-sm font-semibold text-destructive">Hesabı Sil</p>
-                    <p className="font-inter text-xs text-muted-foreground">Tüm veriler kalıcı olarak silinir</p>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-destructive/50" />
-                </motion.button>
-              ) : (
-                <motion.div
-                  key="delete-confirm"
-                  initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                  className="p-4 rounded-2xl bg-destructive/10 border border-destructive/30 space-y-3"
-                >
-                  <div className="flex items-start gap-2">
-                    <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
-                    <p className="font-inter text-sm text-destructive leading-relaxed">
-                      Bu işlem geri alınamaz. Tüm verileriniz silinecek.
-                    </p>
-                  </div>
-                  {deleteError && (
-                    <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 font-inter text-xs font-semibold text-destructive">
-                      {deleteError}
-                    </p>
-                  )}
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline" size="sm" className="flex-1"
-                      onClick={() => { setConfirmDelete(false); setDeleteError(''); }} disabled={deleting}
-                    >İptal</Button>
-                    <Button
-                      size="sm" disabled={deleting}
-                      className="flex-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-                      onClick={handleDeleteAccount}
-                    >
-                      {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Evet, Sil'}
-                    </Button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </Section>
+          <div ref={accountSectionRef}>
+            <Section label="Hesap">
+              <AnimatePresence mode="wait">
+                {!confirmDelete ? (
+                  <motion.button
+                    key="delete-btn"
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    onClick={handleDeleteAccount}
+                    className="w-full flex items-center gap-3 p-4 rounded-2xl border border-destructive/30 bg-destructive/5 hover:bg-destructive/10 transition-colors text-left"
+                  >
+                    <div className="w-8 h-8 rounded-xl bg-destructive/10 flex items-center justify-center flex-shrink-0">
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-inter text-sm font-semibold text-destructive">Hesabı Sil</p>
+                      <p className="font-inter text-xs text-muted-foreground">Tüm veriler kalıcı olarak silinir</p>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-destructive/50" />
+                  </motion.button>
+                ) : (
+                  <motion.div
+                    key="delete-confirm"
+                    initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                    className="p-4 rounded-2xl bg-destructive/10 border border-destructive/30 space-y-3"
+                  >
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
+                      <p className="font-inter text-sm text-destructive leading-relaxed">
+                        Bu işlem geri alınamaz. Tüm verileriniz silinecek.
+                      </p>
+                    </div>
+                    {deleteError && (
+                      <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 font-inter text-xs font-semibold text-destructive">
+                        {deleteError}
+                      </p>
+                    )}
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline" size="sm" className="flex-1"
+                        onClick={() => { setConfirmDelete(false); setDeleteError(''); }} disabled={deleting}
+                      >İptal</Button>
+                      <Button
+                        size="sm" disabled={deleting}
+                        className="flex-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                        onClick={handleDeleteAccount}
+                      >
+                        {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Evet, Sil'}
+                      </Button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </Section>
+          </div>
         )}
       </div>
 
@@ -185,6 +232,25 @@ function Section({ label, children }) {
       <p className="font-inter text-[10px] text-muted-foreground font-semibold uppercase tracking-widest px-1">{label}</p>
       <div className="space-y-2">{children}</div>
     </div>
+  );
+}
+
+function SettingsListRow({ icon, title, desc, onClick, danger = false, isLast = false }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-full flex items-center gap-3 px-4 py-4 text-left transition-colors hover:bg-white/[0.04] ${!isLast ? 'border-b border-border/25' : ''}`}
+    >
+      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${danger ? 'border-destructive/25 bg-destructive/10 text-destructive' : 'border-primary/20 bg-primary/10 text-primary'}`}>
+        {icon || <SlidersHorizontal className="h-4 w-4" />}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className={`truncate font-inter text-sm font-black ${danger ? 'text-destructive' : 'text-foreground'}`}>{title}</p>
+        {desc && <p className="truncate font-inter text-xs text-muted-foreground">{desc}</p>}
+      </div>
+      <ChevronRight className={`h-4 w-4 ${danger ? 'text-destructive/45' : 'text-muted-foreground/45'}`} />
+    </button>
   );
 }
 
@@ -312,23 +378,4 @@ function ProfileSettingsSection({ user, guestProfile, onSaved }) {
 
 function isSafeUsername(value) {
   return Boolean(normalizeSafePublicUsernameInput(value));
-}
-
-function ToolCard({ icon, title, desc, loading, onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={loading}
-      className="w-full flex items-center gap-3 p-4 rounded-2xl border border-border/40 bg-secondary/20 hover:bg-secondary/40 hover:border-border/70 transition-all text-left disabled:opacity-60"
-    >
-      <div className="w-8 h-8 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0 text-primary">
-        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : icon}
-      </div>
-      <div className="flex-1">
-        <p className="font-inter text-sm font-semibold text-foreground">{title}</p>
-        <p className="font-inter text-xs text-muted-foreground">{desc}</p>
-      </div>
-      <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
-    </button>
-  );
 }

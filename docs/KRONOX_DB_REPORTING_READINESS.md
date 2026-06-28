@@ -21,7 +21,7 @@ and exports must use username-safe or anonymized labels.
 | Average moves per level | Partial | Solo progress best entries | all attempts, not only best | identity | Add attempt-level HAMLE metrics | Yes |
 | Average time per level | Partial | Solo best time | all attempts, failure time | identity | Add attempt-level elapsed seconds | Yes |
 | Solo record counts | Partial | `getSoloLeaderboard` record context from progress | durable per-level record events | identity | Add per-level record projection or compact record event | Yes |
-| Daily reward claims | Good partial | `DailyWheelSpin`, `UserDailyQuestProgress`, `DiamondTransaction` | device/session source | economy fraud | Add source/client platform metadata if available | Yes |
+| Daily reward claims | Good partial | `DailyWheelSpin`, `UserDailyQuestProgress`, `DiamondTransaction` | device/session source | economy fraud | Add source/client platform metadata if available; keep first-login account-link rewards distinct via `first_login_reward` source | Yes |
 | Joker earn/spend/purchase | Good | `JokerTransaction`, `UserJokerInventory` | platform/session source | account id leakage | Keep ledger internal; public summaries only | Yes |
 | Diamond balance changes | Good | `DiamondTransaction`, user/guest balance | platform/source metadata | financial-style audit risk | Add balance_after where safe/server-owned | Yes |
 | Leaderboard movement | Partial | `SoloLeaderboardEntry`, `UserStatsProjection` | rank snapshot history | owner_key leakage | Add daily rank snapshot with leaderboard_id | Yes |
