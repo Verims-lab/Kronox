@@ -2608,8 +2608,8 @@ import React, { useEffect, useState } from 'react';
 //   • Adds a shared per-word text-fit helper for Solo and Online QuestionCard text.
 //   • Uses Unicode-safe 11/wordLength scaling with a 0.52 readable minimum.
 //   • Prevents arbitrary mid-word active question splitting without touching gameplay.
-// Codex463 — Health fix: restore soloReadableCard={!isOnline} render contract + exact-pin @base44/sdk 0.8.34.
-const BUILD_MARKER = 'Codex469';
+// Codex470 — UX polish (Step 2): Settings list rows + account section now share the Profile-context carved-navy + gold surface language (consistent radius/border/shadow/icon chip/label, centered max-w-md, visible pressed state). No functional/route/Health-token change.
+const BUILD_MARKER = 'Codex470';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

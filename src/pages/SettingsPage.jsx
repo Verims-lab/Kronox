@@ -76,13 +76,20 @@ export default function SettingsPage() {
     >
       <StandardTopBar diamonds={diamondValue} user={user} showBack />
 
-      <div className="px-4 pb-1">
+      <div className="mx-auto w-full max-w-md px-4 pb-1">
         <h1 className="font-cinzel text-2xl font-black tracking-wide text-foreground">Ayarlar</h1>
       </div>
 
-      <div className="px-4 space-y-5">
+      <div className="mx-auto w-full max-w-md px-4 space-y-5">
         <Section label="Ayarlar ve Güvenlik">
-          <div className="overflow-hidden rounded-2xl border border-border/35 bg-secondary/20">
+          <div
+            className="overflow-hidden rounded-2xl"
+            style={{
+              background: 'linear-gradient(180deg, rgba(30,41,75,0.9), rgba(10,16,36,0.95))',
+              boxShadow:
+                'inset 0 0 0 1.5px rgba(120,170,255,0.32), inset 0 1px 0 rgba(255,255,255,0.08), 0 0 16px rgba(59,130,246,0.18), 0 8px 16px rgba(2,6,23,0.45)',
+            }}
+          >
             <SettingsListRow
               icon={<FileText className="h-4 w-4" />}
               title="Gizlilik Politikası"
@@ -166,7 +173,7 @@ export default function SettingsPage() {
 function Section({ label, children }) {
   return (
     <div className="space-y-2">
-      <p className="font-inter text-[10px] text-muted-foreground font-semibold uppercase tracking-widest px-1">{label}</p>
+      <p className="font-inter text-[10px] text-blue-100/60 font-black uppercase tracking-[0.18em] px-1">{label}</p>
       <div className="space-y-2">{children}</div>
     </div>
   );
@@ -177,16 +184,26 @@ function SettingsListRow({ icon, title, desc, onClick, danger = false, isLast = 
     <button
       type="button"
       onClick={onClick}
-      className={`w-full flex items-center gap-3 px-4 py-4 text-left transition-colors hover:bg-white/[0.04] ${!isLast ? 'border-b border-border/25' : ''}`}
+      className={`w-full flex items-center gap-3 px-4 py-4 text-left transition-colors hover:bg-white/[0.05] active:bg-white/[0.07] ${!isLast ? 'border-b border-white/[0.06]' : ''}`}
     >
-      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${danger ? 'border-destructive/25 bg-destructive/10 text-destructive' : 'border-primary/20 bg-primary/10 text-primary'}`}>
+      <div
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${danger ? 'text-destructive' : 'text-amber-200'}`}
+        style={{
+          background: danger
+            ? 'linear-gradient(180deg, rgba(239,68,68,0.16), rgba(127,29,29,0.10))'
+            : 'linear-gradient(180deg, rgba(250,204,21,0.16), rgba(185,122,6,0.10))',
+          boxShadow: danger
+            ? 'inset 0 0 0 1px rgba(248,113,113,0.40)'
+            : 'inset 0 0 0 1px rgba(250,204,21,0.45)',
+        }}
+      >
         {icon || <SlidersHorizontal className="h-4 w-4" />}
       </div>
       <div className="min-w-0 flex-1">
-        <p className={`truncate font-inter text-sm font-black ${danger ? 'text-destructive' : 'text-foreground'}`}>{title}</p>
-        {desc && <p className="truncate font-inter text-xs text-muted-foreground">{desc}</p>}
+        <p className={`truncate font-inter text-sm font-bold ${danger ? 'text-destructive' : 'text-white'}`}>{title}</p>
+        {desc && <p className="truncate font-inter text-[11px] text-blue-100/70">{desc}</p>}
       </div>
-      <ChevronRight className={`h-4 w-4 ${danger ? 'text-destructive/45' : 'text-muted-foreground/45'}`} />
+      <ChevronRight className={`h-4 w-4 ${danger ? 'text-destructive/50' : 'text-white/40'}`} />
     </button>
   );
 }
