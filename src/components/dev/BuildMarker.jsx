@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex472 — Security Cleanup Health blocker (KRONOX-MQXSBA4X):
+//   • Root package.json @base44/sdk pin changed from "^0.8.34" to exact "0.8.34".
+//   • package-lock.json root dependency spec de-carated to "0.8.34" (resolved 0.8.34 tarball preserved; no version bump).
+//   • Critical Base44 functions already align to npm:@base44/sdk@0.8.34; Health source left strict/unchanged. Dependency/version alignment only — no product behavior change.
+//
 // Codex471 — Presence Health blockers (KRONOX-MQXRO5ZO):
 //   • getFriendPresence adds a bounded PRESENCE_SCAN_LIMIT per-friend scan (Math.max(limit, PRESENCE_SCAN_LIMIT)) and returns last_heartbeat_at/presence_expires_at freshness.
 //   • PlayerPresence / updatePlayerPresence / getFriendPresence Health mirror strings re-synced to the live owner-bound (auth.me or token-proven GuestProfile), accepted-friend-scoped, privacy-safe contract.
@@ -36,7 +41,7 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps Home reward panels visible from a short-lived cache while revalidating and memoizes question text fit tokens.
 //
 
-const BUILD_MARKER = 'Codex471';
+const BUILD_MARKER = 'Codex472';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
