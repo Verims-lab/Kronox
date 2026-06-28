@@ -206,6 +206,30 @@ Parity plan:
   stay in the Health/admin/test-suite path until a separate test-runner
   migration is planned.
 
+## UX Polish Governance
+
+- Visual polish work must preserve architecture boundaries. Views may change
+  presentation; reducers, gateways, Base44 functions, and entity schemas should
+  change only when the task is explicitly about state, backend ownership, or
+  data contracts.
+- Solo/Online shared components should keep safe parity for typography,
+  question-card fit, loading states, and responsive constraints while
+  preserving Solo and Online gameplay separation.
+- Gameplay state machines/reducers are not visual-design knobs. Do not rewrite
+  Solo attempt, Online lobby, notification, economy, or question-selection
+  state machines merely to make a screen look richer.
+- Profile and Settings visual/navigation changes must preserve route ownership:
+  Profile owns `Profil Bilgileri`, Friends, and account-link entry; Settings
+  owns privacy/account actions; BottomNav stays `Ana Sayfa`, `Liderlik`,
+  `Profil`.
+- Base44 remains the production path. UX quality work may improve prompts,
+  docs, assets, and React surfaces, but it must not start Base44 migration or
+  adapter migration work.
+- Motion and asset additions should remain transform/opacity-first and
+  low-end Android/WebView-aware. Heavy effects near drag/drop, Online lobby
+  start, or notification action paths require manual proof before release
+  claims.
+
 ## Migration Boundary Without Migrating
 
 The safest next architecture work is not replacing Base44. It is reducing the

@@ -52,6 +52,28 @@ Forbidden in public assets:
 - Prefer preloading only the assets needed for the next visible screen.
 - Keep Health/admin/report visuals lightweight; they are utility surfaces.
 
+## UX Quality Asset Rules
+
+- Treat visual references as direction unless the task explicitly asks for an
+  exact match.
+- Mobile reference frames must feel app-native, not like desktop landing pages
+  squeezed into a phone.
+- Asset choices must support the current blue/gold fantasy arcade language and
+  must not reintroduce purple cosmic/neon dominance as the primary identity.
+- Logo and emblem assets that need transparency must ship with real alpha, not
+  dark rectangles pretending to be transparent.
+- Use images, textures, and decorative marks only when they improve hierarchy,
+  reward, atmosphere, or comprehension. Avoid decorative clutter around
+  timeline drop zones and game-critical hit targets.
+- Compress large assets and keep runtime exports separate from any future
+  source art. Prefer WebP/AVIF where supported, with a safe fallback for
+  wrappers/browsers that need it.
+- Do not place large new art, noise overlays, or blur-heavy atmospheres on the
+  critical app-start or game-start path without a documented manual mobile
+  performance proof gate.
+- Screenshots used for store or prompt references must avoid private IDs,
+  emails, raw guest identifiers, internal keys, and full question-bank content.
+
 ## Store Screenshot Readiness
 
 Before store capture:
