@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex474 — Admin inactive guest username cleanup:
+//   • Adds AdminUser-gated cleanupInactiveGuestUsernames with dry-run preview, SİL confirmation, server-side recheck, audit log, and username release.
+//   • Adds Admin card for inactive zero-score guest-only username cleanup without exposing private/internal IDs.
+//   • Updates reporting/Health/docs mirrors for the manual cleanup contract.
+//
 // Codex473 — Admin Kullanıcı Raporu:
 //   • Adds AdminUser-gated aggregate-only getUserReport for username/logged-in/score/inactive/platform counts.
 //   • Adds recordAppOpen server-time last_app_open_at / last_seen_at and coarse app_platform tracking.
@@ -46,7 +51,7 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps Home reward panels visible from a short-lived cache while revalidating and memoizes question text fit tokens.
 //
 
-const BUILD_MARKER = 'Codex473';
+const BUILD_MARKER = 'Codex474';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

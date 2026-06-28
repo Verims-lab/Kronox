@@ -106,9 +106,42 @@ Current sources of truth:
 - Frontend calls are best-effort and throttled so app first paint is not
   blocked.
 
-User cleanup/deletion policy is not implemented here. Any future cleanup for
-non-logged-in, zero-score, long-inactive users must be a separate admin task
-with explicit confirmation, privacy review, and backup/export policy.
+## Admin Inactive Guest Username Cleanup Phase 1
+
+`Pasif Guest Kullanıcı Adlarını Temizle` is a separate AdminUser-gated
+maintenance action. It is not part of the read-only `Kullanıcı Raporu` and it
+does not run automatically.
+
+Phase 1 behavior:
+
+- Dry-run/preview is required before deletion. Preview returns only safe
+  usernames, last-open timestamp, score, guest-only status, friend count, and
+  aggregate skipped reason counts.
+- Confirmed execution re-runs eligibility server-side and requires the admin to
+  submit the unchanged preview candidate count plus the `SİL` confirmation
+  phrase.
+- Eligibility requires all of these to be true: server-written
+  `last_app_open_at` / `last_seen_at` older than 10 days, known score exactly
+  0 from `SoloLeaderboardEntry.total_kronox_score` or safe
+  `GuestProfile.kronox_puan_total` repair source, `GuestProfile.status=guest`
+  with no linked account evidence, no accepted friends, no pending social/game
+  invite or active lobby relation, no fresh presence, and no positive Diamond
+  balance.
+- Missing/invalid last-open, ambiguous score source, linked/login evidence,
+  score > 0, positive Diamond balance, friends, pending social relations, or
+  active presence/lobby state blocks deletion.
+- Confirmed cleanup deletes the eligible `GuestProfile`, deletes only that
+  guest-owner zero-score `SoloLeaderboardEntry` projection, and removes that
+  guest-owner presence rows. It does not delete `User` rows, real auth/provider
+  accounts, Diamond/Joker ledgers, questions, categories, gameplay analytics,
+  or unrelated records.
+- Username reuse is achieved by removing the active `GuestProfile` username
+  source and its guest-owner zero-score leaderboard projection. There is no
+  separate username registry/reservation entity in the repo.
+- The response and UI must not expose email, provider ID, owner_key, raw
+  guest_id, internal player_key, auth ID, or unsafe Base44 row IDs.
+- Each preview/execute attempt writes an admin-only `AdminMaintenanceLog` row
+  with safe aggregate counts and no private candidate IDs.
 
 ## Question Analytics Manual Reset Scope
 

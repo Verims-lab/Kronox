@@ -219,7 +219,11 @@ dedupe, and privacy transitions. Security Pass 3 coverage protects accessible
 loading/status semantics, labeled custom modals, profile/onboarding form
 feedback semantics, incremental unused-import lint behavior, the menubar
 displayName cleanup, and the scoped admin-auth / SimulationPanel cleanup
-decision. Question analytics reset coverage requires the Admin card to list
+decision. Admin inactive guest username cleanup coverage protects the
+AdminUser-gated dry-run/confirm/delete contract, server-side eligibility
+recheck, username release, audit log, no automatic scheduler, no
+linked/scored/social/missing-last-open deletion, and no private identifier
+response. Question analytics reset coverage requires the Admin card to list
 report names, actual source tables, Joker/rhythm sub-reports, and protected
 non-reset data instead of a dense paragraph. Two-account, realtime, push,
 RLS/BOLA, keyboard/screen-reader,
@@ -254,6 +258,23 @@ unknown/no-last-open users separately, new users in 7 days, active users in
 not delete users, mutate score/economy data, return raw rows, expose email,
 provider ID, owner_key, raw guest_id, internal player_key, or start cleanup
 policy.
+
+Admin Inactive Guest Username Cleanup Phase 1: cleanupInactiveGuestUsernames is
+AdminUser-gated, dry-run first, manually confirmed with SİL plus unchanged
+preview count, and re-runs eligibility server-side before deleting anything.
+Eligibility requires server-written last_app_open_at / last_seen_at older than
+10 days, known score exactly 0, GuestProfile.status=guest with no linked
+account evidence, no accepted friends, no pending social/game invite or active
+lobby relation, no fresh presence, and no positive Diamond balance. Missing
+last-open, ambiguous score, linked/login evidence, score > 0, friends/social
+relations, active presence/lobby state, or economy balance blocks deletion.
+Confirmed cleanup deletes only the eligible GuestProfile username source, that
+guest-owner zero-score SoloLeaderboardEntry projection, and guest-owner
+presence rows; it does not delete User rows, auth/provider accounts,
+Diamond/Joker ledgers, questions, categories, or unrelated analytics. Responses
+and UI must not expose email, provider ID, owner_key, raw guest_id, internal
+player_key, auth IDs, or unsafe Base44 row IDs. AdminMaintenanceLog records safe
+aggregate preview/execute metadata only.
 
 recordAppOpen writes latest app-open support using server time. Authenticated
 users are derived from auth.me and updated through base44.auth.updateMe; guests

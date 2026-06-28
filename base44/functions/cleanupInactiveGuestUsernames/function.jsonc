@@ -1,0 +1,4 @@
+{
+  "name": "cleanupInactiveGuestUsernames",
+  "entry": "entry.ts"
+}
