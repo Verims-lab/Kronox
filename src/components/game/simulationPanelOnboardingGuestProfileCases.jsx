@@ -26,6 +26,7 @@ import soloJokerBarSource from './SoloJokerBar.jsx?raw';
 import timelineSource from './Timeline.jsx?raw';
 import mainMenuSource from '../../pages/MainMenu.jsx?raw';
 import profilePageSource from '../../pages/ProfilePage.jsx?raw';
+import profileEditPageSource from '../../pages/ProfileEditPage.jsx?raw';
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
 import playerSetupSource from '../../pages/PlayerSetup.jsx?raw';
 import { mergeAuthenticatedUserProfile } from '../../lib/userProfileHydration';
@@ -687,31 +688,133 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('profile_settings_editable_for_guest_and_registered_users',
-    'Profile > Ayarlar lets guest and registered users edit username, age, and gender',
+    'Profile Info lets guest and registered users edit username, age group, and gender',
     () => {
-      const missing = missingTokens(`${settingsPageSource}\n${profileSettingsClientSource}\n${updateProfileSettingsSource}`, [
+      const missing = missingTokens(`${profilePageSource}\n${profileEditPageSource}\n${profileSettingsClientSource}\n${updateProfileSettingsSource}`, [
         'Profil Bilgileri',
-        'Kullanıcı Adı',
-        'Yaş',
+        'Takma Ad',
+        'Yaş grubu',
         'Cinsiyet',
         'Kaydet',
+        'PROFILE_AGE_GROUP_OPTIONS',
+        'age_group',
         "base44.functions.invoke('updateProfileSettings'",
         'guestTokenProofRequired',
         'authUserVerifiedServerSide',
       ]);
-      const forbidden = presentTokens(settingsPageSource, [
+      const forbidden = presentTokens(`${profileEditPageSource}\n${settingsPageSource}`, [
         'Görünen Ad',
         'setDisplayName',
       ]);
       if (missing.length || forbidden.length) {
-        return fail('Profile settings edit form or server-authoritative update path is missing.', {
+        return fail('Profile Info edit form or server-authoritative update path is missing.', {
           verification: 'STATIC_CONTRACT',
-          files: ['src/pages/SettingsPage.jsx', 'src/lib/profileSettings.js', 'base44/functions/updateProfileSettings/entry.ts'],
+          files: ['src/pages/ProfilePage.jsx', 'src/pages/ProfileEditPage.jsx', 'src/lib/profileSettings.js', 'base44/functions/updateProfileSettings/entry.ts'],
           actual: { missing, forbidden },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Profile > Ayarlar supports token-proven guest updates and authenticated user updates.', {
+      return pass('Profile Info supports token-proven guest updates and authenticated user updates.', {
+        verification: 'STATIC_CONTRACT',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('profile_name_area_opens_profile_edit',
+    'Profile name area opens username/gender/age-group edit screen without private identifiers',
+    () => {
+      const combined = `${appSource}\n${profilePageSource}\n${profileEditPageSource}\n${profileSettingsClientSource}\n${updateProfileSettingsSource}`;
+      const missing = missingTokens(combined, [
+        'path="/profile/edit"',
+        'navigate(\'/profile/edit\')',
+        'aria-label="Profili düzenle"',
+        'Takma Ad',
+        'Cinsiyet',
+        'Yaş grubu',
+        'Kategori seçimi',
+        'CategoryPreferencesSection',
+        'PROFILE_AGE_GROUP_OPTIONS',
+        'age_group',
+        'ageGroupPublicFields: false',
+        'normalizeSafePublicUsernameInput(nextUsername)',
+        'role="dialog"',
+      ]);
+      const forbidden = presentTokens(profileEditPageSource, [
+        'Kullanıcı ID',
+        'owner_key',
+        'player_key',
+        'provider_id',
+        'providerId',
+        'date_of_birth',
+        'birthdate',
+        'user?.email',
+        'guest_id',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Profile edit screen route, field contract, or privacy boundary drifted.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['src/App.jsx', 'src/pages/ProfilePage.jsx', 'src/pages/ProfileEditPage.jsx', 'src/lib/profileSettings.js', 'base44/functions/updateProfileSettings/entry.ts'],
+          expected: 'Profile name button routes to /profile/edit; edit screen writes username, gender, and age_group only; no public ID/email/provider/internal fields are rendered.',
+          actual: { missing, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Profile name area opens a private-safe profile edit screen for username, gender, and age group.', {
+        verification: 'STATIC_CONTRACT',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('profile_menu_navigation_screens_structure',
+    'Profile menu rows navigate to dedicated screens and Settings owns privacy/delete',
+    () => {
+      const profileMissing = missingTokens(profilePageSource, [
+        'title="Profil Bilgileri"',
+        'onClick={goProfileEdit}',
+        'title="Arkadaşlarım"',
+        "navigate('/friends')",
+        'title="Ayarlar"',
+        'onClick={goSettings}',
+      ]);
+      const settingsMissing = missingTokens(settingsPageSource, [
+        'title="Gizlilik Politikası"',
+        "navigate('/privacy')",
+        'title="Hesap Silme"',
+        'requestAccountDeletion(base44, user)',
+        'accountSectionRef',
+        'Hesabı Sil',
+      ]);
+      const profileInfoMissing = missingTokens(`${profileEditPageSource}\n${userCategoryPreferencesSource}`, [
+        'Takma Ad',
+        'Yaş grubu',
+        'Cinsiyet',
+        'Kategori seçimi',
+        'CategoryPreferencesSection',
+        'loadActiveCategories',
+        'saveUserCategoryPreferences',
+        'legacyHardcodedCategoryFallbackAllowed: false',
+      ]);
+      const forbiddenProfileRows = presentTokens(profilePageSource, [
+        'title="Gizlilik Politikası"',
+        'title="Hesap Silme"',
+        '?focus=profile',
+        'focusProfileSettings',
+      ]);
+      const forbiddenSettingsRows = presentTokens(settingsPageSource, [
+        'title="Profil Bilgileri"',
+        'title="İlgi Alanlarım"',
+        'ProfileSettingsSection',
+      ]);
+      if (profileMissing.length || settingsMissing.length || profileInfoMissing.length || forbiddenProfileRows.length || forbiddenSettingsRows.length) {
+        return fail('Profile menu navigation or Settings/Profile Info ownership drifted.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['src/pages/ProfilePage.jsx', 'src/pages/SettingsPage.jsx', 'src/pages/ProfileEditPage.jsx', 'src/lib/userCategoryPreferences.js'],
+          expected: 'Profile menu rows route to screens; privacy/delete live under Settings; Profile Info owns username, age group, gender, and canonical category preference UI.',
+          actual: { profileMissing, settingsMissing, profileInfoMissing, forbiddenProfileRows, forbiddenSettingsRows },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Profile menu rows navigate to screens, Settings owns privacy/delete, and Profile Info carries canonical profile/category fields.', {
         verification: 'STATIC_CONTRACT',
         actionType: ACTION_TYPES.CODE_FIX,
       });
@@ -720,7 +823,7 @@ export const EXTRA_TESTS = [
   makeCase('profile_settings_username_privacy_and_leaderboard_contract',
     'Profile username remains unique and leaderboard-safe while age/gender stay private',
     () => {
-      const missing = missingTokens(`${settingsPageSource}\n${profilePageSource}\n${leaderboardSource}\n${updateProfileSettingsSource}`, [
+      const missing = missingTokens(`${settingsPageSource}\n${profilePageSource}\n${profileEditPageSource}\n${leaderboardSource}\n${updateProfileSettingsSource}`, [
         'username_normalized',
         'usernameUniqueCaseInsensitive',
         'username_taken',
@@ -728,9 +831,11 @@ export const EXTRA_TESTS = [
         'refreshLeaderboardIdentity',
         'providerIdsDisplayedPublicly: false',
         'ageGenderPublicFields: false',
+        'ageGroupPublicFields: false',
       ]);
       const forbidden = presentTokens(leaderboardSource, [
         'age:',
+        'age_group:',
         'gender:',
       ]);
       if (missing.length || forbidden.length) {

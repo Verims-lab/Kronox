@@ -673,7 +673,7 @@ the safest higher `User.kronox_puan_total` projection. It does not change the
 Kronox Puan formula or Solo/Online scoring rules. Guest leaderboard rows use a
 guest internal owner key and are migrated/passivated when the account links.
 
-Profile > Ayarlar may update `username` and optional private `age` / `gender`.
+Profile > Profil Bilgileri may update `username` and optional private `age_group` / `gender`.
 `display_name` is only a legacy/internal projection mirror of username. Only
 username affects public identity display; public leaderboard payloads must not
 return `display_name`.

@@ -279,7 +279,7 @@ Forbidden runtime behavior:
 Authenticated preferences:
 
 * entity: `UserCategoryPreference`
-* UI: Profile / Settings / `İlgi Alanlarım`
+* UI: Profile > Profil Bilgileri > `Kategori seçimi`
 * save minimum: 3 active valid categories
 * fewer than 3 valid preferences means Solo uses all active categories
 * at least 3 valid preferences enables Solo-only soft weighting

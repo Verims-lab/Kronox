@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Users, Trophy, Sparkles, Gem, Settings, ChevronRight, LogOut, UserRound, LogIn, Shield, RefreshCw, Snowflake, ShieldAlert, X, Gift, FileText, Trash2 } from 'lucide-react';
+import { Users, Trophy, Sparkles, Gem, Settings, ChevronRight, LogOut, UserRound, LogIn, Shield, RefreshCw, Snowflake, ShieldAlert, X, Gift } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
 import { isAdminUser, withAdminStatus } from '@/lib/admin';
@@ -181,7 +181,7 @@ export default function ProfilePage() {
   const isAdmin = isAdminUser(user);
 
   const goSettings = () => { sounds.tap(); navigate('/settings'); };
-  const goProfileSettings = () => { sounds.tap(); navigate('/settings?focus=profile', { state: { focusProfileSettings: true } }); };
+  const goProfileEdit = () => { sounds.tap(); navigate('/profile/edit'); };
   const goAdmin = () => { sounds.tap(); navigate('/admin'); };
   const handleLogin = () => {
     sounds.tap();
@@ -260,6 +260,7 @@ export default function ProfilePage() {
           user={user}
           guestProfile={guestProfile}
           isAdmin={isAdmin}
+          onOpenEdit={goProfileEdit}
           onLogin={handleLogin}
           onLogout={handleLogout}
         />
@@ -301,8 +302,8 @@ export default function ProfilePage() {
           <RowCard
             icon={<UserRound className="w-4 h-4" />}
             title="Profil Bilgileri"
-            desc="Kullanıcı adı, yaş ve özel profil bilgileri"
-            onClick={goProfileSettings}
+            desc="Kullanıcı adı, yaş aralığı, cinsiyet ve kategori seçimi"
+            onClick={goProfileEdit}
           />
           <RowCard
             icon={<Users className="w-4 h-4" />}
@@ -316,20 +317,8 @@ export default function ProfilePage() {
           <RowCard
             icon={<Settings className="w-4 h-4" />}
             title="Ayarlar"
-            desc="Kişisel ayarlar ve kategori tercihleri"
+            desc="Gizlilik ve hesap güvenliği"
             onClick={goSettings}
-          />
-          <RowCard
-            icon={<FileText className="w-4 h-4" />}
-            title="Gizlilik Politikası"
-            desc="Veri kullanımı ve kullanıcı hakları"
-            onClick={() => { sounds.tap(); navigate('/privacy'); }}
-          />
-          <RowCard
-            icon={<Trash2 className="w-4 h-4" />}
-            title="Hesap Silme"
-            desc={user ? 'Kalıcı silme işlemini Ayarlar’da başlat' : 'Hesap silme bilgi sayfası'}
-            onClick={() => { sounds.tap(); navigate(user ? '/settings?focus=delete' : '/account-deletion', user ? { state: { focusDeleteAccount: true } } : undefined); }}
           />
         </Section>
 
@@ -453,7 +442,7 @@ function JokerPocketSection({ authLoading, loading, user, balances, error, onRet
   );
 }
 
-function IdentityCard({ loading, user, guestProfile, isAdmin, onLogin, onLogout }) {
+function IdentityCard({ loading, user, guestProfile, isAdmin, onOpenEdit, onLogin, onLogout }) {
   const guestDisplayName = guestProfile?.username || 'Misafir Oyuncu';
   const registeredFullName = String(user?.full_name || '').trim();
   const registeredEmail = String(user?.email || '').trim();
@@ -477,56 +466,68 @@ function IdentityCard({ loading, user, guestProfile, isAdmin, onLogin, onLogout 
       }}
     >
       <div className="flex items-center gap-3">
-        <div
-          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full"
-          style={{
-            background: 'radial-gradient(circle at 35% 28%, #ffe066, #b97a06 70%)',
-            boxShadow:
-              '0 0 22px rgba(250,204,21,0.55), inset 0 1px 0 rgba(255,255,255,0.45), inset 0 -6px 8px rgba(140,80,8,0.55)',
-          }}
+        <button
+          type="button"
+          onClick={onOpenEdit}
+          disabled={loading}
+          aria-label="Profili düzenle"
+          className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl text-left transition-transform active:scale-[0.99] disabled:cursor-default"
         >
-          {user ? (
-            <span className="font-bangers text-2xl text-amber-950">{initial}</span>
-          ) : (
-            <UserRound className="h-7 w-7 text-amber-950" strokeWidth={2.6} />
-          )}
-        </div>
+          <div
+            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full"
+            style={{
+              background: 'radial-gradient(circle at 35% 28%, #ffe066, #b97a06 70%)',
+              boxShadow:
+                '0 0 22px rgba(250,204,21,0.55), inset 0 1px 0 rgba(255,255,255,0.45), inset 0 -6px 8px rgba(140,80,8,0.55)',
+            }}
+          >
+            {user ? (
+              <span className="font-bangers text-2xl text-amber-950">{initial}</span>
+            ) : (
+              <UserRound className="h-7 w-7 text-amber-950" strokeWidth={2.6} />
+            )}
+          </div>
 
-        <div className="min-w-0 flex-1">
-          {loading ? (
-            <div className="space-y-2">
-              <div className="h-3 w-32 rounded bg-white/10 animate-pulse" />
-              <div className="h-2.5 w-48 rounded bg-white/5 animate-pulse" />
-            </div>
-          ) : user ? (
-            <>
-              <div className="flex items-center gap-2 min-w-0">
-                <p className="truncate font-cinzel text-base tracking-wider text-white">{displayName}</p>
-                {isAdmin && (
-                  <span
-                    className="shrink-0 rounded-md px-1.5 py-[1px] font-inter text-[9px] font-black uppercase tracking-widest"
-                    style={{
-                      color: '#231405',
-                      background: 'linear-gradient(180deg,#ffe066,#b97a06)',
-                      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.5), 0 0 8px rgba(250,204,21,0.5)',
-                    }}
-                  >
-                    Admin
-                  </span>
-                )}
+          <div className="min-w-0 flex-1">
+            {loading ? (
+              <div className="space-y-2">
+                <div className="h-3 w-32 rounded bg-white/10 animate-pulse" />
+                <div className="h-2.5 w-48 rounded bg-white/5 animate-pulse" />
               </div>
-              {privateIdentityLine && (
-                <p className="truncate font-inter text-[11px] text-blue-100/70">{privateIdentityLine}</p>
-              )}
-            </>
-          ) : (
-            <>
-              <p className="truncate font-cinzel text-base tracking-wider text-white">{guestDisplayName}</p>
-              <p className="font-inter text-[11px] text-blue-100/70">Misafir oyuncu • giriş yapmadan oynayabilirsin</p>
-            </>
-          )}
-        </div>
+            ) : user ? (
+              <>
+                <div className="flex items-center gap-2 min-w-0">
+                  <p className="truncate font-cinzel text-base tracking-wider text-white">{displayName}</p>
+                  {isAdmin && (
+                    <span
+                      className="shrink-0 rounded-md px-1.5 py-[1px] font-inter text-[9px] font-black uppercase tracking-widest"
+                      style={{
+                        color: '#231405',
+                        background: 'linear-gradient(180deg,#ffe066,#b97a06)',
+                        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.5), 0 0 8px rgba(250,204,21,0.5)',
+                      }}
+                    >
+                      Admin
+                    </span>
+                  )}
+                </div>
+                {privateIdentityLine && (
+                  <p className="truncate font-inter text-[11px] text-blue-100/70">{privateIdentityLine}</p>
+                )}
+              </>
+            ) : (
+              <>
+                <p className="truncate font-cinzel text-base tracking-wider text-white">{guestDisplayName}</p>
+                <p className="font-inter text-[11px] text-blue-100/70">Misafir oyuncu • giriş yapmadan oynayabilirsin</p>
+              </>
+            )}
+          </div>
+        </button>
 
+        {/*
+          Giriş Yap / Çıkış Yap stays outside the profile-edit tap target so
+          account linking and logout remain separate actions.
+        */}
         {!loading && (user ? (
           <button
             type="button"

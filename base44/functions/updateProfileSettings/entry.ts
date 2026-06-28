@@ -4,6 +4,7 @@ const HASH_ALGORITHM = 'sha256:kronox_guest_v1';
 const USERNAME_PREFIX = 'KronoxUser';
 const GUEST_ID_PREFIX = 'guest_';
 const GENDER_VALUES = new Set(['', 'female', 'male', 'non_binary', 'prefer_not_to_say', 'custom']);
+const AGE_GROUP_VALUES = new Set(['', '13_17', '18_24', '25_34', '35_44', '45_plus']);
 const UNSAFE_PUBLIC_USERNAME_PATTERN = /^(apple|google|firebase|auth0|base44|provider|uid|owner)(?:[\w:-].*)?$/i;
 const INTERNAL_ID_PUBLIC_USERNAME_PATTERN = /^(guest|player|owner|user_key|player_key|g|u)_[A-Za-z0-9_-]{4,}$/i;
 
@@ -80,6 +81,11 @@ function normalizeAge(value: unknown) {
 function normalizeGender(value: unknown) {
   const text = String(value || '').trim();
   return GENDER_VALUES.has(text) ? text : undefined;
+}
+
+function normalizeAgeGroup(value: unknown) {
+  const text = String(value || '').trim();
+  return AGE_GROUP_VALUES.has(text) ? text : undefined;
 }
 
 function bytesToBase64Url(bytes: Uint8Array) {
@@ -215,6 +221,7 @@ function publicGuestProfile(row: any) {
     profile_setup_status: String(row?.profile_setup_status || 'pending'),
     category_setup_status: String(row?.category_setup_status || 'pending'),
     age: Number.isFinite(Number(row?.age)) ? Number(row.age) : null,
+    age_group: String(row?.age_group || ''),
     gender: String(row?.gender || ''),
     selected_category_ids: Array.isArray(row?.selected_category_ids) ? row.selected_category_ids : [],
     created_at: row?.created_at || row?.created_date || null,
@@ -239,15 +246,24 @@ async function refreshLeaderboardIdentity(base44: any, ownerKey: string, display
 }
 
 function buildProfilePatch(body: any, fallbackSeed: string, existingProfile: any = {}) {
+  const hasOwn = (key: string) => Object.prototype.hasOwnProperty.call(body || {}, key);
   const rawUsername = String(body?.username || '').trim();
   if (rawUsername && !normalizeUsernameInput(rawUsername)) return { ok: false, code: 'invalid_username' };
   const existingUsername = normalizeUsernameInput(existingProfile?.username);
   const requestedUsername = normalizeUsernameInput(rawUsername) || existingUsername || makeFallbackUsername(fallbackSeed);
   const username = normalizeUsernameInput(requestedUsername);
   if (!username) return { ok: false, code: 'invalid_username' };
-  const age = normalizeAge(body?.age);
+  const age = hasOwn('age')
+    ? normalizeAge(body?.age)
+    : (Number.isFinite(Number(existingProfile?.age)) ? Number(existingProfile.age) : null);
   if (age === undefined) return { ok: false, code: 'invalid_age' };
-  const gender = normalizeGender(body?.gender);
+  const ageGroup = hasOwn('age_group')
+    ? normalizeAgeGroup(body?.age_group)
+    : (normalizeAgeGroup(existingProfile?.age_group) || '');
+  if (ageGroup === undefined) return { ok: false, code: 'invalid_age_group' };
+  const gender = hasOwn('gender')
+    ? normalizeGender(body?.gender)
+    : (normalizeGender(existingProfile?.gender) || '');
   if (gender === undefined) return { ok: false, code: 'invalid_gender' };
   return {
     ok: true,
@@ -256,6 +272,7 @@ function buildProfilePatch(body: any, fallbackSeed: string, existingProfile: any
       username_normalized: normalizeUsernameKey(username),
       display_name: username,
       age,
+      age_group: ageGroup,
       gender,
       profile_settings_updated_at: nowIso(),
     },
@@ -302,6 +319,7 @@ Deno.serve(async (req: Request) => {
           usernamePreservesExistingWhenEmpty: true,
           providerIdsDisplayedPublicly: false,
           ageGenderPublicFields: false,
+          ageGroupPublicFields: false,
         },
       });
     }
@@ -349,6 +367,7 @@ Deno.serve(async (req: Request) => {
         usernamePreservesExistingWhenEmpty: true,
         providerIdsDisplayedPublicly: false,
         ageGenderPublicFields: false,
+        ageGroupPublicFields: false,
         hashAlgorithm: HASH_ALGORITHM,
       },
     });

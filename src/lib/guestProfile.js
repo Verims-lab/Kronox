@@ -65,6 +65,7 @@ function normalizePublicProfile(profile) {
     profile_setup_status: String(profile.profile_setup_status || 'pending').trim() || 'pending',
     category_setup_status: String(profile.category_setup_status || 'pending').trim() || 'pending',
     age: Number.isFinite(Number(profile.age)) ? Number(profile.age) : null,
+    age_group: String(profile.age_group || '').trim(),
     gender: String(profile.gender || '').trim(),
     selected_category_ids: selectedCategoryIds,
     created_at: profile.created_at || null,

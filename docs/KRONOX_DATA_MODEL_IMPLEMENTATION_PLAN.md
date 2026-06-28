@@ -12,7 +12,7 @@ Implementation constraints:
 * raw guest token stored only on client/local device
 * DB stores `guest_token_hash`
 * default username uses `KronoxUser####` / `KronoxUser#####`
-* Profile > Ayarlar edits username and optional age/gender through
+* Profile > Profil Bilgileri edits username and optional age_group/gender through
   server-authoritative `updateProfileSettings`; `display_name` mirrors username
   for legacy projections
 * username uniqueness uses `username_normalized` for case-insensitive checks

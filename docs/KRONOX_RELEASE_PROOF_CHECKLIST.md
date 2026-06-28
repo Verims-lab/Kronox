@@ -290,11 +290,11 @@ Checklist:
 
 ---
 
-# 5. Settings Category Preferences
+# 5. Profile Info Category Preferences
 
 Checklist:
 
-* Settings shows `İlgi Alanlarım` for authenticated users.
+* Profile > Profil Bilgileri shows `Kategori seçimi` for authenticated users.
 * Active `Category.status = A/a` rows load as selectable interests.
 * Passive `Category.status = P/p` rows are hidden.
 * Existing current-user selections load as selected.
@@ -311,8 +311,8 @@ Checklist:
   out of active UI/save state and are not resaved as active preferences.
 * Completing the popup saves preferences and prevents the popup from showing
   again while the user still has 3 or more active valid preferences.
-* Users can later change selections under Profile / Settings /
-  `İlgi Alanlarım`.
+* Users can later change selections under Profile > Profil Bilgileri >
+  `Kategori seçimi`.
 * First-time guest onboarding reaches category selection after profile setup
   without login, loads safe category metadata (not questions), and can save
   `selected_category_ids` through token-proven GuestProfile ownership.
@@ -848,10 +848,12 @@ Checklist:
 * Admin-only functions reject unauthenticated users with 401.
 * Admin-only functions reject non-admin users with 403.
 * Authorized admins can still use admin tools.
-* Profile normal-user actions are `Sosyal / Arkadaşlarım` and `Hesap / Ayarlar`.
+* Profile normal-user actions include screen-navigation rows for `Profil Bilgileri`,
+  `Arkadaşlarım`, and `Ayarlar`; privacy/account-deletion actions live under
+  Settings.
 * Active `AdminUser` role `owner`/`admin` users additionally see `Admin Ekranı`.
 * `Admin Ekranı` contains admin-only maintenance/report tools; Settings remains
-  account/help/preferences focused.
+  account/security focused.
 * Direct `/admin` access by normal users is blocked or redirected safely.
 * `/admin` route-level UX guard waits for AuthContext/AdminUser status before
   mounting AdminPage; normal users must not see an admin UI flash. Server-side
@@ -932,7 +934,7 @@ Use a disposable test account only.
 
 Checklist:
 
-* Profile / Ayarlar shows `Hesabı Sil`.
+* Profile / Ayarlar shows `Hesabı Sil` inside the Settings screen.
 * First tap opens a confirmation instead of deleting immediately.
 * Cancel returns safely without deleting.
 * Confirm shows loading state.
@@ -1247,8 +1249,8 @@ login:
 * `getSoloLeaderboard` response rows return sanitized `username` plus opaque
   `leaderboard_id`; copied JSON does not include email, provider ids,
   `owner_key`, `player_key`, raw guest id, or `display_name`
-* Profile > Ayarlar lets guest and authenticated users edit username plus
-  optional age/gender without forcing login for guests
+* Profile > Profil Bilgileri lets guest and authenticated users edit username plus
+  optional age_group/gender without forcing login for guests
 * onboarding profile setup uses only `username` plus optional age/gender and
   advances to category setup after a successful token-proven save
 * username collisions are rejected with a friendly error, including

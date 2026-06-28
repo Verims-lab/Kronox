@@ -332,7 +332,7 @@ Rules:
 
 * Preferences are stored per authenticated user.
 * `category_id` stores the stable `Category.category_id` value.
-* Settings shows active `Category.status = A/a` options and hides passive
+* Profile Info shows active `Category.status = A/a` options and hides passive
   `Category.status = P/p` rows.
 * Minimum selection count is 3.
 * There is no maximum selection.
@@ -345,8 +345,8 @@ Rules:
   not be resaved as active preferences.
 * Onboarding/completion profile flags are advisory only and cannot bypass the
   below-3 rule.
-* Users can later change selections under Profile / Settings /
-  `İlgi Alanlarım`.
+* Users can later change selections under Profile > Profil Bilgileri >
+  `Kategori seçimi`.
 * Authenticated users with no saved preferences or empty preferences use all
   active categories for Solo; missing authentication uses the explicit capped
   guest Solo projection and must not expose raw questions. Insufficient
@@ -372,7 +372,7 @@ Rules:
   or poll/refetch recovery, but every participant must read the same persisted
   deck/current question.
 * `SubCategory` still exists for future normalized question metadata, but
-  Settings preference selection currently uses main `Category`, not
+  Profile Info preference selection currently uses main `Category`, not
   `SubCategory`.
 * Existing `UserSubCategoryPreference` rows, if any, are left untouched until a
   later migration decision.

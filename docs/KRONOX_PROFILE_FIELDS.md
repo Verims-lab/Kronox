@@ -27,8 +27,10 @@ placeholders after authentication.
 
 ## Category Preferences
 
-* `İlgi Alanlarım` remains editable from Profile / Settings for authenticated
-  users and persists user-owned `UserCategoryPreference` rows.
+* `Kategori seçimi` remains editable from Profile > Profil Bilgileri for
+  authenticated users and persists user-owned `UserCategoryPreference` rows.
+  Settings owns privacy/account actions and is not the category preference
+  editor.
 * Authenticated users with fewer than 3 active valid Category preferences may
   see the optional personalization popup; it can be deferred and must not block
   normal authenticated Solo gameplay.
@@ -64,17 +66,26 @@ are not stored in those rows.
 
 ## Editable Profile Settings
 
-Profile > Ayarlar includes editable profile fields for both guest and
+Profile > Profil Bilgileri includes editable profile fields for both guest and
 authenticated users:
 
 * `username`
-* optional `age`
+* optional `age_group`
 * optional `gender`
+
+`age` is a legacy/private numeric profile field for older rows and onboarding
+compatibility. Current Profile edit UI collects `age_group` only and does not
+ask for exact birthdate or exact age.
 
 `updateProfileSettings` is the server-authoritative update path. Authenticated
 users are verified with `base44.auth.me()`. Guest users are verified with
 `guest_id + raw guest token`; `guest_id` alone is not trusted and raw guest
 tokens are never stored server-side.
+
+The Profile landing menu routes `Profil Bilgileri`, `Arkadaşlarım`, and
+`Ayarlar` to dedicated screens. `Gizlilik Politikası` and `Hesap Silme` live
+under the Settings screen; signed-in account deletion keeps the in-app guarded
+confirmation flow.
 
 The UI exposes only `username`; `display_name` is mirrored from that username by
 the server so existing projections keep working. Username uniqueness is checked
@@ -83,7 +94,7 @@ case-insensitively through
 missing or provider-like public names. Username changes refresh the existing
 `SoloLeaderboardEntry` internal projection mirror when a row exists, and
 `getSoloLeaderboard` returns sanitized `username` plus opaque `leaderboard_id`
-instead of `display_name` or `owner_key`. `age` and `gender` are private
+instead of `display_name` or `owner_key`. `age`, `age_group`, and `gender` are private
 optional profile fields only; they must not appear in leaderboard rows, public
 projections, scoring, matchmaking, Solo category weighting, or Online game
 selection.

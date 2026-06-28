@@ -206,7 +206,7 @@ export const EXTRA_TESTS = [
       return pass('Profile subroutes are owned by Profile and the Online lobby route stays in the Home CTA flow.', { verification: 'STATIC_CONTRACT' });
     }),
 
-  makeCase('category_preferences_health', 'Settings Category Preferences Suite',
+  makeCase('category_preferences_health', 'Profile Info Category Preferences Suite',
     'category_preferences_has_no_raw_select_controls',
     'CategoryPreferencesSection remains custom touch UI with no raw native select',
     () => {

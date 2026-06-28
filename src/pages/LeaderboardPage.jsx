@@ -298,10 +298,9 @@ export default function LeaderboardPage() {
   const isAdmin = isAdminUser(user);
   const leaderboardPlayer = user || completedGuestProfile;
   const openCurrentUserProfileSettings = useCallback(() => {
-    navigate('/settings?focus=profile', {
+    navigate('/profile/edit', {
       state: {
         source: 'leaderboard_self_row',
-        focusProfileSettings: true,
       },
     });
   }, [navigate]);

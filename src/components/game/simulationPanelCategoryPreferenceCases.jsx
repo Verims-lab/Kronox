@@ -1,6 +1,6 @@
 // Kronox Health Center — Category preference contracts.
 //
-// Scope: Settings + app-open main Category interest preferences. These
+// Scope: Profile Info + app-open main Category interest preferences. These
 // cases do not prove runtime RLS with another account and do not connect
 // preferences to question selection.
 
@@ -12,6 +12,7 @@ import userSubCategoryPreferenceEntitySource from '../../../base44/entities/User
 import questionEntitySource from '../../../base44/entities/Question.jsonc?raw';
 import appSource from '../../App.jsx?raw';
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
+import profileEditPageSource from '../../pages/ProfileEditPage.jsx?raw';
 import adminPageSource from '../../pages/AdminPage.jsx?raw';
 import preferenceSectionSource from '../settings/CategoryPreferencesSection.jsx?raw';
 import onboardingModalSource from '../settings/CategoryPreferenceOnboardingModal.jsx?raw';
@@ -50,7 +51,7 @@ const ACTION_TYPES = {
 };
 
 const SUITE_ID = 'category_preferences_health';
-const SUITE_NAME = 'Settings Category Preferences Suite';
+const SUITE_NAME = 'Profile Info Category Preferences Suite';
 
 function makeCase(id, name, run, options = {}) {
   return {
@@ -133,7 +134,7 @@ export const EXTRA_TESTS = [
       const writesAdminOnly = ['create', 'update', 'delete'].every((op) => rls?.[op]?.user_condition?.role === 'admin');
 
       if (missingFields.length || !categoryIdOk || !normalizedStatusOk || !readPublic || !writesAdminOnly) {
-        return fail('Category readiness contract for Settings preferences is incomplete.', {
+        return fail('Category readiness contract for Profile Info preferences is incomplete.', {
           verification: 'STATIC_CONTRACT',
           file: 'base44/entities/Category.jsonc',
           actual: { missingFields, categoryIdOk, statusEnum, normalizedStatusEnum, readPublic, writesAdminOnly },
@@ -145,7 +146,7 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('subcategory_entity_retained_but_not_settings_source',
-    'SubCategory entity is retained for future metadata but not used by Settings preferences',
+    'SubCategory entity is retained for future metadata but not used by Profile Info preferences',
     () => {
       const subCategorySchema = parseJsonSource(subCategoryEntitySource);
       const userSubCategorySchema = parseJsonSource(userSubCategoryPreferenceEntitySource);
@@ -153,8 +154,8 @@ export const EXTRA_TESTS = [
         && Object.prototype.hasOwnProperty.call(subCategorySchema?.properties || {}, 'main_category_1')
         && Object.prototype.hasOwnProperty.call(subCategorySchema?.properties || {}, 'main_category_2');
       const oldPreferenceEntityRetained = userSubCategorySchema?.name === 'UserSubCategoryPreference';
-      const activeSettingsSource = `${settingsPageSource}\n${preferenceSectionSource}\n${preferenceHelperSource}`;
-      const forbidden = forbiddenTokens(activeSettingsSource, [
+      const activePreferenceSource = `${profileEditPageSource}\n${preferenceSectionSource}\n${preferenceHelperSource}`;
+      const forbidden = forbiddenTokens(activePreferenceSource, [
         'SubCategoryPreferencesSection',
         'loadActiveSubCategories',
         'loadUserSubCategoryPreferences',
@@ -164,45 +165,46 @@ export const EXTRA_TESTS = [
       ]);
 
       if (!subCategoryExists || !oldPreferenceEntityRetained || forbidden.length) {
-        return fail('SubCategory was removed or the old SubCategory Settings preference path is still active.', {
+        return fail('SubCategory was removed or the old SubCategory Profile Info preference path is still active.', {
           verification: 'STATIC_CONTRACT',
           files: [
             'base44/entities/SubCategory.jsonc',
             'base44/entities/UserSubCategoryPreference.jsonc',
-            'src/pages/SettingsPage.jsx',
+            'src/pages/ProfileEditPage.jsx',
             'src/components/settings/CategoryPreferencesSection.jsx',
             'src/lib/userCategoryPreferences.js',
           ],
           actual: { subCategoryExists, oldPreferenceEntityRetained, forbidden },
         });
       }
-      return pass('SubCategory and old preference rows are retained, but Settings no longer uses them as the active preference path.', {
+      return pass('SubCategory and old preference rows are retained, but Profile Info no longer uses them as the active preference path.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
 
   makeCase('settings_has_ilgi_alanlarim_category_section',
-    'Settings has an İlgi Alanlarım section for Category preferences',
+    'Profile Info has a Kategori seçimi section for Category preferences',
     () => {
-      const missing = missingTokens(`${settingsPageSource}\n${preferenceSectionSource}`, [
+      const missing = missingTokens(`${profileEditPageSource}\n${preferenceSectionSource}`, [
         'CategoryPreferencesSection',
+        'Kategori seçimi',
         'İlgi Alanlarım',
         'Oyun deneyimini kişiselleştirmek için en az 3 kategori seç.',
       ]);
       if (missing.length) {
-        return fail('Settings is missing the Category preference section.', {
+        return fail('Profile Info is missing the Category preference section.', {
           verification: 'STATIC_CONTRACT',
-          files: ['src/pages/SettingsPage.jsx', 'src/components/settings/CategoryPreferencesSection.jsx'],
+          files: ['src/pages/ProfileEditPage.jsx', 'src/components/settings/CategoryPreferencesSection.jsx'],
           missing,
         });
       }
-      return pass('Settings exposes the İlgi Alanlarım Category preference section.', {
+      return pass('Profile Info exposes the Kategori seçimi Category preference section.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
 
   makeCase('settings_loads_active_categories_only',
-    'Settings loads active Category rows and hides passive Category rows',
+    'Profile Info loads active Category rows and hides passive Category rows',
     () => {
       const missing = missingTokens(`${preferenceHelperSource}\n${preferenceSectionSource}`, [
         'base44.entities.Category.list',
@@ -214,13 +216,13 @@ export const EXTRA_TESTS = [
         'Kategoriler henüz hazırlanıyor.',
       ]);
       if (missing.length) {
-        return fail('Settings Category loading no longer proves active-only filtering and empty-state safety.', {
+        return fail('Profile Info Category loading no longer proves active-only filtering and empty-state safety.', {
           verification: 'STATIC_CONTRACT',
           files: ['src/lib/userCategoryPreferences.js', 'src/components/settings/CategoryPreferencesSection.jsx'],
           missing,
         });
       }
-      return pass('Settings loads active Category rows, hides passive rows, and has an empty state.', {
+      return pass('Profile Info loads active Category rows, hides passive rows, and has an empty state.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
@@ -262,7 +264,7 @@ export const EXTRA_TESTS = [
         'Seçili: {selectedCount}',
       ]);
       if (missing.length) {
-        return fail('Settings no longer shows saved current-user Category selections.', {
+        return fail('Profile Info no longer shows saved current-user Category selections.', {
           verification: 'STATIC_CONTRACT',
           files: ['src/lib/userCategoryPreferences.js', 'src/components/settings/CategoryPreferencesSection.jsx'],
           missing,
@@ -290,7 +292,7 @@ export const EXTRA_TESTS = [
           missing,
         });
       }
-      return pass('Settings blocks saves below 3 category selections and calls the persistence helper when valid.', {
+      return pass('Profile Info blocks saves below 3 category selections and calls the persistence helper when valid.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
@@ -322,10 +324,10 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('stale_subcategory_preference_health_assumptions_rewritten',
-    'Stale SubCategory preference UI/minimum-5 assumptions are removed from active Settings coverage',
+    'Stale SubCategory preference UI/minimum-5 assumptions are removed from active Profile Info coverage',
     () => {
       const activePreferenceSources = [
-        settingsPageSource,
+        profileEditPageSource,
         preferenceSectionSource,
         onboardingModalSource,
         preferenceHelperSource,
@@ -356,7 +358,7 @@ export const EXTRA_TESTS = [
         return fail('Active preference Health/static coverage still contains stale SubCategory, minimum-5, or new-user-only assumptions.', {
           verification: 'STATIC_CONTRACT',
           files: [
-            'src/pages/SettingsPage.jsx',
+            'src/pages/ProfileEditPage.jsx',
             'src/components/settings/CategoryPreferencesSection.jsx',
             'src/components/settings/CategoryPreferenceOnboardingModal.jsx',
             'src/lib/userCategoryPreferences.js',
@@ -365,7 +367,7 @@ export const EXTRA_TESTS = [
           actual: { forbidden, required },
         });
       }
-      return pass('Active Settings/popup coverage uses Category preferences, minimum 3, and no old SubCategory preference UI path.', {
+      return pass('Active Profile Info/popup coverage uses Category preferences, minimum 3, and no old SubCategory preference UI path.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
@@ -510,7 +512,7 @@ export const EXTRA_TESTS = [
       const hasTextSubCategory = props.sub_category?.type === 'string';
       const forbiddenFields = Object.keys(props).filter((field) => field === 'sub_category_id' || field === 'subcategory_id');
       if (!hasTextSubCategory || forbiddenFields.length) {
-        return fail('Question schema was changed while switching Settings preferences to Category.', {
+        return fail('Question schema was changed while switching Profile Info preferences to Category.', {
           verification: 'STATIC_CONTRACT',
           file: 'base44/entities/Question.jsonc',
           actual: { hasTextSubCategory, forbiddenFields },
@@ -602,7 +604,7 @@ export const EXTRA_TESTS = [
           missing,
         });
       }
-      return pass('Popup uses the same active Category source, min-3 rule, and guarded empty-state fallback as Settings.', {
+      return pass('Popup uses the same active Category source, min-3 rule, and guarded empty-state fallback as Profile Info.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
@@ -841,33 +843,34 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('settings_remains_editable_after_onboarding',
-    'Settings İlgi Alanlarım remains editable using the same Category preference storage',
+    'Profile Info Kategori seçimi remains editable using the same Category preference storage',
     () => {
-      const missing = missingTokens(`${settingsPageSource}\n${preferenceSectionSource}\n${onboardingModalSource}`, [
+      const missing = missingTokens(`${profileEditPageSource}\n${preferenceSectionSource}\n${onboardingModalSource}`, [
         'CategoryPreferencesSection',
+        'Kategori seçimi',
         'loadUserCategoryPreferences(user)',
         'saveUserCategoryPreferences(user, selectedIds, activeCategories)',
         'Kaydet',
         'Devam Et',
       ]);
       if (missing.length) {
-        return fail('Settings no longer proves the same Category preference storage remains editable after onboarding.', {
+        return fail('Profile Info no longer proves the same Category preference storage remains editable after onboarding.', {
           verification: 'STATIC_CONTRACT',
           files: [
-            'src/pages/SettingsPage.jsx',
+            'src/pages/ProfileEditPage.jsx',
             'src/components/settings/CategoryPreferencesSection.jsx',
             'src/components/settings/CategoryPreferenceOnboardingModal.jsx',
           ],
           missing,
         });
       }
-      return pass('Settings remains the editable Category preference surface after app-open popup completion.', {
+      return pass('Profile Info remains the editable Category preference surface after app-open popup completion.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
 
   makeCase('settings_and_popup_share_same_category_preference_contract',
-    'Settings and popup share the same Category preference data contract',
+    'Profile Info and popup share the same Category preference data contract',
     () => {
       const requiredInBoth = [
         'loadActiveCategories',
@@ -891,7 +894,7 @@ export const EXTRA_TESTS = [
       ]);
 
       if (settingsMissing.length || popupMissing.length || helperMissing.length || forbidden.length) {
-        return fail('Settings and popup may have diverged into separate preference contracts.', {
+        return fail('Profile Info and popup may have diverged into separate preference contracts.', {
           verification: 'STATIC_CONTRACT',
           files: [
             'src/components/settings/CategoryPreferencesSection.jsx',
@@ -900,7 +903,7 @@ export const EXTRA_TESTS = [
           actual: { settingsMissing, popupMissing, helperMissing, forbidden },
         });
       }
-      return pass('Settings and popup both use active Category rows, UserCategoryPreference persistence, min-3 validation, and no max cap.', {
+      return pass('Profile Info and popup both use active Category rows, UserCategoryPreference persistence, min-3 validation, and no max cap.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
@@ -928,9 +931,9 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('settings_admin_visibility_unchanged',
-    'Admin tools remain AdminUser-gated in Admin Ekranı and Settings stays preference-focused',
+    'Admin tools remain AdminUser-gated in Admin Ekranı and Settings stays account/security focused',
     () => {
-      const missing = missingTokens(`${settingsPageSource}\n${adminPageSource}`, [
+      const missing = missingTokens(`${profileEditPageSource}\n${settingsPageSource}\n${adminPageSource}`, [
         'CategoryPreferencesSection',
         'Admin Ekranı',
         'const isAdmin = parsedAdminStatus',
@@ -947,19 +950,19 @@ export const EXTRA_TESTS = [
         'SimulationPanel',
       ]);
       if (missing.length || forbidden.length) {
-        return fail('Admin visibility or clean Settings contract changed while preserving Category preferences.', {
+        return fail('Admin visibility or clean Settings contract changed while preserving Profile Info Category preferences.', {
           verification: 'STATIC_CONTRACT',
           file: 'src/pages/SettingsPage.jsx + src/pages/AdminPage.jsx',
           actual: { missing, forbidden },
         });
       }
-      return pass('Settings stays preference-focused and Admin Ekranı tools remain gated by backend AdminUser status.', {
+      return pass('Settings stays account/security focused and Admin Ekranı tools remain gated by backend AdminUser status.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
 
   makeCase('settings_mobile_ui_static_guardrails',
-    'Settings Category preference UI has mobile-safe wrapping and reachable save controls',
+    'Profile Info Category preference UI has mobile-safe wrapping and reachable save controls',
     () => {
       const missing = missingTokens(preferenceSectionSource, [
         'flex flex-wrap',
@@ -970,7 +973,7 @@ export const EXTRA_TESTS = [
         'w-full items-center justify-center',
       ]);
       if (missing.length) {
-        return fail('Settings Category preference UI lost static mobile wrapping/reachable-save guardrails.', {
+        return fail('Profile Info Category preference UI lost static mobile wrapping/reachable-save guardrails.', {
           verification: 'STATIC_CONTRACT',
           file: 'src/components/settings/CategoryPreferencesSection.jsx',
           missing,
@@ -1006,7 +1009,7 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('docs_align_category_preference_phase',
-    'Docs align on below-3 Category preference popup, Settings editability, and Solo-only soft weighting',
+    'Docs align on below-3 Category preference popup, Profile Info editability, and Solo-only soft weighting',
     () => {
       const combinedDocs = [
         questionDataModelDocSource,
@@ -1017,7 +1020,7 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(combinedDocs, [
         'Category interests',
         'UserCategoryPreference',
-        'İlgi Alanlarım',
+        'Kategori seçimi',
         'Minimum selection count is 3',
         'There is no maximum selection.',
         'optional personalization popup',
@@ -1025,7 +1028,7 @@ export const EXTRA_TESTS = [
         'can be deferred',
         'active valid UserCategoryPreference count',
         'Only active categories are selectable and count',
-        'Users can later change selections under Profile / Settings',
+        'Users can later change selections under Profile > Profil Bilgileri',
         'Authenticated users with no saved preferences or empty preferences use all',
         'missing authentication uses the explicit capped',
         'guest Solo projection',
@@ -1049,7 +1052,7 @@ export const EXTRA_TESTS = [
           missing,
         });
       }
-      return pass('Docs/mirrors state below-3 popup trigger, Settings editability, minimum/no-max rules, Solo soft weighting, retained SubCategory, and RLS proof needs.', {
+      return pass('Docs/mirrors state below-3 popup trigger, Profile Info editability, minimum/no-max rules, Solo soft weighting, retained SubCategory, and RLS proof needs.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
@@ -1062,7 +1065,7 @@ export const EXTRA_TESTS = [
       runtimeProofRequired: true,
       manualSteps: [
         'User A saves at least 3 Category preferences.',
-        'User B opens Settings and cannot see User A selections.',
+        'User B opens Profile Info and cannot see User A selections.',
         'User B cannot update User A preference row through direct entity access.',
         'Admin account can inspect rows only through admin-authorized tooling when such tooling exists.',
       ],
@@ -1071,12 +1074,12 @@ export const EXTRA_TESTS = [
 
   makeCase('preference_mobile_visual_runtime_proof_required',
     'Mobile visual proof for preference chips/list remains manual',
-    () => notAutomatable('Static Health checks wrapping classes, but real mobile proof is still required for long Category names, touch targets, Settings scroll, safe area, and save-button reachability.', {
+    () => notAutomatable('Static Health checks wrapping classes, but real mobile proof is still required for long Category names, touch targets, Profile Info scroll, safe area, and save-button reachability.', {
       verification: 'NOT_AUTOMATABLE',
       runtimeProofRequired: true,
       manualSteps: [
-        'Open Settings on a narrow mobile viewport/device.',
-        'Verify İlgi Alanlarım chips and list rows wrap without horizontal overflow.',
+        'Open Profile Info on a narrow mobile viewport/device.',
+        'Verify Kategori seçimi chips and list rows wrap without horizontal overflow.',
         'Verify long Category names remain readable and the Kaydet button is reachable.',
         'Verify validation text is visible when fewer than 3 categories are selected.',
       ],

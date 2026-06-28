@@ -6,6 +6,7 @@
 
 import leaderboardPageSource from '../../pages/LeaderboardPage.jsx?raw';
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
+import profileEditPageSource from '../../pages/ProfileEditPage.jsx?raw';
 import leaderboardLibSource from '../../lib/leaderboard.js?raw';
 import navigationStackSource from '../../lib/NavigationStackContext.jsx?raw';
 import soloLevelsSource from '../../lib/soloLevels.js?raw';
@@ -754,21 +755,19 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('leaderboard_health', 'own_row_opens_profile_settings_only',
-    'Current user leaderboard row opens Profile Settings without making other rows private links',
+    'Current user leaderboard row opens Profile Info without making other rows private links',
     () => {
-      const required = missingTokens(`${leaderboardPageSource}\n${kronoxRankingSectionSource}\n${settingsPageSource}\n${bottomNavSource}\n${navigationStackSource}`, [
+      const required = missingTokens(`${leaderboardPageSource}\n${kronoxRankingSectionSource}\n${profileEditPageSource}\n${settingsPageSource}\n${bottomNavSource}\n${navigationStackSource}`, [
         'openCurrentUserProfileSettings',
-        "navigate('/settings?focus=profile'",
+        "navigate('/profile/edit'",
         "source: 'leaderboard_self_row'",
-        'focusProfileSettings: true',
         'onCurrentUserRowOpenSettings',
         "row.isCurrentUser && typeof onOpenSettings === 'function'",
         'aria-label="Profil ayarlarını aç"',
         'Badge text="Sen"',
-        'data-kx-profile-settings-anchor="true"',
-        'shouldFocusProfileSettings',
         'Profil Bilgileri',
-        'name="username"',
+        'Takma Ad',
+        'Kategori seçimi',
         "['/profile', '/friends', '/settings', '/admin', '/test-suite', '/account-deletion']",
         "Ana Sayfa",
         "Liderlik",
@@ -782,15 +781,15 @@ export const EXTRA_TESTS = [
         'internal player_key',
       ]);
       if (required.length || forbidden.length) {
-        return fail('Own leaderboard-row Profile Settings navigation contract drifted.', {
+        return fail('Own leaderboard-row Profile Info navigation contract drifted.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'only row.isCurrentUser/Sen row is a button to /settings?focus=profile; Settings anchors Profil Bilgileri; BottomNav remains Ana Sayfa/Liderlik/Profil; no private IDs rendered',
+          expected: 'only row.isCurrentUser/Sen row is a button to /profile/edit; Profile Info carries Profil Bilgileri; BottomNav remains Ana Sayfa/Liderlik/Profil; no private IDs rendered',
           actual: { required, forbidden },
         });
       }
-      return pass('Only the current-user leaderboard row can open Profile Settings, Settings deep-links to Profil Bilgileri, and BottomNav/public identity contracts stay intact.', {
+      return pass('Only the current-user leaderboard row can open Profile Info, and BottomNav/public identity contracts stay intact.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
