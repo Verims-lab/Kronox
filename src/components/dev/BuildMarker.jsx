@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex476 — Health blocker alignment (KRONOX-MQXVGC0M):
+//   • Aligns AuthProvider source with the null-safe current-user contract and exact-pins the root @base44/sdk dependency.
+//   • Hardens inactive guest username cleanup Health tokens for explicit execute mode and privacy-safe reason labels.
+//   • Re-syncs recent public-identity, Timeline visual safety, and UX guardrail doc mirrors without broad product behavior changes.
+//
 // Codex475 — Health Center recent-contract audit:
 //   • Adds a modular Health suite for recent Profile/Settings, Leaderboard, presence/invite, admin, performance, visual, UX, and SDK coverage inventory.
 //   • Adds a runtime mirror for UX quality guardrails and updates Health gap docs from candidate-only to static coverage plus manual proof gates.
@@ -56,7 +61,7 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps Home reward panels visible from a short-lived cache while revalidating and memoizes question text fit tokens.
 //
 
-const BUILD_MARKER = 'Codex475';
+const BUILD_MARKER = 'Codex476';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

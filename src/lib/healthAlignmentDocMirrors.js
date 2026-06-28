@@ -232,8 +232,8 @@ The Online lobby/start/reconnect contract remains an architecture target and
 manual live-proof area even when reducer/static Health checks pass.
 Static Health coverage now exists for the strongest current UX contracts:
 Profile/Settings route ownership, BottomNav ownership, own leaderboard-row
-navigation, public identifier privacy, Solo/Online active question long-word
-fit, focused visual scope, heavy-effect manual proof gates, and asset/readiness
+navigation, public identifier privacy with no email/provider/owner/raw guest/internal identifiers, Solo/Online active question long-word
+fit, focused visual scope, heavy-effect manual proof gates, Timeline visual safety, and asset/readiness
 docs. Manual proof remains required for mobile route walkthrough, PWA/native
 wrapper navigation, real touch drag, failure-injection UI timing, low-end
 Android/WebView smoothness, and bundle/device image-decode behavior.
@@ -331,8 +331,7 @@ FRIEND_REQUEST_IN_PROGRESS or the open-invite warning to duplicate sends. The
 manual proof checklist covers Leaderboard sends, Add Friend username/email
 sends, open duplicate warning, expired invite cancel/delete before resend,
 delivery failure preserving the row, parallel rapid submits creating at most
-one pending FriendRequest, and no email/provider/owner/raw guest/internal
-player/lock identifiers in public UI, client responses, or exports.
+one pending FriendRequest, and no email/provider/owner/raw guest/internal player/lock identifiers in public UI, client responses, or exports.
 
 SoloLevelAttemptEvent Phase 1 defines actor_key_hash, player_type, level,
 rules_version, passed, used_moves, elapsed_seconds, stars,
@@ -384,8 +383,7 @@ Solo/Online logic, or question-bank exposure migration during focused UX polish.
 
 Profile > Profil Bilgileri owns username, optional private profile fields, and
 Kategori seçimi. Settings owns privacy, account, and app preferences rather
-than category gameplay selection. BottomNav remains exactly \`Ana Sayfa\`,
-\`Liderlik\`, \`Profil\`, and Online remains Home CTA-owned.
+than category gameplay selection. BottomNav remains exactly \`Ana Sayfa\`, \`Liderlik\`, \`Profil\`, and Online remains Home CTA-owned.
 
 Public identity is username only. Do not render email, provider ID, owner_key,
 raw guest_id, internal player_key, raw guest token, answer years, correct

@@ -161,7 +161,7 @@ export const AuthProvider = ({ children }) => {
 
       const nextUser = currentUser || null;
       const nextGuestProfile = currentUser?.email ? null : currentGuestProfile;
-      setUser(nextUser);
+      setUser(currentUser || null);
       setGuestProfile(nextGuestProfile);
       setIsAuthenticated(!!currentUser);
       setAuthError(null);

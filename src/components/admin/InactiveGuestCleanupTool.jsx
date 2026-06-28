@@ -55,7 +55,7 @@ const REASON_LABELS = {
   economy_state_not_empty: 'Ekonomi bakiyesi var',
   ambiguous_username_projection: 'Liderlik adı belirsiz',
   invalid_or_unsafe_username: 'Kullanıcı adı geçersiz',
-  ambiguous_guest_identity: 'Guest kimliği belirsiz',
+  ambiguous_guest_reference: 'Guest kimliği belirsiz',
 };
 
 export default function InactiveGuestCleanupTool() {
