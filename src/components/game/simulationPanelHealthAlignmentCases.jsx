@@ -30,6 +30,7 @@ import { FULL_AUDIT_PACKAGE_DOC as fullAuditPackageMirrorSource } from '@/lib/fu
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
 import adminPageSource from '../../pages/AdminPage.jsx?raw';
 import profilePageSource from '../../pages/ProfilePage.jsx?raw';
+import profileEditPageSource from '../../pages/ProfileEditPage.jsx?raw';
 import authProviderButtonsSource from '../auth/AuthProviderButtons.jsx?raw';
 import standardTopBarSource from '../layout/StandardTopBar.jsx?raw';
 import notificationApiSource from '../../lib/notificationApi.js?raw';
@@ -482,6 +483,13 @@ export const EXTRA_TESTS = [
         'user={user}',
         'showBack',
         'Hesabı Sil',
+      ]);
+      const profileInfoMissing = missingTokens(profileEditPageSource, [
+        'Profil Bilgileri',
+        'Takma Ad',
+        'Cinsiyet',
+        'Yaş grubu',
+        'Kategori seçimi',
         'CategoryPreferencesSection',
       ]);
       const adminMissing = missingTokens(adminPageSource, [
@@ -498,14 +506,14 @@ export const EXTRA_TESTS = [
         '<HeaderNotificationBell user={user} />',
         'aria-label={`Elmas: ${diamonds}`}',
       ]);
-      if (forbidden.length || settingsMissing.length || adminMissing.length || topBarMissing.length) {
+      if (forbidden.length || settingsMissing.length || profileInfoMissing.length || adminMissing.length || topBarMissing.length) {
         return fail('Settings/Admin split has stale removed UI or lost the current top/admin/deletion contract.', {
           verification: 'STATIC_CONTRACT',
-          files: ['src/pages/SettingsPage.jsx', 'src/pages/AdminPage.jsx', 'src/components/layout/StandardTopBar.jsx'],
-          actual: { forbidden, settingsMissing, adminMissing, topBarMissing },
+          files: ['src/pages/SettingsPage.jsx', 'src/pages/ProfileEditPage.jsx', 'src/pages/AdminPage.jsx', 'src/components/layout/StandardTopBar.jsx'],
+          actual: { forbidden, settingsMissing, profileInfoMissing, adminMissing, topBarMissing },
         });
       }
-      return pass('Settings uses StandardTopBar and normal settings; Admin Ekranı owns admin maintenance; removed UI stays absent.', {
+      return pass('Settings owns privacy/account deletion, Profile Info owns category preferences, and Admin Ekranı owns admin maintenance; removed UI stays absent.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

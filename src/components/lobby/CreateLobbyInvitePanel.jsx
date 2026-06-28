@@ -14,6 +14,7 @@ import GoldButton from '@/components/ui/GoldButton';
 import { sounds } from '@/lib/gameSounds';
 import IncomingInvitesPanel from '@/components/invites/IncomingInvitesPanel';
 import { loadOnlinePlayerSelection } from '@/lib/onlinePlayerSelection';
+import { PRESENCE_REFRESH_MS } from '@/lib/presence';
 
 /**
  * New create-lobby/invite screen shown when the user taps
@@ -54,13 +55,40 @@ export default function CreateLobbyInvitePanel({
   /* ---------------- load selectable players once user is known ---------------- */
   useEffect(() => {
     let cancelled = false;
-    if (!user?.email) { setPlayersLoading(false); return; }
-    setPlayersLoading(true);
-    loadOnlinePlayerSelection()
-      .then((rows) => { if (!cancelled) setPlayers(rows || []); })
-      .catch((err) => { if (!cancelled) setPlayersError(err?.message || 'Oyuncular yüklenemedi.'); })
-      .finally(() => { if (!cancelled) setPlayersLoading(false); });
-    return () => { cancelled = true; };
+    if (!user?.email) {
+      setPlayers([]);
+      setPlayersLoading(false);
+      setPlayersError('');
+      return undefined;
+    }
+    const refresh = async ({ showLoading = false } = {}) => {
+      if (cancelled) return;
+      if (showLoading) setPlayersLoading(true);
+      setPlayersError('');
+      try {
+        const rows = await loadOnlinePlayerSelection();
+        if (!cancelled) setPlayers(rows || []);
+      } catch (err) {
+        if (!cancelled) setPlayersError(err?.message || 'Oyuncular yüklenemedi.');
+      } finally {
+        if (!cancelled && showLoading) setPlayersLoading(false);
+      }
+    };
+    const refreshIfVisible = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    refresh({ showLoading: true });
+    const intervalId = window.setInterval(refreshIfVisible, PRESENCE_REFRESH_MS);
+    document.addEventListener('visibilitychange', refreshIfVisible);
+    window.addEventListener('focus', refreshIfVisible);
+    window.addEventListener('online', refreshIfVisible);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', refreshIfVisible);
+      window.removeEventListener('focus', refreshIfVisible);
+      window.removeEventListener('online', refreshIfVisible);
+    };
   }, [user?.email]);
 
   const inviteCap = Math.max(0, maxPlayers - 1);
@@ -162,9 +190,9 @@ export default function CreateLobbyInvitePanel({
           }
         />
 
-        {playersLoading ? (
+        {playersLoading && players.length === 0 ? (
           <FriendsSkeleton />
-        ) : playersError ? (
+        ) : playersError && players.length === 0 ? (
           <ErrorHint text={playersError} />
         ) : players.length === 0 ? (
           <EmptyPlayers onGoFriends={onGoFriends} />

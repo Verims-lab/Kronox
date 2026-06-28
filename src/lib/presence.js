@@ -1,7 +1,8 @@
 import { base44 } from '@/api/base44Client';
 
-export const PRESENCE_ONLINE_TTL_MS = 2 * 60 * 1000;
-export const PRESENCE_HEARTBEAT_MS = 45 * 1000;
+export const PRESENCE_ONLINE_TTL_MS = 75 * 1000;
+export const PRESENCE_HEARTBEAT_MS = 25 * 1000;
+export const PRESENCE_REFRESH_MS = 12 * 1000;
 export const PRESENCE_STATUS = Object.freeze({
   ONLINE: 'online',
   OFFLINE: 'offline',
@@ -32,9 +33,9 @@ function readTimestampMs(value) {
 
 export function isPresenceOnline(presence, nowMs = Date.now()) {
   if (!presence || presence.status !== PRESENCE_STATUS.ONLINE) return false;
-  const expiresAt = readTimestampMs(presence.expires_at);
+  const expiresAt = readTimestampMs(presence.presence_expires_at || presence.expires_at);
   if (Number.isFinite(expiresAt)) return expiresAt > nowMs;
-  const lastSeenAt = readTimestampMs(presence.last_seen_at);
+  const lastSeenAt = readTimestampMs(presence.last_heartbeat_at || presence.last_seen_at);
   return Number.isFinite(lastSeenAt) && lastSeenAt + PRESENCE_ONLINE_TTL_MS > nowMs;
 }
 
@@ -47,7 +48,7 @@ export function getFriendDisplayPresence(friend, presenceByKey = {}, nowMs = Dat
     online,
     status: online ? PRESENCE_STATUS.ONLINE : PRESENCE_STATUS.OFFLINE,
     label: online ? 'Çevrimiçi' : 'Çevrim dışı',
-    lastSeenAt: presence?.last_seen_at || null,
+    lastSeenAt: presence?.last_heartbeat_at || presence?.last_seen_at || null,
   };
 }
 
@@ -70,13 +71,23 @@ export async function loadFriendPresence(friends) {
   );
 }
 
-export async function sendPresenceHeartbeat({ sessionId, status = PRESENCE_STATUS.ONLINE } = {}) {
+export async function sendPresenceHeartbeat({
+  sessionId,
+  status = PRESENCE_STATUS.ONLINE,
+  guestCredentials = null,
+} = {}) {
   const normalizedStatus = status === PRESENCE_STATUS.OFFLINE
     ? PRESENCE_STATUS.OFFLINE
     : PRESENCE_STATUS.ONLINE;
-  const response = await base44.functions.invoke('updatePlayerPresence', {
+  const payload = {
     session_id: sessionId,
     status: normalizedStatus,
-  });
+  };
+  if (guestCredentials?.guest_id && guestCredentials?.guest_token) {
+    payload.player_type = 'guest';
+    payload.guest_id = guestCredentials.guest_id;
+    payload.guest_token = guestCredentials.guest_token;
+  }
+  const response = await base44.functions.invoke('updatePlayerPresence', payload);
   return response?.data || null;
 }

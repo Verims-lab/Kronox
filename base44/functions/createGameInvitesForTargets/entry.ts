@@ -2,7 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 
 const GAME_INVITE_TTL_MS = 10 * 60 * 1000;
 const LOBBY_STALE_AFTER_MS = 10 * 60 * 1000;
-const PRESENCE_ONLINE_TTL_MS = 2 * 60 * 1000;
+const PRESENCE_ONLINE_TTL_MS = 75 * 1000;
 const TARGET_REF_PATTERN = /^u_[a-z0-9]{3,32}$/;
 
 const normalizeEmail = (value: unknown) => String(value || '').trim().toLowerCase();
@@ -48,9 +48,9 @@ function readTime(value: unknown) {
 
 function isOnlinePresence(row: any, nowMs: number) {
   if (!row || row.status !== 'online') return false;
-  const expiresAt = readTime(row.expires_at);
+  const expiresAt = readTime(row.presence_expires_at || row.expires_at);
   if (Number.isFinite(expiresAt)) return expiresAt > nowMs;
-  const lastSeenAt = readTime(row.last_seen_at);
+  const lastSeenAt = readTime(row.last_heartbeat_at || row.last_seen_at);
   return Number.isFinite(lastSeenAt) && lastSeenAt + PRESENCE_ONLINE_TTL_MS > nowMs;
 }
 

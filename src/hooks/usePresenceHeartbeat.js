@@ -4,8 +4,9 @@ import {
   PRESENCE_STATUS,
   sendPresenceHeartbeat,
 } from '@/lib/presence';
+import { getStoredGuestCredentials } from '@/lib/guestProfile';
 
-const STORAGE_KEY = 'kronox.presence.session_id';
+let runtimeSessionId = '';
 
 function createSessionId() {
   try {
@@ -17,28 +18,52 @@ function createSessionId() {
   }
 }
 
-function getOrCreateSessionId() {
-  try {
-    const existing = localStorage.getItem(STORAGE_KEY);
-    if (/^presence_[A-Za-z0-9_-]{12,80}$/.test(existing || '')) return existing;
-    const created = createSessionId();
-    localStorage.setItem(STORAGE_KEY, created);
-    return created;
-  } catch {
-    return createSessionId();
-  }
+function getOrCreateRuntimeSessionId() {
+  if (!runtimeSessionId) runtimeSessionId = createSessionId();
+  return runtimeSessionId;
 }
 
-export default function usePresenceHeartbeat(user) {
-  const sessionId = useMemo(() => (user?.email ? getOrCreateSessionId() : ''), [user?.email]);
+function getPresenceActor(user, guestProfile) {
+  if (user?.email) {
+    return {
+      key: `linked:${String(user.email).trim().toLowerCase()}`,
+      guestCredentials: null,
+    };
+  }
+
+  const credentials = getStoredGuestCredentials();
+  const guestId = String(guestProfile?.guest_id || credentials?.guest_id || '').trim();
+  if (guestId && credentials?.guest_id === guestId && credentials?.guest_token) {
+    return {
+      key: `guest:${guestId}`,
+      guestCredentials: {
+        guest_id: credentials.guest_id,
+        guest_token: credentials.guest_token,
+      },
+    };
+  }
+
+  return { key: '', guestCredentials: null };
+}
+
+export default function usePresenceHeartbeat(user, guestProfile = null) {
+  const actor = useMemo(
+    () => getPresenceActor(user, guestProfile),
+    [guestProfile?.guest_id, user?.email],
+  );
+  const sessionId = useMemo(() => (actor.key ? getOrCreateRuntimeSessionId() : ''), [actor.key]);
 
   useEffect(() => {
-    if (!user?.email || !sessionId) return undefined;
+    if (!actor.key || !sessionId) return undefined;
 
     let cancelled = false;
     const heartbeat = (status = PRESENCE_STATUS.ONLINE) => {
       if (cancelled) return;
-      sendPresenceHeartbeat({ sessionId, status }).catch(() => {
+      sendPresenceHeartbeat({
+        sessionId,
+        status,
+        guestCredentials: actor.guestCredentials,
+      }).catch(() => {
         // Presence is best-effort; gameplay and invite flows must not block on it.
       });
     };
@@ -52,10 +77,15 @@ export default function usePresenceHeartbeat(user) {
       heartbeat(document.visibilityState === 'hidden' ? PRESENCE_STATUS.OFFLINE : PRESENCE_STATUS.ONLINE);
     };
     const handlePageHide = () => heartbeat(PRESENCE_STATUS.OFFLINE);
+    const handleResume = () => {
+      if (document.visibilityState === 'visible') heartbeat(PRESENCE_STATUS.ONLINE);
+    };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('pagehide', handlePageHide);
     window.addEventListener('beforeunload', handlePageHide);
+    window.addEventListener('focus', handleResume);
+    window.addEventListener('online', handleResume);
 
     return () => {
       cancelled = true;
@@ -63,7 +93,13 @@ export default function usePresenceHeartbeat(user) {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('pagehide', handlePageHide);
       window.removeEventListener('beforeunload', handlePageHide);
-      sendPresenceHeartbeat({ sessionId, status: PRESENCE_STATUS.OFFLINE }).catch(() => {});
+      window.removeEventListener('focus', handleResume);
+      window.removeEventListener('online', handleResume);
+      sendPresenceHeartbeat({
+        sessionId,
+        status: PRESENCE_STATUS.OFFLINE,
+        guestCredentials: actor.guestCredentials,
+      }).catch(() => {});
     };
-  }, [sessionId, user?.email]);
+  }, [actor.guestCredentials, actor.key, sessionId]);
 }

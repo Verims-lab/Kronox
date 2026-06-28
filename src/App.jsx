@@ -58,7 +58,7 @@ function AdminRoute({ children }) {
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, authError, isAuthenticated, user, guestProfile, checkUserAuth } = useAuth();
-  usePresenceHeartbeat(user);
+  usePresenceHeartbeat(user, guestProfile);
   const location = useLocation();
   const prevPathRef = React.useRef(location.pathname);
   const isGamePage = location.pathname === '/game';
@@ -95,7 +95,7 @@ const AuthenticatedApp = () => {
 
   // Determine transition direction: push (right-to-left) or pop (left-to-right)
   const getTransitionDirection = () => {
-    const routeOrder = ['/', '/onboarding', '/market', '/game', '/lobby', '/profile', '/profile/edit', '/settings', '/admin', '/test-suite', '/privacy'];
+    const routeOrder = ['/', '/onboarding', '/market', '/solo', '/game', '/lobby', '/profile', '/profile/edit', '/friends', '/settings', '/admin', '/test-suite', '/account-deletion', '/privacy'];
     const currIdx = routeOrder.indexOf(location.pathname);
     const prevIdx = routeOrder.indexOf(prevPathRef.current);
     const direction = currIdx > prevIdx ? 'push' : 'pop';
@@ -235,9 +235,9 @@ const AuthenticatedApp = () => {
 
 
 function App() {
-  // Codex467 — push current build marker into diag bus once at app boot
+  // Codex469 — push current build marker into diag bus once at app boot
   useEffect(() => {
-    appDiagSetBuildMarker('Codex467');
+    appDiagSetBuildMarker('Codex469');
     // Codex176 — App booted successfully, so any prior stale-chunk reload
     // recovered. Clear the one-time reload guards so a future deploy can
     // self-heal again.

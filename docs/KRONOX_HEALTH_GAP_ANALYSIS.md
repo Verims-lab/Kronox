@@ -32,7 +32,7 @@ fallback polling/refetch.
 | Online start | Confirms source has merge/retry/start/recovery markers | Does not simulate four live accounts or Base44 realtime delivery |
 | Invite accept | Confirms `verifiedLobby`/`joinedLobby` contract | Does not prove deployed function freshness |
 | Notifications | Executable merge helpers cover stale empty fetches | Does not prove push delivery or service worker behavior on real devices |
-| Online presence / player selection | Confirms PlayerPresence owner binding, accepted-friend lookup, backend-owned player selection, username-only labels, opaque target refs, and offline fallback | Does not prove deployed function freshness, two-device heartbeat timing, or live non-friend invite delivery |
+| Online presence / player selection | Confirms PlayerPresence owner binding, GuestProfile token proof for guest heartbeat, 75s TTL/25s heartbeat/12s visible refresh, accepted-friend lookup, backend-owned player selection, username-only labels, opaque target refs, and offline fallback | Does not prove deployed function freshness, two-device heartbeat timing, or live non-friend invite delivery |
 | Solo records | Confirms backend context and copy | Does not prove production data has multi-user records |
 | Economy | Confirms idempotency guards, Diamond-only rules, and function-level economy lock/recheck guards | Does not prove DB uniqueness or two-device race safety |
 | Leaderboard privacy | Confirms sanitized public payload shape | Does not prove live RLS prevents direct entity reads |
@@ -53,8 +53,9 @@ fallback polling/refetch.
   subscription upserts, terminal row closure, visual-only toast dismissal,
   accept/reject closure, stable-id dedupe, and private identifier guardrails.
 - Added focused friend/presence coverage so fake-online friend pickers, email
-  display fallbacks, unscoped presence reads, and non-current-user presence
-  writes fail Health.
+  display fallbacks, unscoped presence reads, non-current-user presence writes,
+  stale heartbeat timing, missing guest token proof, transient-fetch clearing,
+  and long-lived presence polling fail Health.
 - Added focused friend-add coverage for email-or-username input, server-side
   username resolution, required username-not-found copy, no client `User.list`
   lookup, no target-email return on username add, and server-side self,
@@ -95,7 +96,7 @@ fallback polling/refetch.
 | Non-host recovery | Static subscription + poll/refetch markers plus reducer recovery simulation | Browser automation with delayed/missed subscription event |
 | Invite accept verified lobby | Static `verifiedLobby`/`joinedLobby` contract | Deployed function freshness marker or Base44 test-function proof |
 | Notification no-flicker | Executable merge/reducer tests plus static ViewModel guards | Timed UI harness with transient empty fetch injection |
-| Friend/player online/offline presence | Static backend contract and UI-helper checks for `PlayerPresence`, heartbeat, accepted-friend lookup, online non-friend selection, offline fallback, opaque target refs, and username-only labels | Multi-account live proof: user B appears online after heartbeat, user C appears as an online non-friend, and stale/offline rows fall out correctly |
+| Friend/player online/offline presence | Static backend contract and UI-helper checks for `PlayerPresence`, runtime heartbeat session, 75s TTL, token-proven guest presence, accepted-friend lookup, online non-friend selection, offline fallback, previous-row preservation, opaque target refs, and username-only labels | Multi-account live proof: user B appears online after heartbeat, user C appears as an online non-friend, and stale/offline rows fall out correctly |
 | Online non-friend invite | Static backend contract for `createGameInvitesForTargets` resolving fresh target refs without returning email | Live proof that selected online non-friend receives in-app invite and can accept into `verifiedLobby` / `joinedLobby` |
 | Friend add by email/username | Static UI/backend/privacy checks for email-or-username input, server-side username lookup, required username-not-found copy, no target email return, Add Friend double-submit guard, and function-level FriendRequest send lock | Two-account live proof for existing email, existing username, missing username, self-add, duplicate friend, pending request, expired resend after cancel/delete, and parallel send attempts |
 | Solo record congratulations | Static backend context/copy checks | Production-like multi-user record fixture or backend probe |

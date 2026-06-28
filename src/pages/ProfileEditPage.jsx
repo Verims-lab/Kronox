@@ -263,7 +263,7 @@ function ProfileEditShell({ children, onBack }) {
         >
           <ArrowLeft className="h-7 w-7" strokeWidth={2.4} />
         </button>
-        <h1 className="font-inter text-2xl font-bold tracking-tight text-white">Profil</h1>
+        <h1 className="font-inter text-2xl font-bold tracking-tight text-white">Profil Bilgileri</h1>
       </header>
       <main className="mx-auto w-full max-w-md px-4">
         {children}

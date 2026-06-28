@@ -197,7 +197,7 @@ export const EXTRA_TESTS = [
     'Profile subroutes preserve state and Online remains owned by the Home CTA flow',
     () => {
       const missing = missingTokens(navigationStackSource, [
-        "['/profile', '/friends', '/settings', '/admin', '/test-suite', '/account-deletion']",
+        "['/profile', '/profile/edit', '/friends', '/settings', '/admin', '/test-suite', '/account-deletion']",
         "if (pathname === '/lobby') return TAB_ROOTS.home",
         "if (['/', '/market', '/solo', '/setup'].includes(pathname)) return TAB_ROOTS.home",
         'routeKeyFromLocation',
