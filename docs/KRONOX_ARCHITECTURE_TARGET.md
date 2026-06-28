@@ -205,6 +205,15 @@ Parity plan:
   bundles require inline AdminUser-backed guards. SimulationPanel source files
   stay in the Health/admin/test-suite path until a separate test-runner
   migration is planned.
+- App-open/latest-active reporting is server-owned through `recordAppOpen`.
+  Authenticated users are derived from `auth.me`; guest users require
+  `guest_id + raw guest token` proof. The function writes server-time
+  `last_app_open_at` / `last_seen_at` plus coarse `app_platform` only, and
+  never stores precise device identifiers or client-provided timestamps.
+- Admin aggregate reports such as `Kullanıcı Raporu` must stay behind
+  AdminUser-gated functions, return counts instead of private rows, and avoid
+  delete/cleanup actions unless a future task explicitly adds a separate
+  confirmed maintenance flow.
 
 ## UX Polish Governance
 

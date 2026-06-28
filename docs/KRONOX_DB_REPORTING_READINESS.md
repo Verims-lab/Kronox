@@ -13,8 +13,8 @@ and exports must use username-safe or anonymized labels.
 
 | Report | Current support | Source entity/function | Missing fields | Privacy risk | Recommended improvement | Backward-compatible |
 | --- | --- | --- | --- | --- | --- | --- |
-| DAU / WAU / MAU | Partial | `User`, `GuestProfile`, auth updates | normalized session/open event | raw email/guest ids | Add `AppSessionEvent` or compact daily aggregate | Yes |
-| New vs returning users | Partial | `GuestProfile.created_at`, `User.created_date` | returning session events | guest token exposure | Store day-level login/open aggregate | Yes |
+| DAU / WAU / MAU | Good partial | `recordAppOpen`, `User.last_app_open_at`, `GuestProfile.last_app_open_at` | append-only session/open event | raw email/guest ids | Add `AppSessionEvent` or compact daily aggregate when cohort history is needed | Yes |
+| New vs returning users | Good partial | `GuestProfile.created_at`, `User.created_date`, `recordAppOpen` | returning session history | guest token exposure | Store day-level login/open aggregate when history is needed | Yes |
 | Guest vs linked users | Good partial | `GuestProfile`, `AccountLinkTransaction`, `linkGuestAccount` | link cohort metadata | raw guest id | Keep link ledger, add anonymized cohort date | Yes |
 | Level funnel | Partial | `User.solo_progress`, `GuestProfile.solo_progress` | attempt start/fail/pass event stream | user identity | Add compact `SoloLevelAttemptEvent` or aggregate | Yes |
 | Level fail/pass rate | Partial | Solo progress best entries, `QuestionAttemptEvent` | failed attempts per level | question/user linkage | Add pass/fail event with level, moves, time | Yes |
@@ -32,8 +32,8 @@ and exports must use username-safe or anonymized labels.
 | Online lobby created/joined/started/abandoned | Partial | `Lobby`, `GameInvite`, `LobbyMatchStats` | lifecycle event log | player identity | Add `OnlineLobbyEvent` with public-safe actor hash | Yes |
 | Invite sent/accepted/expired | Good partial | `GameInvite`, `createGameInvitesForTargets`, cleanup functions | notification channel/source | email/to/from leakage | Aggregate by status, day, and safe recipient_relation/source; keep email private | Yes |
 | Notification shown/accepted/dismissed | Partial | UI only plus push subscription | durable shown/dismissed event | notification payload identity | Add compact `NotificationLifecycleEvent` if needed | Yes |
-| Device/platform split | Weak | user agent/browser only if captured ad hoc | platform/device class | fingerprinting | Store coarse platform only with privacy note | Yes |
-| Retention cohorts | Weak partial | creation dates plus progress | session/open events | identity | Add daily active aggregate, avoid raw device IDs | Yes |
+| Device/platform split | Good partial | `recordAppOpen` coarse `app_platform` | historical platform event stream | fingerprinting | Keep only iOS/Android/Other/Unknown; add daily aggregate later if needed | Yes |
+| Retention cohorts | Good partial | creation dates plus `last_app_open_at` | append-only session/open events | identity | Add daily active aggregate, avoid raw device IDs | Yes |
 | Economy fraud/race anomalies | Partial | idempotency keys in ledgers | duplicate-attempt diagnostics | account id | Add server-side duplicate/retry counters | Yes |
 
 ## Current Strengths
@@ -48,7 +48,9 @@ and exports must use username-safe or anonymized labels.
 
 ## Current Gaps
 
-- There is no general app/session event table for DAU/WAU/MAU or retention.
+- There is no append-only app/session event table for DAU/WAU/MAU or
+  retention history. Current admin reporting has latest-open support through
+  `recordAppOpen`.
 - Solo progress stores best/current state, not every attempt.
 - Online lobby lifecycle is reconstructed from current `Lobby`/`GameInvite`
   rows instead of append-only events.
@@ -57,7 +59,56 @@ and exports must use username-safe or anonymized labels.
   event stream.
 - Notification shown/dismissed behavior is mostly UI state, not reporting data.
 - DB unique/index proof is not present in repo for several idempotency keys.
-- Coarse device/platform reporting is not defined.
+- Coarse device/platform reporting is latest-state only through
+  `recordAppOpen`; historical platform/session cohorts still need a future
+  aggregate/event table.
+
+## Admin User Report Phase 1
+
+`Kullanıcı Raporu` is an admin-only, read-only aggregate report. It does not
+delete users, does not mutate score/economy data, and does not return raw rows
+or private identifiers.
+
+Current sources of truth:
+
+- Total users: distinct valid `username` across `User` and `GuestProfile`.
+  Invalid/empty unsafe usernames are excluded and reported as an excluded row
+  count.
+- Logged-in users: `User` rows with authenticated `email` / `user_email`,
+  counted server-side only. Emails are not returned to the client.
+- Guest users: active guest `GuestProfile` rows by valid username; linked guest
+  profiles are not counted as guest-only users.
+- Users with more than 0 Kronox Puan: `SoloLeaderboardEntry.total_kronox_score`
+  as the leaderboard projection source, with non-destructive
+  `User.kronox_puan_total` / `GuestProfile.kronox_puan_total` repair input when
+  a projection row is missing.
+- Inactive 10+ days: server-written `last_app_open_at` or `last_seen_at`.
+  Users with no latest-open timestamp are reported separately as
+  `Son açılış bilgisi olmayan kullanıcılar`; they are not silently merged into
+  the inactive count.
+- New users in 7 days: `created_at` / `created_date` by valid username.
+- Active 1/7/30 days: latest server-owned open/seen timestamp.
+- Platform breakdown: coarse `app_platform` only: `ios`, `android`, `other`,
+  or `unknown`.
+
+`recordAppOpen` is the small server-owned latest-open foundation:
+
+- Authenticated users are derived from `auth.me` and updated through
+  `base44.auth.updateMe`.
+- Guest users require `guest_id + raw guest token` proof against
+  `GuestProfile.guest_token_hash`.
+- The function writes server time to `last_app_open_at` and `last_seen_at`;
+  client timestamps are ignored.
+- Platform is coarse only and may come from a client coarse class or request
+  user-agent fallback. No precise device ID, fingerprint, provider ID,
+  owner_key, raw guest_id, internal player_key, or raw guest token is stored or
+  returned.
+- Frontend calls are best-effort and throttled so app first paint is not
+  blocked.
+
+User cleanup/deletion policy is not implemented here. Any future cleanup for
+non-logged-in, zero-score, long-inactive users must be a separate admin task
+with explicit confirmation, privacy review, and backup/export policy.
 
 ## Question Analytics Manual Reset Scope
 
