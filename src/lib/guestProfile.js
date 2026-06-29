@@ -201,7 +201,11 @@ function makeClientInstallId() {
       .replace(/=+$/g, '');
     return `install_${encoded}`;
   } catch {
-    return `install_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 12)}`;
+    const timestamp = Date.now().toString(36);
+    const perf = typeof performance !== 'undefined' && Number.isFinite(performance.now())
+      ? Math.floor(performance.now() * 1000).toString(36)
+      : '0';
+    return `install_${timestamp}_${perf}_crypto_unavailable`;
   }
 }
 

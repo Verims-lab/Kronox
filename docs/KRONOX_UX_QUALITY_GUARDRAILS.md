@@ -126,7 +126,9 @@ Profile, Settings, and list rows:
   selection.
 - Profile > Profil Bilgileri owns username, optional private profile fields,
   `Kategori seçimi`, and the current player's read-only/copyable `Kullanıcı ID`
-  support value.
+  support value. `Hazırlanıyor` is a temporary loading state only; if the ID
+  cannot be loaded/backfilled, the row must show a safe retryable error instead
+  of staying on loading copy.
 - List rows need consistent icon placement, label hierarchy, pressed/disabled
   states, and back navigation.
 - BottomNav remains exactly `Ana Sayfa`, `Liderlik`, `Profil`.

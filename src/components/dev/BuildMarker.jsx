@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex479 — Runtime Kronox ID Profile display + Health blockers:
+//   • Unwraps nested Base44 function responses so ensured kronox_user_id reaches Auth/Profile state.
+//   • Profile Info actively ensures/backfills the current player's ID and shows retryable failure instead of permanent loading copy.
+//   • Re-pins root @base44/sdk to exact 0.8.34 and removes Math.random from the Kronox ID Health source path.
+//
 // Codex478 — Immutable Kronox user ID foundation:
 //   • Adds backend-assigned/backfilled kronox_user_id with KX-XXXX-XXXX-XXXX format and tombstone non-reuse.
 //   • Preserves the guest Kronox ID through account linking and rejects client profile edits to the ID.
@@ -71,7 +76,7 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps Home reward panels visible from a short-lived cache while revalidating and memoizes question text fit tokens.
 //
 
-const BUILD_MARKER = 'Codex478';
+const BUILD_MARKER = 'Codex479';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
