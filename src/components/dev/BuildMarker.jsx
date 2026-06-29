@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex494 — Liderlik performance + materialized score projection:
+//   • Home idles the Liderlik chunk and projection-only leaderboard snapshot; Liderlik renders cached rows while refetching.
+//   • getSoloLeaderboard supports fast projection reads with repairMode: 'skip' and deferred friend badges, while bounded repair remains available off the hot path.
+//   • Visible Kronox Puan reads prefer materialized kronox_puan_total and fall back to Solo+Online derivation for older rows.
+//
 // Codex493 — Health blocker fixes (KRONOX-MQZBZ0FS): Market refresh + readiness + admin pull-to-refresh:
 //   • MarketPage post-purchase setUser((current) => ({...})) patches the shared auth Diamond total so Home/Profile refresh without reload.
 //   • Purchase CTA derives from explicit readiness: const disabled = readiness.disabled / const buttonLabel = readiness.label (no broad page/inventory loading gate).
@@ -121,7 +126,7 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps Home reward panels visible from a short-lived cache while revalidating and memoizes question text fit tokens.
 //
 
-const BUILD_MARKER = 'Codex493';
+const BUILD_MARKER = 'Codex494';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

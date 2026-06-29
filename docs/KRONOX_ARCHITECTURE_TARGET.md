@@ -219,6 +219,12 @@ Parity plan:
   Online winner scoring is exactly `+15`, loser scoring is exactly `-6` before
   checkpoint protection, and Online has no speed bonus. Online elapsed seconds
   may be stored or displayed for audit/diagnostics but must not change score.
+- `User.kronox_puan_total` / `GuestProfile.kronox_puan_total` are the
+  materialized current-score projections for visible score reads. The
+  public leaderboard hot path reads bounded `SoloLeaderboardEntry`
+  projection rows sorted by `total_kronox_score`; bounded `User` repair is
+  maintenance/fallback work, not required before first Liderlik rows render.
+  Home may idle-prefetch the Liderlik chunk and projection-only snapshot.
 - Online stays separate from Solo category preferences.
 - Health must protect product contracts and explicitly label manual gates.
 - Android/iOS wrapper work remains manual proof until a repo-owned native

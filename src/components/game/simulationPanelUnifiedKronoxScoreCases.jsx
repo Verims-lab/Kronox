@@ -16,6 +16,7 @@ import onlineChallengeSource from '../lobby/OnlineChallengeScreen.jsx?raw';
 import screenHeaderSource from '../layout/ScreenHeader.jsx?raw';
 import { SCORING_RULES_DOC as scoringRulesSource } from '@/lib/scoringRulesDoc';
 import leaderboardLibSource from '../../lib/leaderboard.js?raw';
+import kronoxScoreSource from '../../lib/kronoxScore.js?raw';
 // Codex169 — Read the backend leaderboard projection contract from the
 // src-resident mirror (the real functions/ file is outside src/, so a
 // `?raw` import returns empty here and false-fails the token scan).
@@ -242,6 +243,30 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Liderlik top stat and current-user row fallback share unified Kronox Puan.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('materialized_kronox_puan_is_primary_read_path',
+    'Visible Kronox Puan reads the materialized current-score projection first',
+    () => {
+      const missing = missingTokens(`${kronoxScoreSource}\n${leaderboardLibSource}\n${leaderboardFunctionSource}\n${applyOnlineResultSource}`, [
+        'getMaterializedKronoxScore',
+        'user?.kronox_puan_total',
+        'kronoxPuan = kronox_puan_total',
+        'materialized === null ? derived : Math.max(materialized, derived)',
+        'total_kronox_score',
+        'User.list(\'-kronox_puan_total\', limit)',
+        'projectionEntity.list(\'-total_kronox_score\', limit)',
+        'kronox_puan_total: buildSoloLeaderboardPayload',
+      ]);
+      if (missing.length) {
+        return fail('Visible score reads can drift back to derived-only progress/history reconstruction instead of the materialized current score.', {
+          verification: 'STATIC_CONTRACT',
+          missing,
+        });
+      }
+      return pass('Visible Puan prefers User.kronox_puan_total and leaderboard reads sorted projection rows; ledgers/history remain audit/idempotency paths.', {
+        verification: 'STATIC_CONTRACT',
+      });
     }),
 
   makeCase('leaderboard_sort_score_matches_display_score',

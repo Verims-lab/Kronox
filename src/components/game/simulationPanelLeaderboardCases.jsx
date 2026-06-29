@@ -5,9 +5,11 @@
 // User.list reads, placeholder-only UI, fake ranks, or email leakage.
 
 import leaderboardPageSource from '../../pages/LeaderboardPage.jsx?raw';
+import mainMenuSource from '../../pages/MainMenu.jsx?raw';
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
 import profileEditPageSource from '../../pages/ProfileEditPage.jsx?raw';
 import leaderboardLibSource from '../../lib/leaderboard.js?raw';
+import kronoxScoreSource from '../../lib/kronoxScore.js?raw';
 import navigationStackSource from '../../lib/NavigationStackContext.jsx?raw';
 import soloLevelsSource from '../../lib/soloLevels.js?raw';
 // Codex169 — The backend function (functions/) and entity schema
@@ -484,6 +486,48 @@ export const EXTRA_TESTS = [
       });
     }),
 
+  makeCase('leaderboard_health', 'leaderboard_fast_open_projection_cache_hot_path',
+    'Liderlik hot path renders projection rows without repair/friend waterfalls',
+    () => {
+      const combined = `${leaderboardPageSource}\n${leaderboardLibSource}\n${getSoloLeaderboardFunctionSource}\n${mainMenuSource}`;
+      const required = missingTokens(combined, [
+        'LEADERBOARD_CACHE_STALE_MS',
+        'LEADERBOARD_FAST_SNAPSHOT_OPTIONS',
+        "repairMode: 'skip'",
+        'includeFriendBadges: false',
+        'getCachedSoloLeaderboardSnapshot',
+        'setCachedSoloLeaderboardSnapshot',
+        "import('./LeaderboardPage')",
+        'friendBadgesDeferred',
+        'repairSkipped',
+        'broadUserListUsed: shouldRunUserRepair',
+        'const userRows = shouldRunUserRepair',
+        'loadFriends(normalizedUserEmail)',
+      ]);
+      const deferredFriends = ordered(
+        leaderboardPageSource,
+        'if (!applySnapshot(snapshot)) return',
+        'loadFriends(normalizedUserEmail)',
+      );
+      const forbidden = forbiddenTokensFound(leaderboardPageSource, [
+        'const [snapshot, acceptedFriends] = await Promise.all',
+      ]);
+      if (required.length || !deferredFriends || forbidden.length) {
+        return fail('Leaderboard can still block first rows on User repair, friend badge fetches, or missing route/snapshot cache.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'Home idle-warms Liderlik, page uses cached projection rows, getSoloLeaderboard fast mode skips User repair/friend badges, and loadFriends runs after first render',
+          actual: { required, deferredFriends, forbidden },
+        });
+      }
+      return pass('Leaderboard first render uses cached/projection-only rows and defers friend enrichment/repair work off the hot path.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
   makeCase('leaderboard_health', 'leaderboard_safe_fields_only',
     'Leaderboard public response avoids private notification, push, auth, owner key, and email fields',
     () => {
@@ -527,7 +571,9 @@ export const EXTRA_TESTS = [
   makeCase('leaderboard_health', 'leaderboard_uses_unified_kronox_puan',
     'Leaderboard ranks by unified Kronox Puan before level/stars/time tie-breakers',
     () => {
-      const required = missingTokens(leaderboardLibSource, [
+      const required = missingTokens(`${leaderboardLibSource}\n${kronoxScoreSource}`, [
+        'getMaterializedKronoxScore',
+        'kronox_puan_total',
         'rankSoloLeaderboardEntries',
         'summary.totalKronoxScore',
         'scoreDiff = b.summary.totalKronoxScore - a.summary.totalKronoxScore',

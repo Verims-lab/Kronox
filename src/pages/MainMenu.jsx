@@ -8,8 +8,18 @@ import { useAuth } from '@/lib/AuthContext';
 import StandardTopBar from '@/components/layout/StandardTopBar';
 import SharedKronoxWordmark from '@/components/ui/KronoxWordmark';
 import DailyRewardsPanel from '@/components/dailyWheel/DailyRewardsPanel';
-import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
-import { isGuestOnboardingComplete } from '@/lib/guestProfile';
+import {
+  getGuestLeaderboardOwnerKey,
+  getLeaderboardDiamondValue,
+  getLeaderboardOwnerKey,
+  getLeaderboardSnapshotCacheKey,
+  LEADERBOARD_FAST_SNAPSHOT_OPTIONS,
+  LEADERBOARD_FETCH_LIMIT,
+  LEADERBOARD_TOP_LIMIT,
+  loadSoloLeaderboardSnapshot,
+  setCachedSoloLeaderboardSnapshot,
+} from '@/lib/leaderboard';
+import { getCompletedGuestCredentialsPayload, isGuestOnboardingComplete } from '@/lib/guestProfile';
 import { getUserJokerBalances } from '@/lib/jokerInventory';
 
 /**
@@ -52,8 +62,26 @@ export default function MainMenu() {
     const warmMarket = () => {
       if (cancelled) return;
       import('./MarketPage').catch(() => null);
+      import('./LeaderboardPage').catch(() => null);
       if (authUser?.email) {
         getUserJokerBalances(authUser, { ensureStarter: false }).catch(() => null);
+      }
+      const leaderboardOwnerKey = authUser?.email
+        ? getLeaderboardOwnerKey(authUser.email)
+        : getGuestLeaderboardOwnerKey(completedGuestProfile?.guest_id);
+      if (leaderboardOwnerKey) {
+        loadSoloLeaderboardSnapshot({
+          limit: LEADERBOARD_FETCH_LIMIT,
+          topLimit: LEADERBOARD_TOP_LIMIT,
+          payload: completedGuestProfile ? getCompletedGuestCredentialsPayload(completedGuestProfile) : {},
+          ...LEADERBOARD_FAST_SNAPSHOT_OPTIONS,
+        })
+          .then((snapshot) => {
+            if (!cancelled) {
+              setCachedSoloLeaderboardSnapshot(getLeaderboardSnapshotCacheKey(leaderboardOwnerKey), snapshot);
+            }
+          })
+          .catch(() => null);
       }
     };
     if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
@@ -68,7 +96,7 @@ export default function MainMenu() {
       cancelled = true;
       window.clearTimeout(id);
     };
-  }, [authUser]);
+  }, [authUser, completedGuestProfile]);
 
   const diamonds = useMemo(
     () => getLeaderboardDiamondValue(user || completedGuestProfile),

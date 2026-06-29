@@ -6,9 +6,15 @@ import { getKronoxUserId } from './kronoxUserId';
 import { pickPublicAvatarFields } from './avatarOptions';
 
 export const LEADERBOARD_TOP_LIMIT = 10;
-export const LEADERBOARD_FETCH_LIMIT = 500;
+export const LEADERBOARD_FETCH_LIMIT = 100;
+export const LEADERBOARD_CACHE_STALE_MS = 45 * 1000;
+export const LEADERBOARD_FAST_SNAPSHOT_OPTIONS = Object.freeze({
+  repairMode: 'skip',
+  includeFriendBadges: false,
+});
 export const LEADERBOARD_SOLO_LEVEL_COUNT = 20;
 const SOLO_LEADERBOARD_ENTITY = 'SoloLeaderboardEntry';
+const leaderboardSnapshotCache = new Map();
 
 export function isMissingSoloLeaderboardEntityError(error) {
   const message = String(error?.message || error || '');
@@ -64,6 +70,30 @@ export function getSafeLeaderboardName(userOrEntry) {
 
 export function getLeaderboardDiamondValue(user) {
   return getDiamondBalance(user);
+}
+
+export function getLeaderboardSnapshotCacheKey(ownerKey = '') {
+  const key = String(ownerKey || '').trim();
+  if (key.startsWith('leaderboard:')) return key;
+  return key ? `leaderboard:${key}` : 'leaderboard:anonymous';
+}
+
+export function getCachedSoloLeaderboardSnapshot(cacheKey, now = Date.now()) {
+  const key = getLeaderboardSnapshotCacheKey(cacheKey);
+  const cached = leaderboardSnapshotCache.get(key);
+  if (!cached) return null;
+  if (now - cached.cachedAt > LEADERBOARD_CACHE_STALE_MS) {
+    leaderboardSnapshotCache.delete(key);
+    return null;
+  }
+  return cached.snapshot || null;
+}
+
+export function setCachedSoloLeaderboardSnapshot(cacheKey, snapshot, now = Date.now()) {
+  const key = getLeaderboardSnapshotCacheKey(cacheKey);
+  if (!snapshot || typeof snapshot !== 'object') return null;
+  leaderboardSnapshotCache.set(key, { cachedAt: now, snapshot });
+  return snapshot;
 }
 
 function getLeaderboardOnlineScore(userOrEntry) {
@@ -212,6 +242,8 @@ export async function loadSoloLeaderboardSnapshot(options = {}) {
     ...(options.payload && typeof options.payload === 'object' ? options.payload : {}),
     limit,
     topLimit,
+    ...(options.repairMode ? { repairMode: options.repairMode } : {}),
+    ...(options.includeFriendBadges === false ? { includeFriendBadges: false } : {}),
   };
   try {
     const response = await base44.functions.invoke('getSoloLeaderboard', requestPayload);
@@ -240,6 +272,9 @@ export async function loadSoloLeaderboardSnapshot(options = {}) {
         broadUserListUsed: payload.broadUserListUsed === true,
         broadUserRowsReturned: payload.broadUserRowsReturned === true,
         serverSideUserRepairUsed: payload.serverSideUserRepairUsed === true,
+        repairMode: payload.repairMode || '',
+        repairSkipped: payload.repairSkipped === true,
+        friendBadgesDeferred: payload.friendBadgesDeferred === true,
         fallbackUsed: payload.fallbackUsed === true,
         fallbackReason: payload.fallbackReason || null,
         projectionRowsRead: Number.isFinite(Number(payload.projectionRowsRead))
