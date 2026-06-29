@@ -225,6 +225,65 @@ export const EXTRA_TESTS = [
       return pass('Product cards show owned counts, prices, reachable purchase CTAs, and controlled success/failure feedback.', { verification: 'STATIC_CONTRACT' });
     }),
 
+  makeCase('market_open_prefetches_and_reads_inventory_fast',
+    'Mağaza open warms the route/catalog and avoids starter self-heal blocking the first render',
+    () => {
+      const missing = missingTokens(`${mainMenuSource}\n${marketPageSource}\n${marketSource}\n${purchaseJokerWithDiamondsSource}`, [
+        "import('./MarketPage')",
+        'requestIdleCallback',
+        'getUserJokerBalances(authUser, { ensureStarter: false })',
+        'getMarketCatalog()',
+        'getUserJokerBalances(currentUser, { ensureStarter: false })',
+        'ensureStarterJokers(currentUser)',
+        'inventoryState',
+        'refreshing',
+        'Promise.all(JOKER_TYPES.map',
+      ]);
+      const forbidden = forbiddenTokens(marketPageSource, [
+        'base44.auth.me()',
+        'setLoading(true)',
+        'getUserJokerBalances(currentUser, { ensureStarter: true })',
+      ]);
+      if (missing.length || forbidden.length) return fail('Mağaza open can still wait on auth.me or starter inventory self-heal before first useful render.', {
+        verification: 'STATIC_CONTRACT',
+        files: ['src/pages/MainMenu.jsx', 'src/pages/MarketPage.jsx', 'src/lib/market.js', 'base44/functions/purchaseJokerWithDiamonds/entry.ts'],
+        actual: { missing, forbidden },
+      });
+      return pass('Home idles in the Market chunk/fast inventory cache; Market opens from context, renders static catalog, and self-heals inventory in the background.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('purchase_button_readiness_is_explicit_not_broad_page_loading',
+    'Satın Al readiness is explicit and not tied to non-critical inventory loading',
+    () => {
+      const missing = missingTokens(`${marketPageSource}\n${marketSource}`, [
+        'getMarketPurchaseReadiness',
+        "reason: 'missing_item_data'",
+        "reason: 'auth_loading'",
+        "reason: 'login_required'",
+        "reason: 'insufficient_diamonds'",
+        "reason: 'ready'",
+        'inventoryLoading',
+        'authLoading',
+        'const disabled = readiness.disabled',
+        'const buttonLabel = readiness.label',
+      ]);
+      const forbidden = forbiddenTokens(marketPageSource, [
+        'const disabled = loading ||',
+        'loading || pending || anyPending',
+        'disabled = inventoryLoading',
+      ]);
+      if (missing.length || forbidden.length) return fail('Purchase CTA can still be disabled by broad/non-critical page or inventory loading.', {
+        verification: 'STATIC_CONTRACT',
+        files: ['src/pages/MarketPage.jsx', 'src/lib/market.js'],
+        actual: { missing, forbidden },
+      });
+      return pass('Satın Al disabled state is derived from explicit purchase prerequisites, not broad page/inventory loading.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
   makeCase('purchase_requires_auth_and_self_owned_backend',
     'Purchase requires authenticated self-owned user context',
     () => {

@@ -13,6 +13,7 @@ export const MARKET_PHASE_1_FORBIDDEN_PRODUCT_TYPES = Object.freeze([
   'ads',
   'external_payments',
 ]);
+export const MARKET_CATALOG_CACHE_STALE_MS = 10 * 60 * 1000;
 
 export const MARKET_JOKER_PRODUCTS = Object.freeze([
   {
@@ -47,6 +48,39 @@ const PRODUCT_BY_TYPE = Object.freeze(
 
 export function getMarketJokerProduct(jokerType) {
   return PRODUCT_BY_TYPE[jokerType] || null;
+}
+
+export function getMarketCatalog() {
+  return MARKET_JOKER_PRODUCTS;
+}
+
+export function getMarketPurchaseReadiness({
+  product,
+  user,
+  authLoading = false,
+  diamonds = 0,
+  pending = false,
+  anyPending = false,
+} = {}) {
+  if (pending) {
+    return { disabled: true, reason: 'purchase_in_flight', label: 'İşleniyor' };
+  }
+  if (anyPending) {
+    return { disabled: true, reason: 'another_purchase_in_flight', label: 'Bekle' };
+  }
+  if (!product) {
+    return { disabled: true, reason: 'missing_item_data', label: 'Hazırlanıyor' };
+  }
+  if (authLoading) {
+    return { disabled: true, reason: 'auth_loading', label: 'Hazırlanıyor' };
+  }
+  if (!user?.email) {
+    return { disabled: false, reason: 'login_required', label: 'Giriş Yap' };
+  }
+  if (Number(diamonds) < Number(product.price)) {
+    return { disabled: true, reason: 'insufficient_diamonds', label: 'Yeterli elmas yok' };
+  }
+  return { disabled: false, reason: 'ready', label: 'Satın Al' };
 }
 
 export function createMarketClientRequestId() {

@@ -5,9 +5,10 @@ import { AlertTriangle, CheckCircle2, Gem, Loader2, RefreshCw, Shield, ShoppingB
 import { base44 } from '@/api/base44Client';
 import StandardTopBar from '@/components/layout/StandardTopBar';
 import { sounds } from '@/lib/gameSounds';
+import { useAuth } from '@/lib/AuthContext';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
-import { emptyJokerBalances, getUserJokerBalances, JOKER_TYPES, normalizeJokerBalances, normalizeJokerQuantity } from '@/lib/jokerInventory';
-import { MARKET_JOKER_PRODUCTS, createMarketClientRequestId, purchaseMarketJoker } from '@/lib/market';
+import { emptyJokerBalances, ensureStarterJokers, getUserJokerBalances, JOKER_TYPES, normalizeJokerBalances, normalizeJokerQuantity } from '@/lib/jokerInventory';
+import { createMarketClientRequestId, getMarketCatalog, getMarketPurchaseReadiness, purchaseMarketJoker } from '@/lib/market';
 
 const ICON_BY_JOKER_TYPE = {
   [JOKER_TYPES.TIME_FREEZE]: Snowflake,
@@ -17,38 +18,75 @@ const ICON_BY_JOKER_TYPE = {
 
 export default function MarketPage() {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { user: authUser, isLoadingAuth, checkUserAuth } = useAuth();
+  const [localUserPatch, setLocalUserPatch] = useState(null);
   const [balances, setBalances] = useState(emptyJokerBalances());
+  const [inventoryState, setInventoryState] = useState({
+    loading: false,
+    refreshing: false,
+    ready: false,
+    error: '',
+  });
   const [pendingType, setPendingType] = useState('');
   const [notice, setNotice] = useState({ type: '', text: '' });
+  const products = useMemo(() => getMarketCatalog(), []);
+  const user = useMemo(
+    () => (authUser ? { ...authUser, ...(localUserPatch || {}) } : null),
+    [authUser, localUserPatch],
+  );
+
+  useEffect(() => {
+    setLocalUserPatch(null);
+  }, [authUser?.email]);
 
   useEffect(() => {
     let alive = true;
-    setLoading(true);
-    base44.auth.me()
-      .then(async (currentUser) => {
-        if (!alive) return;
-        if (!currentUser) {
-          setUser(null);
-          setBalances(emptyJokerBalances());
-          return;
-        }
-        setUser(currentUser);
-        const result = await getUserJokerBalances(currentUser, { ensureStarter: true }).catch(() => null);
+    const currentUser = authUser;
+    if (!currentUser?.email) {
+      setBalances(emptyJokerBalances());
+      setInventoryState({ loading: false, refreshing: false, ready: false, error: '' });
+      return () => { alive = false; };
+    }
+
+    setInventoryState((prev) => ({ ...prev, loading: true, error: '' }));
+    getUserJokerBalances(currentUser, { ensureStarter: false })
+      .then((result) => {
         if (!alive) return;
         setBalances(normalizeJokerBalances(result?.balances));
+        setInventoryState({
+          loading: false,
+          refreshing: Boolean(result?.meta?.selfHealNeeded),
+          ready: true,
+          error: '',
+        });
+        if (result?.meta?.selfHealNeeded) {
+          ensureStarterJokers(currentUser)
+            .then((healed) => {
+              if (!alive) return;
+              setBalances(normalizeJokerBalances(healed?.balances));
+              setInventoryState({ loading: false, refreshing: false, ready: true, error: '' });
+            })
+            .catch(() => {
+              if (!alive) return;
+              setInventoryState((prev) => ({ ...prev, refreshing: false }));
+            });
+        }
       })
       .catch(() => {
         if (!alive) return;
-        setUser(null);
         setBalances(emptyJokerBalances());
+        setInventoryState({
+          loading: false,
+          refreshing: false,
+          ready: false,
+          error: 'Joker sayıları güncellenemedi.',
+        });
       })
       .finally(() => {
-        if (alive) setLoading(false);
+        if (alive) setInventoryState((prev) => ({ ...prev, loading: false }));
       });
     return () => { alive = false; };
-  }, []);
+  }, [authUser]);
 
   const diamonds = useMemo(() => getLeaderboardDiamondValue(user), [user]);
 
@@ -64,8 +102,22 @@ export default function MarketPage() {
       return;
     }
     if (pendingType) return;
-    if (diamonds < product.price) {
-      setNotice({ type: 'error', text: 'Yeterli elmas yok.' });
+    const readiness = getMarketPurchaseReadiness({
+      product,
+      user,
+      authLoading: isLoadingAuth,
+      diamonds,
+      pending: pendingType === product.jokerType,
+      anyPending: Boolean(pendingType),
+    });
+    if (readiness.reason === 'login_required') {
+      base44.auth.redirectToLogin('/market');
+      return;
+    }
+    if (readiness.disabled) {
+      if (readiness.reason === 'insufficient_diamonds') {
+        setNotice({ type: 'error', text: 'Yeterli elmas yok.' });
+      }
       return;
     }
 
@@ -91,11 +143,12 @@ export default function MarketPage() {
           [product.jokerType]: normalizeJokerQuantity(current?.[product.jokerType]) + 1,
         }));
       }
-      setUser((current) => ({
-        ...(current || user),
+      setLocalUserPatch((current) => ({
+        ...(current || {}),
         ...(result.userPatch || {}),
         diamonds: normalizeJokerQuantity(result.diamondBalanceAfter),
       }));
+      checkUserAuth?.();
       setNotice({ type: 'success', text: `${product.name} alındı.` });
     } catch {
       setNotice({ type: 'error', text: 'Satın alma tamamlanamadı. Tekrar dene.' });
@@ -158,29 +211,55 @@ export default function MarketPage() {
         )}
 
         <section className="flex flex-col gap-3" aria-label="Mağaza ürünleri">
-          {MARKET_JOKER_PRODUCTS.map((product) => (
+          {products.map((product) => (
             <MarketProductCard
               key={product.jokerType}
               product={product}
               ownedCount={normalizeJokerQuantity(balances?.[product.jokerType])}
               diamonds={diamonds}
-              loading={loading}
+              inventoryLoading={inventoryState.loading}
+              inventoryRefreshing={inventoryState.refreshing}
+              authLoading={isLoadingAuth}
+              user={user}
               pending={pendingType === product.jokerType}
               anyPending={Boolean(pendingType)}
               onPurchase={() => handlePurchase(product)}
             />
           ))}
         </section>
+        {(inventoryState.loading || inventoryState.refreshing || inventoryState.error) && (
+          <p className="px-1 font-inter text-[11px] font-semibold text-blue-100/62" role="status" aria-live="polite">
+            {inventoryState.error || (inventoryState.loading ? 'Joker sayıları yükleniyor.' : 'Joker sayıları güncelleniyor.')}
+          </p>
+        )}
       </div>
     </main>
   );
 }
 
-function MarketProductCard({ product, ownedCount, diamonds, loading, pending, anyPending, onPurchase }) {
+function MarketProductCard({
+  product,
+  ownedCount,
+  diamonds,
+  inventoryLoading,
+  inventoryRefreshing,
+  authLoading,
+  user,
+  pending,
+  anyPending,
+  onPurchase,
+}) {
   const Icon = ICON_BY_JOKER_TYPE[product.jokerType] || ShoppingBag;
-  const insufficient = diamonds < product.price;
-  const disabled = loading || pending || anyPending || insufficient;
-  const buttonLabel = pending ? 'İşleniyor' : insufficient ? 'Yeterli elmas yok' : 'Satın Al';
+  const readiness = getMarketPurchaseReadiness({
+    product,
+    user,
+    authLoading,
+    diamonds,
+    pending,
+    anyPending,
+  });
+  const disabled = readiness.disabled;
+  const buttonLabel = readiness.label;
 
   return (
     <motion.article
@@ -208,12 +287,17 @@ function MarketProductCard({ product, ownedCount, diamonds, loading, pending, an
           <div className="flex items-center justify-between gap-2">
             <h2 className="truncate font-cinzel text-[16px] font-black">{product.name}</h2>
             <span className="shrink-0 rounded-full bg-white/10 px-2 py-1 font-inter text-[11px] font-bold text-blue-100/80">
-              x{ownedCount}
+              {inventoryLoading ? '...' : <>x{ownedCount}</>}
             </span>
           </div>
           <p className="mt-1 font-inter text-[12px] font-medium leading-snug text-blue-100/70">
             {product.description}
           </p>
+          {inventoryRefreshing && !inventoryLoading && (
+            <p className="mt-1 font-inter text-[10px] font-bold text-blue-100/48">
+              Güncelleniyor
+            </p>
+          )}
         </div>
       </div>
 

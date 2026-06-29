@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex491 — Mağaza performance/readiness pass:
+//   • Market opens from AuthContext and static catalog immediately; Home idles in the Market chunk and fast joker inventory cache.
+//   • Satın Al readiness is explicit and no longer waits on non-critical inventory count refresh/starter self-heal.
+//   • purchaseJokerWithDiamonds keeps server-price/idempotency/economy-lock guards and parallelizes starter inventory repair.
+//
 // Codex490 — Global avatar propagation and bundled icon set:
 //   • Public leaderboard, friend, player-select, lobby, invite, request, and header surfaces now render the shared KronoxAvatar.
 //   • Public projections carry only sanitized avatar_type/icon/color/url visual metadata while username remains the public identity.
@@ -106,7 +111,7 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps Home reward panels visible from a short-lived cache while revalidating and memoizes question text fit tokens.
 //
 
-const BUILD_MARKER = 'Codex490';
+const BUILD_MARKER = 'Codex491';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

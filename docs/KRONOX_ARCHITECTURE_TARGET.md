@@ -207,6 +207,13 @@ Parity plan:
 - Service-role writes stay inside Base44 functions.
 - Question bank stays backend-only through compact projections.
 - Daily Wheel/Daily Quest remain Diamond-only.
+- Mağaza catalog is code-side/static for Phase 1 joker products and may be
+  cached/prefetched for fast open, but purchase remains server-authoritative:
+  the client is never trusted for price, cost, user identity, reward, or target
+  account. `Satın Al` readiness should depend only on auth/user, item data,
+  sufficient Diamonds, item availability, and purchase in-flight state; slow
+  non-critical inventory count refresh or starter self-heal must not silently
+  disable an otherwise valid purchase button.
 - Unified Kronox Puan is the only player-facing score source. Solo contributes
   its best-score component; Online contributes `User.online_progress.score`.
   Online winner scoring is exactly `+15`, loser scoring is exactly `-6` before

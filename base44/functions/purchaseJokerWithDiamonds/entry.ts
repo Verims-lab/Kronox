@@ -366,9 +366,7 @@ async function ensureStarterJokerType(base44: any, email: string, jokerType: str
 }
 
 async function ensureStarterInventory(base44: any, email: string) {
-  for (const jokerType of JOKER_TYPES) {
-    await ensureStarterJokerType(base44, email, jokerType);
-  }
+  await Promise.all(JOKER_TYPES.map((jokerType) => ensureStarterJokerType(base44, email, jokerType)));
 }
 
 async function findDiamondTransaction(base44: any, email: string, idempotencyKey: string) {
