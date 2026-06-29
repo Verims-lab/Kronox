@@ -222,7 +222,7 @@ export const EXTRA_TESTS = [
     { actionType: ACTION_TYPES.CODE_FIX, nextStep: 'Restore safe retention helpers and rerun cleanup_retention_health/data_model_health.' }),
 
   makeCase('db_architecture_health', 'daily_quest_runtime_progress_schema_active',
-    'Daily Quest Runtime v2 uses UserDailyQuestProgress plus reserved User guard fields',
+    'Daily Quest Runtime v1 uses UserDailyQuestProgress plus reserved User guard fields',
     () => {
       const scannedSources = [
         userEntitySource,
@@ -244,13 +244,13 @@ export const EXTRA_TESTS = [
         '"claimed_at"',
       ]);
       if (missing.length) {
-        return fail('Daily Quest Runtime v2 progress schema or reserved User guard fields are incomplete.', {
+        return fail('Daily Quest Runtime v1 progress schema or reserved User guard fields are incomplete.', {
           verification: 'STATIC_CONTRACT',
           actionType: ACTION_TYPES.CODE_FIX,
           actual: { missing },
         });
       }
-      return pass('Daily Quest Runtime v2 has UserDailyQuestProgress rows plus separate daily_quest_* User guard fields.', {
+      return pass('Daily Quest Runtime v1 has UserDailyQuestProgress rows plus separate daily_quest_* User guard fields.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
       });

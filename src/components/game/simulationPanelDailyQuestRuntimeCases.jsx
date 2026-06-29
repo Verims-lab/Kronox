@@ -1,4 +1,4 @@
-// Kronox Health Center — Daily Quest Runtime v2 contracts.
+// Kronox Health Center — Daily Quest Runtime v1 contracts.
 //
 // Scope: one user-owned daily progress row, UTC-day quest assignment,
 // Solo-level-completion-only progress, server-backed Diamond claim, Günlük
@@ -58,7 +58,7 @@ function makeCase(id, name, run, options = {}) {
     name,
     critical: options.critical ?? true,
     actionType: options.actionType || ACTION_TYPES.CODE_FIX,
-    nextStep: options.nextStep || 'Keep Daily Quest Runtime v2 server-backed, Solo-level-completion-only, Diamond-only, and separate from Daily Wheel/leaderboard.',
+    nextStep: options.nextStep || 'Keep Daily Quest Runtime v1 server-backed, Solo-level-completion-only, Diamond-only, and separate from Daily Wheel/leaderboard.',
     ...options,
     run,
   };

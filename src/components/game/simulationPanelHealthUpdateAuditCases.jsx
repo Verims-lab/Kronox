@@ -154,7 +154,7 @@ export const EXTRA_TESTS = [
         'Cinsiyet',
         'Kategori seçimi',
         'title="Gizlilik Politikası"',
-        'title="Hesap Silme"',
+        'title="Hesabı Sil"',
         "navigate('/profile/edit'",
         "source: 'leaderboard_self_row'",
         'onCurrentUserRowOpenSettings',
@@ -389,10 +389,12 @@ export const EXTRA_TESTS = [
       const required = [
         "const BASE44_SDK_VERSION = '0.8.34'",
         'packageJsonSource',
+        'packageLockSource',
         'const requiredPackage = `"@base44/sdk": "${BASE44_SDK_VERSION}"`',
         'const requiredDeno = `npm:@base44/sdk@${BASE44_SDK_VERSION}`',
         'CRITICAL_BASE44_FUNCTION_SDK_SOURCES',
         'package.json exact @base44/sdk pin',
+        'package-lock.json exact @base44/sdk root spec',
         '"@base44/sdk": "^',
         'npm:@base44/sdk@0.8.25',
       ];

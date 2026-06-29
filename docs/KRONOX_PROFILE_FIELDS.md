@@ -83,7 +83,7 @@ users are verified with `base44.auth.me()`. Guest users are verified with
 tokens are never stored server-side.
 
 The Profile landing menu routes `Profil Bilgileri`, `Arkadaşlarım`, and
-`Ayarlar` to dedicated screens. `Gizlilik Politikası` and `Hesap Silme` live
+`Ayarlar` to dedicated screens. `Gizlilik Politikası` and `Hesabı Sil` live
 under the Settings screen; signed-in account deletion keeps the in-app guarded
 confirmation flow.
 

@@ -296,14 +296,14 @@ Daily Quest runtime and legacy definition management:
   regex, or scripts must never become executable quest logic
 * current runtime progress logic is the canonical `solo_level_complete` quest
   plus `target_value`.
-* `DailyQuestDefinition.quest_key` is the logical unique key. Admin list is
-  read-only and must not seed definitions on page refresh; explicit default
-  seed and create flows must skip/reject existing keys.
-* duplicate definition rows are surfaced as Admin warnings and require manual
-  cleanup after backup; management must not auto-delete duplicate DB rows
+* `DailyQuestDefinition.quest_key` is the logical unique key for legacy/manual
+  cleanup paths. Runtime does not list, seed, or select definition rows; any
+  explicit legacy seed/create flow must skip/reject existing keys.
+* duplicate definition rows require manual cleanup after backup; runtime and
+  legacy management must not auto-delete duplicate DB rows
 * rewards are Diamonds only; Daily Quest definitions must not grant Kronox
   Puan and must not affect leaderboard
-* Daily Quest Runtime v2 grants diamonds only through `claimDailyQuestReward`
+* Daily Quest Runtime v1 grants diamonds only through `claimDailyQuestReward`
   and `DiamondTransaction.source = daily_quest_reward`
 * Daily Quest does not grant Kronox Puan and has no leaderboard impact
 * Daily Quest does not affect leaderboard
@@ -847,7 +847,7 @@ Joker inventory is user-owned data:
   create and confirm by `idempotency_key` after create. Without a DB/entity
   unique constraint this remains function-level guard only / Medium P1
   hardening, not Low risk.
-* Home `Günlük Ödüller` includes Daily Wheel and Daily Quest Runtime v2
+* Home `Günlük Ödüller` includes Daily Wheel and Daily Quest Runtime v1
   `Günlük Görev`; Daily Quest claims grant diamonds only through
   server-backed, player-bound `claimDailyQuestReward`
 * Daily Wheel and Daily Quest rewards use separate guard fields and

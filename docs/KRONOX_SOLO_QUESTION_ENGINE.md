@@ -404,9 +404,9 @@ Inventory foundation:
   `UserJokerInventory`/`JokerTransaction` entity fallback, and returns safe
   user-facing errors without changing scoring, timer, deck order, or Online
 
-## Daily Quest Runtime V2
+## Daily Quest Runtime V1
 
-Daily Quest Runtime v2 is Solo-completion focused:
+Daily Quest Runtime v1 is Solo-completion focused:
 - `UserDailyQuestProgress` tracks 1 canonical user/day quest per UTC day
 - the canonical quest is `solo_level_complete`
 - Home copy is `Solo’da Seviye Geç` / `Bugün 1 Solo seviyesini tamamla.`

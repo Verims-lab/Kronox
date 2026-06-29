@@ -671,10 +671,10 @@ export const userEntitySource = `
     "last_daily_diamond_reward_date": {},
     "economy_updated_at": {},
     "daily_quest_last_claim_date": {
-      "description": "UTC YYYY-MM-DD key for latest Daily Quest Runtime v2 reward claim. Daily Quest grants diamonds only, does not grant Kronox Puan, and has no leaderboard impact."
+      "description": "UTC YYYY-MM-DD key for latest Daily Quest Runtime v1 reward claim. Daily Quest grants diamonds only, does not grant Kronox Puan, and has no leaderboard impact."
     },
     "daily_quest_next_available_at": {
-      "description": "ISO UTC timestamp for Daily Quest Runtime v2 reset/availability. Daily Quest grants diamonds only and uses daily_quest_reward."
+      "description": "ISO UTC timestamp for Daily Quest Runtime v1 reset/availability. Daily Quest grants diamonds only and uses daily_quest_reward."
     },
     "solo_progress": {
       "properties": {
