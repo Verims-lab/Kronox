@@ -295,7 +295,7 @@ function Header({ onBackMode }) {
       <button
         type="button"
         onClick={() => { sounds.tap(); onBackMode?.(); }}
-        className="absolute -top-1 left-0 flex h-9 w-9 items-center justify-center rounded-full text-blue-100/70"
+        className="absolute -top-1 left-0 flex h-10 w-10 items-center justify-center rounded-full text-blue-100/70"
         style={{
           background: 'rgba(10,16,36,0.6)',
           boxShadow: 'inset 0 0 0 1px rgba(120,170,255,0.30)',
@@ -347,7 +347,7 @@ function SelfCard({ display, profile }) {
         <p className="truncate font-inter text-[11px] text-blue-100/65">Sen</p>
       </div>
       <span
-        className="rounded-full px-2 py-0.5 font-inter text-[10px] font-black text-amber-950"
+        className="rounded-full px-2 py-0.5 font-bangers text-[11px] tracking-wide text-amber-950"
         style={{ background: 'linear-gradient(180deg,#ffe066,#b97a06)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.45)' }}
       >
         HOST

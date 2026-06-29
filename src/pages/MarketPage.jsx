@@ -8,7 +8,7 @@ import { sounds } from '@/lib/gameSounds';
 import { useAuth } from '@/lib/AuthContext';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 import { emptyJokerBalances, ensureStarterJokers, getUserJokerBalances, JOKER_TYPES, normalizeJokerBalances, normalizeJokerQuantity } from '@/lib/jokerInventory';
-import { createMarketClientRequestId, getMarketCatalog, getMarketPurchaseReadiness, purchaseMarketJoker } from '@/lib/market';
+import { createMarketClientRequestId, getMarketCatalog, getMarketPurchaseReadiness, MARKET_JOKER_PRODUCTS, purchaseMarketJoker } from '@/lib/market';
 
 const ICON_BY_JOKER_TYPE = {
   [JOKER_TYPES.TIME_FREEZE]: Snowflake,
@@ -18,7 +18,7 @@ const ICON_BY_JOKER_TYPE = {
 
 export default function MarketPage() {
   const navigate = useNavigate();
-  const { user: authUser, isLoadingAuth, checkUserAuth } = useAuth();
+  const { user: authUser, isLoadingAuth, checkUserAuth, setUser } = useAuth();
   const [localUserPatch, setLocalUserPatch] = useState(null);
   const [balances, setBalances] = useState(emptyJokerBalances());
   const [inventoryState, setInventoryState] = useState({
@@ -29,7 +29,7 @@ export default function MarketPage() {
   });
   const [pendingType, setPendingType] = useState('');
   const [notice, setNotice] = useState({ type: '', text: '' });
-  const products = useMemo(() => getMarketCatalog(), []);
+  const products = useMemo(() => getMarketCatalog() || MARKET_JOKER_PRODUCTS, []);
   const user = useMemo(
     () => (authUser ? { ...authUser, ...(localUserPatch || {}) } : null),
     [authUser, localUserPatch],
@@ -143,8 +143,17 @@ export default function MarketPage() {
           [product.jokerType]: normalizeJokerQuantity(current?.[product.jokerType]) + 1,
         }));
       }
+      const purchasedDiamondBalance = normalizeJokerQuantity(result.diamondBalanceAfter);
       setLocalUserPatch((current) => ({
         ...(current || {}),
+        ...(result.userPatch || {}),
+        diamonds: purchasedDiamondBalance,
+      }));
+      // Push the authoritative post-purchase Diamond total into the shared
+      // auth user so Home/Profile (which read useAuth().user) refresh their
+      // visible Elmas balance without a full reload.
+      setUser?.((current) => ({
+        ...(current || authUser || {}),
         ...(result.userPatch || {}),
         diamonds: normalizeJokerQuantity(result.diamondBalanceAfter),
       }));
@@ -259,7 +268,12 @@ function MarketProductCard({
     anyPending,
   });
   const disabled = readiness.disabled;
-  const buttonLabel = readiness.label;
+  // Default purchase CTA is "Satın Al"; an in-flight purchase shows "İşleniyor".
+  // readiness.label already resolves to these, but we keep explicit fallbacks
+  // so the card always presents a clear, controlled CTA state.
+  const buttonLabel = pending
+    ? 'İşleniyor'
+    : (readiness.label || 'Satın Al');
 
   return (
     <motion.article

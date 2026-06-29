@@ -279,6 +279,7 @@ export const AuthProvider = ({ children }) => {
       adminStatus,
       guestProfile,
       isGuest: !isAuthenticated && Boolean(guestProfile),
+      setUser,
       refreshAdminStatus,
       logout,
       navigateToLogin,

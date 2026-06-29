@@ -22,6 +22,8 @@ export const DAILY_QUEST_DEFINITION_CONTRACT = Object.freeze({
   logicContract: 'quest_type + target_value',
   progressMode: 'solo_level_completion_only',
   rewardField: 'reward_diamonds',
+  rewardKind: 'Diamonds only',
+  rewardKindNote: 'Daily Quest Runtime v1 reward is Diamonds only; it does not grant Kronox Puan and has no leaderboard impact.',
   diamondsOnly: true,
   noKronoxPuan: true,
   noLeaderboardImpact: true,
