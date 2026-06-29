@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex492 — Market post-purchase balance sync + CTA states:
+//   • MarketPage pushes the authoritative post-purchase Diamond total into shared auth via setUser so Home/Profile refresh without reload.
+//   • Product card CTA is explicit "Satın Al" with an "İşleniyor" in-flight state; catalog falls back to MARKET_JOKER_PRODUCTS.
+//   • Admin maintenance lists keep the existing AdminRefreshContext pull-to-refresh wiring.
+//
 // Codex491 — Mağaza performance/readiness pass:
 //   • Market opens from AuthContext and static catalog immediately; Home idles in the Market chunk and fast joker inventory cache.
 //   • Satın Al readiness is explicit and no longer waits on non-critical inventory count refresh/starter self-heal.
@@ -111,7 +116,7 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps Home reward panels visible from a short-lived cache while revalidating and memoizes question text fit tokens.
 //
 
-const BUILD_MARKER = 'Codex491';
+const BUILD_MARKER = 'Codex492';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
