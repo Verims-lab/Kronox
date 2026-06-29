@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex485 — VAPID secret validation hardening (sendGameInvitePush):
+//   • isInvalidVapidValue now rejects placeholder/default VAPID values by exact match, marker substring (placeholder/replace_me/your_vapid/example/todo), and dummy/sample/test_ prefix so invalid config fails closed before webpush.setVapidDetails.
+//   • Missing/invalid VAPID config still skips push with safe non-secret diagnostics while the persisted in-app invite remains valid; no secrets logged or returned.
+//   • Security Cleanup Health requires the strengthened placeholder rejection; VAPID_PRIVATE_KEY production secret verification stays MANUAL_REQUIRED.
+//
 // Codex479 — Runtime Kronox ID Profile display + Health blockers:
 //   • Unwraps nested Base44 function responses so ensured kronox_user_id reaches Auth/Profile state.
 //   • Profile Info actively ensures/backfills the current player's ID and shows retryable failure instead of permanent loading copy.
@@ -76,7 +81,7 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps Home reward panels visible from a short-lived cache while revalidating and memoizes question text fit tokens.
 //
 
-const BUILD_MARKER = 'Codex479';
+const BUILD_MARKER = 'Codex485';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
