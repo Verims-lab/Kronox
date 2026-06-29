@@ -125,7 +125,8 @@ Profile, Settings, and list rows:
 - Settings is for privacy, account, and app preferences, not category gameplay
   selection.
 - Profile > Profil Bilgileri owns username, optional private profile fields,
-  and `Kategori seçimi`.
+  `Kategori seçimi`, and the current player's read-only/copyable `Kullanıcı ID`
+  support value.
 - List rows need consistent icon placement, label hierarchy, pressed/disabled
   states, and back navigation.
 - BottomNav remains exactly `Ana Sayfa`, `Liderlik`, `Profil`.
@@ -135,8 +136,8 @@ Leaderboard:
 - The current user row should be obvious and competitive.
 - Only the user's own row may open profile settings.
 - Public identity is username only.
-- Do not render email, provider ID, owner_key, raw guest_id, or internal
-  player_key.
+- Do not render email, provider ID, owner_key, raw guest_id,
+  `kronox_user_id`, or internal player_key on public rows.
 
 ## Motion And Performance Rules
 

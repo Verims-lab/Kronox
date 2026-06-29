@@ -7,6 +7,10 @@
       "type": "string",
       "description": "Internal anonymized key derived server-side from the authenticated owner. Not displayed in public UI."
     },
+    "kronox_user_id": {
+      "type": "string",
+      "description": "Immutable Kronox ID of the presence actor when available. Used by backend-owned presence/invite logic as a durable app user reference; public responses must not display it."
+    },
     "user_email": {
       "type": "string",
       "description": "Backend-private routable email snapshot for GameInvite creation. Service-role functions may read it; public selection/presence responses must never return it."

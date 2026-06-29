@@ -94,6 +94,10 @@ fallback polling/refetch.
   dry-run/confirm/delete contract, server-side eligibility recheck, username
   release, audit log, no automatic scheduler, no linked/scored/social/missing
   last-open deletion, and no private identifier response.
+- Added immutable Kronox user ID coverage for backend assignment/backfill,
+  client-input rejection, guest-to-account preservation, tombstone non-reuse,
+  Profile Info read-only/copy UI, internal friend/Online/leaderboard
+  dual-writes, and public leaderboard stripping.
 
 ## Required Coverage Areas
 
@@ -109,6 +113,7 @@ fallback polling/refetch.
 | Friend add by email/username | Static UI/backend/privacy checks for email-or-username input, server-side username lookup, required username-not-found copy, no target email return, Add Friend double-submit guard, and function-level FriendRequest send lock | Two-account live proof for existing email, existing username, missing username, self-add, duplicate friend, pending request, expired resend after cancel/delete, and parallel send attempts |
 | Unified Solo + Online Kronox Puan | Static/executable scoring suites confirm visible Kronox Puan includes Solo best-score plus Online progress, Online winner is exactly +15, loser is exactly -6 with checkpoint protection, Online has no speed bonus, and result popup copy shows the persisted delta/new score | Two-account live proof that winner/loser score writes, Profile, Header, and Leaderboard all refresh to the same persisted Kronox Puan |
 | Solo record congratulations | Static backend context/copy checks | Production-like multi-user record fixture or backend probe |
+| Immutable Kronox user ID | Static source checks for backend generation/backfill, link preservation, Profile Info read-only/copy display, internal dual-write fields, tombstone non-reuse, and public output stripping | Deployed two-account/guest-link proof; DB uniqueness/index proof if the platform adds first-class constraints; full production backfill audit |
 | Daily Quest Diamond-only | Static runtime/backend checks | Two-device claim race proof |
 | Leaderboard username-only | Static public payload checks | RLS/BOLA live probe |
 | Online category isolation | Static start/Game/Health mirror checks | Live lobby start with Solo preferences set differently |

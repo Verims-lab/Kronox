@@ -7,6 +7,10 @@
       "type": "string",
       "description": "Internal deterministic key for the player (u_... registered, g_... guest). Logical unique key for projection dedupe/friend matching without exposing email or raw guest_id."
     },
+    "kronox_user_id": {
+      "type": "string",
+      "description": "Immutable Kronox ID for internal/admin/reporting joins when available. getSoloLeaderboard must not expose it in public leaderboard rows."
+    },
     "display_name": {
       "type": "string",
       "description": "Legacy mirrored username for internal projection compatibility. Do not return this field from public leaderboard APIs."

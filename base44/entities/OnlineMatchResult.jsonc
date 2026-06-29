@@ -15,9 +15,17 @@
       "type": "string",
       "description": "Lowercased email of the user whose Online score was updated."
     },
+    "player_kronox_user_id": {
+      "type": "string",
+      "description": "Immutable Kronox ID of the player when available. Admin/private audit field; public UI still uses username."
+    },
     "opponent_email": {
       "type": "string",
       "description": "Lowercased opponent email when safely known."
+    },
+    "opponent_kronox_user_id": {
+      "type": "string",
+      "description": "Immutable Kronox ID of the opponent when available."
     },
     "result": {
       "type": "string",

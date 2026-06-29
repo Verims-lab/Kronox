@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex478 — Immutable Kronox user ID foundation:
+//   • Adds backend-assigned/backfilled kronox_user_id with KX-XXXX-XXXX-XXXX format and tombstone non-reuse.
+//   • Preserves the guest Kronox ID through account linking and rejects client profile edits to the ID.
+//   • Adds Profile Info read-only/copy display plus internal friend/Online/reporting dual-write fields while public UI stays username-only.
+//
 // Codex477 — Unified Kronox Puan scoring:
 //   • Online winner delta is exactly +15 and loser delta is exactly -6 with checkpoint protection.
 //   • Removes Online speed bonus from scoring, result popup copy, Health expectations, docs, and mirrors.
@@ -66,7 +71,7 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps Home reward panels visible from a short-lived cache while revalidating and memoizes question text fit tokens.
 //
 
-const BUILD_MARKER = 'Codex477';
+const BUILD_MARKER = 'Codex478';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

@@ -256,6 +256,7 @@ export async function reconcileOnlineMatchResultForCurrentUser({
 async function createOnlineMatchResult({
   lobbyId,
   playerEmail,
+  playerKronoxUserId = '',
   opponentEmail = '',
   result,
   durationSeconds,
@@ -269,6 +270,7 @@ async function createOnlineMatchResult({
     idempotency_key: idempotencyKey,
     lobby_id: String(lobbyId),
     player_email: playerEmail,
+    ...(playerKronoxUserId ? { player_kronox_user_id: playerKronoxUserId } : {}),
     opponent_email: normalizeEmail(opponentEmail),
     result,
     delta: Number(applied.delta) || 0,
@@ -408,6 +410,7 @@ export async function applyOnlineMatchToCurrentUser({
   const onlineMatchResult = await createOnlineMatchResult({
     lobbyId,
     playerEmail,
+    playerKronoxUserId: me.kronox_user_id || '',
     opponentEmail,
     result,
     durationSeconds,

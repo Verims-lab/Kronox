@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 
 const PRESENCE_ONLINE_TTL_MS = 75 * 1000;
+const KRONOX_ID_PATTERN = /^KX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
 
 const normalizeEmail = (value: unknown) => String(value || '').trim().toLowerCase();
 const json = (body: unknown, status = 200) => Response.json(body, { status });
@@ -47,6 +48,11 @@ function safePublicUsername(value: unknown, fallbackSeed: unknown) {
       && !/^(guest|player|owner|user_key|player_key|g|u)_[A-Za-z0-9_-]{4,}$/i.test(normalized)
   );
   return safe ? normalized : makeUsernameFallback(fallbackSeed);
+}
+
+function normalizeKronoxUserId(value: unknown) {
+  const text = String(value || '').trim().toUpperCase();
+  return KRONOX_ID_PATTERN.test(text) ? text : '';
 }
 
 function normalizeSessionId(value: unknown) {
@@ -115,6 +121,7 @@ async function verifyGuestProfile(base44: any, body: any) {
     response: null,
     actor: {
       ownerKeyHash,
+      kronoxUserId: normalizeKronoxUserId(guest?.kronox_user_id),
       userEmail: '',
       playerType: 'guest',
       username: safePublicUsername(guest?.username || guest?.display_name, guestId),
@@ -122,10 +129,16 @@ async function verifyGuestProfile(base44: any, body: any) {
   };
 }
 
+async function findCurrentUserRow(base44: any, user: any, email: string) {
+  const rows = await base44.asServiceRole.entities.User.filter({ email }, '-updated_date', 1).catch(() => []);
+  return rows?.[0] || user || null;
+}
+
 async function resolvePresenceActor(base44: any, body: any) {
   const user = await base44.auth.me().catch(() => null);
   if (user?.email) {
     const myEmail = normalizeEmail(user.email);
+    const storedUser = await findCurrentUserRow(base44, user, myEmail);
     const ownerKeyHash = makeOwnerKeyHash(myEmail);
     if (!ownerKeyHash) {
       return { ok: false, response: json({ ok: false, error: 'Invalid actor' }, 400), actor: null };
@@ -135,10 +148,11 @@ async function resolvePresenceActor(base44: any, body: any) {
       response: null,
       actor: {
         ownerKeyHash,
+        kronoxUserId: normalizeKronoxUserId(storedUser?.kronox_user_id || user?.kronox_user_id),
         userEmail: myEmail,
         playerType: 'linked',
         username: safePublicUsername(
-          user.username || user.public_username || user.display_name || user.full_name,
+          storedUser?.username || storedUser?.public_username || storedUser?.display_name || user.username || user.public_username || user.display_name || user.full_name,
           myEmail,
         ),
       },
@@ -168,6 +182,7 @@ Deno.serve(async (req) => {
 
     const payload = {
       owner_key_hash: actor.ownerKeyHash,
+      ...(actor.kronoxUserId ? { kronox_user_id: actor.kronoxUserId } : {}),
       user_email: actor.userEmail,
       player_type: actor.playerType,
       username: actor.username,

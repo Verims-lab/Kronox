@@ -2,6 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 
 const PRESENCE_ONLINE_TTL_MS = 75 * 1000;
 const PRESENCE_SCAN_LIMIT = 20;
+const KRONOX_ID_PATTERN = /^KX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
 
 const normalizeEmail = (value: unknown) => String(value || '').trim().toLowerCase();
 const json = (body: unknown, status = 200) => Response.json(body, { status });
@@ -37,6 +38,11 @@ function safePublicUsername(value: unknown, fallbackSeed: unknown) {
       && !/^(guest|player|owner|user_key|player_key|g|u)_[A-Za-z0-9_-]{4,}$/i.test(normalized)
   );
   return safe ? normalized : makeUsernameFallback(fallbackSeed);
+}
+
+function normalizeKronoxUserId(value: unknown) {
+  const text = String(value || '').trim().toUpperCase();
+  return KRONOX_ID_PATTERN.test(text) ? text : '';
 }
 
 function readTime(value: unknown) {
@@ -89,10 +95,12 @@ Deno.serve(async (req) => {
     const friends = [
       ...(incomingAccepted || []).map((row: any) => ({
         email: normalizeEmail(row.from_email),
+        kronoxUserId: normalizeKronoxUserId(row.from_kronox_user_id),
         name: row.from_name,
       })),
       ...(outgoingAccepted || []).map((row: any) => ({
         email: normalizeEmail(row.to_email),
+        kronoxUserId: normalizeKronoxUserId(row.to_kronox_user_id),
         name: row.to_name,
       })),
     ].filter((friend) => friend.email && friend.email !== myEmail);
@@ -110,9 +118,14 @@ Deno.serve(async (req) => {
     const presence = [];
     for (const friend of allowedFriends) {
       const presenceKey = makeOwnerKeyHash(friend.email);
-      const rows = await base44.asServiceRole.entities.PlayerPresence.filter({
-        owner_key_hash: presenceKey,
-      }, '-last_seen_at', scanLimit);
+      const rowsByKronoxId = friend.kronoxUserId
+        ? await base44.asServiceRole.entities.PlayerPresence.filter({ kronox_user_id: friend.kronoxUserId }, '-last_seen_at', scanLimit).catch(() => [])
+        : [];
+      const rows = rowsByKronoxId?.length
+        ? rowsByKronoxId
+        : await base44.asServiceRole.entities.PlayerPresence.filter({
+          owner_key_hash: presenceKey,
+        }, '-last_seen_at', scanLimit);
       const freshOnline = (rows || []).find((row: any) => isOnlinePresence(row, nowMs));
       const latest = freshOnline || rows?.[0] || null;
       const username = latest?.username

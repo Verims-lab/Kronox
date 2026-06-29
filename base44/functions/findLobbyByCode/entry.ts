@@ -18,6 +18,12 @@ const normalizeCode = (code) =>
     .replace(/[^\w]/g, '');
 
 const normalizeEmail = (value) => String(value || '').trim().toLowerCase();
+const KRONOX_ID_PATTERN = /^KX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
+
+const normalizeKronoxUserId = (value) => {
+  const text = String(value || '').trim().toUpperCase();
+  return KRONOX_ID_PATTERN.test(text) ? text : '';
+};
 
 const readRevision = (value) => {
   const revision = Number(value);
@@ -27,6 +33,8 @@ const readRevision = (value) => {
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const getPlayerIdentityKey = (player) => {
+  const kronoxUserId = normalizeKronoxUserId(player?.kronox_user_id);
+  if (kronoxUserId) return `kronox:${kronoxUserId}`;
   const email = normalizeEmail(player?.email);
   if (email) return `email:${email}`;
   const name = String(player?.name || '').trim().toLowerCase();
@@ -35,6 +43,7 @@ const getPlayerIdentityKey = (player) => {
 
 const normalizeLobbyPlayer = (player) => ({
   ...player,
+  kronox_user_id: normalizeKronoxUserId(player?.kronox_user_id),
   email: player?.email || '',
   name: String(player?.name || '').trim() || 'Oyuncu',
   ready: player?.ready ?? true,
@@ -126,6 +135,11 @@ const getLobbyExpiry = (lobby, staleAfterMs) => {
   return Number.isFinite(explicit) ? explicit : derived;
 };
 
+const findCurrentUserRow = async (base44, user, email) => {
+  const rows = await base44.asServiceRole.entities.User.filter({ email }, '-updated_date', 1).catch(() => []);
+  return rows?.[0] || user || null;
+};
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -139,6 +153,9 @@ Deno.serve(async (req) => {
     const rawCode = body.code || '';
     const normalizedCode = normalizeCode(rawCode);
     const playerName = (body.playerName || '').trim();
+    const myEmail = normalizeEmail(user.email);
+    const currentUser = await findCurrentUserRow(base44, user, myEmail);
+    const myKronoxUserId = normalizeKronoxUserId(currentUser?.kronox_user_id || user?.kronox_user_id);
 
     if (!normalizedCode) {
       return Response.json({ error: 'Lobi kodu boş olamaz.' }, { status: 400 });
@@ -204,10 +221,14 @@ Deno.serve(async (req) => {
 
     // --- Perform the join via service role with merge/retry protection ---
     const currentPlayers = lobby.players || [];
-    const alreadyIn = currentPlayers.some(p => normalizeEmail(p.email) === normalizeEmail(user.email));
+    const alreadyIn = currentPlayers.some(p => (
+      (myKronoxUserId && normalizeKronoxUserId(p?.kronox_user_id) === myKronoxUserId) ||
+      normalizeEmail(p.email) === myEmail
+    ));
 
     if (!alreadyIn) {
       const newPlayer = {
+        kronox_user_id: myKronoxUserId,
         email: user.email,
         name: playerName,
         ready: true,

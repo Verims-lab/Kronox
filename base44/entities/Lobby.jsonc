@@ -10,6 +10,10 @@
       "type": "string",
       "description": "Email of the lobby host"
     },
+    "host_kronox_user_id": {
+      "type": "string",
+      "description": "Immutable Kronox ID of the lobby host when available. Durable backend reference; email remains for legacy RLS and compatibility."
+    },
     "host_name": {
       "type": "string",
       "description": "Display name of the host"
@@ -21,6 +25,10 @@
         "properties": {
           "email": {
             "type": "string"
+          },
+          "kronox_user_id": {
+            "type": "string",
+            "description": "Immutable Kronox ID of this player when available. Used for durable backend identity; UI still shows name/username."
           },
           "name": {
             "type": "string"
@@ -74,6 +82,10 @@
     "winner_email": {
       "type": "string",
       "description": "Email of the winning player, written with status=finished for local win/loss perspective."
+    },
+    "winner_kronox_user_id": {
+      "type": "string",
+      "description": "Immutable Kronox ID of the winning player when available. Not displayed in public UI."
     },
     "state_revision": {
       "type": "number",

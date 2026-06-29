@@ -2,6 +2,7 @@ import { base44 } from '@/api/base44Client';
 import { backfillSoloScores, summarizeSoloProgress } from './soloProgressHelpers';
 import { getDiamondBalance } from './diamondEconomy';
 import { isSafePublicUsername, resolveSafePublicUsername } from './guestProfile';
+import { getKronoxUserId } from './kronoxUserId';
 
 export const LEADERBOARD_TOP_LIMIT = 10;
 export const LEADERBOARD_FETCH_LIMIT = 500;
@@ -116,6 +117,7 @@ export function buildSoloLeaderboardPayload(user, progress, totalLevels = LEADER
 
   return {
     owner_key: ownerKey,
+    ...(getKronoxUserId(user) ? { kronox_user_id: getKronoxUserId(user) } : {}),
     username: displayName,
     display_name: displayName,
     initial: initialFromName(displayName),
@@ -144,6 +146,7 @@ export function buildGuestSoloLeaderboardPayload(guestProfile, progress, totalLe
 
   return {
     owner_key: ownerKey,
+    ...(getKronoxUserId(guestProfile) ? { kronox_user_id: getKronoxUserId(guestProfile) } : {}),
     username: displayName,
     display_name: displayName,
     initial: initialFromName(displayName),

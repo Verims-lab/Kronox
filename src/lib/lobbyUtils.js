@@ -22,6 +22,11 @@ export function summarizePlayers(players = []) {
   }));
 }
 
+function normalizeKronoxUserId(value) {
+  const text = String(value || '').trim().toUpperCase();
+  return /^KX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/.test(text) ? text : '';
+}
+
 export function removePlayerByIdentity(players = [], { email, name } = {}) {
   if (email) return players.filter(player => player?.email !== email);
   return players.filter(player => player?.name !== name);
@@ -38,9 +43,16 @@ export function validatePlayerName(name) {
 export function buildPlayerPayload(user, playerName) {
   const trimmedName = playerName.trim();
   const player = user || { email: `guest_${Date.now()}@kronos.local`, full_name: trimmedName };
+  const kronoxUserId = normalizeKronoxUserId(player.kronox_user_id);
   return {
     identity: player,
-    player: { email: player.email, name: trimmedName, ready: true, cards: [] },
+    player: {
+      ...(kronoxUserId ? { kronox_user_id: kronoxUserId } : {}),
+      email: player.email,
+      name: trimmedName,
+      ready: true,
+      cards: [],
+    },
   };
 }
 

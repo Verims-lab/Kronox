@@ -7,6 +7,10 @@
       "type": "string",
       "description": "Lowercased email of the sender. Hot lookup with status for outgoing accepted/pending rows."
     },
+    "from_kronox_user_id": {
+      "type": "string",
+      "description": "Immutable Kronox ID of the sender when available. Durable relation key for new rows; legacy email lookup remains for backward compatibility and RLS."
+    },
     "from_name": {
       "type": "string",
       "description": "Safe public username label of the sender at send time. Must not be email/provider/internal id."
@@ -18,6 +22,10 @@
     "to_email": {
       "type": "string",
       "description": "Lowercased email of the receiver. Hot lookup with status for incoming accepted/pending rows."
+    },
+    "to_kronox_user_id": {
+      "type": "string",
+      "description": "Immutable Kronox ID of the receiver when available. Durable relation key for new rows; public UI still shows username only."
     },
     "to_name": {
       "type": "string",

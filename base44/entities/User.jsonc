@@ -10,6 +10,19 @@
         "user"
       ]
     },
+    "kronox_user_id": {
+      "type": "string",
+      "description": "Immutable system-assigned Kronox ID (KX-XXXX-XXXX-XXXX). Canonical durable app user/support identifier. It is not email/provider/auth id/owner_key/raw guest_id, not editable by the user, and not authorization proof."
+    },
+    "kronox_user_id_created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Server timestamp when kronox_user_id was created or backfilled."
+    },
+    "kronox_user_id_source": {
+      "type": "string",
+      "description": "Operational marker for how kronox_user_id was assigned, for example system_create_guest_profile, system_backfill, or preserved_from_guest_profile."
+    },
     "solo_progress": {
       "type": "object",
       "description": "Codex139 \u2014 Per-user Solo Level Path progress. Server User.solo_progress is the signed-in source of truth; localStorage is only a user-scoped mirror/cache. Compact shape: { currentLevel, unlockedLevel?, levels: { '1': { bestStars, bestScore, bestScoreStars, bestScoreBaseScore, bestScoreTimeBonus, bestMistakes, bestTimeSeconds, attempts, completedAt, lastAttemptAt } }, summary: { totalSoloScore, currentLevel, unlockedLevel, totalStars, completedLevelCount, aggregateBestTimeSeconds?, totalAttempts } }. Writes go through base44.auth.updateMe and never overwrite better stars/scores/times with worse replay data.",

@@ -215,6 +215,7 @@ Deno.serve(async (req: Request) => {
     const totalScore = Math.max(0, Math.floor(safeNumber(user?.kronox_puan_total, solo.totalSoloScore + onlineScore)));
     const leaderboardRow = {
       owner_key: ownerKey,
+      ...(String(user?.kronox_user_id || '').trim() ? { kronox_user_id: String(user.kronox_user_id).trim() } : {}),
       display_name: getDisplayName(user),
       initial: getInitial(user),
       total_kronox_score: totalScore,
@@ -229,6 +230,7 @@ Deno.serve(async (req: Request) => {
     };
     const statsRow = {
       owner_key: ownerKey,
+      ...(String(user?.kronox_user_id || '').trim() ? { kronox_user_id: String(user.kronox_user_id).trim() } : {}),
       user_email: email,
       kronox_puan_total: totalScore,
       solo_score: solo.totalSoloScore,

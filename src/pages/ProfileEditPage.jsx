@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowLeft, Check, ChevronRight, Loader2, Pencil, UserRound, X } from 'lucide-react';
+import { ArrowLeft, Check, ChevronRight, Copy, Loader2, Pencil, UserRound, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { sounds } from '@/lib/gameSounds';
 import { useAuth } from '@/lib/AuthContext';
 import CategoryPreferencesSection from '@/components/settings/CategoryPreferencesSection';
 import { normalizeSafePublicUsernameInput, resolveSafePublicUsername } from '@/lib/guestProfile';
+import { getKronoxUserId } from '@/lib/kronoxUserId';
 import {
   PROFILE_AGE_GROUP_OPTIONS,
   PROFILE_GENDER_OPTIONS,
@@ -27,6 +28,7 @@ export default function ProfileEditPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [copiedId, setCopiedId] = useState(false);
 
   useEffect(() => {
     setLocalProfile(user || guestProfile || null);
@@ -38,6 +40,7 @@ export default function ProfileEditPage() {
   ), [profile?.username]);
   const gender = String(profile?.gender || '');
   const ageGroup = normalizeProfileAgeGroupValue(profile?.age_group) || ageToAgeGroup(profile?.age);
+  const kronoxUserId = getKronoxUserId(profile) || 'Hazırlanıyor';
   const avatarInitial = username.charAt(0).toLocaleUpperCase('tr-TR') || 'K';
 
   const openEditor = (field) => {
@@ -96,6 +99,20 @@ export default function ProfileEditPage() {
   const handleBack = () => {
     sounds.tap();
     navigate('/profile');
+  };
+
+  const copyKronoxUserId = async () => {
+    const value = getKronoxUserId(profile);
+    if (!value) return;
+    sounds.tap();
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedId(true);
+      setMessage('Kronox ID kopyalandı.');
+      window.setTimeout(() => setCopiedId(false), 1800);
+    } catch {
+      setError('Kopyalama engellendi. Kronox ID satırındaki değeri manuel seçebilirsin.');
+    }
   };
 
   if (isLoadingAuth && !localProfile) {
@@ -177,6 +194,12 @@ export default function ProfileEditPage() {
             value={getProfileOptionLabel(PROFILE_AGE_GROUP_OPTIONS, ageGroup)}
             muted={!ageGroup}
             onClick={() => openEditor('age_group')}
+          />
+          <KronoxIdRow
+            value={kronoxUserId}
+            copied={copiedId}
+            disabled={!getKronoxUserId(profile)}
+            onCopy={copyKronoxUserId}
           />
         </div>
 
@@ -290,6 +313,35 @@ function ProfileFieldRow({ label, value, muted = false, onClick }) {
         </span>
         <ChevronRight className="h-5 w-5 shrink-0 text-white/55" />
       </button>
+    </section>
+  );
+}
+
+function KronoxIdRow({ value, copied, disabled, onCopy }) {
+  return (
+    <section className="space-y-2" data-kronox-user-id-readonly="true">
+      <h2 className="font-inter text-lg font-bold text-white">Kullanıcı ID</h2>
+      <div
+        className="flex min-h-[4rem] w-full items-center gap-3 rounded-2xl px-4 text-left"
+        style={{
+          background: 'linear-gradient(180deg, rgba(31,41,55,0.92), rgba(18,25,35,0.95))',
+          boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.06)',
+        }}
+      >
+        <span className={`min-w-0 flex-1 break-all font-inter text-lg font-bold ${disabled ? 'text-white/45' : 'text-white/72'}`}>
+          {value}
+        </span>
+        <button
+          type="button"
+          onClick={onCopy}
+          disabled={disabled}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/[0.08] text-white/72 disabled:opacity-40"
+          aria-label="Kullanıcı ID kopyala"
+          title="Kullanıcı ID kopyala"
+        >
+          {copied ? <Check className="h-4 w-4 text-emerald-200" /> : <Copy className="h-4 w-4" />}
+        </button>
+      </div>
     </section>
   );
 }

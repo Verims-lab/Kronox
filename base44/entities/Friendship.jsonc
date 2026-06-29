@@ -7,9 +7,17 @@
       "type": "string",
       "description": "Lowercased email of the owner of this friendship row"
     },
+    "user_kronox_user_id": {
+      "type": "string",
+      "description": "Immutable Kronox ID of the owner when available. Compatibility field for retained legacy Friendship rows."
+    },
     "friend_email": {
       "type": "string",
       "description": "Lowercased email of the friend"
+    },
+    "friend_kronox_user_id": {
+      "type": "string",
+      "description": "Immutable Kronox ID of the friend when available. Public UI still shows username only."
     },
     "friend_name": {
       "type": "string",

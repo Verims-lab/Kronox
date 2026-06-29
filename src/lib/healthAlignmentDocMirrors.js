@@ -42,6 +42,7 @@ Status: Active product workflow contract.
 - Eğitime Devam is only for true tutorial_in_progress; tutorial_completed routes to profile setup, profile complete plus category pending routes to category selection, and onboarding_complete routes to Ana Sayfa.
 - Home / Ana Sayfa must not render Google, Apple, Email, Hesabını bağla, or progress-protection account-link CTAs; account linking belongs under Profile. The first-launch welcome may show Hesabım Var only as a route to Profile account connection, not as an inline provider/login surface.
 - Public identity is username. display_name / Görünen Ad is a legacy/internal projection mirror, not a separate public editable identity or public leaderboard response field.
+- kronox_user_id is the immutable canonical app user identity for backend-owned relationships and support/admin correlation. It is system-assigned, opaque, non-sequential, preserved through guest-to-account linking, never user-editable, and never reused after deletion. It is not authorization proof; server-side ownership and access-control checks remain required.
 - Friends can be added by email address or registered Kronox username. Username lookup is backend-owned and username-based add responses must not reveal the target email. FriendRequest sends use a function-level FriendRequestOperationLock race guard because DB/entity unique constraints are not repo-proven.
 - Category selection uses current active Category metadata and getCategoryMetadata; stale hardcoded category fallback arrays and old seed category names are forbidden as runtime fallbacks.
 - Authenticated category preference save minimum is 3 active valid categories; guest category selection is advisory and empty guest selections mean all active Solo categories remain eligible.
@@ -62,11 +63,11 @@ Status: Active technical flow contract.
 
 - App routes are owned by src/App.jsx; BottomNav visible tabs are Ana Sayfa, Liderlik, and Profil.
 - createGuestProfile is public by design but narrow: it creates/verifies GuestProfile and stores guest_token_hash only. Guest mutations require guest_id + raw guest token.
-- linkGuestAccount is Profile-only and verifies guest token proof plus authenticated user before AccountLinkTransaction merge. It preserves guest Diamonds, Daily Wheel/Daily Quest same-day guards/history, leaderboard username identity, category preferences, progress, and inventory where applicable.
+- linkGuestAccount is Profile-only and verifies guest token proof plus authenticated user before AccountLinkTransaction merge. It preserves the guest kronox_user_id as the canonical identity when linking, plus guest Diamonds, Daily Wheel/Daily Quest same-day guards/history, leaderboard username identity, category preferences, progress, and inventory where applicable.
 - getCategoryMetadata returns category_id, name, description, and status from current active Category rows only; it must not expose questions, answers, years, user data, admin fields, passive/deleted categories, or stale fallback arrays.
 - Base44 function.jsonc files use the repo-supported name + entry shape only; auth/public scope is enforced in entry.ts guards. createGuestProfile and getCategoryMetadata are public-by-design and narrow, user-owned functions call base44.auth.me(), guest daily/leaderboard paths verify guest_id + raw guest token against completed GuestProfile, and admin-only functions use AdminUser guards.
 - configured \`function.jsonc\` manifests are the platform-published source in this repo; extra entry.ts directories are compile-checked but need matching manifest/deploy proof before being classified as published callables.
-- Configured function auth/public matrix covers createGuestProfile, getCategoryMetadata, getQuestions, getPlayerQuestionExposureStats, recordPlayerQuestionExposure, updateProfileSettings, linkGuestAccount, sendFriendRequest, updatePlayerPresence, getFriendPresence, getOnlinePlayerSelection, createGameInvitesForTargets, getAdminStatus, ensureUserJokerInventory, spendUserJoker, purchaseJokerWithDiamonds, getDailyQuestStatus, recordDailyQuestProgress, claimDailyQuestReward, createDailyQuestDefinition, diagnoseSoloQuestionStartQuery, and sendQuestionAnalyticsReportEmail.
+- Configured function auth/public matrix covers createGuestProfile, ensureKronoxUserId, getCategoryMetadata, getQuestions, getPlayerQuestionExposureStats, recordPlayerQuestionExposure, updateProfileSettings, linkGuestAccount, sendFriendRequest, updatePlayerPresence, getFriendPresence, getOnlinePlayerSelection, createGameInvitesForTargets, getAdminStatus, ensureUserJokerInventory, spendUserJoker, purchaseJokerWithDiamonds, getDailyQuestStatus, recordDailyQuestProgress, claimDailyQuestReward, createDailyQuestDefinition, diagnoseSoloQuestionStartQuery, and sendQuestionAnalyticsReportEmail.
 - /admin has a route-level UX guard that waits for AuthContext/AdminUser status before mounting AdminPage; non-admin users are redirected without an admin-tool flash, while server-side AdminUser guards remain the real security boundary.
 - Dependency cleanup result: unused direct Stripe, Three, React Leaflet, React Quill, Moment, jsPDF, html2canvas, and Lodash packages were removed; recharts and embla-carousel-react stay because UI primitives import them.
 - UserCategoryPreference is authenticated Settings/Profile data. Fewer than 3 active valid preferences means Solo uses all active categories; 3+ enables Solo-only soft weighting.
@@ -159,6 +160,15 @@ pure, effect-free, preserves valid pending rows through transient empty fetches,
 treats toast dismiss as visual-only, and closes actionable notifications only
 on accepted/rejected/expired/terminal/invalidation lifecycle events.
 
+Immutable Kronox ID Phase 1 starts at src/lib/kronoxUserId.js,
+base44/functions/ensureKronoxUserId, base44/entities/KronoxUserIdTombstone,
+createGuestProfile, updateProfileSettings, and linkGuestAccount. The ID field
+is kronox_user_id, uses an opaque KX-XXXX-XXXX-XXXX format, is backend-assigned
+or backfilled, is rejected from client profile update payloads, is preserved
+through guest-to-account linking, and is tombstoned on account deletion or
+eligible inactive guest cleanup so it is never reused. It is a support/admin
+correlation identifier, not authorization proof.
+
 Presence/player-selection Phase 1 starts at src/hooks/usePresenceHeartbeat.js,
 src/hooks/useFriendPresence.js, src/lib/onlinePlayerSelection.js,
 base44/entities/PlayerPresence.jsonc, base44/functions/updatePlayerPresence,
@@ -171,9 +181,9 @@ rows, and stale/missing presence displays offline rather than online. Explicit
 offline is session-scoped and TTL is the final safety net. Online non-friend
 discovery is fresh-presence-only. Friend, invite, lobby, notification, presence,
 and player selection surfaces render username-safe labels only; email, provider
-ID, raw guest ID, owner_key, and internal player_key values are never public
-display fallbacks. The UI stores opaque target_ref values and backend functions
-resolve recipient email privately for GameInvite creation.
+ID, raw guest ID, kronox_user_id, owner_key, and internal player_key values are
+never public display fallbacks. The UI stores opaque target_ref values and
+backend functions resolve recipient email privately for GameInvite creation.
 
 Friends can be added by email address or registered Kronox username. Username
 lookup and duplicate/self checks stay backend-owned, and username-based add
@@ -216,7 +226,11 @@ no-flicker, Solo backend record context, Daily Quest Diamond-only rewards,
 leaderboard username-only payloads, Online category isolation, no raw
 Question.list gameplay fallback, unified Solo + Online Kronox Puan with Online
 winner +15, loser -6, no speed bonus, economy idempotency guards, and private
-identifier display. Focused presence, player-selection, and friend-add
+identifier display. Immutable Kronox ID static coverage checks backend
+assignment/backfill, client-input rejection, guest-to-account preservation,
+Profile Info read-only/copy display, internal friend/Online/leaderboard
+dual-writes, tombstone non-reuse, and public output stripping. Focused
+presence, player-selection, and friend-add
 coverage protects PlayerPresence owner binding, GuestProfile token proof, 75s
 TTL / 25s heartbeat / 12s visible refresh, accepted-friend lookup, online
 friend / online non-friend / offline friend ordering, opaque target refs,
@@ -283,10 +297,10 @@ GuestProfile usernames, users with >0 Kronox Puan from
 SoloLeaderboardEntry.total_kronox_score plus safe kronox_puan_total repair,
 inactive 10+ day users from server-written last_app_open_at / last_seen_at,
 unknown/no-last-open users separately, new users in 7 days, active users in
-1/7/30 days, and coarse app_platform iOS/Android/Other/Unknown. The report does
-not delete users, mutate score/economy data, return raw rows, expose email,
-provider ID, owner_key, raw guest_id, internal player_key, or start cleanup
-policy.
+1/7/30 days, coarse app_platform iOS/Android/Other/Unknown, and aggregate
+kronox_user_id coverage counts only. The report does not delete users, mutate
+score/economy data, return raw rows, expose raw Kronox IDs, email, provider ID,
+owner_key, raw guest_id, internal player_key, or start cleanup policy.
 
 Admin Inactive Guest Username Cleanup Phase 1: cleanupInactiveGuestUsernames is
 AdminUser-gated, dry-run first, manually confirmed with SİL plus unchanged
@@ -299,9 +313,10 @@ last-open, ambiguous score, linked/login evidence, score > 0, friends/social
 relations, active presence/lobby state, or economy balance blocks deletion.
 Confirmed cleanup deletes only the eligible GuestProfile username source, that
 guest-owner zero-score SoloLeaderboardEntry projection, and guest-owner
-presence rows; it does not delete User rows, auth/provider accounts,
-Diamond/Joker ledgers, questions, categories, or unrelated analytics. Responses
-and UI must not expose email, provider ID, owner_key, raw guest_id, internal
+presence rows; it tombstones the deleted kronox_user_id and does not delete
+User rows, auth/provider accounts, Diamond/Joker ledgers, questions,
+categories, or unrelated analytics. Responses and UI must not expose email,
+provider ID, owner_key, raw guest_id, internal
 player_key, auth IDs, or unsafe Base44 row IDs. AdminMaintenanceLog records safe
 aggregate preview/execute metadata only.
 
@@ -403,13 +418,14 @@ Do not start a full visual redesign unless explicitly requested. Do not start a
 framework, routing, Tailwind, animation-library, Base44, adapter, gameplay-rule,
 Solo/Online logic, or question-bank exposure migration during focused UX polish.
 
-Profile > Profil Bilgileri owns username, optional private profile fields, and
-Kategori seçimi. Settings owns privacy, account, and app preferences rather
-than category gameplay selection. BottomNav remains exactly \`Ana Sayfa\`, \`Liderlik\`, \`Profil\`, and Online remains Home CTA-owned.
+Profile > Profil Bilgileri owns username, optional private profile fields,
+Kategori seçimi, and the current player's read-only/copyable Kullanıcı ID.
+Settings owns privacy, account, and app preferences rather than category
+gameplay selection. BottomNav remains exactly \`Ana Sayfa\`, \`Liderlik\`, \`Profil\`, and Online remains Home CTA-owned.
 
 Public identity is username only. Do not render email, provider ID, owner_key,
-raw guest_id, internal player_key, raw guest token, answer years, correct
-answers, or full question bank content in public UI.
+raw guest_id, kronox_user_id, internal player_key, raw guest token, answer
+years, correct answers, or full question bank content in public UI.
 
 Prefer transform and opacity for animation. Avoid layout-heavy animation,
 repeated blur loops, and large glowing stacks around gameplay. Do not introduce GSAP, Motion, or a new animation library unless a future task explicitly
@@ -431,9 +447,9 @@ Status: Active profile/onboarding contract.
 - Elmas uses persisted User.diamonds through the shared Diamond display helper.
 - Joker Çantası uses UserJokerInventory current balances through getUserJokerBalances; JokerTransaction is ledger/audit only and is not a Profile render-time balance source.
 - User Category preferences are Solo-only soft 70/30 weighting input when at least 3 active valid preferences exist. Empty or fewer-than-3 preferences use all active categories for Solo. Online question selection is not affected. Kategori seçimi is edited from Profile > Profil Bilgileri for authenticated users through UserCategoryPreference; Settings owns privacy/account actions instead.
-- GuestProfile public identity uses username; display_name is only a legacy/internal projection mirror and is not a public fallback identity. Email, Google ID, Apple ID, provider UID, raw guest id, internal owner_key, and internal player_key values are not public display names.
+- GuestProfile public identity uses username; display_name is only a legacy/internal projection mirror and is not a public fallback identity. Email, Google ID, Apple ID, provider UID, raw guest id, kronox_user_id, internal owner_key, and internal player_key values are not public display names outside the current player's own Profile Info support row.
 - GuestProfile is app-owned; Firebase anonymous auth and Base44 anonymous auth are not used. Default username format is KronoxUser#### / KronoxUser#####.
-- Profile > Profil Bilgileri exposes username plus optional private age_group and gender for guest and authenticated users. The Profile landing routes Profil Bilgileri, Arkadaşlarım, and Ayarlar to dedicated screens; Gizlilik Politikası and Hesap Silme live under Settings, with signed-in deletion still guarded by the in-app confirmation flow. age is a legacy/private compatibility field; current Profile edit UI collects age_group only and does not ask for exact birthdate or exact age. age, age_group, and gender are private optional profile fields only and must not appear in leaderboard rows, public projections, scoring, matchmaking, Solo category weighting, or Online game selection. getSoloLeaderboard returns sanitized username plus opaque leaderboard_id and strips owner_key/display_name/email/provider ids/raw guest id/internal player_key; completed guests can open Liderlik and appear only as username.
+- Profile > Profil Bilgileri exposes username plus optional private age_group and gender for guest and authenticated users, and may show the current player's immutable kronox_user_id as read-only/copyable Kullanıcı ID. The Profile landing routes Profil Bilgileri, Arkadaşlarım, and Ayarlar to dedicated screens; Gizlilik Politikası and Hesap Silme live under Settings, with signed-in deletion still guarded by the in-app confirmation flow. age is a legacy/private compatibility field; current Profile edit UI collects age_group only and does not ask for exact birthdate or exact age. age, age_group, gender, and kronox_user_id are private/support fields only and must not appear in public leaderboard rows, public projections, scoring, matchmaking, Solo category weighting, or Online game selection. getSoloLeaderboard returns sanitized username plus opaque leaderboard_id and strips owner_key/display_name/email/provider ids/raw guest id/kronox_user_id/internal player_key; completed guests can open Liderlik and appear only as username.
 - Guest account linking is implemented through linkGuestAccount and belongs under Profile. It preserves guest Diamonds, Daily Wheel/Daily Quest guard fields/history, leaderboard username identity, category preferences, progress, and inventory where applicable. Home / Ana Sayfa must not render Google, Apple, email, Hesabını bağla, or progress-protection account-link prompts. The first-launch welcome may show only Hesabım Var as a secondary route into the Profile account-connection card; it must not duplicate Apple / Google / Email buttons.
 - Guest onboarding Phase 2 status values include guest_created, tutorial_in_progress, tutorial_completed, profile_setup_pending, category_setup_pending, and onboarding_complete.
 - Eğitime Devam is valid only for true resumable tutorial_in_progress state; stale tutorial_in_progress cannot override tutorial_completed, profile_setup_pending, category_setup_pending, or onboarding_complete.
