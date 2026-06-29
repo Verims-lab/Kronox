@@ -25,7 +25,7 @@
     },
     "solo_progress": {
       "type": "object",
-      "description": "Codex139 \u2014 Per-user Solo Level Path progress. Server User.solo_progress is the signed-in source of truth; localStorage is only a user-scoped mirror/cache. Compact shape: { currentLevel, unlockedLevel?, levels: { '1': { bestStars, bestScore, bestScoreStars, bestScoreBaseScore, bestScoreTimeBonus, bestMistakes, bestTimeSeconds, attempts, completedAt, lastAttemptAt } }, summary: { totalSoloScore, currentLevel, unlockedLevel, totalStars, completedLevelCount, aggregateBestTimeSeconds?, totalAttempts } }. Writes go through base44.auth.updateMe and never overwrite better stars/scores/times with worse replay data.",
+      "description": "Codex139 \u2014 Per-user Solo Level Path progress. Server User.solo_progress is the signed-in source of truth; localStorage is only a user-scoped mirror/cache. Writes go through base44.auth.updateMe and never overwrite better stars/scores/times with worse replay data.",
       "properties": {
         "currentLevel": {
           "type": "number"
@@ -105,7 +105,7 @@
     },
     "online_progress": {
       "type": "object",
-      "description": "Codex477 \u2014 Per-user Online ranking summary. score is the player's current Online score component: win +15, loss -6, no Online speed bonus, then protected by peakCheckpoint on losses. lastMatchId remains a recent-match guard; OnlineMatchResult is the durable per-user/lobby idempotency audit source. Legacy rows may still contain draws or lastUpdatedAt, but new writes do not emit them.",
+      "description": "Codex477 \u2014 Per-user Online ranking summary. score is the player's current Online score component: win +15, loss -6, no Online speed bonus, then protected by peakCheckpoint on losses. OnlineMatchResult is the durable per-user/lobby idempotency audit source.",
       "properties": {
         "score": {
           "type": "number",
@@ -145,7 +145,7 @@
     },
     "kronox_puan_total": {
       "type": "number",
-      "description": "Codex168 — Persisted/index-friendly visible Kronox Puan projection for leaderboard sorting and display. It mirrors the shared visible score rule: Solo component from solo_progress plus Online component from online_progress.score. Writers update this alongside Solo/Online score changes; runtime helpers still recompute defensively when missing."
+      "description": "Codex168 \u2014 Persisted/index-friendly visible Kronox Puan projection for leaderboard sorting and display. It mirrors the shared visible score rule: Solo component from solo_progress plus Online component from online_progress.score."
     },
     "username": {
       "type": "string",
@@ -187,10 +187,40 @@
         "custom"
       ]
     },
+    "avatar_type": {
+      "type": "string",
+      "description": "Codex486 \u2014 Profile avatar kind. icon means a bundled app-local avatar glyph (avatar_icon_id); photo means an uploaded Base44 storage image (avatar_url). Empty/missing means default initial avatar. Owner-bound; set only through updateProfileSettings, which never overwrites unrelated profile fields.",
+      "enum": [
+        "",
+        "icon",
+        "photo"
+      ]
+    },
+    "avatar_icon_id": {
+      "type": "string",
+      "description": "Codex486 \u2014 Selected bundled avatar icon id (app-local lucide glyph set) used when avatar_type=icon. Never a remote/third-party image URL or trademarked character art."
+    },
+    "avatar_url": {
+      "type": "string",
+      "description": "Codex486 \u2014 Uploaded avatar photo URL from Base44 UploadFile storage, used when avatar_type=photo. Safe https display URL only; no base64 blobs in the row and no private/internal IDs."
+    },
+    "avatar_color_id": {
+      "type": "string",
+      "description": "Codex486 \u2014 Avatar frame/background tint preset id from the app-local Kronox palette.",
+      "enum": [
+        "",
+        "gold",
+        "cyan",
+        "violet",
+        "emerald",
+        "rose",
+        "blue"
+      ]
+    },
     "profile_settings_updated_at": {
       "type": "string",
       "format": "date-time",
-      "description": "Latest server-side profile settings update timestamp for username/display_name/age/gender merge decisions."
+      "description": "Latest server-side profile settings update timestamp for username/display_name/age/gender/avatar merge decisions."
     },
     "last_app_open_at": {
       "type": "string",
@@ -230,7 +260,7 @@
     },
     "category_preferences_onboarding_completed": {
       "type": "boolean",
-      "description": "Codex247 — Advisory per-user Category preference onboarding completion flag. The popup source of truth is still the active valid UserCategoryPreference count: fewer than 3 active valid Category preferences shows the popup even if this flag is true."
+      "description": "Codex247 \u2014 Advisory per-user Category preference onboarding completion flag. The popup source of truth is still the active valid UserCategoryPreference count: fewer than 3 active valid Category preferences shows the popup even if this flag is true."
     },
     "category_preferences_onboarding_completed_at": {
       "type": "string",
@@ -243,7 +273,7 @@
     },
     "diamonds": {
       "type": "number",
-      "description": "Codex152 — Canonical persisted Elmas/Diamond balance. UI surfaces read this field through getDiamondBalance/getLeaderboardDiamondValue. Diamonds are never derived from Kronox Puan, Solo stars, Online score, or level."
+      "description": "Codex152 \u2014 Canonical persisted Elmas/Diamond balance. UI surfaces read this field through getDiamondBalance/getLeaderboardDiamondValue. Diamonds are never derived from Kronox Puan, Solo stars, Online score, or level."
     },
     "starter_bonus_granted_at": {
       "type": "string",

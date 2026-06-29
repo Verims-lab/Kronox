@@ -5,6 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import { sounds } from '@/lib/gameSounds';
 import { useAuth } from '@/lib/AuthContext';
 import CategoryPreferencesSection from '@/components/settings/CategoryPreferencesSection';
+import KronoxAvatar from '@/components/profile/KronoxAvatar';
+import AvatarPickerSheet from '@/components/profile/AvatarPickerSheet';
 import { normalizeSafePublicUsernameInput, resolveSafePublicUsername } from '@/lib/guestProfile';
 import { ensureKronoxUserIdForCurrentActor, getKronoxUserId } from '@/lib/kronoxUserId';
 import {
@@ -31,6 +33,7 @@ export default function ProfileEditPage() {
   const [copiedId, setCopiedId] = useState(false);
   const [kronoxIdStatus, setKronoxIdStatus] = useState('idle');
   const [kronoxIdError, setKronoxIdError] = useState('');
+  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
 
   useEffect(() => {
     setLocalProfile(user || guestProfile || null);
@@ -177,6 +180,21 @@ export default function ProfileEditPage() {
     navigate('/profile');
   };
 
+  const openAvatarPicker = () => {
+    sounds.tap();
+    setError('');
+    setMessage('');
+    setAvatarPickerOpen(true);
+  };
+
+  const handleAvatarSaved = async (result) => {
+    if (result?.mode === 'registered' && result?.user) setLocalProfile(result.user);
+    if (result?.mode === 'guest' && result?.profile) setLocalProfile(result.profile);
+    setAvatarPickerOpen(false);
+    setMessage('Avatarın güncellendi.');
+    await checkUserAuth?.();
+  };
+
   const copyKronoxUserId = async () => {
     const value = getKronoxUserId(profile);
     if (!value) return;
@@ -239,20 +257,12 @@ export default function ProfileEditPage() {
               boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.12), 0 18px 42px rgba(0,0,0,0.35)',
             }}
           />
-          <div
-            className="relative flex h-24 w-24 items-center justify-center rounded-[2rem]"
-            style={{
-              background: 'linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.04))',
-              boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.10)',
-            }}
-          >
-            <span className="font-bangers text-5xl text-amber-200 drop-shadow">{avatarInitial}</span>
-          </div>
+          <KronoxAvatar profile={profile} initial={avatarInitial} size={104} className="relative" />
           <button
             type="button"
-            disabled
-            aria-label="Avatar düzenleme bu sürümde kapalı"
-            className="absolute -bottom-1 right-0 flex h-12 w-12 items-center justify-center rounded-full bg-white text-slate-900 opacity-80"
+            onClick={openAvatarPicker}
+            aria-label="Avatarı düzenle"
+            className="absolute -bottom-1 right-0 flex h-12 w-12 items-center justify-center rounded-full bg-white text-slate-900 active:scale-95"
           >
             <Pencil className="h-5 w-5" />
           </button>
@@ -319,6 +329,13 @@ export default function ProfileEditPage() {
         onAgeGroupChange={setDraftAgeGroup}
         onClose={closeEditor}
         onSave={saveProfile}
+      />
+
+      <AvatarPickerSheet
+        open={avatarPickerOpen}
+        profile={profile}
+        onClose={() => setAvatarPickerOpen(false)}
+        onSaved={handleAvatarSaved}
       />
     </ProfileEditShell>
   );

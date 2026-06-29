@@ -70,6 +70,11 @@ function normalizePublicProfile(profile) {
     age_group: String(profile.age_group || '').trim(),
     gender: String(profile.gender || '').trim(),
     selected_category_ids: selectedCategoryIds,
+    // Codex486 — Avatar fields preserved through the cached public guest profile.
+    avatar_type: String(profile.avatar_type || '').trim(),
+    avatar_icon_id: String(profile.avatar_icon_id || '').trim(),
+    avatar_url: String(profile.avatar_url || '').trim(),
+    avatar_color_id: String(profile.avatar_color_id || '').trim(),
     created_at: profile.created_at || null,
     last_seen_at: profile.last_seen_at || null,
     tutorial_completed_at: profile.tutorial_completed_at || null,
