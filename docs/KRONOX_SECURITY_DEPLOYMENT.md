@@ -496,10 +496,10 @@ Configured function auth/public matrix:
 | `linkGuestAccount` | Authenticated user + guest-token | Auth user from `base44.auth.me()` and guest ownership from token hash. |
 | `sendFriendRequest` | Authenticated user | Current user from `base44.auth.me()`; email or username target is resolved server-side, self/open-pending/expired-outgoing guards run under `FriendRequestOperationLock`, new rows get 72-hour `expires_at`, and username add responses return username-safe labels without target email. |
 | `updatePlayerPresence` | Authenticated user | Current user from `base44.auth.me()`; request body cannot mark another actor online; rows store anonymized owner_key_hash plus backend-private user_email for invite routing, never returned by public presence/selection responses. |
-| `getFriendPresence` | Authenticated accepted-friend lookup | Current user from `base44.auth.me()`; response is restricted to accepted FriendRequest relationships and returns username-safe presence rows only. |
-| `getOnlinePlayerSelection` | Authenticated player selection lookup | Current user from `base44.auth.me()`; returns online friends, fresh online non-friends, and offline friends as username + opaque target_ref only; excludes current user and unroutable rows. |
+| `getFriendPresence` | Authenticated accepted-friend lookup | Current user from `base44.auth.me()`; response is restricted to accepted FriendRequest relationships and returns username-safe presence rows plus safe avatar fields only. |
+| `getOnlinePlayerSelection` | Authenticated player selection lookup | Current user from `base44.auth.me()`; returns online friends, fresh online non-friends, and offline friends as username + opaque target_ref plus safe avatar fields only; excludes current user and unroutable rows. |
 | `createGameInvitesForTargets` | Authenticated lobby host | Current user from `base44.auth.me()` and `Lobby.host_email`; opaque target refs resolve backend-side only when accepted friend or fresh online presence; response returns invite ids, not recipient email. |
-| `getSoloLeaderboard` | Authenticated user or completed guest-token | Public-safe rows only; guest path verifies token and strips owner_key/raw guest_id/display_name. |
+| `getSoloLeaderboard` | Authenticated user or completed guest-token | Public-safe rows only; guest path verifies token and strips owner_key/raw guest_id/display_name while allowing safe avatar fields. |
 | `getAdminStatus` | Authenticated status check | Uses current authenticated email and AdminUser row; normal users receive non-admin status. |
 | `ensureUserJokerInventory` | Authenticated user | Current user from `base44.auth.me()`. |
 | `spendUserJoker` | Authenticated user | Current user from `base44.auth.me()`, Solo joker context enforced. |
@@ -1083,11 +1083,12 @@ Public identity is `username` only. `display_name` is a legacy/internal
 projection mirror and must not be used as the public fallback identity for old
 rows; it must not be returned as the public leaderboard identity field.
 `getSoloLeaderboard` returns sanitized `username`, opaque `leaderboard_id`,
-score/rank fields, and boolean friend/current-user markers. It must not return
-email, provider ids, raw guest id, internal `owner_key`, internal `player_key`,
-or public `display_name`. Direct `SoloLeaderboardEntry` entity reads are
-admin-only in the repo schema because the projection row stores internal
-`owner_key`.
+score/rank fields, boolean friend/current-user markers, and safe avatar
+metadata (`avatar_type`, `avatar_icon_id`, `avatar_color_id`, `avatar_url`).
+It must not return email, provider ids, raw guest id, internal `owner_key`,
+internal `player_key`, raw storage metadata, auth IDs, or public
+`display_name`. Direct `SoloLeaderboardEntry` entity reads are admin-only in
+the repo schema because the projection row stores internal `owner_key`.
 
 ## Player Question Exposure Privacy Boundary
 

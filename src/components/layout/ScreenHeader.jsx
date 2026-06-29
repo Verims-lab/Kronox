@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Gem, Trophy, UserRound } from 'lucide-react';
+import { ArrowLeft, Gem, Trophy } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { sounds } from '@/lib/gameSounds';
 // Codex134 — Shared real-time header notification bell.
@@ -8,6 +8,7 @@ import { sounds } from '@/lib/gameSounds';
 // Self-contained (data + subscriptions live in useHeaderNotifications),
 // so adding it here is a pure presentational addition.
 import HeaderNotificationBell from '@/components/notifications/HeaderNotificationBell';
+import KronoxAvatar from '@/components/profile/KronoxAvatar';
 
 /**
  * Codex118 — Standardized top bar for primary navigation screens.
@@ -69,8 +70,7 @@ export default function ScreenHeader({
     navigate('/profile');
   };
 
-  const displayName = user?.full_name || (user?.email ? user.email.split('@')[0] : '');
-  const initial = (displayName || '').trim().charAt(0).toUpperCase();
+  const displayName = user?.username || user?.public_username || user?.full_name || (user?.email ? user.email.split('@')[0] : '');
   const hasChip = chipValue !== null && chipValue !== undefined && chipValue !== '';
   const statsMode = headerStats && typeof headerStats === 'object';
 
@@ -149,18 +149,10 @@ export default function ScreenHeader({
             onClick={handleAvatar}
             whileTap={{ scale: 0.92 }}
             transition={{ type: 'spring', stiffness: 520, damping: 24 }}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-amber-950"
-            style={{
-              background: 'radial-gradient(circle at 35% 28%, #ffe066, #b97a06 70%)',
-              boxShadow: '0 0 14px rgba(250,204,21,0.45), inset 0 1px 0 rgba(255,255,255,0.45), inset 0 -4px 6px rgba(140,80,8,0.55)',
-            }}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
             aria-label="Profil"
           >
-            {user && initial ? (
-              <span className="font-bangers text-lg leading-none">{initial}</span>
-            ) : (
-              <UserRound className="h-5 w-5" strokeWidth={2.6} />
-            )}
+            <KronoxAvatar profile={user} initial={displayName || 'K'} size={40} />
           </motion.button>
         )}
       </div>

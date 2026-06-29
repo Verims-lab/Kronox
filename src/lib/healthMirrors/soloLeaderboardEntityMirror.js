@@ -11,8 +11,9 @@
 //   This mirror exposes the schema's internal projection contract as a plain
 //   string so token scans run against a guaranteed value. It declares the
 //   internal rank fields (owner_key, mirrored username/display_name, scores,
-//   level, stars, updated_at) and admin-only direct read RLS. Public consumption goes
-//   through getSoloLeaderboard, which returns username + leaderboard_id and
+//   level, stars, updated_at) plus safe avatar display fields and admin-only
+//   direct read RLS. Public consumption goes through getSoloLeaderboard, which
+//   returns username + leaderboard_id plus the safe avatar quartet and
 //   strips owner_key/display_name/email/provider IDs. Completed guest rows use
 //   internal g_ owner keys and username-only public identity.
 //   Keep this in sync with entities/SoloLeaderboardEntry.json.
@@ -22,7 +23,7 @@ export const SOLO_LEADERBOARD_ENTITY_PATH = 'entities/SoloLeaderboardEntry.json'
 export const SOLO_LEADERBOARD_ENTITY_SOURCE = `{
   "name": "SoloLeaderboardEntry",
   "type": "object",
-  "description": "owner_key is the logical unique key; total_kronox_score desc is the hot leaderboard sort; updated_at is the projection freshness tie-breaker; direct entity reads are admin-only because owner_key/display_name are internal projection fields; completed guests use internal g_ owner keys; public getSoloLeaderboard strips owner_key/display_name/raw guest id/provider ids/internal player_key and returns username plus leaderboard_id; bounded server-side User.kronox_puan_total repair prevents incomplete projection rows from claiming exact global rank",
+  "description": "owner_key is the logical unique key; total_kronox_score desc is the hot leaderboard sort; updated_at is the projection freshness tie-breaker; direct entity reads are admin-only because owner_key/display_name are internal projection fields; completed guests use internal g_ owner keys; public getSoloLeaderboard strips owner_key/display_name/raw guest id/provider ids/internal player_key and returns username plus leaderboard_id plus safe avatar_type/avatar_icon_id/avatar_color_id/avatar_url visual metadata; bounded server-side User.kronox_puan_total repair prevents incomplete projection rows from claiming exact global rank",
   "properties": {
     "owner_key": { "type": "string", "description": "Logical unique key; u_ for registered users and g_ for completed guests; internal only" },
     "display_name": { "type": "string", "description": "Legacy mirrored username; do not return from public leaderboard APIs" },
@@ -36,6 +37,10 @@ export const SOLO_LEADERBOARD_ENTITY_SOURCE = `{
     "total_stars": { "type": "number" },
     "completed_level_count": { "type": "number" },
     "aggregate_best_time_seconds": { "type": "number" },
+    "avatar_type": { "type": "string", "description": "Safe public visual avatar type: icon/photo/none" },
+    "avatar_icon_id": { "type": "string", "description": "Safe bundled app-local avatar icon id" },
+    "avatar_color_id": { "type": "string", "description": "Safe avatar color/style token" },
+    "avatar_url": { "type": "string", "description": "Safe https profile photo URL only; no raw storage metadata" },
     "updated_at": { "type": "string" }
   },
   "required": ["owner_key", "display_name", "total_solo_score", "current_level"],

@@ -3,6 +3,14 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 const PRESENCE_ONLINE_TTL_MS = 75 * 1000;
 const PRESENCE_SCAN_LIMIT = 20;
 const KRONOX_ID_PATTERN = /^KX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
+const AVATAR_TYPE_VALUES = new Set(['icon', 'photo']);
+const AVATAR_ICON_IDS = new Set([
+  'shield', 'helmet', 'sword', 'crown', 'trophy', 'hourglass', 'clock', 'timer',
+  'calendar', 'portal', 'wand', 'scroll', 'crystal', 'planet', 'rocket', 'orbit',
+  'telescope', 'book', 'compass', 'brain', 'landmark', 'lightning', 'flame',
+  'moon', 'sun', 'star',
+]);
+const AVATAR_COLOR_IDS = new Set(['gold', 'cyan', 'violet', 'emerald', 'rose', 'blue']);
 
 const normalizeEmail = (value: unknown) => String(value || '').trim().toLowerCase();
 const json = (body: unknown, status = 200) => Response.json(body, { status });
@@ -40,6 +48,57 @@ function safePublicUsername(value: unknown, fallbackSeed: unknown) {
   return safe ? normalized : makeUsernameFallback(fallbackSeed);
 }
 
+function normalizeAvatarColorId(value: unknown) {
+  const text = String(value || '').trim();
+  return AVATAR_COLOR_IDS.has(text) ? text : 'gold';
+}
+
+function isSafeAvatarPhotoUrl(value: unknown) {
+  const text = String(value || '').trim();
+  if (!text || text.length > 2048) return false;
+  try {
+    return new URL(text).protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+function readSafeAvatarPhotoUrl(row: any = {}) {
+  const candidates = [
+    row?.avatar_url,
+    row?.avatarUrl,
+    row?.avatar_image_url,
+    row?.avatarImageUrl,
+    row?.profile_avatar_url,
+    row?.profileAvatarUrl,
+  ];
+  for (const value of candidates) {
+    if (isSafeAvatarPhotoUrl(value)) return String(value).trim();
+  }
+  return '';
+}
+
+function pickPublicAvatarFields(row: any = {}) {
+  const type = String(row?.avatar_type || '').trim();
+  const iconId = String(row?.avatar_icon_id || '').trim();
+  const colorId = normalizeAvatarColorId(row?.avatar_color_id);
+  const avatarUrl = readSafeAvatarPhotoUrl(row);
+
+  if ((type === 'photo' || !type) && avatarUrl) {
+    return { avatar_type: 'photo', avatar_icon_id: '', avatar_color_id: colorId, avatar_url: avatarUrl };
+  }
+  if (type === 'icon' && AVATAR_ICON_IDS.has(iconId)) {
+    return { avatar_type: 'icon', avatar_icon_id: iconId, avatar_color_id: colorId, avatar_url: '' };
+  }
+  if (!type && AVATAR_ICON_IDS.has(iconId)) {
+    return { avatar_type: 'icon', avatar_icon_id: iconId, avatar_color_id: colorId, avatar_url: '' };
+  }
+  if (type && !AVATAR_TYPE_VALUES.has(type)) {
+    return { avatar_type: '', avatar_icon_id: '', avatar_color_id: colorId, avatar_url: '' };
+  }
+  return { avatar_type: '', avatar_icon_id: '', avatar_color_id: colorId, avatar_url: '' };
+}
+
 function normalizeKronoxUserId(value: unknown) {
   const text = String(value || '').trim().toUpperCase();
   return KRONOX_ID_PATTERN.test(text) ? text : '';
@@ -63,16 +122,22 @@ function normalizeRequestedEmails(value: unknown) {
   return Array.from(new Set(value.map(normalizeEmail).filter(Boolean))).slice(0, 200);
 }
 
-async function getUserPublicUsername(base44: any, email: string, fallbackName: string) {
+async function getUserPublicProfile(base44: any, email: string, fallbackName: string) {
   try {
     const rows = await base44.asServiceRole.entities.User.filter({ email }, '-updated_date', 1);
     const user = rows?.[0] || null;
-    return safePublicUsername(
-      user?.username || user?.public_username || fallbackName,
-      email,
-    );
+    return {
+      username: safePublicUsername(
+        user?.username || user?.public_username || fallbackName,
+        email,
+      ),
+      ...pickPublicAvatarFields(user),
+    };
   } catch {
-    return safePublicUsername(fallbackName, email);
+    return {
+      username: safePublicUsername(fallbackName, email),
+      ...pickPublicAvatarFields(null),
+    };
   }
 }
 
@@ -128,9 +193,10 @@ Deno.serve(async (req) => {
         }, '-last_seen_at', scanLimit);
       const freshOnline = (rows || []).find((row: any) => isOnlinePresence(row, nowMs));
       const latest = freshOnline || rows?.[0] || null;
+      const profile = await getUserPublicProfile(base44, friend.email, friend.name);
       const username = latest?.username
         ? safePublicUsername(latest.username, friend.email)
-        : await getUserPublicUsername(base44, friend.email, friend.name);
+        : profile.username;
       presence.push({
         presence_key: presenceKey,
         username,
@@ -138,6 +204,7 @@ Deno.serve(async (req) => {
         status: freshOnline ? 'online' : 'offline',
         last_seen_at: latest?.last_heartbeat_at || latest?.last_seen_at || null,
         expires_at: latest?.presence_expires_at || latest?.expires_at || null,
+        ...pickPublicAvatarFields(profile),
       });
     }
 

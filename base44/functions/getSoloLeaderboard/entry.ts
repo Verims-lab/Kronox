@@ -21,6 +21,14 @@ const USERNAME_PREFIX = 'KronoxUser';
 const GUEST_ID_PREFIX = 'guest_';
 const UNSAFE_PUBLIC_USERNAME_PATTERN = /^(apple|google|firebase|auth0|base44|provider|uid|owner)(?:[\w:-].*)?$/i;
 const INTERNAL_ID_PUBLIC_USERNAME_PATTERN = /^(guest|player|owner|user_key|player_key|g|u)_[A-Za-z0-9_-]{4,}$/i;
+const AVATAR_TYPE_VALUES = new Set(['icon', 'photo']);
+const AVATAR_ICON_IDS = new Set([
+  'shield', 'helmet', 'sword', 'crown', 'trophy', 'hourglass', 'clock', 'timer',
+  'calendar', 'portal', 'wand', 'scroll', 'crystal', 'planet', 'rocket', 'orbit',
+  'telescope', 'book', 'compass', 'brain', 'landmark', 'lightning', 'flame',
+  'moon', 'sun', 'star',
+]);
+const AVATAR_COLOR_IDS = new Set(['gold', 'cyan', 'violet', 'emerald', 'rose', 'blue']);
 
 function json(payload: unknown, status = 200) {
   return Response.json(payload, { status });
@@ -197,6 +205,57 @@ function safePublicUsername(source: any, ownerKey: string) {
   if (explicit) return explicit;
 
   return makeKronoxUserFallback(ownerKey || source?.id || source?._id);
+}
+
+function normalizeAvatarColorId(value: unknown) {
+  const text = String(value || '').trim();
+  return AVATAR_COLOR_IDS.has(text) ? text : 'gold';
+}
+
+function isSafeAvatarPhotoUrl(value: unknown) {
+  const text = String(value || '').trim();
+  if (!text || text.length > 2048) return false;
+  try {
+    return new URL(text).protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+function readSafeAvatarPhotoUrl(row: any = {}) {
+  const candidates = [
+    row?.avatar_url,
+    row?.avatarUrl,
+    row?.avatar_image_url,
+    row?.avatarImageUrl,
+    row?.profile_avatar_url,
+    row?.profileAvatarUrl,
+  ];
+  for (const value of candidates) {
+    if (isSafeAvatarPhotoUrl(value)) return String(value).trim();
+  }
+  return '';
+}
+
+function pickPublicAvatarFields(row: any = {}) {
+  const type = String(row?.avatar_type || '').trim();
+  const iconId = String(row?.avatar_icon_id || '').trim();
+  const colorId = normalizeAvatarColorId(row?.avatar_color_id);
+  const avatarUrl = readSafeAvatarPhotoUrl(row);
+
+  if ((type === 'photo' || !type) && avatarUrl) {
+    return { avatar_type: 'photo', avatar_icon_id: '', avatar_color_id: colorId, avatar_url: avatarUrl };
+  }
+  if (type === 'icon' && AVATAR_ICON_IDS.has(iconId)) {
+    return { avatar_type: 'icon', avatar_icon_id: iconId, avatar_color_id: colorId, avatar_url: '' };
+  }
+  if (!type && AVATAR_ICON_IDS.has(iconId)) {
+    return { avatar_type: 'icon', avatar_icon_id: iconId, avatar_color_id: colorId, avatar_url: '' };
+  }
+  if (type && !AVATAR_TYPE_VALUES.has(type)) {
+    return { avatar_type: '', avatar_icon_id: '', avatar_color_id: colorId, avatar_url: '' };
+  }
+  return { avatar_type: '', avatar_icon_id: '', avatar_color_id: colorId, avatar_url: '' };
 }
 
 
@@ -435,6 +494,7 @@ function toLeaderboardRow(user: any, levelNumber = 0) {
     username,
     display_name: username,
     initial: initialFromName(username),
+    ...pickPublicAvatarFields(user),
     total_kronox_score: totalKronoxScore,
     total_solo_score: summary.totalSoloScore,
     online_score: onlineScore,
@@ -470,6 +530,7 @@ function toProjectionLeaderboardRow(row: any) {
     username,
     display_name: username,
     initial: cleanDisplayText(row?.initial) || initialFromName(username),
+    ...pickPublicAvatarFields(row),
     total_kronox_score: totalKronoxScore,
     total_solo_score: totalSoloScore,
     online_score: onlineScore,
@@ -543,6 +604,7 @@ function buildProjectionWritePayload(row: any) {
     username,
     display_name: username,
     initial: cleanDisplayText(row?.initial).slice(0, 1) || initialFromName(username),
+    ...pickPublicAvatarFields(row),
     total_kronox_score: Math.max(0, Math.floor(finiteNumber(row?.total_kronox_score, 0))),
     total_solo_score: Math.max(0, Math.floor(finiteNumber(row?.total_solo_score, 0))),
     online_score: Math.max(0, Math.floor(finiteNumber(row?.online_score, 0))),
@@ -731,6 +793,7 @@ function toPublicLeaderboardRow(row: any) {
     username,
     publicName: username,
     initial: cleanDisplayText(row?.initial).slice(0, 1) || initialFromName(username),
+    ...pickPublicAvatarFields(row),
     total_kronox_score: Math.max(0, Math.floor(finiteNumber(row?.total_kronox_score, 0))),
     total_solo_score: Math.max(0, Math.floor(finiteNumber(row?.total_solo_score, 0))),
     online_score: Math.max(0, Math.floor(finiteNumber(row?.online_score, 0))),

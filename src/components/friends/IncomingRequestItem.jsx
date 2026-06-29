@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { UserRound, Check, X, Loader2 } from 'lucide-react';
+import { Check, X, Loader2 } from 'lucide-react';
 import { getSafeNotificationActorName } from '@/lib/notificationIdentity';
+import KronoxAvatar from '@/components/profile/KronoxAvatar';
 
 /**
  * One pending request addressed to the current user — accept or reject.
@@ -33,15 +34,7 @@ export default function IncomingRequestItem({ request, onAccept, onReject }) {
       }}
     >
       <div className="flex items-center gap-3">
-        <div
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
-          style={{
-            background: 'radial-gradient(circle at 35% 28%, #93c5fd, #1d4ed8 75%)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.35), 0 0 10px rgba(59,130,246,0.35)',
-          }}
-        >
-          <UserRound className="h-4 w-4 text-blue-950" strokeWidth={2.6} />
-        </div>
+        <KronoxAvatar profile={request} initial={display} size={36} className="shrink-0" />
         <div className="min-w-0 flex-1">
           <p className="truncate font-inter text-sm font-bold text-white">{display}</p>
           <p className="truncate font-inter text-[11px] text-blue-100/60">Arkadaşlık isteği</p>

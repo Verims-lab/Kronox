@@ -2,6 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { Loader2, Medal, RefreshCw, Trophy, UserRound, Users } from 'lucide-react';
 import useLongPress from '@/hooks/useLongPress';
 import LeaderboardRowActionMenu from '@/components/leaderboard/LeaderboardRowActionMenu';
+import KronoxAvatar from '@/components/profile/KronoxAvatar';
 
 /**
  * Codex119 — "Kronox Sıralaması" section.
@@ -381,17 +382,7 @@ function LeaderboardRow({ row, compact = false, emphasis = false, onOpenSettings
       <div className="kronox-number w-8 shrink-0 text-center text-lg leading-none" style={{ color: rankColor }}>
         {rankText}
       </div>
-      <div
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-bangers text-base text-amber-950"
-        style={{
-          background: row.isCurrentUser
-            ? 'radial-gradient(circle at 35% 28%, #ffe066, #b97a06 70%)'
-            : 'radial-gradient(circle at 35% 28%, #dbeafe, #60a5fa 70%)',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.45)',
-        }}
-      >
-        {row.initial}
-      </div>
+      <KronoxAvatar profile={row} initial={row.initial || row.displayName} size={32} className="shrink-0" />
       <div className="min-w-0 flex-1 self-center">
         <div className="flex min-w-0 items-center gap-1.5">
           <p className="truncate font-inter text-xs font-black text-white">{row.displayName}</p>

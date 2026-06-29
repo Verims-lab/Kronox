@@ -3,6 +3,14 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 const PRESENCE_ONLINE_TTL_MS = 75 * 1000;
 const MAX_SELECTION_ROWS = 200;
 const PRESENCE_SCAN_LIMIT = 600;
+const AVATAR_TYPE_VALUES = new Set(['icon', 'photo']);
+const AVATAR_ICON_IDS = new Set([
+  'shield', 'helmet', 'sword', 'crown', 'trophy', 'hourglass', 'clock', 'timer',
+  'calendar', 'portal', 'wand', 'scroll', 'crystal', 'planet', 'rocket', 'orbit',
+  'telescope', 'book', 'compass', 'brain', 'landmark', 'lightning', 'flame',
+  'moon', 'sun', 'star',
+]);
+const AVATAR_COLOR_IDS = new Set(['gold', 'cyan', 'violet', 'emerald', 'rose', 'blue']);
 
 const normalizeEmail = (value: unknown) => String(value || '').trim().toLowerCase();
 const json = (body: unknown, status = 200) => Response.json(body, { status });
@@ -40,6 +48,57 @@ function safePublicUsername(value: unknown, fallbackSeed: unknown) {
   return safe ? normalized : makeUsernameFallback(fallbackSeed);
 }
 
+function normalizeAvatarColorId(value: unknown) {
+  const text = String(value || '').trim();
+  return AVATAR_COLOR_IDS.has(text) ? text : 'gold';
+}
+
+function isSafeAvatarPhotoUrl(value: unknown) {
+  const text = String(value || '').trim();
+  if (!text || text.length > 2048) return false;
+  try {
+    return new URL(text).protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+function readSafeAvatarPhotoUrl(row: any = {}) {
+  const candidates = [
+    row?.avatar_url,
+    row?.avatarUrl,
+    row?.avatar_image_url,
+    row?.avatarImageUrl,
+    row?.profile_avatar_url,
+    row?.profileAvatarUrl,
+  ];
+  for (const value of candidates) {
+    if (isSafeAvatarPhotoUrl(value)) return String(value).trim();
+  }
+  return '';
+}
+
+function pickPublicAvatarFields(row: any = {}) {
+  const type = String(row?.avatar_type || '').trim();
+  const iconId = String(row?.avatar_icon_id || '').trim();
+  const colorId = normalizeAvatarColorId(row?.avatar_color_id);
+  const avatarUrl = readSafeAvatarPhotoUrl(row);
+
+  if ((type === 'photo' || !type) && avatarUrl) {
+    return { avatar_type: 'photo', avatar_icon_id: '', avatar_color_id: colorId, avatar_url: avatarUrl };
+  }
+  if (type === 'icon' && AVATAR_ICON_IDS.has(iconId)) {
+    return { avatar_type: 'icon', avatar_icon_id: iconId, avatar_color_id: colorId, avatar_url: '' };
+  }
+  if (!type && AVATAR_ICON_IDS.has(iconId)) {
+    return { avatar_type: 'icon', avatar_icon_id: iconId, avatar_color_id: colorId, avatar_url: '' };
+  }
+  if (type && !AVATAR_TYPE_VALUES.has(type)) {
+    return { avatar_type: '', avatar_icon_id: '', avatar_color_id: colorId, avatar_url: '' };
+  }
+  return { avatar_type: '', avatar_icon_id: '', avatar_color_id: colorId, avatar_url: '' };
+}
+
 function readTime(value: unknown) {
   const time = new Date(String(value || '')).getTime();
   return Number.isFinite(time) ? time : NaN;
@@ -66,6 +125,7 @@ function buildPublicRow({
   online,
   lastSeenAt,
   expiresAt,
+  avatarSource,
 }: {
   targetRef: string;
   username: string;
@@ -73,6 +133,7 @@ function buildPublicRow({
   online: boolean;
   lastSeenAt?: string | null;
   expiresAt?: string | null;
+  avatarSource?: any;
 }) {
   const group = relation === 'friend'
     ? (online ? 'online_friend' : 'offline_friend')
@@ -86,7 +147,15 @@ function buildPublicRow({
     group,
     last_seen_at: lastSeenAt || null,
     expires_at: expiresAt || null,
+    ...pickPublicAvatarFields(avatarSource),
   };
+}
+
+async function getUserPublicProfile(base44: any, email: string) {
+  const normalized = normalizeEmail(email);
+  if (!normalized) return null;
+  const rows = await base44.asServiceRole.entities.User.filter({ email: normalized }, '-updated_date', 1).catch(() => []);
+  return rows?.[0] || null;
 }
 
 async function getAcceptedFriends(base44: any, myEmail: string) {
@@ -174,14 +243,16 @@ Deno.serve(async (req) => {
         ).catch(() => []);
         latest = (friendPresence || [])[0] || null;
       }
+      const friendProfile = await getUserPublicProfile(base44, friend.email);
       const online = isOnlinePresence(latest, nowMs);
       addRow(buildPublicRow({
         targetRef,
-        username: safePublicUsername(latest?.username || friend.username, friend.email),
+        username: safePublicUsername(latest?.username || friendProfile?.username || friendProfile?.public_username || friend.username, friend.email),
         relation: 'friend',
         online,
         lastSeenAt: latest?.last_heartbeat_at || latest?.last_seen_at || null,
         expiresAt: latest?.presence_expires_at || latest?.expires_at || null,
+        avatarSource: friendProfile || latest,
       }));
     }
 
@@ -189,13 +260,15 @@ Deno.serve(async (req) => {
       if (!targetRef || targetRef === myPresenceKey || friendKeys.has(targetRef)) continue;
       const targetEmail = normalizeEmail(presence?.user_email || presence?.backend_recipient_email);
       if (!targetEmail || targetEmail === myEmail) continue;
+      const targetProfile = await getUserPublicProfile(base44, targetEmail);
       addRow(buildPublicRow({
         targetRef,
-        username: safePublicUsername(presence?.username, targetRef),
+        username: safePublicUsername(presence?.username || targetProfile?.username || targetProfile?.public_username, targetRef),
         relation: 'not_friend',
         online: true,
         lastSeenAt: presence?.last_heartbeat_at || presence?.last_seen_at || null,
         expiresAt: presence?.presence_expires_at || presence?.expires_at || null,
+        avatarSource: targetProfile || presence,
       }));
     }
 

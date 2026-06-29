@@ -4,6 +4,7 @@ import { Check, ImagePlus, Loader2, Sparkles, Upload, X } from 'lucide-react';
 import { sounds } from '@/lib/gameSounds';
 import {
   KRONOX_AVATAR_COLORS,
+  KRONOX_AVATAR_ICON_CATEGORIES,
   KRONOX_AVATAR_ICONS,
   getAvatarColor,
   normalizeAvatarColorId,
@@ -152,31 +153,44 @@ export default function AvatarPickerSheet({ open, profile, onClose, onSaved }) {
             </div>
 
             {tab === 'icon' ? (
-              <div className="grid grid-cols-4 gap-2.5">
-                {KRONOX_AVATAR_ICONS.map((icon) => {
-                  const Glyph = getAvatarIconGlyph(icon.id);
-                  const selected = selectedIconId === icon.id;
+              <div className="space-y-4">
+                {KRONOX_AVATAR_ICON_CATEGORIES.map((category) => {
+                  const icons = KRONOX_AVATAR_ICONS.filter((icon) => icon.category === category.id);
+                  if (!icons.length) return null;
                   return (
-                    <button
-                      type="button"
-                      key={icon.id}
-                      onClick={() => { sounds.tap(); setSelectedIconId(icon.id); }}
-                      className="flex aspect-square items-center justify-center rounded-2xl transition-transform active:scale-95"
-                      style={{
-                        background: selected
-                          ? `radial-gradient(circle at 35% 28%, ${previewColor.from}, ${previewColor.to} 72%)`
-                          : 'rgba(255,255,255,0.05)',
-                        boxShadow: selected
-                          ? 'inset 0 0 0 2px rgba(250,204,21,0.65), 0 0 14px rgba(250,204,21,0.30)'
-                          : 'inset 0 0 0 1px rgba(255,255,255,0.10)',
-                      }}
-                      aria-label={icon.label}
-                      aria-pressed={selected}
-                    >
-                      {Glyph ? (
-                        <Glyph className="h-6 w-6" strokeWidth={2.4} style={{ color: selected ? previewColor.glyph : '#cbd5f5' }} />
-                      ) : null}
-                    </button>
+                    <section key={category.id} className="space-y-2">
+                      <p className="font-inter text-[11px] font-black uppercase tracking-wider text-blue-100/58">
+                        {category.label}
+                      </p>
+                      <div className="grid grid-cols-5 gap-2">
+                        {icons.map((icon) => {
+                          const Glyph = getAvatarIconGlyph(icon.id);
+                          const selected = selectedIconId === icon.id;
+                          return (
+                            <button
+                              type="button"
+                              key={icon.id}
+                              onClick={() => { sounds.tap(); setSelectedIconId(icon.id); }}
+                              className="flex aspect-square items-center justify-center rounded-2xl transition-transform active:scale-95"
+                              style={{
+                                background: selected
+                                  ? `radial-gradient(circle at 35% 28%, ${previewColor.from}, ${previewColor.to} 72%)`
+                                  : 'rgba(255,255,255,0.05)',
+                                boxShadow: selected
+                                  ? 'inset 0 0 0 2px rgba(250,204,21,0.65), 0 0 14px rgba(250,204,21,0.30)'
+                                  : 'inset 0 0 0 1px rgba(255,255,255,0.10)',
+                              }}
+                              aria-label={icon.label}
+                              aria-pressed={selected}
+                            >
+                              {Glyph ? (
+                                <Glyph className="h-5 w-5" strokeWidth={2.4} style={{ color: selected ? previewColor.glyph : '#cbd5f5' }} />
+                              ) : null}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </section>
                   );
                 })}
               </div>

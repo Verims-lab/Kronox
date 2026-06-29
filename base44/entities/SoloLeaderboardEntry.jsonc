@@ -23,6 +23,27 @@
       "type": "string",
       "description": "One-character safe initial for avatar fallback."
     },
+    "avatar_type": {
+      "type": "string",
+      "enum": [
+        "",
+        "icon",
+        "photo"
+      ],
+      "description": "Safe public avatar kind mirrored from User/GuestProfile. Public getSoloLeaderboard may return this field; it must never contain private identity."
+    },
+    "avatar_icon_id": {
+      "type": "string",
+      "description": "Bundled app-local avatar icon id for public leaderboard display. Never a remote image URL or trademarked asset."
+    },
+    "avatar_url": {
+      "type": "string",
+      "description": "Safe HTTPS uploaded avatar photo URL for public leaderboard display when avatar_type=photo. No base64, provider ID, raw guest ID, or storage metadata."
+    },
+    "avatar_color_id": {
+      "type": "string",
+      "description": "Safe visual color token for the bundled avatar background/frame."
+    },
     "total_kronox_score": {
       "type": "number",
       "description": "Visible Kronox Puan for ranking/display: Solo total_solo_score plus Online score component. Hot sort field: total_kronox_score descending."

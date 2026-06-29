@@ -12,6 +12,8 @@ const AVATAR_TYPE_VALUES = new Set(['', 'icon', 'photo']);
 const AVATAR_ICON_IDS = new Set([
   'shield', 'hourglass', 'lightning', 'crown', 'compass', 'star', 'book', 'flame',
   'moon', 'planet', 'helmet', 'crystal', 'trophy', 'portal', 'rocket', 'sword',
+  'clock', 'timer', 'calendar', 'wand', 'scroll', 'orbit', 'telescope', 'brain',
+  'landmark', 'sun',
 ]);
 const AVATAR_COLOR_IDS = new Set(['gold', 'cyan', 'violet', 'emerald', 'rose', 'blue']);
 const UNSAFE_PUBLIC_USERNAME_PATTERN = /^(apple|google|firebase|auth0|base44|provider|uid|owner)(?:[\w:-].*)?$/i;

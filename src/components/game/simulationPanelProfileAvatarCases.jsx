@@ -11,8 +11,27 @@
 //   no private/internal IDs) and uploads accept image types only.
 
 import updateProfileSettingsSource from '../../../base44/functions/updateProfileSettings/entry.ts?raw';
+import acceptGameInviteSource from '../../../base44/functions/acceptGameInvite/entry.ts?raw';
+import findLobbyByCodeSource from '../../../base44/functions/findLobbyByCode/entry.ts?raw';
+import getFriendPresenceSource from '../../../base44/functions/getFriendPresence/entry.ts?raw';
+import getOnlinePlayerSelectionSource from '../../../base44/functions/getOnlinePlayerSelection/entry.ts?raw';
+import getSoloLeaderboardSource from '../../../base44/functions/getSoloLeaderboard/entry.ts?raw';
+import createLobbyInvitePanelSource from '../lobby/CreateLobbyInvitePanel.jsx?raw';
+import friendListItemSource from '../friends/FriendListItem.jsx?raw';
+import friendSelectModalSource from '../lobby/FriendSelectModal.jsx?raw';
+import incomingInvitesPanelSource from '../invites/IncomingInvitesPanel.jsx?raw';
+import incomingRequestItemSource from '../friends/IncomingRequestItem.jsx?raw';
+import kronoxRankingSectionSource from '../leaderboard/KronoxRankingSection.jsx?raw';
+import outgoingRequestItemSource from '../friends/OutgoingRequestItem.jsx?raw';
+import screenHeaderSource from '../layout/ScreenHeader.jsx?raw';
+import waitingRoomPanelSource from '../lobby/WaitingRoomPanel.jsx?raw';
 import avatarOptionsSource from '../../lib/avatarOptions.js?raw';
 import avatarUpdateSource from '../../lib/avatarUpdate.js?raw';
+import friendsApiSource from '../../lib/friendsApi.js?raw';
+import leaderboardSource from '../../lib/leaderboard.js?raw';
+import lobbyUtilsSource from '../../lib/lobbyUtils.js?raw';
+import onlinePlayerSelectionSource from '../../lib/onlinePlayerSelection.js?raw';
+import presenceSource from '../../lib/presence.js?raw';
 import avatarPickerSource from '../profile/AvatarPickerSheet.jsx?raw';
 import kronoxAvatarSource from '../profile/KronoxAvatar.jsx?raw';
 
@@ -110,6 +129,7 @@ export const EXTRA_TESTS = [
       const combined = `${avatarOptionsSource}\n${kronoxAvatarSource}`;
       const requiredMissing = missing(combined, [
         'KRONOX_AVATAR_ICONS',
+        'KRONOX_AVATAR_ICON_CATEGORIES',
         'getAvatarIconGlyph',
         "from 'lucide-react'",
       ]);
@@ -130,6 +150,151 @@ export const EXTRA_TESTS = [
       }
       return pass('Bundled icon avatars use the shipped lucide glyph set with no remote hotlinks.', {
         verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION', actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('avatar_icon_categories_local',
+    'Avatar icon categories are local, app-owned, and broad enough for profile choice',
+    () => {
+      const combined = `${avatarOptionsSource}\n${avatarPickerSource}`;
+      const requiredMissing = missing(combined, [
+        'KRONOX_AVATAR_ICON_CATEGORIES',
+        'Kahramanlar',
+        'Zaman',
+        'Mitik',
+        'Uzay',
+        'Bilgelik',
+        'Enerji',
+        "category: 'heroes'",
+        "category: 'time'",
+        "category: 'mythic'",
+        "category: 'space'",
+        "category: 'wisdom'",
+        "category: 'energy'",
+        "id: 'wand'",
+        "id: 'telescope'",
+        "id: 'brain'",
+        "id: 'sun'",
+      ]);
+      const forbidden = present(combined, [
+        'images.unsplash',
+        'cdn.',
+        'marvel',
+        'pokemon',
+        'disney',
+      ]);
+      if (requiredMissing.length || forbidden.length) {
+        return fail('Avatar icon set is missing local categories or includes unsafe inspiration tokens.', {
+          verification: 'STATIC_CONTRACT',
+          expected: 'Bundled app-local icon categories with no hotlinked/trademark character assets',
+          actual: { missing: requiredMissing, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Avatar icon picker groups a broader bundled glyph set into local Kronox categories.', {
+        verification: 'STATIC_CONTRACT', actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('avatar_global_surfaces_use_shared_renderer',
+    'Global public avatar surfaces use the shared KronoxAvatar renderer',
+    () => {
+      const surfaceChecks = [
+        ['leaderboard', kronoxRankingSectionSource],
+        ['friend row', friendListItemSource],
+        ['incoming friend request', incomingRequestItemSource],
+        ['outgoing friend request', outgoingRequestItemSource],
+        ['player select modal', friendSelectModalSource],
+        ['create lobby invite panel', createLobbyInvitePanelSource],
+        ['waiting room player list', waitingRoomPanelSource],
+        ['incoming invites panel', incomingInvitesPanelSource],
+        ['screen header profile control', screenHeaderSource],
+      ].map(([name, source]) => ({ name, missing: missing(source, ['KronoxAvatar', '<KronoxAvatar']) }))
+        .filter((entry) => entry.missing.length);
+      if (surfaceChecks.length) {
+        return fail('One or more public avatar surfaces still bypass the shared renderer.', {
+          verification: 'STATIC_CONTRACT',
+          expected: 'Leaderboard, friends, invites, player select, lobby, and header render KronoxAvatar',
+          actual: surfaceChecks,
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Leaderboard, friends, invites, player select, lobby, and header avatar surfaces share KronoxAvatar.', {
+        verification: 'STATIC_CONTRACT', actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('avatar_public_projection_safe_quartet',
+    'Public avatar projection carries only sanitized avatar fields',
+    () => {
+      const combined = [
+        avatarOptionsSource,
+        friendsApiSource,
+        presenceSource,
+        onlinePlayerSelectionSource,
+        leaderboardSource,
+        lobbyUtilsSource,
+        getFriendPresenceSource,
+        getOnlinePlayerSelectionSource,
+        getSoloLeaderboardSource,
+      ].join('\n');
+      const requiredMissing = missing(combined, [
+        'pickPublicAvatarFields',
+        'avatar_type',
+        'avatar_icon_id',
+        'avatar_color_id',
+        'avatar_url',
+        'isSafeAvatarPhotoUrl',
+        "url.protocol === 'https:'",
+      ]);
+      const forbidden = present(combined, [
+        'avatar_email',
+        'avatar_owner_key',
+        'avatar_guest_id',
+        'avatar_player_key',
+        'avatar_provider',
+      ]);
+      if (requiredMissing.length || forbidden.length) {
+        return fail('Public avatar projection is missing the safe quartet or contains private avatar fields.', {
+          verification: 'STATIC_CONTRACT',
+          expected: 'Only avatar_type/avatar_icon_id/avatar_color_id/avatar_url are projected; URLs are https-only',
+          actual: { missing: requiredMissing, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Public avatar projection uses a sanitized quartet and https-only photo URLs.', {
+        verification: 'STATIC_CONTRACT', actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('avatar_lobby_players_carry_safe_fields',
+    'Lobby and invite player payloads preserve safe avatar fields without changing route contracts',
+    () => {
+      const combined = `${lobbyUtilsSource}\n${findLobbyByCodeSource}\n${acceptGameInviteSource}`;
+      const requiredMissing = missing(combined, [
+        'buildPlayerPayload',
+        'pickPublicAvatarFields(player)',
+        'pickPublicAvatarFields(currentUser)',
+        'joinedLobby',
+        'verifiedLobby',
+        'avatar_icon_id',
+        'avatar_color_id',
+      ]);
+      const forbidden = present(combined, [
+        'player_key: currentUser',
+        'owner_key: currentUser',
+        'raw_guest_id: currentUser',
+      ]);
+      if (requiredMissing.length || forbidden.length) {
+        return fail('Lobby/invite player payloads do not clearly propagate safe avatars through existing contracts.', {
+          verification: 'STATIC_CONTRACT',
+          expected: 'Safe avatar fields travel with players while joinedLobby/verifiedLobby route shape stays intact',
+          actual: { missing: requiredMissing, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Lobby and invite player payloads carry safe avatar fields while preserving joinedLobby/verifiedLobby.', {
+        verification: 'STATIC_CONTRACT', actionType: ACTION_TYPES.CODE_FIX,
       });
     }),
 

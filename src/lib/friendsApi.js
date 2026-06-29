@@ -8,6 +8,7 @@ import { base44 } from '@/api/base44Client';
 import { getSafePublicUsernameLabel } from '@/lib/publicIdentity';
 import { getPresenceLookupKeyForEmail } from '@/lib/presence';
 import { normalizeSafePublicUsernameInput } from '@/lib/guestProfile';
+import { pickPublicAvatarFields } from '@/lib/avatarOptions';
 
 export const USERNAME_NOT_FOUND_MESSAGE = 'Kronox’ta bu kullanıcı adıyla biri yok.';
 export const OPEN_INVITE_EXISTS_MESSAGE = 'Bu kişiye gönderilmiş açık davet var.';
@@ -99,6 +100,7 @@ async function attachSafeFriendIdentity(rows) {
       friend_username: friendUsername,
       friend_name: friendUsername,
       presence_key: getPresenceLookupKeyForEmail(friendEmail),
+      ...pickPublicAvatarFields(profile),
     };
   });
 }

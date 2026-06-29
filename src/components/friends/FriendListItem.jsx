@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { UserRound, Trash2, Loader2, AlertTriangle } from 'lucide-react';
+import { Trash2, Loader2, AlertTriangle } from 'lucide-react';
 import { getSafeFriendDisplayName } from '@/lib/publicIdentity';
+import KronoxAvatar from '@/components/profile/KronoxAvatar';
 
 /**
  * One row of the "My Friends" list. Removal requires explicit confirmation.
@@ -13,6 +14,7 @@ export default function FriendListItem({ friend, presence, onRemove }) {
 
   const display = getSafeFriendDisplayName(friend);
   const isOnline = Boolean(presence?.online);
+  const avatarProfile = presence?.avatar_type ? { ...friend, ...presence } : friend;
 
   const handleRemove = async () => {
     setBusy(true);
@@ -37,15 +39,7 @@ export default function FriendListItem({ friend, presence, onRemove }) {
     >
       <div className="flex items-center gap-3">
         <div className="relative shrink-0">
-          <div
-            className="flex h-9 w-9 items-center justify-center rounded-full"
-            style={{
-              background: 'radial-gradient(circle at 35% 28%, #ffe066, #b97a06 70%)',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4), 0 0 10px rgba(250,204,21,0.35)',
-            }}
-          >
-            <UserRound className="h-4 w-4 text-amber-950" strokeWidth={2.6} />
-          </div>
+          <KronoxAvatar profile={avatarProfile} initial={display} size={36} />
           {presence && (
             <span
               aria-hidden="true"
