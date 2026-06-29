@@ -27,21 +27,50 @@ const VAPID_SECRET_HEALTH_CLASSIFICATION = {
   criticalOnlyWhen: 'hardcoded_logged_returned_client_exposed_or_insecure_default',
 } as const;
 
+// Codex485 — Placeholder/default VAPID values must fail closed in production.
+// Exact-match only used to let strings like `test_private_key`,
+// `REPLACE_ME`, or `example...` slip through to webpush.setVapidDetails.
+// We now treat a value as invalid if it EQUALS or STARTS WITH any known
+// placeholder token, or CONTAINS an obvious placeholder marker. The check
+// stays conservative so real base64url production keys are not rejected.
+const VAPID_PLACEHOLDER_EXACT = [
+  'changeme',
+  'change_me',
+  'change-me',
+  'replaceme',
+  'replace_me',
+  'replace-me',
+  'placeholder',
+  'dummy',
+  'todo',
+  'test',
+  'example',
+  'sample',
+  'test_private_key',
+  'test_public_key',
+  'your_vapid_key',
+  'your_vapid_public_key',
+  'your_vapid_private_key',
+  'your_vapid_subject',
+];
+const VAPID_PLACEHOLDER_MARKERS = [
+  'changeme',
+  'change_me',
+  'replaceme',
+  'replace_me',
+  'placeholder',
+  'your_vapid',
+  'todo',
+  'example',
+];
+
 function isInvalidVapidValue(value: string) {
   const normalized = value.trim().toLowerCase();
-  return [
-    'changeme',
-    'change_me',
-    'change-me',
-    'placeholder',
-    'dummy',
-    'todo',
-    'test',
-    'your_vapid_key',
-    'your_vapid_public_key',
-    'your_vapid_private_key',
-    'your_vapid_subject',
-  ].includes(normalized);
+  if (!normalized) return true;
+  if (VAPID_PLACEHOLDER_EXACT.includes(normalized)) return true;
+  if (VAPID_PLACEHOLDER_MARKERS.some((marker) => normalized.includes(marker))) return true;
+  if (normalized.startsWith('dummy') || normalized.startsWith('sample') || normalized.startsWith('test_')) return true;
+  return false;
 }
 
 function isValidVapidSubject(value: string) {

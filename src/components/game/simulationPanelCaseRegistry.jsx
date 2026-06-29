@@ -223,6 +223,10 @@ import * as a11yQualityCases from './simulationPanelA11yQualityCases';
 // Leaderboard own row, presence/invite/admin reporting, performance/visual
 // guardrails, UX docs, and SDK pin Health coverage inventory.
 import * as healthUpdateAuditCases from './simulationPanelHealthUpdateAuditCases';
+// Codex486 — Profile avatar icon picker + photo upload contracts: owner-bound
+// saves, protected-field preservation, bundled (non-hotlinked) icons,
+// image-only Base44 photo upload, and privacy-safe public avatar payloads.
+import * as profileAvatarCases from './simulationPanelProfileAvatarCases';
 
 const MODULES = [
   soloProgressCases,
@@ -279,6 +283,7 @@ const MODULES = [
   onboardingGuestProfileCases,
   a11yQualityCases,
   healthUpdateAuditCases,
+  profileAvatarCases,
 ];
 
 function flatten(key) {

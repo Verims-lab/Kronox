@@ -45,6 +45,7 @@ import {
 // decorative identity, kronox-number for numeric values.
 import KronoxStatTile from '@/components/ui/KronoxStatTile';
 import AuthProviderButtons from '@/components/auth/AuthProviderButtons';
+import KronoxAvatar from '@/components/profile/KronoxAvatar';
 
 const FIRST_LOGIN_REWARD_AMOUNT = 80;
 
@@ -473,20 +474,11 @@ function IdentityCard({ loading, user, guestProfile, isAdmin, onOpenEdit, onLogi
           aria-label="Profili düzenle"
           className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl text-left transition-transform active:scale-[0.99] disabled:cursor-default"
         >
-          <div
-            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full"
-            style={{
-              background: 'radial-gradient(circle at 35% 28%, #ffe066, #b97a06 70%)',
-              boxShadow:
-                '0 0 22px rgba(250,204,21,0.55), inset 0 1px 0 rgba(255,255,255,0.45), inset 0 -6px 8px rgba(140,80,8,0.55)',
-            }}
-          >
-            {user ? (
-              <span className="font-bangers text-2xl text-amber-950">{initial}</span>
-            ) : (
-              <UserRound className="h-7 w-7 text-amber-950" strokeWidth={2.6} />
-            )}
-          </div>
+          <KronoxAvatar
+            profile={user || guestProfile}
+            initial={user ? initial : (guestProfile?.username ? guestProfile.username : '')}
+            size={56}
+          />
 
           <div className="min-w-0 flex-1">
             {loading ? (

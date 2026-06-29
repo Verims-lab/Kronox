@@ -1,9 +1,24 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex480 — Daily Quest Runtime v2 reset:
+// Codex488 — Daily Quest Runtime v2 reset:
 //   • Home/runtime now use one canonical solo_level_complete quest: "Solo’da Seviye Geç" / "Bugün 1 Solo seviyesini tamamla." / 20 Diamonds.
 //   • Progress advances only after passed Solo level completion; Solo start/correct-card/joker events are no-ops for Daily Quest.
 //   • Runtime ignores DailyQuestDefinition rows and Admin Ekranı no longer mounts Günlük Görev Yönetimi.
+//
+// Codex487 — Friends screen back button returns to Profile:
+//   • FriendsPage top-left back arrow now navigates to /profile (Profile-owned route) instead of Home.
+//   • Route-ownership Health case extended to require the Friends→/profile back contract and forbid the old back-to-Home handler.
+//   • No friend data, invite, presence, BottomNav, or Online route ownership changes.
+//
+// Codex486 — Settings duplicate account-delete row cleanup:
+//   • Removes the duplicate lower "HESAP → Hesabı Sil" section so Settings shows a single account deletion entry under "Ayarlar ve Güvenlik".
+//   • The remaining "Hesap Silme" row opens the existing two-step confirm (İptal / Evet, Sil) inline; no backend, confirmation, or safety logic changed.
+//   • Health account-deletion tokens (Hesabı Sil description, confirmDelete guard, irreversible warning) preserved.
+//
+// Codex485 — VAPID secret validation hardening (sendGameInvitePush):
+//   • isInvalidVapidValue now rejects placeholder/default VAPID values by exact match, marker substring (placeholder/replace_me/your_vapid/example/todo), and dummy/sample/test_ prefix so invalid config fails closed before webpush.setVapidDetails.
+//   • Missing/invalid VAPID config still skips push with safe non-secret diagnostics while the persisted in-app invite remains valid; no secrets logged or returned.
+//   • Security Cleanup Health requires the strengthened placeholder rejection; VAPID_PRIVATE_KEY production secret verification stays MANUAL_REQUIRED.
 //
 // Codex479 — Runtime Kronox ID Profile display + Health blockers:
 //   • Unwraps nested Base44 function responses so ensured kronox_user_id reaches Auth/Profile state.
@@ -81,7 +96,7 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps Home reward panels visible from a short-lived cache while revalidating and memoizes question text fit tokens.
 //
 
-const BUILD_MARKER = 'Codex480';
+const BUILD_MARKER = 'Codex488';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

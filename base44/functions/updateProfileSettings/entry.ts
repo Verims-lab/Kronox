@@ -8,6 +8,12 @@ const KRONOX_ID_PATTERN = /^KX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9
 const MAX_KRONOX_USER_ID_ATTEMPTS = 10;
 const GENDER_VALUES = new Set(['', 'female', 'male', 'non_binary', 'prefer_not_to_say', 'custom']);
 const AGE_GROUP_VALUES = new Set(['', '13_17', '18_24', '25_34', '35_44', '45_plus']);
+const AVATAR_TYPE_VALUES = new Set(['', 'icon', 'photo']);
+const AVATAR_ICON_IDS = new Set([
+  'shield', 'hourglass', 'lightning', 'crown', 'compass', 'star', 'book', 'flame',
+  'moon', 'planet', 'helmet', 'crystal', 'trophy', 'portal', 'rocket', 'sword',
+]);
+const AVATAR_COLOR_IDS = new Set(['gold', 'cyan', 'violet', 'emerald', 'rose', 'blue']);
 const UNSAFE_PUBLIC_USERNAME_PATTERN = /^(apple|google|firebase|auth0|base44|provider|uid|owner)(?:[\w:-].*)?$/i;
 const INTERNAL_ID_PUBLIC_USERNAME_PATTERN = /^(guest|player|owner|user_key|player_key|g|u)_[A-Za-z0-9_-]{4,}$/i;
 
@@ -89,6 +95,45 @@ function normalizeGender(value: unknown) {
 function normalizeAgeGroup(value: unknown) {
   const text = String(value || '').trim();
   return AGE_GROUP_VALUES.has(text) ? text : undefined;
+}
+
+function normalizeAvatarColorId(value: unknown) {
+  const text = String(value || '').trim();
+  return AVATAR_COLOR_IDS.has(text) ? text : 'gold';
+}
+
+function isSafeAvatarPhotoUrl(value: unknown) {
+  const text = String(value || '').trim();
+  if (!text || text.length > 2048) return false;
+  try {
+    return new URL(text).protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+// Returns { avatar_type, avatar_icon_id, avatar_url, avatar_color_id } patch
+// fields when the client sends a valid avatar selection, or undefined on
+// invalid input, or null when no avatar field was sent (preserve existing).
+function buildAvatarPatch(body: any) {
+  const hasAvatar = ['avatar_type', 'avatar_icon_id', 'avatar_url', 'avatar_color_id']
+    .some((key) => Object.prototype.hasOwnProperty.call(body || {}, key));
+  if (!hasAvatar) return null;
+
+  const type = String(body?.avatar_type || '').trim();
+  if (!AVATAR_TYPE_VALUES.has(type) || !type) return undefined;
+  const colorId = normalizeAvatarColorId(body?.avatar_color_id);
+
+  if (type === 'icon') {
+    const iconId = String(body?.avatar_icon_id || '').trim();
+    if (!AVATAR_ICON_IDS.has(iconId)) return undefined;
+    return { avatar_type: 'icon', avatar_icon_id: iconId, avatar_url: '', avatar_color_id: colorId };
+  }
+  if (type === 'photo') {
+    if (!isSafeAvatarPhotoUrl(body?.avatar_url)) return undefined;
+    return { avatar_type: 'photo', avatar_url: String(body.avatar_url).trim(), avatar_icon_id: '', avatar_color_id: colorId };
+  }
+  return undefined;
 }
 
 function bytesToBase64Url(bytes: Uint8Array) {
@@ -272,6 +317,10 @@ function publicGuestProfile(row: any) {
     age_group: String(row?.age_group || ''),
     gender: String(row?.gender || ''),
     selected_category_ids: Array.isArray(row?.selected_category_ids) ? row.selected_category_ids : [],
+    avatar_type: AVATAR_TYPE_VALUES.has(String(row?.avatar_type || '')) ? String(row?.avatar_type || '') : '',
+    avatar_icon_id: AVATAR_ICON_IDS.has(String(row?.avatar_icon_id || '')) ? String(row?.avatar_icon_id || '') : '',
+    avatar_url: isSafeAvatarPhotoUrl(row?.avatar_url) ? String(row?.avatar_url).trim() : '',
+    avatar_color_id: row?.avatar_color_id ? normalizeAvatarColorId(row?.avatar_color_id) : '',
     created_at: row?.created_at || row?.created_date || null,
     last_seen_at: row?.last_seen_at || row?.updated_at || null,
     profile_settings_updated_at: row?.profile_settings_updated_at || null,
@@ -313,6 +362,8 @@ function buildProfilePatch(body: any, fallbackSeed: string, existingProfile: any
     ? normalizeGender(body?.gender)
     : (normalizeGender(existingProfile?.gender) || '');
   if (gender === undefined) return { ok: false, code: 'invalid_gender' };
+  const avatarPatch = buildAvatarPatch(body);
+  if (avatarPatch === undefined) return { ok: false, code: 'invalid_avatar' };
   return {
     ok: true,
     patch: {
@@ -322,6 +373,9 @@ function buildProfilePatch(body: any, fallbackSeed: string, existingProfile: any
       age,
       age_group: ageGroup,
       gender,
+      // Avatar fields only written when a valid avatar selection was sent;
+      // otherwise existing avatar is preserved (no field in patch).
+      ...(avatarPatch || {}),
       profile_settings_updated_at: nowIso(),
     },
   };

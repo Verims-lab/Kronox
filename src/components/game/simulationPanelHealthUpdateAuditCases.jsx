@@ -20,6 +20,7 @@ import mainMenuSource from '../../pages/MainMenu.jsx?raw';
 import profilePageSource from '../../pages/ProfilePage.jsx?raw';
 import profileEditPageSource from '../../pages/ProfileEditPage.jsx?raw';
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
+import friendsPageSource from '../../pages/FriendsPage.jsx?raw';
 import leaderboardPageSource from '../../pages/LeaderboardPage.jsx?raw';
 import kronoxRankingSectionSource from '../leaderboard/KronoxRankingSection.jsx?raw';
 import bottomNavSource from '../layout/BottomNav.jsx?raw';
@@ -134,6 +135,7 @@ export const EXTRA_TESTS = [
         profilePageSource,
         profileEditPageSource,
         settingsPageSource,
+        friendsPageSource,
         leaderboardPageSource,
         kronoxRankingSectionSource,
         bottomNavSource,
@@ -144,6 +146,7 @@ export const EXTRA_TESTS = [
         'path="/profile/edit"',
         'title="Profil Bilgileri"',
         'onClick={goProfileEdit}',
+        "onBack={() => navigate('/profile')}",
         'title="Arkadaşlarım"',
         'title="Ayarlar"',
         'Takma Ad',
@@ -170,7 +173,9 @@ export const EXTRA_TESTS = [
         'user?.email',
         'owner_key',
         'player_key',
-      ]);
+      ]).concat(forbiddenTokens(friendsPageSource, [
+        "onBack={() => navigate('/')}",
+      ]));
       const missing = missingTokens(combined, required);
       if (missing.length || forbidden.length) {
         return fail('Profile/Settings/Leaderboard route ownership drifted from the current product contract.', {
@@ -185,7 +190,7 @@ export const EXTRA_TESTS = [
             'src/components/leaderboard/KronoxRankingSection.jsx',
             'src/components/layout/BottomNav.jsx',
           ],
-          expected: 'BottomNav = Ana Sayfa/Liderlik/Profil; Online remains Home CTA-owned; Profile rows navigate; Settings owns privacy/delete; own leaderboard row alone opens /profile/edit.',
+          expected: 'BottomNav = Ana Sayfa/Liderlik/Profil; Online remains Home CTA-owned; Profile rows navigate; Friends back returns to /profile (Profile-owned); Settings owns privacy/delete; own leaderboard row alone opens /profile/edit.',
           actual: { missing, forbidden },
         });
       }
