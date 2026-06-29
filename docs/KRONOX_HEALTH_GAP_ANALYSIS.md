@@ -101,6 +101,10 @@ fallback polling/refetch.
 - Added global avatar propagation coverage for leaderboard, friends, Online
   player selection, lobby, invite, and header surfaces; safe public avatar
   projection; local bundled icon categories; and public avatar privacy fields.
+- Added Mağaza performance/readiness coverage so static checks require idle
+  route/inventory warm-up, fast `UserJokerInventory` reads before starter
+  self-heal, explicit `Satın Al` readiness, and parallel starter repair in the
+  purchase function while preserving server-authoritative price/idempotency.
 
 ## Required Coverage Areas
 
@@ -118,6 +122,7 @@ fallback polling/refetch.
 | Solo record congratulations | Static backend context/copy checks | Production-like multi-user record fixture or backend probe |
 | Immutable Kronox user ID | Static source checks for backend generation/backfill, link preservation, Profile Info read-only/copy display, internal dual-write fields, tombstone non-reuse, and public output stripping | Deployed two-account/guest-link proof; DB uniqueness/index proof if the platform adds first-class constraints; full production backfill audit |
 | Global profile avatar propagation | Static UI/projection checks for shared renderer usage, safe avatar quartet, bundled icon categories, leaderboard/friends/Online/lobby/invite/header propagation, and no private avatar payload fields | Manual visual proof across leaderboard, friends, player select, lobby, invites, header, uploaded photo fallback, and guest/linked profiles |
+| Mağaza open / purchase readiness | Static Market checks for idle chunk/cache warm-up, fast inventory read before starter self-heal, explicit purchase-readiness helper, and backend server-price/idempotency/lock guards | Manual low-end mobile proof for first open/reopen, sufficient/insufficient Diamond CTA state, purchase success, and double-tap/retry behavior |
 | Daily Quest Diamond-only | Static runtime/backend checks | Two-device claim race proof |
 | Leaderboard username-only | Static public payload checks | RLS/BOLA live probe |
 | Online category isolation | Static start/Game/Health mirror checks | Live lobby start with Solo preferences set differently |

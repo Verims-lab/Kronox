@@ -215,6 +215,14 @@ bundles require inline AdminUser-backed guards. SimulationPanel source files
 stay in the Health/admin/test-suite path until a separate test-runner migration
 is planned.
 
+Mağaza catalog is code-side/static for Phase 1 joker products and may be
+cached/prefetched for fast open, but purchase remains server-authoritative:
+the client is never trusted for price, cost, user identity, reward, or target
+account. Satın Al readiness should depend only on auth/user, item data,
+sufficient Diamonds, item availability, and purchase in-flight state; slow
+non-critical inventory count refresh or starter self-heal must not silently
+disable an otherwise valid purchase button.
+
 Unified Kronox Puan is the only player-facing score source. Solo contributes
 its best-score component; Online contributes User.online_progress.score. Online
 winner scoring is exactly +15, loser scoring is exactly -6 before checkpoint
@@ -249,7 +257,11 @@ function-level FriendRequestOperationLock race hardening, and no target-email
 return on username add or player selection. Executable reducer
 coverage now protects Online 4-player representation/start/recovery
 transitions and notification transient-empty, terminal, dismiss, accept/reject,
-dedupe, and privacy transitions. Security Pass 3 coverage protects accessible
+dedupe, and privacy transitions. Mağaza performance/readiness coverage requires
+idle route/inventory warm-up, fast UserJokerInventory reads before starter
+self-heal, explicit Satın Al readiness, and parallel starter repair in the
+purchase function while preserving server-authoritative price/idempotency.
+Security Pass 3 coverage protects accessible
 loading/status semantics, labeled custom modals, profile/onboarding form
 feedback semantics, incremental unused-import lint behavior, the menubar
 displayName cleanup, and the scoped admin-auth / SimulationPanel cleanup
@@ -673,6 +685,10 @@ are not retroactively recalculated.
 Home shows Mağaza top-left, Diamonds center, notifications right. Mağaza title
 is Mağaza and prices are Zaman Dondur 40, Kart Değiştir 50, Kronokalkan 60.
 Client is not trusted for price; purchase validation is server-authoritative.
+Market open should be fast: Home may idle-prefetch the Market chunk and fast
+UserJokerInventory cache, the static Phase 1 catalog renders immediately, and
+starter inventory self-heal/count refresh is non-critical for Satın Al
+readiness.
 Successful purchase writes both DiamondTransaction and JokerTransaction with
 market_purchase and the same idempotency key. Runtime explicitly binds
 UserJokerInventory, DiamondTransaction, and JokerTransaction. Double-tap, network retry,

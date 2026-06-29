@@ -10,6 +10,7 @@ import SharedKronoxWordmark from '@/components/ui/KronoxWordmark';
 import DailyRewardsPanel from '@/components/dailyWheel/DailyRewardsPanel';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 import { isGuestOnboardingComplete } from '@/lib/guestProfile';
+import { getUserJokerBalances } from '@/lib/jokerInventory';
 
 /**
  * Kronox Home — fixed full-screen mobile game home.
@@ -46,6 +47,28 @@ export default function MainMenu() {
 
   useEffect(() => { setLocalUser(authUser || null); }, [authUser]);
   useEffect(() => { setLocalGuestProfile(guestProfile || null); }, [guestProfile]);
+  useEffect(() => {
+    let cancelled = false;
+    const warmMarket = () => {
+      if (cancelled) return;
+      import('./MarketPage').catch(() => null);
+      if (authUser?.email) {
+        getUserJokerBalances(authUser, { ensureStarter: false }).catch(() => null);
+      }
+    };
+    if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+      const id = window.requestIdleCallback(warmMarket, { timeout: 2500 });
+      return () => {
+        cancelled = true;
+        window.cancelIdleCallback?.(id);
+      };
+    }
+    const id = window.setTimeout(warmMarket, 900);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(id);
+    };
+  }, [authUser]);
 
   const diamonds = useMemo(
     () => getLeaderboardDiamondValue(user || completedGuestProfile),
