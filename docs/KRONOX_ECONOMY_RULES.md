@@ -98,7 +98,7 @@ achievement_future
 special_event_future
 ```
 
-Daily Quest / Günün Görevi Runtime v2 is active inside the Home `Günlük
+Daily Quest / Günün Görevi Runtime v1 is active inside the Home `Günlük
 Ödüller` panel. Runtime owns one canonical daily quest in code:
 `solo_level_complete` / `Solo’da Seviye Geç` /
 `Bugün 1 Solo seviyesini tamamla.`, target 1, reward 20 Diamonds.

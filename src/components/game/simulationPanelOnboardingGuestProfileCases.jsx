@@ -904,10 +904,9 @@ export const EXTRA_TESTS = [
       const settingsMissing = missingTokens(settingsPageSource, [
         'title="Gizlilik Politikası"',
         "navigate('/privacy')",
-        'title="Hesap Silme"',
+        'title="Hesabı Sil"',
         'requestAccountDeletion(base44, user)',
         'accountSectionRef',
-        'Hesabı Sil',
       ]);
       const profileInfoMissing = missingTokens(`${profileEditPageSource}\n${userCategoryPreferencesSource}`, [
         'Takma Ad',
@@ -921,7 +920,7 @@ export const EXTRA_TESTS = [
       ]);
       const forbiddenProfileRows = presentTokens(profilePageSource, [
         'title="Gizlilik Politikası"',
-        'title="Hesap Silme"',
+        'title="Hesabı Sil"',
         '?focus=profile',
         'focusProfileSettings',
       ]);

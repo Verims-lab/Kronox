@@ -5,12 +5,12 @@ const QUEST_TYPES = [
   'solo_level_complete',
 ] as const;
 const LEGACY_COMPLETION_EVENT_TYPES = new Set(['complete_solo_level']);
-const DAILY_QUEST_RUNTIME_VERSION = 'daily-quest-runtime-v2-solo-level-complete';
+const DAILY_QUEST_RUNTIME_VERSION = 'daily-quest-runtime-v1-solo-level-complete';
 const DAILY_QUESTS_PER_DAY = 1;
 const GUEST_ID_PREFIX = 'guest_';
 const CANONICAL_DAILY_QUEST = {
-  id: 'system:daily_quest:solo_level_complete:v2',
-  quest_definition_id: 'system:daily_quest:solo_level_complete:v2',
+  id: 'system:daily_quest:solo_level_complete:v1',
+  quest_definition_id: 'system:daily_quest:solo_level_complete:v1',
   quest_key: 'solo_level_complete',
   title: 'Solo’da Seviye Geç',
   description: 'Bugün 1 Solo seviyesini tamamla.',

@@ -88,7 +88,7 @@ Daily Wheel result shows \`+X Elmas kazandın\`; when the 7-day streak bonus
 applies it also shows \`7 günlük seri bonusu: +150 elmas\` and
 \`Toplam: +Y elmas\`.
 Günlük Ödüller panel contains Daily Wheel plus one Günlük Görev for active
-Daily Quest Runtime v2. Runtime owns one canonical code-backed quest:
+Daily Quest Runtime v1. Runtime owns one canonical code-backed quest:
 solo_level_complete / Solo’da Seviye Geç / Bugün 1 Solo seviyesini tamamla.,
 target 1, reward 20 Diamonds. UserDailyQuestProgress tracks 1 selected UTC-day
 quest per user. Progress is Solo-level-completion-only and

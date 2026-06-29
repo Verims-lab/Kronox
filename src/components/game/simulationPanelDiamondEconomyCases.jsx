@@ -374,7 +374,7 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('daily_quest_v1_no_client_grants',
-    'Daily Quest Runtime v2 uses server-backed Diamond claim, not client grant',
+    'Daily Quest Runtime v1 uses server-backed Diamond claim, not client grant',
     () => {
       const activeRuntimeSources = `${diamondEconomySource}\n${userEntitySource}\n${diamondTransactionEntitySource}\n${dailyRewardsPanelSource}`;
       const accidentalGrant = dailyRewardsPanelSource.includes('DiamondTransaction')
@@ -388,12 +388,12 @@ export const EXTRA_TESTS = [
         'no leaderboard impact',
       ]);
       if (accidentalGrant || missing.length) {
-        return fail('Daily Quest Runtime v2 can grant Diamonds client-side or lacks the separate backend source contract.', {
+        return fail('Daily Quest Runtime v1 can grant Diamonds client-side or lacks the separate backend source contract.', {
           verification: 'STATIC_CONTRACT',
           actual: { accidentalGrant, missing },
         });
       }
-      return pass('Daily Quest Runtime v2 is visible in Günlük Ödüller and claims Diamonds through daily_quest_reward backend source.', { verification: 'STATIC_CONTRACT' });
+      return pass('Daily Quest Runtime v1 is visible in Günlük Ödüller and claims Diamonds through daily_quest_reward backend source.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('market_purchase_is_diamond_sink',

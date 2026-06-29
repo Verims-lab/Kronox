@@ -402,7 +402,7 @@ Checklist:
 * Daily Wheel claim requires authenticated user context or token-proven
   completed GuestProfile.
 * Daily Wheel grants Diamonds only and never Kronox Puan.
-* Daily Quest Runtime v2 grants diamonds only through the server-backed
+* Daily Quest Runtime v1 grants diamonds only through the server-backed
   `claimDailyQuestReward` path.
 * Daily Wheel and Daily Quest use separate guard fields/idempotency keys:
   `daily_wheel:<playerKey>:<YYYY-MM-DD>` and
@@ -541,9 +541,9 @@ Checklist:
   only; attach Base44 unique constraint proof or live parallel-run evidence
   before marking release-ready.
 
-## Daily Quest Runtime v2
+## Daily Quest Runtime v1
 
-* Daily Quest Runtime v2 is active.
+* Daily Quest Runtime v1 is active.
 * The only active quest is code-owned:
   `quest_key = solo_level_complete`,
   `quest_type = solo_level_complete`,

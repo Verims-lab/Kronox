@@ -1,6 +1,11 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex488 — Daily Quest Runtime v2 reset:
+// Codex489 — Health blocker alignment for Settings delete, Daily Quest v1, Admin visibility, SDK pin:
+//   • Settings exposes one "Hesabı Sil" row that opens the existing two-step shared requestAccountDeletion flow.
+//   • Daily Quest Health/docs now protect Runtime v1: canonical solo_level_complete, no admin definition UI, no DB definition bloat.
+//   • Root @base44/sdk is exact-pinned again and Admin visibility checks target current AdminUser-gated tools.
+//
+// Codex488 — Daily Quest Runtime v1 reset:
 //   • Home/runtime now use one canonical solo_level_complete quest: "Solo’da Seviye Geç" / "Bugün 1 Solo seviyesini tamamla." / 20 Diamonds.
 //   • Progress advances only after passed Solo level completion; Solo start/correct-card/joker events are no-ops for Daily Quest.
 //   • Runtime ignores DailyQuestDefinition rows and Admin Ekranı no longer mounts Günlük Görev Yönetimi.
@@ -12,7 +17,7 @@ import React, { useEffect, useState } from 'react';
 //
 // Codex486 — Settings duplicate account-delete row cleanup:
 //   • Removes the duplicate lower "HESAP → Hesabı Sil" section so Settings shows a single account deletion entry under "Ayarlar ve Güvenlik".
-//   • The remaining "Hesap Silme" row opens the existing two-step confirm (İptal / Evet, Sil) inline; no backend, confirmation, or safety logic changed.
+//   • The remaining "Hesabı Sil" row opens the existing two-step confirm (İptal / Evet, Sil) inline; no backend, confirmation, or safety logic changed.
 //   • Health account-deletion tokens (Hesabı Sil description, confirmDelete guard, irreversible warning) preserved.
 //
 // Codex485 — VAPID secret validation hardening (sendGameInvitePush):
@@ -77,7 +82,7 @@ import React, { useEffect, useState } from 'react';
 //
 // Codex467 — Profile menu navigation + Profile Info / Settings split:
 //   • Profile menu keeps Profil Bilgileri, Arkadaşlarım, and Ayarlar as screen navigation rows.
-//   • Settings owns Gizlilik Politikası and guarded Hesap Silme flow.
+//   • Settings owns Gizlilik Politikası and guarded Hesabı Sil flow.
 //   • Profile Info adds canonical category preference access beside Takma Ad, Cinsiyet, and Yaş grubu.
 //
 // Codex466 — Profile name click opens edit profile screen:
@@ -96,7 +101,7 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps Home reward panels visible from a short-lived cache while revalidating and memoizes question text fit tokens.
 //
 
-const BUILD_MARKER = 'Codex488';
+const BUILD_MARKER = 'Codex489';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

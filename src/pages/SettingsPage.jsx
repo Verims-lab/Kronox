@@ -95,7 +95,7 @@ export default function SettingsPage() {
             />
             <SettingsListRow
               icon={<ShieldCheck className="h-4 w-4" />}
-              title="Hesap Silme"
+              title="Hesabı Sil"
               desc={effectiveUser ? 'Tüm veriler kalıcı olarak silinir' : 'Bilgi ve destek kanalı'}
               onClick={() => (effectiveUser ? setConfirmDelete(true) : navigate('/account-deletion'))}
               danger={Boolean(effectiveUser)}

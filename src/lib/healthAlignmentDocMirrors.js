@@ -452,7 +452,7 @@ Status: Active profile/onboarding contract.
 - User Category preferences are Solo-only soft 70/30 weighting input when at least 3 active valid preferences exist. Empty or fewer-than-3 preferences use all active categories for Solo. Online question selection is not affected. Kategori seçimi is edited from Profile > Profil Bilgileri for authenticated users through UserCategoryPreference; Settings owns privacy/account actions instead.
 - GuestProfile public identity uses username; display_name is only a legacy/internal projection mirror and is not a public fallback identity. Email, Google ID, Apple ID, provider UID, raw guest id, kronox_user_id, internal owner_key, and internal player_key values are not public display names outside the current player's own Profile Info support row.
 - GuestProfile is app-owned; Firebase anonymous auth and Base44 anonymous auth are not used. Default username format is KronoxUser#### / KronoxUser#####.
-- Profile > Profil Bilgileri exposes username plus optional private age_group and gender for guest and authenticated users, and may show the current player's immutable kronox_user_id as read-only/copyable Kullanıcı ID. The Profile Info row actively ensures/backfills the ID for the current owner; Hazırlanıyor is loading-only and failure shows Kullanıcı ID hazırlanamadı with retry. The Profile landing routes Profil Bilgileri, Arkadaşlarım, and Ayarlar to dedicated screens; Gizlilik Politikası and Hesap Silme live under Settings, with signed-in deletion still guarded by the in-app confirmation flow. age is a legacy/private compatibility field; current Profile edit UI collects age_group only and does not ask for exact birthdate or exact age. age, age_group, gender, and kronox_user_id are private/support fields only and must not appear in public leaderboard rows, public projections, scoring, matchmaking, Solo category weighting, or Online game selection. getSoloLeaderboard returns sanitized username plus opaque leaderboard_id and strips owner_key/display_name/email/provider ids/raw guest id/kronox_user_id/internal player_key; completed guests can open Liderlik and appear only as username.
+- Profile > Profil Bilgileri exposes username plus optional private age_group and gender for guest and authenticated users, and may show the current player's immutable kronox_user_id as read-only/copyable Kullanıcı ID. The Profile Info row actively ensures/backfills the ID for the current owner; Hazırlanıyor is loading-only and failure shows Kullanıcı ID hazırlanamadı with retry. The Profile landing routes Profil Bilgileri, Arkadaşlarım, and Ayarlar to dedicated screens; Gizlilik Politikası and Hesabı Sil live under Settings, with signed-in deletion still guarded by the in-app confirmation flow. age is a legacy/private compatibility field; current Profile edit UI collects age_group only and does not ask for exact birthdate or exact age. age, age_group, gender, and kronox_user_id are private/support fields only and must not appear in public leaderboard rows, public projections, scoring, matchmaking, Solo category weighting, or Online game selection. getSoloLeaderboard returns sanitized username plus opaque leaderboard_id and strips owner_key/display_name/email/provider ids/raw guest id/kronox_user_id/internal player_key; completed guests can open Liderlik and appear only as username.
 - Guest account linking is implemented through linkGuestAccount and belongs under Profile. It preserves guest Diamonds, Daily Wheel/Daily Quest guard fields/history, leaderboard username identity, category preferences, progress, and inventory where applicable. Home / Ana Sayfa must not render Google, Apple, email, Hesabını bağla, or progress-protection account-link prompts. The first-launch welcome may show only Hesabım Var as a secondary route into the Profile account-connection card; it must not duplicate Apple / Google / Email buttons.
 - Guest onboarding Phase 2 status values include guest_created, tutorial_in_progress, tutorial_completed, profile_setup_pending, category_setup_pending, and onboarding_complete.
 - Eğitime Devam is valid only for true resumable tutorial_in_progress state; stale tutorial_in_progress cannot override tutorial_completed, profile_setup_pending, category_setup_pending, or onboarding_complete.
@@ -562,7 +562,7 @@ Status: Active product contract.
 - Daily Quest Definition management UI is removed from Profile / Admin Ekranı; runtime no longer depends on Admin-created quest definitions.
 - createDailyQuestDefinition is a Base44 callable with an inline AdminUser-backed guard for active owner/admin rows; normal users and disabled admins are rejected.
 - DailyQuestDefinition title and description are display-only; quest_type plus target_value are the executable logic contract.
-- DailyQuestDefinition.quest_key is the logical unique key. Admin list is read-only and never seeds on refresh; explicit seed/create skip or reject existing keys. Existing duplicate rows are grouped by quest_key with Admin warnings and require manual cleanup after backup, not automatic deletion.
+- DailyQuestDefinition.quest_key is the logical unique key for legacy/manual cleanup paths. Runtime does not list, seed, or select definition rows; explicit legacy seed/create skips or rejects existing keys. Existing duplicate rows require manual cleanup after backup, not automatic deletion.
 - Supported active Daily Quest runtime quest_type value is solo_level_complete.
 - Daily Quest definitions use reward_diamonds only, never Kronox Puan, and do not affect leaderboard.
 - Daily Quest text is never parsed by AI, NLP, regex, scripts, or arbitrary free-text executable conditions.
@@ -670,8 +670,8 @@ purchase is a Diamond sink; Daily Wheel remains a Diamond source. Profile
 Joker Çantası and Solo joker bar must show the purchased balance; Online mode
 is unaffected and Daily Wheel remains Diamond-only.
 
-## Daily Quest Runtime v2
-Daily Quest Runtime v2 is active.
+## Daily Quest Runtime v1
+Daily Quest Runtime v1 is active.
 The active quest is code-owned, not Admin-definition-owned:
 solo_level_complete / Solo’da Seviye Geç / Bugün 1 Solo seviyesini tamamla.,
 target 1, reward 20 Diamonds. UserDailyQuestProgress stores 1 selected UTC-day
@@ -693,7 +693,8 @@ explicitly bind UserDailyQuestProgress for status, progress, and claim
 deployability.
 Günlük Görev no longer requires active DailyQuestDefinition rows; getDailyQuestStatus and
 recordDailyQuestProgress do not seed definition rows on app/Home open. Runtime ignores
-stale or duplicate DailyQuestDefinition rows. Profile / Admin Ekranı does not mount
+stale or duplicate DailyQuestDefinition rows and stops duplicate/empty DB definition bloat.
+Profile / Admin Ekranı does not mount
 Günlük Görev Yönetimi. getDailyQuestStatus is authenticated-or-completed-guest but not
 admin-only and preserves newly created rows if immediate Base44 refresh is stale. Older
 same-day rows from the previous model are retained but Home displays only the canonical
@@ -701,7 +702,8 @@ solo_level_complete quest. Loading or ensuring today’s quests does not grant D
 claimDailyQuestReward remains the only reward path. \`claimDailyQuestReward\` remains the only reward path.
 One claim per quest per UTC day is enforced by UserDailyQuestProgress and
 daily_quest_reward idempotency keys. User/GuestProfile fields daily_quest_last_claim_date
-and daily_quest_next_available_at track claim summary/reset availability only.
+and daily_quest_next_available_at track claim summary/reset availability only. Stale
+legacy rows require manual cleanup after backup/operator approval.
 Daily Wheel remains separate from Daily Quest definitions.
 Daily Wheel and Daily Quest are separate.
 daily_wheel:<playerKey>:<YYYY-MM-DD>

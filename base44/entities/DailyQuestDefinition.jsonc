@@ -1,7 +1,7 @@
 {
   "name": "DailyQuestDefinition",
   "type": "object",
-  "description": "Legacy/admin-only Daily Quest template definitions. Current Runtime v2 ignores these rows and assigns the canonical solo_level_complete UserDailyQuestProgress row from code to avoid duplicate-definition DB bloat. Definitions do not grant rewards by themselves; claimDailyQuestReward grants diamonds only through daily_quest_reward. Daily Quest does not grant Kronox Puan and has no leaderboard impact.",
+  "description": "Legacy/admin-only Daily Quest template definitions. Current Runtime v1 ignores these rows and assigns the canonical solo_level_complete UserDailyQuestProgress row from code to avoid duplicate-definition DB bloat. Definitions do not grant rewards by themselves; claimDailyQuestReward grants diamonds only through daily_quest_reward. Daily Quest does not grant Kronox Puan and has no leaderboard impact.",
   "properties": {
     "quest_key": {
       "type": "string",
@@ -27,7 +27,7 @@
         "complete_solo_level",
         "use_joker"
       ],
-      "description": "Legacy template logic type. Runtime v2 progresses only solo_level_complete from code; old values are retained for historical rows."
+      "description": "Legacy template logic type. Runtime v1 progresses only solo_level_complete from code; old values are retained for historical rows."
     },
     "target_value": {
       "type": "integer",

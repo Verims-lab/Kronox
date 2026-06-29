@@ -243,23 +243,31 @@ export const EXTRA_TESTS = [
 
   makeCase('admin_visibility', 'Admin Visibility Suite',
     'admin_tools_no_raw_selects_and_keep_validation',
-    'Admin tools use Kronox bottom-sheet selectors instead of raw selects',
+    'Current Admin tools use Kronox bottom-sheet selectors and removed Daily Quest manager stays absent',
     () => {
       const forbidden = forbiddenTokens(adminSelectSources, ['<select', '</select>']);
       const missing = missingTokens(adminSelectSources, [
         'KronoxSelectSheet',
-        'questTypeOptions',
-        'statusOptions',
         'PERIOD_OPTIONS',
         'MODE_OPTIONS',
-        'validateForm',
+        'normalizedTarget',
+        'confirmEmail',
+        'confirmationMatches',
+        'Preview reset',
+        'Execute reset',
+      ]);
+      const removedManagerForbidden = forbiddenTokens(adminPageSource, [
+        'DailyQuestDefinitionManager',
+        'Günlük Görev Yönetimi',
+        'questTypeOptions',
+        'statusOptions',
         'DAILY_QUEST_V1_TYPES.includes',
       ]);
-      if (forbidden.length || missing.length) return fail('Admin tools still contain native selects or lost validation option contracts.', {
+      if (forbidden.length || missing.length || removedManagerForbidden.length) return fail('Current Admin tools still contain native selects, lost validation guards, or restored the removed Daily Quest manager.', {
         verification: 'STATIC_CONTRACT',
-        actual: { forbidden, missing },
+        actual: { forbidden, missing, removedManagerForbidden },
       });
-      return pass('Admin Daily Quest, report period, and reset mode controls use KronoxSelectSheet while preserving validation.', { verification: 'STATIC_CONTRACT' });
+      return pass('Current Admin report/reset controls use KronoxSelectSheet, destructive reset keeps exact confirmation, and removed Daily Quest manager UI stays absent.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('mobile_viewport', 'Mobile Viewport Suite',

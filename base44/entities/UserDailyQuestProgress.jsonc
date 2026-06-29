@@ -1,7 +1,7 @@
 {
   "name": "UserDailyQuestProgress",
   "type": "object",
-  "description": "Daily Quest Runtime v2 user-owned per-day progress row. Exactly 1 canonical solo_level_complete row is ensured per authenticated/completed-guest user per UTC quest_date without reading or creating DailyQuestDefinition rows. Older same-day rows from previous definition-backed or multi-event implementations are retained but ignored by runtime/UI. Claim grants diamonds only through claimDailyQuestReward / DiamondTransaction source daily_quest_reward; Daily Quest does not grant Kronox Puan and has no leaderboard impact.",
+  "description": "Daily Quest Runtime v1 user-owned per-day progress row. Exactly 1 canonical solo_level_complete row is ensured per authenticated/completed-guest user per UTC quest_date without reading or creating DailyQuestDefinition rows. Older same-day rows from previous definition-backed or multi-event implementations are retained but ignored by runtime/UI. Claim grants diamonds only through claimDailyQuestReward / DiamondTransaction source daily_quest_reward; Daily Quest does not grant Kronox Puan and has no leaderboard impact.",
   "properties": {
     "user_email": {
       "type": "string",
