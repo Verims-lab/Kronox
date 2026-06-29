@@ -7,8 +7,8 @@
 //   Covers:
 //     • solo_time_bonus_contract                         (S1 fix)
 //     • online_score_no_draw_contract                    (O1 fix)
-//     • online_score_time_bonus_missing_time_zero        (O2 fix)
-//     • online_score_base_applies_even_without_bonus_time (O2 fix)
+//     • online_score_no_speed_bonus_contract            (Codex477)
+//     • online_score_base_applies_regardless_of_time    (Codex477)
 //     • online_score_helper_naming_contract              (O3 alias)
 //     • online_score_persistence_field_matches_reader    (O5 fix)
 //     • online_score_authority_model_documented          (doc only)
@@ -145,9 +145,9 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 3. Online — missing winner time → +0 bonus */
-  makeCase('online_score_time_bonus_missing_time_zero',
-    'Missing/invalid winner elapsed → +0 bonus (winner still gets +15 base)',
+  /* 3. Online — no speed bonus */
+  makeCase('online_score_no_speed_bonus_contract',
+    'Online winner elapsed time always gives +0 speed bonus',
     () => {
       const checks = [
         assertEq(getOnlineWinnerTimeBonus(undefined), 0, 'undefined → 0'),
@@ -155,35 +155,35 @@ export const EXTRA_TESTS = [
         assertEq(getOnlineWinnerTimeBonus(NaN), 0,       'NaN → 0'),
         assertEq(getOnlineWinnerTimeBonus('not a number'), 0, 'string → 0'),
         assertEq(getOnlineWinnerTimeBonus(-1), 0,        'negative → 0'),
-        // valid times still correct
-        assertEq(getOnlineWinnerTimeBonus(54), 10,  '54s → 10'),
-        assertEq(getOnlineWinnerTimeBonus(60), 10,  '60s → 10'),
-        assertEq(getOnlineWinnerTimeBonus(75), 5,   '75s → 5'),
-        assertEq(getOnlineWinnerTimeBonus(90), 5,   '90s → 5'),
+        assertEq(getOnlineWinnerTimeBonus(0), 0,    '0s → 0'),
+        assertEq(getOnlineWinnerTimeBonus(54), 0,   '54s → 0'),
+        assertEq(getOnlineWinnerTimeBonus(60), 0,   '60s → 0'),
+        assertEq(getOnlineWinnerTimeBonus(75), 0,   '75s → 0'),
+        assertEq(getOnlineWinnerTimeBonus(90), 0,   '90s → 0'),
         assertEq(getOnlineWinnerTimeBonus(110), 0,  '110s → 0'),
       ].filter(Boolean);
       if (checks.length) return checks[0];
-      return pass('Missing/invalid winner time correctly yields +0 bonus.',
+      return pass('Online winner speed bonus is always 0.',
         { verification: 'EXECUTABLE' });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 4. Online — base still applies even without time bonus */
-  makeCase('online_score_base_applies_even_without_bonus_time',
-    'Winner with missing elapsed still gets +15 base (no time bonus, but score updates)',
+  /* 4. Online — base applies regardless of elapsed time */
+  makeCase('online_score_base_applies_regardless_of_time',
+    'Winner always gets +15 base regardless of elapsed time',
     () => {
       const checks = [
         assertEq(calculateOnlineMatchDelta({ result: 'win' }).delta, 15, 'undefined → +15'),
         assertEq(calculateOnlineMatchDelta({ result: 'win', durationSeconds: null }).delta, 15, 'null → +15'),
-        assertEq(calculateOnlineMatchDelta({ result: 'win', durationSeconds: 75 }).delta, 20, '75 → +20'),
-        assertEq(calculateOnlineMatchDelta({ result: 'win', durationSeconds: 54 }).delta, 25, '54 → +25'),
+        assertEq(calculateOnlineMatchDelta({ result: 'win', durationSeconds: 75 }).delta, 15, '75 → +15'),
+        assertEq(calculateOnlineMatchDelta({ result: 'win', durationSeconds: 54 }).delta, 15, '54 → +15'),
       ].filter(Boolean);
       if (checks.length) return checks[0];
       // Full flow: missing winner time still updates score.
       const r = applyOnlineMatchResult({ score: 100 }, { result: 'win' });
       const e1 = assertEq(r.progress.score, 115, 'score updates by +15 even without time');
       if (e1) return e1;
-      return pass('Winner base +15 is applied even when elapsed is missing/invalid.',
+      return pass('Winner base +15 is applied and elapsed time does not add bonus.',
         { verification: 'EXECUTABLE' });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
@@ -209,8 +209,8 @@ export const EXTRA_TESTS = [
         });
       }
       const checks = [
-        assertEq(calculateOnlineWinnerDelta(54), 25, 'winner @54s'),
-        assertEq(calculateOnlineWinnerDelta(75), 20, 'winner @75s'),
+        assertEq(calculateOnlineWinnerDelta(54), 15, 'winner @54s'),
+        assertEq(calculateOnlineWinnerDelta(75), 15, 'winner @75s'),
         assertEq(calculateOnlineWinnerDelta(110), 15, 'winner @110s'),
         assertEq(calculateOnlineWinnerDelta(undefined), 15, 'winner missing'),
         assertEq(calculateOnlineLoserDelta(), -6, 'loser → -6'),
@@ -225,7 +225,7 @@ export const EXTRA_TESTS = [
       ].filter(Boolean);
       if (checks.length) return checks[0];
       const once = applyOnlineMatchResultOnce({ progress: { score: 100 }, result: 'win', durationSeconds: 54 });
-      const e = assertEq(once.progress.score, 125, 'applyOnlineMatchResultOnce shape works');
+      const e = assertEq(once.progress.score, 115, 'applyOnlineMatchResultOnce shape works');
       if (e) return e;
       return pass('All doc-named aliases exist and return the expected values.',
         { verification: 'EXECUTABLE' });

@@ -45,6 +45,14 @@ and exports must use username-safe or anonymized labels.
 - Leaderboard public payload is compact and username-safe.
 - Guest account linking has a ledger-like `AccountLinkTransaction`.
 - Daily Quest and Daily Wheel are separate from Kronox Puan.
+- Unified Kronox Puan is the player-facing score source: Solo contributes the
+  Solo best-score component and Online contributes `User.online_progress.score`.
+- Online match scoring is flat and unified: winner `+15` Kronox Puan, loser
+  `-6` Kronox Puan with checkpoint protection, and no Online speed bonus.
+- Online result writes use the current `OnlineMatchResult` per-user/lobby
+  idempotency row plus `User.online_progress` / `kronox_puan_total`
+  projection update pattern. Elapsed seconds are audit/display only and do not
+  change the Online score delta.
 
 ## Current Gaps
 

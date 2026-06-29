@@ -51,11 +51,10 @@ export default function GameOver({
       : onlineScoreResult?.result === 'win'
         ? `Kazandığın Puan: ${scoreSign}${scoreDelta}`
         : `Kaybettiğin Puan: ${scoreDelta}`;
-  // Codex146 — Time displayed in the popup must equal the time used for
-  // scoring. When we have an Online score result, prefer ITS elapsedSeconds
-  // (the canonical player-own value passed to applyOnlineMatchToCurrentUser)
-  // over winner.durationSeconds. Falls back to winner.durationSeconds only
-  // for non-online / no-score-result paths so legacy/solo behavior is intact.
+  // Codex477 — Online elapsed time is display/audit only. When we have an
+  // Online score result, prefer its stable elapsedSeconds; scoring ignores it.
+  // Falls back to winner.durationSeconds only for non-online / no-score-result
+  // paths so legacy/solo behavior is intact.
   const displayDurationSeconds = hasOnlineScore && Number.isFinite(Number(onlineScoreResult?.elapsedSeconds))
     ? Number(onlineScoreResult.elapsedSeconds)
     : durationSeconds;
@@ -96,8 +95,7 @@ export default function GameOver({
           {displayDurationSeconds != null && (
             <div className="flex items-center justify-center gap-2 mt-3 text-white/60 text-sm font-inter">
               <Timer className="w-4 h-4 text-primary" />
-              {/* Codex146 — "Süren" makes it explicit this is YOUR gameplay
-                  time, the same value used for the time bonus calculation. */}
+              {/* Codex477 — "Süren" is display-only for Online; no speed bonus. */}
               <span>
                 {hasOnlineScore ? 'Süren: ' : ''}
                 <span className="kronox-number">{formatDuration(displayDurationSeconds)}</span>
@@ -124,8 +122,7 @@ export default function GameOver({
                   )}
                   {onlineScoreResult.result === 'win' ? (
                     <>
-                      <div>Galibiyet: +<span className="kronox-number">{onlineScoreResult.baseDelta || 15}</span></div>
-                      <div>Hız Bonusu: <span className="kronox-number">+{onlineScoreResult.timeBonus || 0}</span></div>
+                      <div>Kazandığın Puan: +<span className="kronox-number">{onlineScoreResult.baseDelta || 15}</span></div>
                     </>
                   ) : (
                     <>

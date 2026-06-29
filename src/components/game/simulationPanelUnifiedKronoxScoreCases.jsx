@@ -151,6 +151,28 @@ export const EXTRA_TESTS = [
       return pass('Online result popup uses gained/lost/new Kronox Puan language.', { verification: 'STATIC_CONTRACT' });
     }),
 
+  makeCase('online_result_has_no_speed_bonus',
+    'Online result popup and scoring docs remove speed bonus',
+    () => {
+      const missing = missingTokens(`${gameOverSource}\n${scoringRulesSource}`, [
+        'Kazandığın Puan:',
+        'Kaybettiğin Puan:',
+        'Online has no speed bonus',
+        'winner scoring is exactly +15',
+        'loser scoring is exactly -6',
+      ]);
+      const offenders = findForbiddenCopy({ GameOver: gameOverSource }, [
+        'Hız Bonusu',
+      ]);
+      if (missing.length || offenders.length) {
+        return fail('Online speed bonus wording or missing flat +15/-6 contract can drift unified Puan UI.', {
+          verification: 'STATIC_CONTRACT',
+          actual: { missing, offenders },
+        });
+      }
+      return pass('Online result UI and docs expose flat +15/-6 scoring without speed bonus.', { verification: 'STATIC_CONTRACT' });
+    }),
+
   makeCase('technical_docs_allow_components_but_ui_is_unified',
     'Docs allow technical components while UI remains unified',
     () => {

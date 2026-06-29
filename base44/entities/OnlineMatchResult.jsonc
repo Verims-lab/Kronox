@@ -43,7 +43,7 @@
     },
     "elapsed_seconds": {
       "type": "number",
-      "description": "Winner elapsed seconds when known. Missing historical values are not invented."
+      "description": "Elapsed seconds when known for audit/display only. Online scoring ignores elapsed time and has no speed bonus."
     },
     "checkpoint_before": {
       "type": "number"

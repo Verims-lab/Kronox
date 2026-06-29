@@ -1,14 +1,15 @@
 // Codex146 — Online player-own elapsed seconds helper.
 //
 // PRODUCT RULE
-//   The time used for Online score time bonus AND shown in the result
-//   popup MUST be the CURRENT player's own gameplay time, NOT:
+//   Online has no speed bonus. The time shown in the result popup and
+//   retained for audit/diagnostics should still be the CURRENT player's own
+//   gameplay time, NOT:
 //     • lobby.created_at duration
 //     • total match duration (host + guest sync time)
 //     • invite/lobby waiting duration
 //     • time since both joined
 //
-//   The popup time and the scoring time MUST be the same value.
+//   The popup/audit time must not be used as a score bonus.
 //
 // SOURCE PRIORITY
 //   1) explicit playerResult.elapsedSeconds (when a per-player result
@@ -17,8 +18,8 @@
 //   3) null when nothing reliable is available
 //
 //   Returning null is intentional: callers (Game.jsx) pass null straight
-//   into the scoring helper which then returns +15 base only for the
-//   winner (no fake speed bonus from a 0 fallback).
+//   into the scoring helper, which still returns +15 for the winner because
+//   elapsed time does not affect Online scoring.
 //
 // PURITY
 //   No React, no DOM, no SDK. Same input → same output.

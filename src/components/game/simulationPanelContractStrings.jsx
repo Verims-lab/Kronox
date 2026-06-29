@@ -704,6 +704,7 @@ export const userEntitySource = `
       }
     },
     "online_progress": {
+      "description": "Per-user Online ranking summary: win +15, loss -6, no Online speed bonus, then checkpoint protection on losses. OnlineMatchResult is the durable per-user/lobby idempotency audit source.",
       "properties": {
         "score": {},
         "peakScore": {},
@@ -794,7 +795,7 @@ export const onlineMatchResultEntitySource = `
     "effective_delta": {},
     "score_before": {},
     "score_after": {},
-    "elapsed_seconds": {},
+    "elapsed_seconds": { "description": "Audit/display only; Online scoring ignores elapsed time and has no speed bonus." },
     "checkpoint_before": {},
     "checkpoint_after": {},
     "applied_at": {},

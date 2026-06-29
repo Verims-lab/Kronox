@@ -92,7 +92,7 @@
     },
     "online_progress": {
       "type": "object",
-      "description": "Codex139 \u2014 Per-user Online ranking summary. score is the player's current Online score component, after every match it is adjusted by win/loss + winner time bonus, then protected by peakCheckpoint on losses. lastMatchId remains a recent-match guard; OnlineMatchResult is the durable per-user/lobby idempotency audit source. Legacy rows may still contain draws or lastUpdatedAt, but new writes do not emit them.",
+      "description": "Codex477 \u2014 Per-user Online ranking summary. score is the player's current Online score component: win +15, loss -6, no Online speed bonus, then protected by peakCheckpoint on losses. lastMatchId remains a recent-match guard; OnlineMatchResult is the durable per-user/lobby idempotency audit source. Legacy rows may still contain draws or lastUpdatedAt, but new writes do not emit them.",
       "properties": {
         "score": {
           "type": "number",

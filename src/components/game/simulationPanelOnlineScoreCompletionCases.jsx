@@ -3,8 +3,9 @@
 // SCOPE
 //   Locks the end-of-online-match behavior:
 //     • match completion calls the current-user score writer
-//     • winner gains +15 plus own elapsed-time bonus
+//     • winner gains +15 Kronox Puan
 //     • loser gets -6 with checkpoint floor
+//     • Online has no speed bonus
 //     • result popup displays the real applied delta
 //     • Online scoring never mutates Solo score
 
@@ -86,11 +87,11 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('online_score_winner_gain_loser_loss',
-    'Winner gains positive delta and loser gets -6',
+    'Winner gets +15 and loser gets -6',
     () => {
       const checks = [
-        assertEq(calculateOnlineWinnerDelta(54), 25, 'winner 54s'),
-        assertEq(calculateOnlineWinnerDelta(75), 20, 'winner 75s'),
+        assertEq(calculateOnlineWinnerDelta(54), 15, 'winner 54s'),
+        assertEq(calculateOnlineWinnerDelta(75), 15, 'winner 75s'),
         assertEq(calculateOnlineWinnerDelta(110), 15, 'winner 110s'),
         assertEq(calculateOnlineLoserDelta(), -6, 'loser delta'),
       ].filter(Boolean);
@@ -98,28 +99,26 @@ export const EXTRA_TESTS = [
       return pass('Winner/loser Online deltas match product scoring.', { verification: 'EXECUTABLE' });
     }),
 
-  makeCase('online_score_uses_player_own_elapsed_time',
-    'Winner time bonus uses the current player gameplay timer, not lobby duration',
+  makeCase('online_score_has_no_speed_bonus',
+    'Online elapsed time is audit/display only and does not change score',
     () => {
-      // Codex146 — Source-of-truth helper replaces the inline winner-bonus
-      // comment. We require the helper import + the local timer ref + the
-      // sticky per-match snapshot ref.
       const src = safeStr(gameSource);
       const missing = missingTokens(src, [
         'getOnlinePlayerElapsedSeconds',
         'overallSecondsRef.current',
         'playerOwnElapsedRef',
+        'Online score deltas do not use elapsed time or speed bonuses',
       ]);
       const forbidden = ['created_date', 'created_at', 'invite', 'joined_at']
         .filter((token) => src.includes(`durationSeconds = lobbyData?.${token}`));
       if (missing.length || forbidden.length) {
-        return fail('Online winner bonus may not be using the local gameplay timer.', {
+        return fail('Online elapsed audit/display path or no-speed-bonus contract drifted.', {
           verification: 'STATIC_CONTRACT',
           missing,
           forbidden,
         });
       }
-      return pass('Online winner bonus is sourced from the local gameplay elapsed timer.', { verification: 'STATIC_CONTRACT' });
+      return pass('Online elapsed time remains stable for display/audit and does not drive a speed bonus.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('online_score_missing_time_base_only',
@@ -129,6 +128,8 @@ export const EXTRA_TESTS = [
         assertEq(calculateOnlineWinnerDelta(undefined), 15, 'undefined elapsed'),
         assertEq(calculateOnlineWinnerDelta(null), 15, 'null elapsed'),
         assertEq(calculateOnlineWinnerDelta(Number.NaN), 15, 'NaN elapsed'),
+        assertEq(calculateOnlineWinnerDelta(54), 15, '54 elapsed'),
+        assertEq(calculateOnlineWinnerDelta(75), 15, '75 elapsed'),
       ].filter(Boolean);
       if (checks.length) return checks[0];
       return pass('Missing elapsedSeconds does not accidentally receive a speed bonus.', { verification: 'EXECUTABLE' });
@@ -212,13 +213,20 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(gameOverSource, [
         'onlineScoreResult',
         'Puan',
-        'Galibiyet: +',
+        'Kazandığın Puan:',
         'Kaybettiğin Puan:',
         'Checkpoint koruması',
         'Skor:',
       ]);
-      if (missing.length) return fail('GameOver popup no longer displays Online score delta/breakdown.', { verification: 'STATIC_CONTRACT', missing });
-      return pass('GameOver displays the real current-player Online score delta and checkpoint details.', { verification: 'STATIC_CONTRACT' });
+      const forbidden = ['Hız Bonusu'].filter((token) => gameOverSource.includes(token));
+      if (missing.length || forbidden.length) {
+        return fail('GameOver popup no longer displays unified Online score delta correctly.', {
+          verification: 'STATIC_CONTRACT',
+          missing,
+          forbidden,
+        });
+      }
+      return pass('GameOver displays the real current-player Kronox Puan delta without Online speed bonus.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('online_score_not_solo_total_score',
@@ -239,29 +247,30 @@ export const EXTRA_TESTS = [
   // ─── Codex146 — Player-own elapsed time + popup/scoring parity ──────
 
   makeCase('online_score_player_elapsed_time_not_lobby_duration',
-    'Scoring time source is player-own gameplay timer, not lobby/invite duration',
+    'Elapsed audit/display source is player-own gameplay timer, not lobby/invite duration',
     () => {
       const src = safeStr(gameSource);
       const missing = missingTokens(src, [
         'getOnlinePlayerElapsedSeconds',
         'playerOwnElapsedRef',
         'overallSecondsRef.current',
+        'display/audit',
       ]);
       const forbidden = ['created_date', 'created_at', 'joined_at', 'last_activity_at']
         .filter((token) => src.includes(`durationSeconds: lobbyData?.${token}`) ||
                             src.includes(`elapsedSeconds: lobbyData?.${token}`));
       if (missing.length || forbidden.length) {
-        return fail('Online scoring time source may be lobby/invite duration instead of player-own time.', {
+        return fail('Online elapsed display/audit source may be lobby/invite duration instead of player-own time.', {
           verification: 'STATIC_CONTRACT',
           missing,
           forbidden,
         });
       }
-      return pass('Online scoring uses the local gameplay timer via getOnlinePlayerElapsedSeconds.', { verification: 'STATIC_CONTRACT' });
+      return pass('Online elapsed audit/display uses the local gameplay timer via getOnlinePlayerElapsedSeconds.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('online_popup_time_matches_scoring_time',
-    'Result popup time and scoring time read the same single value',
+    'Result popup time reads the same stable audit/display value',
     () => {
       const overSrc = safeStr(gameOverSource);
       const gameSrc = safeStr(gameSource);
@@ -273,13 +282,13 @@ export const EXTRA_TESTS = [
         'elapsedSeconds: durationSeconds',
       ]);
       if (missingOver.length || missingGame.length) {
-        return fail('Popup time and scoring time may have drifted apart.', {
+        return fail('Popup time and elapsed audit/display payload may have drifted apart.', {
           verification: 'STATIC_CONTRACT',
           missingOver,
           missingGame,
         });
       }
-      return pass('Popup time reads onlineScoreResult.elapsedSeconds (same value sent to scoring).', { verification: 'STATIC_CONTRACT' });
+      return pass('Popup time reads onlineScoreResult.elapsedSeconds; Online scoring ignores time.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('online_player_elapsed_helper_returns_null_for_missing',
@@ -299,14 +308,16 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('online_winner_3_25_gets_15_not_25',
-    'Winner own elapsed 205s (3:25) gives +15 base only, no speed bonus',
+    'Winner elapsed time never changes +15 base, no speed bonus',
     () => {
       const checks = [
         assertEq(calculateOnlineWinnerDelta(205), 15, 'winner 3:25 → +15'),
         assertEq(calculateOnlineWinnerDelta(91), 15, 'winner 91s → +15'),
+        assertEq(calculateOnlineWinnerDelta(54), 15, 'winner 54s → +15'),
+        assertEq(calculateOnlineWinnerDelta(75), 15, 'winner 75s → +15'),
       ].filter(Boolean);
       if (checks.length) return checks[0];
-      return pass('Winner over 90s gets +15 only (no fake +10 bonus).', { verification: 'EXECUTABLE' });
+      return pass('Online winner always gets +15 only; no speed bonus tier exists.', { verification: 'EXECUTABLE' });
     }),
 
   makeCase('online_score_update_failure_not_shown_as_success',
@@ -352,7 +363,7 @@ export const EXTRA_TESTS = [
         'Same input → same output',
       ]);
       if (missing.length) return fail('Player-own elapsed helper module shape changed.', { verification: 'STATIC_CONTRACT', missing });
-      return pass('Player-own elapsed helper module is the canonical scoring/display time source.', { verification: 'STATIC_CONTRACT' });
+      return pass('Player-own elapsed helper module is the canonical Online display/audit time source.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('online_popup_failure_copy_uses_kronox_wording',

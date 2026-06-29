@@ -364,34 +364,31 @@ ONLINE_LOSS_POINTS = -6
 
 The loss is protected by checkpoint floor rules.
 
-## 3.4 Online Winner Time Bonus
+## 3.4 Online Has No Speed Bonus
 
-Only the winner can receive time bonus.
+Online scoring does not use speed, elapsed time, lobby duration, or match
+duration as a point bonus.
 
-The bonus uses the winner’s own gameplay time, not total match time.
-
-| Winner Individual Time | Bonus |
-| ---------------------: | ----: |
-|           0–60 seconds |   +10 |
-|          61–90 seconds |    +5 |
-|            91+ seconds |    +0 |
-|   missing/unknown time |    +0 |
+Elapsed seconds may still be captured for result display, audit, diagnostics,
+and deterministic winner tie-break decisions, but it must not change the
+player's Kronox Puan delta.
 
 Examples:
 
 | Winner Time | Winner Delta |
 | ----------: | -----------: |
-|      54 sec |          +25 |
-|      75 sec |          +20 |
+|      54 sec |          +15 |
+|      75 sec |          +15 |
 |     110 sec |          +15 |
 |     missing |          +15 |
 
 Rules:
 
-* winner always gets +15 base score
-* missing time gives +0 bonus
-* loser never receives time bonus
-* valid 0 seconds remains in the 0–60 tier
+* winner always gets exactly +15 Kronox Puan
+* loser always gets exactly -6 Kronox Puan before checkpoint protection
+* Online has no speed bonus
+* missing time does not change the +15 winner delta
+* loser never receives a speed or elapsed-time bonus
 
 Helper:
 
@@ -456,10 +453,7 @@ Expected behavior:
 
 ```text
 calculateOnlineWinnerDelta(elapsedSeconds):
-- base = 15
-- <= 60 sec: base + 10
-- > 60 and <= 90 sec: base + 5
-- otherwise: base
+- return 15 for all elapsed values
 
 calculateOnlineLoserDelta():
 - return -6
@@ -580,7 +574,7 @@ solo_total_score_separate_from_online_contract
 
 ```text
 online_score_win_loss_contract
-online_score_time_bonus_contract
+online_score_no_speed_bonus_contract
 online_score_checkpoint_floor_contract
 online_score_no_draw_contract
 online_score_idempotent_match_result
@@ -623,8 +617,8 @@ Rules:
 
 ## Online
 
-1. Winner 54 sec → winner +25, loser -6 checkpoint protected.
-2. Winner 75 sec → winner +20, loser -6 checkpoint protected.
+1. Winner 54 sec → winner +15, loser -6 checkpoint protected.
+2. Winner 75 sec → winner +15, loser -6 checkpoint protected.
 3. Winner 110 sec → winner +15, loser -6 checkpoint protected.
 4. Loser 252 score → protected to 250.
 5. Loser 263 score → becomes 257.
