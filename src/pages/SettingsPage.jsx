@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trash2, AlertTriangle, Loader2, ChevronRight, FileText, SlidersHorizontal, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, Loader2, ChevronRight, FileText, SlidersHorizontal, ShieldCheck } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
@@ -25,17 +25,14 @@ export default function SettingsPage() {
     return params.get('focus') === 'delete' || location.state?.focusDeleteAccount === true;
   }, [location.search, location.state?.focusDeleteAccount]);
 
-  const scrollToSection = (ref) => {
-    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-
   useEffect(() => {
-    if (isLoadingAuth || !shouldFocusDeleteAccount) return;
+    if (isLoadingAuth || !shouldFocusDeleteAccount || !effectiveUser) return;
+    setConfirmDelete(true);
     const frameId = window.requestAnimationFrame(() => {
       accountSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
     return () => window.cancelAnimationFrame(frameId);
-  }, [isLoadingAuth, shouldFocusDeleteAccount]);
+  }, [isLoadingAuth, shouldFocusDeleteAccount, effectiveUser]);
 
   const handleDeleteAccount = async () => {
     setDeleteError('');
@@ -99,71 +96,52 @@ export default function SettingsPage() {
             <SettingsListRow
               icon={<ShieldCheck className="h-4 w-4" />}
               title="Hesap Silme"
-              desc={effectiveUser ? 'Kalıcı silme işlemini başlat' : 'Bilgi ve destek kanalı'}
-              onClick={() => (effectiveUser ? scrollToSection(accountSectionRef) : navigate('/account-deletion'))}
+              desc={effectiveUser ? 'Tüm veriler kalıcı olarak silinir' : 'Bilgi ve destek kanalı'}
+              onClick={() => (effectiveUser ? setConfirmDelete(true) : navigate('/account-deletion'))}
               danger={Boolean(effectiveUser)}
               isLast
             />
           </div>
-        </Section>
 
-        {/* Hesap — oturum açmış kullanıcılar */}
-        {effectiveUser && (
-          <div ref={accountSectionRef}>
-            <Section label="Hesap">
-              <AnimatePresence mode="wait">
-                {!confirmDelete ? (
-                  <motion.button
-                    key="delete-btn"
-                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                    onClick={handleDeleteAccount}
-                    className="w-full flex items-center gap-3 p-4 rounded-2xl border border-destructive/30 bg-destructive/5 hover:bg-destructive/10 transition-colors text-left"
-                  >
-                    <div className="w-8 h-8 rounded-xl bg-destructive/10 flex items-center justify-center flex-shrink-0">
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-inter text-sm font-semibold text-destructive">Hesabı Sil</p>
-                      <p className="font-inter text-xs text-muted-foreground">Tüm veriler kalıcı olarak silinir</p>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-destructive/50" />
-                  </motion.button>
-                ) : (
-                  <motion.div
-                    key="delete-confirm"
-                    initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                    className="p-4 rounded-2xl bg-destructive/10 border border-destructive/30 space-y-3"
-                  >
-                    <div className="flex items-start gap-2">
-                      <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
-                      <p className="font-inter text-sm text-destructive leading-relaxed">
-                        Bu işlem geri alınamaz. Tüm verileriniz silinecek.
-                      </p>
-                    </div>
-                    {deleteError && (
-                      <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 font-inter text-xs font-semibold text-destructive">
-                        {deleteError}
-                      </p>
-                    )}
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline" size="sm" className="flex-1"
-                        onClick={() => { setConfirmDelete(false); setDeleteError(''); }} disabled={deleting}
-                      >İptal</Button>
-                      <Button
-                        size="sm" disabled={deleting}
-                        className="flex-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-                        onClick={handleDeleteAccount}
-                      >
-                        {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Evet, Sil'}
-                      </Button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </Section>
-          </div>
-        )}
+          {/* Hesap silme onayı — oturum açmış kullanıcılar */}
+          {effectiveUser && (
+            <AnimatePresence>
+              {confirmDelete && (
+                <motion.div
+                  ref={accountSectionRef}
+                  key="delete-confirm"
+                  initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                  className="mt-2 p-4 rounded-2xl bg-destructive/10 border border-destructive/30 space-y-3"
+                >
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
+                    <p className="font-inter text-sm text-destructive leading-relaxed">
+                      Bu işlem geri alınamaz. Tüm verileriniz silinecek.
+                    </p>
+                  </div>
+                  {deleteError && (
+                    <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 font-inter text-xs font-semibold text-destructive">
+                      {deleteError}
+                    </p>
+                  )}
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline" size="sm" className="flex-1"
+                      onClick={() => { setConfirmDelete(false); setDeleteError(''); }} disabled={deleting}
+                    >İptal</Button>
+                    <Button
+                      size="sm" disabled={deleting}
+                      className="flex-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                      onClick={handleDeleteAccount}
+                    >
+                      {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Evet, Sil'}
+                    </Button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          )}
+        </Section>
       </div>
 
     </div>

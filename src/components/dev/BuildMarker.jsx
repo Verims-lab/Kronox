@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex486 — Settings duplicate account-delete row cleanup:
+//   • Removes the duplicate lower "HESAP → Hesabı Sil" section so Settings shows a single account deletion entry under "Ayarlar ve Güvenlik".
+//   • The remaining "Hesap Silme" row opens the existing two-step confirm (İptal / Evet, Sil) inline; no backend, confirmation, or safety logic changed.
+//   • Health account-deletion tokens (Hesabı Sil description, confirmDelete guard, irreversible warning) preserved.
+//
 // Codex485 — VAPID secret validation hardening (sendGameInvitePush):
 //   • isInvalidVapidValue now rejects placeholder/default VAPID values by exact match, marker substring (placeholder/replace_me/your_vapid/example/todo), and dummy/sample/test_ prefix so invalid config fails closed before webpush.setVapidDetails.
 //   • Missing/invalid VAPID config still skips push with safe non-secret diagnostics while the persisted in-app invite remains valid; no secrets logged or returned.
@@ -81,7 +86,7 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps Home reward panels visible from a short-lived cache while revalidating and memoizes question text fit tokens.
 //
 
-const BUILD_MARKER = 'Codex485';
+const BUILD_MARKER = 'Codex486';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
