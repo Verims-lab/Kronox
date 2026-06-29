@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Check, UserRound, UserPlus, AlertCircle, ChevronDown, Swords } from 'lucide-react';
+import { X, Check, UserPlus, AlertCircle, ChevronDown, Swords } from 'lucide-react';
 import { sounds } from '@/lib/gameSounds';
 import {
   loadOnlinePlayerSelection,
   ONLINE_PLAYER_SELECTION_GROUPS,
 } from '@/lib/onlinePlayerSelection';
 import { PRESENCE_REFRESH_MS } from '@/lib/presence';
+import KronoxAvatar from '@/components/profile/KronoxAvatar';
 
 /**
  * Kronox Online — Friend Select Modal (Codex159 redesign).
@@ -312,7 +313,6 @@ function GroupedPlayerList({ players, selected, onToggle }) {
 
 function PlayerRow({ player, selected, capped, onToggle }) {
   const display = player?.username || player?.display_name || 'Oyuncu';
-  const initial = (display || '?').charAt(0).toUpperCase();
   const isOnline = Boolean(player?.online);
 
   return (
@@ -335,20 +335,7 @@ function PlayerRow({ player, selected, capped, onToggle }) {
           }}
         />
 
-        {/* Avatar */}
-        <div
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
-          style={{
-            background: 'radial-gradient(circle at 35% 28%, #93c5fd, #1d4ed8 75%)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4), 0 0 8px rgba(59,130,246,0.32)',
-          }}
-        >
-          {initial ? (
-            <span className="font-bangers text-base text-blue-950">{initial}</span>
-          ) : (
-            <UserRound className="h-5 w-5 text-blue-950" strokeWidth={2.6} />
-          )}
-        </div>
+        <KronoxAvatar profile={player} initial={display} size={40} className="shrink-0" />
 
         {/* Name + status text */}
         <div className="min-w-0 flex-1">

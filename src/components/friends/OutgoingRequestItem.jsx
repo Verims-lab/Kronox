@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { UserRound, X, Loader2 } from 'lucide-react';
+import { X, Loader2 } from 'lucide-react';
 import GameInviteStatusPill from '@/components/friends/GameInviteStatusPill';
 import { getSafeRequestTargetName } from '@/lib/publicIdentity';
 import { isFriendRequestExpired } from '@/lib/friendsApi';
+import KronoxAvatar from '@/components/profile/KronoxAvatar';
 
 /**
  * One pending request the current user has sent — can be cancelled.
@@ -42,12 +43,7 @@ export default function OutgoingRequestItem({ request, onCancel }) {
       }}
     >
       <div className="flex items-center gap-3">
-        <div
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/5"
-          style={{ boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.10)' }}
-        >
-          <UserRound className="h-4 w-4 text-blue-100/70" />
-        </div>
+        <KronoxAvatar profile={request} initial={display} size={36} className="shrink-0" />
         <div className="min-w-0 flex-1">
           <p className="truncate font-inter text-sm font-bold text-white/90">{display}</p>
           <div className="mt-0.5 flex items-center gap-1.5">

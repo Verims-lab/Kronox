@@ -63,10 +63,62 @@ const getLobbyExpiry = (lobby: any) => {
 
 const normalizeEmail = (value: unknown) => String(value || '').trim().toLowerCase();
 const KRONOX_ID_PATTERN = /^KX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
+const AVATAR_ICON_IDS = new Set([
+  'shield', 'helmet', 'sword', 'crown', 'trophy', 'hourglass', 'clock', 'timer',
+  'calendar', 'portal', 'wand', 'scroll', 'crystal', 'planet', 'rocket', 'orbit',
+  'telescope', 'book', 'compass', 'brain', 'landmark', 'lightning', 'flame',
+  'moon', 'sun', 'star',
+]);
+const AVATAR_COLOR_IDS = new Set(['gold', 'cyan', 'violet', 'emerald', 'rose', 'blue']);
 
 function normalizeKronoxUserId(value: unknown) {
   const text = String(value || '').trim().toUpperCase();
   return KRONOX_ID_PATTERN.test(text) ? text : '';
+}
+
+function normalizeAvatarColorId(value: unknown) {
+  const text = String(value || '').trim();
+  return AVATAR_COLOR_IDS.has(text) ? text : 'gold';
+}
+
+function isSafeAvatarPhotoUrl(value: unknown) {
+  const text = String(value || '').trim();
+  if (!text || text.length > 2048) return false;
+  try {
+    return new URL(text).protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+function readSafeAvatarPhotoUrl(row: any = {}) {
+  const candidates = [
+    row?.avatar_url,
+    row?.avatarUrl,
+    row?.avatar_image_url,
+    row?.avatarImageUrl,
+    row?.profile_avatar_url,
+    row?.profileAvatarUrl,
+  ];
+  for (const value of candidates) {
+    if (isSafeAvatarPhotoUrl(value)) return String(value).trim();
+  }
+  return '';
+}
+
+function pickPublicAvatarFields(row: any = {}) {
+  const type = String(row?.avatar_type || '').trim();
+  const iconId = String(row?.avatar_icon_id || '').trim();
+  const colorId = normalizeAvatarColorId(row?.avatar_color_id);
+  const avatarUrl = readSafeAvatarPhotoUrl(row);
+
+  if ((type === 'photo' || !type) && avatarUrl) {
+    return { avatar_type: 'photo', avatar_icon_id: '', avatar_color_id: colorId, avatar_url: avatarUrl };
+  }
+  if ((type === 'icon' || !type) && AVATAR_ICON_IDS.has(iconId)) {
+    return { avatar_type: 'icon', avatar_icon_id: iconId, avatar_color_id: colorId, avatar_url: '' };
+  }
+  return { avatar_type: '', avatar_icon_id: '', avatar_color_id: colorId, avatar_url: '' };
 }
 
 const readRevision = (value: unknown) => {
@@ -120,6 +172,11 @@ const getInvitePlayerName = (user: any, invite: any) =>
     (user?.email || invite?.to_email || '').split('@')[0] ||
     'Oyuncu',
   ).trim().slice(0, 15) || 'Oyuncu';
+
+async function findCurrentUserRow(base44: any, user: any, email: string) {
+  const rows = await base44.asServiceRole.entities.User.filter({ email }, '-updated_date', 1).catch(() => []);
+  return rows?.[0] || user || null;
+}
 
 const appendPlayerWithMergeRetry = async (base44: any, lobby: any, newPlayer: any) => {
   const delays = [0, 120, 260];
@@ -202,6 +259,7 @@ Deno.serve(async (req) => {
 
     const myEmail = String(user.email || '').trim().toLowerCase();
     const toEmail = String(invite.to_email || '').trim().toLowerCase();
+    const currentUser = await findCurrentUserRow(base44, user, myEmail);
 
     if (toEmail !== myEmail) {
       return Response.json({ code: 'unauthorized', error: 'Bu davet sana ait değil' }, { status: 403 });
@@ -213,9 +271,10 @@ Deno.serve(async (req) => {
           let returnLobby = acceptedLobby;
           if (acceptedLobby.status === 'waiting') {
             const newPlayer = {
-              kronox_user_id: normalizeKronoxUserId(invite?.to_kronox_user_id || user?.kronox_user_id),
+              kronox_user_id: normalizeKronoxUserId(invite?.to_kronox_user_id || currentUser?.kronox_user_id || user?.kronox_user_id),
               email: user.email,
               name: getInvitePlayerName(user, invite),
+              ...pickPublicAvatarFields(currentUser),
               ready: true,
               cards: [],
             };
@@ -290,9 +349,10 @@ Deno.serve(async (req) => {
     const nowIso = new Date().toISOString();
     const acceptedPlayerName = getInvitePlayerName(user, invite);
     const newPlayer = {
-      kronox_user_id: normalizeKronoxUserId(invite?.to_kronox_user_id || user?.kronox_user_id),
+      kronox_user_id: normalizeKronoxUserId(invite?.to_kronox_user_id || currentUser?.kronox_user_id || user?.kronox_user_id),
       email: user.email,
       name: acceptedPlayerName,
+      ...pickPublicAvatarFields(currentUser),
       ready: true,
       cards: [],
     };
@@ -309,8 +369,8 @@ Deno.serve(async (req) => {
     const updatedInvite = await base44.asServiceRole.entities.GameInvite.update(inviteId, {
       status: 'accepted',
       accepted_at: nowIso,
-      ...(normalizeKronoxUserId(invite?.to_kronox_user_id || user?.kronox_user_id) ? {
-        to_kronox_user_id: normalizeKronoxUserId(invite?.to_kronox_user_id || user?.kronox_user_id),
+      ...(normalizeKronoxUserId(invite?.to_kronox_user_id || currentUser?.kronox_user_id || user?.kronox_user_id) ? {
+        to_kronox_user_id: normalizeKronoxUserId(invite?.to_kronox_user_id || currentUser?.kronox_user_id || user?.kronox_user_id),
       } : {}),
       to_name: acceptedPlayerName,
     });

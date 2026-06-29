@@ -1,4 +1,5 @@
 import { base44 } from '@/api/base44Client';
+import { pickPublicAvatarFields } from '@/lib/avatarOptions';
 
 export const ONLINE_PLAYER_SELECTION_GROUPS = Object.freeze({
   ONLINE_FRIEND: 'online_friend',
@@ -82,6 +83,7 @@ export function normalizeOnlinePlayerSelectionRow(row) {
     status_label: getOnlinePlayerSelectionStatusLabel({ status: group === ONLINE_PLAYER_SELECTION_GROUPS.OFFLINE_FRIEND ? 'offline' : 'online' }),
     badge_label: getOnlinePlayerSelectionBadgeLabel(row),
     last_seen_at: row?.last_seen_at || null,
+    ...pickPublicAvatarFields(row),
   };
 }
 

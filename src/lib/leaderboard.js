@@ -3,6 +3,7 @@ import { backfillSoloScores, summarizeSoloProgress } from './soloProgressHelpers
 import { getDiamondBalance } from './diamondEconomy';
 import { isSafePublicUsername, resolveSafePublicUsername } from './guestProfile';
 import { getKronoxUserId } from './kronoxUserId';
+import { pickPublicAvatarFields } from './avatarOptions';
 
 export const LEADERBOARD_TOP_LIMIT = 10;
 export const LEADERBOARD_FETCH_LIMIT = 500;
@@ -121,6 +122,7 @@ export function buildSoloLeaderboardPayload(user, progress, totalLevels = LEADER
     username: displayName,
     display_name: displayName,
     initial: initialFromName(displayName),
+    ...pickPublicAvatarFields(user),
     total_kronox_score: totalKronoxScore,
     total_solo_score: totalSoloScore,
     online_score: onlineScore,
@@ -150,6 +152,7 @@ export function buildGuestSoloLeaderboardPayload(guestProfile, progress, totalLe
     username: displayName,
     display_name: displayName,
     initial: initialFromName(displayName),
+    ...pickPublicAvatarFields(guestProfile),
     total_kronox_score: totalSoloScore,
     total_solo_score: totalSoloScore,
     online_score: 0,
@@ -315,6 +318,7 @@ export function toSoloLeaderboardEntry(publicRow, friendKeySet = new Set(), curr
     ownerKey,
     displayName,
     initial: cleanDisplayText(publicRow?.initial).slice(0, 1) || initialFromName(displayName),
+    ...pickPublicAvatarFields(publicRow),
     summary: {
       totalKronoxScore,
       totalSoloScore: soloScore,

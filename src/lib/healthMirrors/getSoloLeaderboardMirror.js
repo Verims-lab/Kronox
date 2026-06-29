@@ -17,7 +17,9 @@
 //   compact fields. Full User rows and internal owner_key/display_name values
 //   never leave the function. Completed guests can pass guest_id + guest_token
 //   proof; the function verifies a completed GuestProfile, uses an internal
-//   g_ owner key, and still returns only username plus opaque leaderboard_id.
+//   g_ owner key, and still returns only username plus opaque leaderboard_id
+//   plus safe avatar_type/avatar_icon_id/avatar_color_id/avatar_url visual
+//   metadata.
 //   It is read
 //   ONLY by Health static-contract checks. Change the real function and this
 //   mirror together — Health fails if any required phrase is missing, so a
@@ -30,8 +32,9 @@ export const GET_SOLO_LEADERBOARD_SOURCE = `// getSoloLeaderboard — public-saf
 // server-side User.list('-kronox_puan_total', limit) repair window so stale
 // or incomplete projection rows cannot claim a false global rank. No email,
 // notification settings, auth/private profile fields, push/device data, or
-// full User rows leave this function. Public rows return username and
-// leaderboard_id; owner_key/display_name stay internal only and display_name
+// full User rows leave this function. Public rows return username,
+// leaderboard_id, and safe avatar_type/avatar_icon_id/avatar_color_id/avatar_url
+// visual metadata; owner_key/display_name stay internal only and display_name
 // is not used as a public identity fallback. Public rows strip raw email,
 // provider ids, raw guest id, owner_key, player_key, guest_id, guest_token,
 // and display_name.
@@ -59,6 +62,21 @@ async function resolveLeaderboardActor(base44, body) {
 
 function publicLeaderboardId(ownerKey) {
   return 'lb_' + hash(ownerKey);
+}
+
+function pickPublicAvatarFields(source) {
+  const avatarUrl = readSafeAvatarPhotoUrl(source);
+  return {
+    avatar_type: source?.avatar_type || null,
+    avatar_icon_id: source?.avatar_icon_id || null,
+    avatar_color_id: source?.avatar_color_id || null,
+    avatar_url: avatarUrl || null,
+  };
+}
+
+function readSafeAvatarPhotoUrl(source) {
+  return [source?.avatar_url, source?.avatarUrl, source?.avatar_image_url, source?.profileAvatarUrl]
+    .find((value) => typeof value === 'string' && value.startsWith('https://')) || '';
 }
 
 function safePublicUsername(source, ownerKey) {
@@ -90,6 +108,7 @@ function toProjectionLeaderboardRow(row) {
     total_stars: row?.total_stars,
     completed_level_count: row?.completed_level_count,
     updated_at: row?.updated_at || new Date().toISOString(),
+    ...pickPublicAvatarFields(row),
   };
 }
 
@@ -108,6 +127,7 @@ function toPublicLeaderboardRow(row) {
     current_level: row?.current_level,
     isCurrentUser: row?.isCurrentUser === true,
     isFriend: row?.isFriend === true,
+    ...pickPublicAvatarFields(row),
   };
 }
 

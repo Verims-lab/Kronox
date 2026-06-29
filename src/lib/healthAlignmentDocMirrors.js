@@ -42,6 +42,7 @@ Status: Active product workflow contract.
 - Eğitime Devam is only for true tutorial_in_progress; tutorial_completed routes to profile setup, profile complete plus category pending routes to category selection, and onboarding_complete routes to Ana Sayfa.
 - Home / Ana Sayfa must not render Google, Apple, Email, Hesabını bağla, or progress-protection account-link CTAs; account linking belongs under Profile. The first-launch welcome may show Hesabım Var only as a route to Profile account connection, not as an inline provider/login surface.
 - Public identity is username. display_name / Görünen Ad is a legacy/internal projection mirror, not a separate public editable identity or public leaderboard response field.
+- Profile avatar fields are public visual metadata only: public rows may carry sanitized avatar_type, avatar_icon_id, avatar_color_id, and avatar_url, but username remains the public identity and private identifiers/storage metadata stay forbidden.
 - kronox_user_id is the immutable canonical app user identity for backend-owned relationships and support/admin correlation. It is system-assigned, opaque, non-sequential, preserved through guest-to-account linking, never user-editable, and never reused after deletion. It is not authorization proof; server-side ownership and access-control checks remain required.
 - Friends can be added by email address or registered Kronox username. Username lookup is backend-owned and username-based add responses must not reveal the target email. FriendRequest sends use a function-level FriendRequestOperationLock race guard because DB/entity unique constraints are not repo-proven.
 - Category selection uses current active Category metadata and getCategoryMetadata; stale hardcoded category fallback arrays and old seed category names are forbidden as runtime fallbacks.
@@ -79,6 +80,7 @@ Status: Active technical flow contract.
 - startLobbyGame owns the Online shared deck. Online does not read Solo preference weighting or guest Solo projection.
 - sendQuestionAnalyticsReportEmail is admin-only, email-body-only, exactly nine sections, with anonymized User0001-style per-player coverage where used.
 - Public assets must not contain secrets, tokens, question bank, answer years, internal IDs, raw guest IDs/tokens, provider IDs, or private user data.
+- Public avatar projection may include only sanitized avatar_type, avatar_icon_id, avatar_color_id, and https avatar_url visual metadata; it must not expose email, provider IDs, owner_key, raw guest IDs, internal player keys, auth IDs, or raw storage metadata.
 - Health static alignment can check docs/source contracts, but real device, two-account, Base44 deployment, push, RLS/BOLA, and store-wrapper proof remain manual.
 - Uploaded kronox-teknik-dokuman.pdf and kronox-is-akisi.pdf are stale Codex040-era references unless regenerated from current source.
 `;
@@ -184,6 +186,10 @@ and player selection surfaces render username-safe labels only; email, provider
 ID, raw guest ID, kronox_user_id, owner_key, and internal player_key values are
 never public display fallbacks. The UI stores opaque target_ref values and
 backend functions resolve recipient email privately for GameInvite creation.
+Profile avatar fields are public visual metadata only. Public rows may carry
+only sanitized avatar_type, avatar_icon_id, avatar_color_id, and avatar_url;
+username remains the public identity, and email/provider/owner/raw guest/internal
+player/auth/storage fields stay forbidden in public avatar payloads.
 
 Friends can be added by email address or registered Kronox username. Username
 lookup and duplicate/self checks stay backend-owned, and username-based add
@@ -260,11 +266,12 @@ The Online lobby/start/reconnect contract remains an architecture target and
 manual live-proof area even when reducer/static Health checks pass.
 Static Health coverage now exists for the strongest current UX contracts:
 Profile/Settings route ownership, BottomNav ownership, own leaderboard-row
-navigation, public identifier privacy with no email/provider/owner/raw guest/internal identifiers, Solo/Online active question long-word
+navigation, global avatar propagation with safe public avatar fields, public identifier privacy with no email/provider/owner/raw guest/internal identifiers, Solo/Online active question long-word
 fit, focused visual scope, heavy-effect manual proof gates, Timeline visual safety, and asset/readiness
 docs. Manual proof remains required for mobile route walkthrough, PWA/native
-wrapper navigation, real touch drag, failure-injection UI timing, low-end
-Android/WebView smoothness, and bundle/device image-decode behavior.
+wrapper navigation, real touch drag, failure-injection UI timing, avatar visual
+proof across leaderboard/friends/lobby/invites/header, low-end Android/WebView
+smoothness, and bundle/device image-decode behavior.
 `;
 
 export const DB_REPORTING_READINESS_DOC = `# Kronox DB Reporting Readiness
@@ -429,6 +436,9 @@ gameplay selection. BottomNav remains exactly \`Ana Sayfa\`, \`Liderlik\`, \`Pro
 Public identity is username only. Do not render email, provider ID, owner_key,
 raw guest_id, kronox_user_id, internal player_key, raw guest token, answer
 years, correct answers, or full question bank content in public UI.
+Safe profile avatars may appear in public rows only as avatar_type,
+avatar_icon_id, avatar_color_id, and https avatar_url visual metadata; username
+remains the public identity.
 
 Prefer transform and opacity for animation. Avoid layout-heavy animation,
 repeated blur loops, and large glowing stacks around gameplay. Do not introduce GSAP, Motion, or a new animation library unless a future task explicitly
@@ -451,6 +461,7 @@ Status: Active profile/onboarding contract.
 - Joker Çantası uses UserJokerInventory current balances through getUserJokerBalances; JokerTransaction is ledger/audit only and is not a Profile render-time balance source.
 - User Category preferences are Solo-only soft 70/30 weighting input when at least 3 active valid preferences exist. Empty or fewer-than-3 preferences use all active categories for Solo. Online question selection is not affected. Kategori seçimi is edited from Profile > Profil Bilgileri for authenticated users through UserCategoryPreference; Settings owns privacy/account actions instead.
 - GuestProfile public identity uses username; display_name is only a legacy/internal projection mirror and is not a public fallback identity. Email, Google ID, Apple ID, provider UID, raw guest id, kronox_user_id, internal owner_key, and internal player_key values are not public display names outside the current player's own Profile Info support row.
+- Profile avatar is public visual metadata only: avatar_type, avatar_icon_id, avatar_color_id, and https avatar_url may propagate to leaderboard, friends, Online player selection, lobby, invites, notifications, and header rows; username remains the public identity.
 - GuestProfile is app-owned; Firebase anonymous auth and Base44 anonymous auth are not used. Default username format is KronoxUser#### / KronoxUser#####.
 - Profile > Profil Bilgileri exposes username plus optional private age_group and gender for guest and authenticated users, and may show the current player's immutable kronox_user_id as read-only/copyable Kullanıcı ID. The Profile Info row actively ensures/backfills the ID for the current owner; Hazırlanıyor is loading-only and failure shows Kullanıcı ID hazırlanamadı with retry. The Profile landing routes Profil Bilgileri, Arkadaşlarım, and Ayarlar to dedicated screens; Gizlilik Politikası and Hesabı Sil live under Settings, with signed-in deletion still guarded by the in-app confirmation flow. age is a legacy/private compatibility field; current Profile edit UI collects age_group only and does not ask for exact birthdate or exact age. age, age_group, gender, and kronox_user_id are private/support fields only and must not appear in public leaderboard rows, public projections, scoring, matchmaking, Solo category weighting, or Online game selection. getSoloLeaderboard returns sanitized username plus opaque leaderboard_id and strips owner_key/display_name/email/provider ids/raw guest id/kronox_user_id/internal player_key; completed guests can open Liderlik and appear only as username.
 - Guest account linking is implemented through linkGuestAccount and belongs under Profile. It preserves guest Diamonds, Daily Wheel/Daily Quest guard fields/history, leaderboard username identity, category preferences, progress, and inventory where applicable. Home / Ana Sayfa must not render Google, Apple, email, Hesabını bağla, or progress-protection account-link prompts. The first-launch welcome may show only Hesabım Var as a secondary route into the Profile account-connection card; it must not duplicate Apple / Google / Email buttons.

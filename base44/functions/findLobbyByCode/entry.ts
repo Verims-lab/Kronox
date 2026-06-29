@@ -19,11 +19,63 @@ const normalizeCode = (code) =>
 
 const normalizeEmail = (value) => String(value || '').trim().toLowerCase();
 const KRONOX_ID_PATTERN = /^KX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
+const AVATAR_ICON_IDS = new Set([
+  'shield', 'helmet', 'sword', 'crown', 'trophy', 'hourglass', 'clock', 'timer',
+  'calendar', 'portal', 'wand', 'scroll', 'crystal', 'planet', 'rocket', 'orbit',
+  'telescope', 'book', 'compass', 'brain', 'landmark', 'lightning', 'flame',
+  'moon', 'sun', 'star',
+]);
+const AVATAR_COLOR_IDS = new Set(['gold', 'cyan', 'violet', 'emerald', 'rose', 'blue']);
 
 const normalizeKronoxUserId = (value) => {
   const text = String(value || '').trim().toUpperCase();
   return KRONOX_ID_PATTERN.test(text) ? text : '';
 };
+
+function normalizeAvatarColorId(value) {
+  const text = String(value || '').trim();
+  return AVATAR_COLOR_IDS.has(text) ? text : 'gold';
+}
+
+function isSafeAvatarPhotoUrl(value) {
+  const text = String(value || '').trim();
+  if (!text || text.length > 2048) return false;
+  try {
+    return new URL(text).protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+function readSafeAvatarPhotoUrl(row = {}) {
+  const candidates = [
+    row?.avatar_url,
+    row?.avatarUrl,
+    row?.avatar_image_url,
+    row?.avatarImageUrl,
+    row?.profile_avatar_url,
+    row?.profileAvatarUrl,
+  ];
+  for (const value of candidates) {
+    if (isSafeAvatarPhotoUrl(value)) return String(value).trim();
+  }
+  return '';
+}
+
+function pickPublicAvatarFields(row = {}) {
+  const type = String(row?.avatar_type || '').trim();
+  const iconId = String(row?.avatar_icon_id || '').trim();
+  const colorId = normalizeAvatarColorId(row?.avatar_color_id);
+  const avatarUrl = readSafeAvatarPhotoUrl(row);
+
+  if ((type === 'photo' || !type) && avatarUrl) {
+    return { avatar_type: 'photo', avatar_icon_id: '', avatar_color_id: colorId, avatar_url: avatarUrl };
+  }
+  if ((type === 'icon' || !type) && AVATAR_ICON_IDS.has(iconId)) {
+    return { avatar_type: 'icon', avatar_icon_id: iconId, avatar_color_id: colorId, avatar_url: '' };
+  }
+  return { avatar_type: '', avatar_icon_id: '', avatar_color_id: colorId, avatar_url: '' };
+}
 
 const readRevision = (value) => {
   const revision = Number(value);
@@ -231,6 +283,7 @@ Deno.serve(async (req) => {
         kronox_user_id: myKronoxUserId,
         email: user.email,
         name: playerName,
+        ...pickPublicAvatarFields(currentUser),
         ready: true,
         cards: [],
       };

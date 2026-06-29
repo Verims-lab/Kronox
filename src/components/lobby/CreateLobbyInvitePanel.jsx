@@ -7,7 +7,6 @@ import {
   Loader2,
   AlertCircle,
   Users,
-  UserRound,
   UserPlus,
 } from 'lucide-react';
 import GoldButton from '@/components/ui/GoldButton';
@@ -15,6 +14,7 @@ import { sounds } from '@/lib/gameSounds';
 import IncomingInvitesPanel from '@/components/invites/IncomingInvitesPanel';
 import { loadOnlinePlayerSelection } from '@/lib/onlinePlayerSelection';
 import { PRESENCE_REFRESH_MS } from '@/lib/presence';
+import KronoxAvatar from '@/components/profile/KronoxAvatar';
 
 /**
  * New create-lobby/invite screen shown when the user taps
@@ -149,7 +149,7 @@ export default function CreateLobbyInvitePanel({
 
   const userIdentity = useMemo(() => {
     const display = user?.username?.trim() || user?.public_username?.trim() || user?.full_name?.trim() || 'Oyuncu';
-    return { display, initial: (display || '?').charAt(0).toUpperCase() };
+    return { display, profile: user };
   }, [user]);
 
   /* ---------------- render ---------------- */
@@ -327,7 +327,7 @@ function SectionLabel({ icon: Icon, text, tail }) {
   );
 }
 
-function SelfCard({ display, initial }) {
+function SelfCard({ display, profile }) {
   return (
     <div
       className="rounded-2xl p-3 flex items-center gap-3"
@@ -338,15 +338,7 @@ function SelfCard({ display, initial }) {
           'inset 0 0 0 1.5px rgba(250,204,21,0.45), inset 0 1px 0 rgba(255,255,255,0.08), 0 0 18px rgba(250,204,21,0.18), 0 8px 16px rgba(2,6,23,0.5)',
       }}
     >
-      <div
-        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full"
-        style={{
-          background: 'radial-gradient(circle at 35% 28%, #ffe066, #b97a06 70%)',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.45), 0 0 14px rgba(250,204,21,0.5)',
-        }}
-      >
-        <span className="font-bangers text-2xl text-amber-950">{initial}</span>
-      </div>
+      <KronoxAvatar profile={profile} initial={display} size={48} className="shrink-0" />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 min-w-0">
           <Crown className="h-4 w-4 shrink-0 text-amber-300" />
@@ -431,19 +423,7 @@ function FriendInviteRow({ player, selected, disabled, onToggle }) {
         aria-pressed={selected}
       >
         <div className="relative shrink-0">
-          <div
-            className="flex h-10 w-10 items-center justify-center rounded-full"
-            style={{
-              background: selected
-                ? 'radial-gradient(circle at 35% 28%, #93c5fd, #1d4ed8 75%)'
-                : 'radial-gradient(circle at 35% 28%, #ffe066, #b97a06 70%)',
-              boxShadow: selected
-                ? 'inset 0 1px 0 rgba(255,255,255,0.35), 0 0 10px rgba(59,130,246,0.35)'
-                : 'inset 0 1px 0 rgba(255,255,255,0.4), 0 0 10px rgba(250,204,21,0.35)',
-            }}
-          >
-            <UserRound className={selected ? 'h-5 w-5 text-blue-950' : 'h-5 w-5 text-amber-950'} strokeWidth={2.6} />
-          </div>
+          <KronoxAvatar profile={player} initial={display} size={40} />
           <span
             aria-hidden="true"
             className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full"

@@ -9,6 +9,7 @@ import { navigateToOnlineGame } from '@/lib/onlineGameNavigation';
 import { summarizePlayers } from '@/lib/lobbyUtils';
 import { debugLog, debugWarn } from '@/lib/debugLog';
 import { pushAppDiag } from '@/lib/appDiagBus';
+import KronoxAvatar from '@/components/profile/KronoxAvatar';
 
 // Codex131 — Lobby simplification:
 //   "Oyun Ayarları" host panel and the non-host settings summary were
@@ -276,19 +277,7 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
                     'inset 0 0 0 1px rgba(120,170,255,0.28), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -6px 8px rgba(0,0,0,0.35)',
                 }}
               >
-                <div
-                  className="w-9 h-9 rounded-full flex items-center justify-center font-cinzel font-black text-sm"
-                  style={{
-                    background: i === 0
-                      ? 'radial-gradient(circle at 35% 28%, #ffe066, #b97a06 70%)'
-                      : 'radial-gradient(circle at 35% 28%, #60a5fa, #1e3a8a 70%)',
-                    color: i === 0 ? '#1a1006' : '#ffffff',
-                    boxShadow:
-                      'inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -4px 6px rgba(0,0,0,0.35), 0 0 10px rgba(0,0,0,0.45)',
-                  }}
-                >
-                  {p.name?.[0]?.toUpperCase()}
-                </div>
+                <KronoxAvatar profile={p} initial={p.name} size={36} className="shrink-0" />
                 <span className="font-inter text-white/95 flex-1">{p.name}</span>
                 {i === 0 && (
                   <span

@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex490 — Global avatar propagation and bundled icon set:
+//   • Public leaderboard, friend, player-select, lobby, invite, request, and header surfaces now render the shared KronoxAvatar.
+//   • Public projections carry only sanitized avatar_type/icon/color/url visual metadata while username remains the public identity.
+//   • Avatar picker groups a broader app-local lucide icon set into Kronox categories; no runtime icon hotlinks.
+//
 // Codex489 — Health blocker alignment for Settings delete, Daily Quest v1, Admin visibility, SDK pin:
 //   • Settings exposes one "Hesabı Sil" row that opens the existing two-step shared requestAccountDeletion flow.
 //   • Daily Quest Health/docs now protect Runtime v1: canonical solo_level_complete, no admin definition UI, no DB definition bloat.
@@ -101,7 +106,7 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps Home reward panels visible from a short-lived cache while revalidating and memoizes question text fit tokens.
 //
 
-const BUILD_MARKER = 'Codex489';
+const BUILD_MARKER = 'Codex490';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

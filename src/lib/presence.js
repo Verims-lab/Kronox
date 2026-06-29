@@ -1,4 +1,5 @@
 import { base44 } from '@/api/base44Client';
+import { pickPublicAvatarFields } from '@/lib/avatarOptions';
 
 export const PRESENCE_ONLINE_TTL_MS = 75 * 1000;
 export const PRESENCE_HEARTBEAT_MS = 25 * 1000;
@@ -49,6 +50,7 @@ export function getFriendDisplayPresence(friend, presenceByKey = {}, nowMs = Dat
     status: online ? PRESENCE_STATUS.ONLINE : PRESENCE_STATUS.OFFLINE,
     label: online ? 'Çevrimiçi' : 'Çevrim dışı',
     lastSeenAt: presence?.last_heartbeat_at || presence?.last_seen_at || null,
+    ...pickPublicAvatarFields(presence?.avatar_type ? presence : friend),
   };
 }
 

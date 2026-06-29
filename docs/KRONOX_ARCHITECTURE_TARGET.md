@@ -189,6 +189,11 @@ Parity plan:
 - Friend, invite, lobby, notification, and presence surfaces must render
   username-safe labels only. Emails, provider IDs, raw guest IDs, owner keys,
   and internal player keys are never public display fallbacks.
+- Profile avatar fields are public visual metadata only. Public rows may carry
+  only sanitized `avatar_type`, `avatar_icon_id`, `avatar_color_id`, and
+  `avatar_url`; username remains the public identity, and email, provider IDs,
+  owner keys, raw guest IDs, internal player keys, auth IDs, and raw storage
+  metadata remain forbidden in public avatar payloads.
 - Presence is best-effort and relationship-scoped: the current user can only
   heartbeat their own session, friend lookup is restricted to accepted
   friendships, and stale/missing presence displays offline rather than online.

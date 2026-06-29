@@ -3,6 +3,13 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 const DEFAULT_LIMIT = 200;
 const MAX_LIMIT = 500;
 const JOB_NAME = 'refreshLeaderboardProjection';
+const AVATAR_ICON_IDS = new Set([
+  'shield', 'helmet', 'sword', 'crown', 'trophy', 'hourglass', 'clock', 'timer',
+  'calendar', 'portal', 'wand', 'scroll', 'crystal', 'planet', 'rocket', 'orbit',
+  'telescope', 'book', 'compass', 'brain', 'landmark', 'lightning', 'flame',
+  'moon', 'sun', 'star',
+]);
+const AVATAR_COLOR_IDS = new Set(['gold', 'cyan', 'violet', 'emerald', 'rose', 'blue']);
 
 function json(payload: unknown, status = 200) {
   return Response.json(payload, { status });
@@ -133,6 +140,51 @@ function getDisplayName(user: any) {
   return String(user?.display_name || user?.full_name || user?.name || 'Kronox Oyuncusu').trim();
 }
 
+function normalizeAvatarColorId(value: unknown) {
+  const text = String(value || '').trim();
+  return AVATAR_COLOR_IDS.has(text) ? text : 'gold';
+}
+
+function isSafeAvatarPhotoUrl(value: unknown) {
+  const text = String(value || '').trim();
+  if (!text || text.length > 2048) return false;
+  try {
+    return new URL(text).protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+function readSafeAvatarPhotoUrl(row: any = {}) {
+  const candidates = [
+    row?.avatar_url,
+    row?.avatarUrl,
+    row?.avatar_image_url,
+    row?.avatarImageUrl,
+    row?.profile_avatar_url,
+    row?.profileAvatarUrl,
+  ];
+  for (const value of candidates) {
+    if (isSafeAvatarPhotoUrl(value)) return String(value).trim();
+  }
+  return '';
+}
+
+function pickPublicAvatarFields(row: any = {}) {
+  const type = String(row?.avatar_type || '').trim();
+  const iconId = String(row?.avatar_icon_id || '').trim();
+  const colorId = normalizeAvatarColorId(row?.avatar_color_id);
+  const avatarUrl = readSafeAvatarPhotoUrl(row);
+
+  if ((type === 'photo' || !type) && avatarUrl) {
+    return { avatar_type: 'photo', avatar_icon_id: '', avatar_color_id: colorId, avatar_url: avatarUrl };
+  }
+  if ((type === 'icon' || !type) && AVATAR_ICON_IDS.has(iconId)) {
+    return { avatar_type: 'icon', avatar_icon_id: iconId, avatar_color_id: colorId, avatar_url: '' };
+  }
+  return { avatar_type: '', avatar_icon_id: '', avatar_color_id: colorId, avatar_url: '' };
+}
+
 function getSoloSummary(progress: any) {
   const summary = progress?.summary && typeof progress.summary === 'object' ? progress.summary : {};
   const levels = progress?.levels && typeof progress.levels === 'object' ? progress.levels : {};
@@ -218,6 +270,7 @@ Deno.serve(async (req: Request) => {
       ...(String(user?.kronox_user_id || '').trim() ? { kronox_user_id: String(user.kronox_user_id).trim() } : {}),
       display_name: getDisplayName(user),
       initial: getInitial(user),
+      ...pickPublicAvatarFields(user),
       total_kronox_score: totalScore,
       total_solo_score: solo.totalSoloScore,
       online_score: onlineScore,

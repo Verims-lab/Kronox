@@ -1,3 +1,5 @@
+import { pickPublicAvatarFields } from './avatarOptions';
+
 export function generateCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
@@ -50,6 +52,7 @@ export function buildPlayerPayload(user, playerName) {
       ...(kronoxUserId ? { kronox_user_id: kronoxUserId } : {}),
       email: player.email,
       name: trimmedName,
+      ...pickPublicAvatarFields(player),
       ready: true,
       cards: [],
     },

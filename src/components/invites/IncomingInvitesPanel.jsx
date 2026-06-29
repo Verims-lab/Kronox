@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mailbox, Loader2, Check, X, AlertCircle, Crown } from 'lucide-react';
+import { Mailbox, Loader2, Check, X, AlertCircle } from 'lucide-react';
 import {
   openNotificationCenterGameInvite,
   rejectNotificationCenterGameInvite,
@@ -11,6 +11,7 @@ import { isGameInviteExpired } from '@/lib/gameInviteSelectors';
 import { getSafeNotificationActorName } from '@/lib/notificationIdentity';
 import { sounds } from '@/lib/gameSounds';
 import InviteCountdown from '@/components/invites/InviteCountdown';
+import KronoxAvatar from '@/components/profile/KronoxAvatar';
 
 /**
  * "Oyun Davetleri" — pending GameInvite rows addressed to the current user.
@@ -148,15 +149,7 @@ function InviteRow({ invite, busy, onAccept, onReject }) {
           'inset 0 0 0 1.5px rgba(250,204,21,0.40), inset 0 1px 0 rgba(255,255,255,0.08), 0 0 18px rgba(250,204,21,0.18), 0 8px 16px rgba(2,6,23,0.5)',
       }}
     >
-      <div
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
-        style={{
-          background: 'radial-gradient(circle at 35% 28%, #ffe066, #b97a06 70%)',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.45), 0 0 12px rgba(250,204,21,0.5)',
-        }}
-      >
-        <Crown className="h-5 w-5 text-amber-950" strokeWidth={2.6} />
-      </div>
+      <KronoxAvatar profile={invite} initial={display} size={40} className="shrink-0" />
       <div className="min-w-0 flex-1">
         <p className="truncate font-inter text-sm font-bold text-white">{display}</p>
         <p className="truncate font-inter text-[11px] text-blue-100/65">

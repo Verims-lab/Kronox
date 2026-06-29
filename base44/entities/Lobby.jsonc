@@ -33,6 +33,27 @@
           "name": {
             "type": "string"
           },
+          "avatar_type": {
+            "type": "string",
+            "enum": [
+              "",
+              "icon",
+              "photo"
+            ],
+            "description": "Safe public avatar kind copied from the player profile for waiting-room display."
+          },
+          "avatar_icon_id": {
+            "type": "string",
+            "description": "Bundled app-local avatar icon id copied from the player profile."
+          },
+          "avatar_url": {
+            "type": "string",
+            "description": "Safe HTTPS uploaded avatar photo URL copied from the player profile. No raw guest id/provider id/storage metadata."
+          },
+          "avatar_color_id": {
+            "type": "string",
+            "description": "Safe avatar color/style token copied from the player profile."
+          },
           "ready": {
             "type": "boolean"
           },

@@ -11,23 +11,42 @@
 // Photo avatars store only the safe uploaded file URL — never base64 blobs in
 // the profile row, and never private/internal IDs.
 
+export const KRONOX_AVATAR_ICON_CATEGORIES = [
+  { id: 'heroes', label: 'Kahramanlar' },
+  { id: 'time', label: 'Zaman' },
+  { id: 'mythic', label: 'Mitik' },
+  { id: 'space', label: 'Uzay' },
+  { id: 'wisdom', label: 'Bilgelik' },
+  { id: 'energy', label: 'Enerji' },
+];
+
 export const KRONOX_AVATAR_ICONS = [
-  { id: 'shield', label: 'Kalkan' },
-  { id: 'hourglass', label: 'Kum Saati' },
-  { id: 'lightning', label: 'Şimşek' },
-  { id: 'crown', label: 'Taç' },
-  { id: 'compass', label: 'Pusula' },
-  { id: 'star', label: 'Yıldız' },
-  { id: 'book', label: 'Kitap' },
-  { id: 'flame', label: 'Alev' },
-  { id: 'moon', label: 'Ay' },
-  { id: 'planet', label: 'Gezegen' },
-  { id: 'helmet', label: 'Miğfer' },
-  { id: 'crystal', label: 'Kristal' },
-  { id: 'trophy', label: 'Kupa' },
-  { id: 'portal', label: 'Portal' },
-  { id: 'rocket', label: 'Roket' },
-  { id: 'sword', label: 'Kılıç' },
+  { id: 'shield', label: 'Kalkan', category: 'heroes' },
+  { id: 'helmet', label: 'Miğfer', category: 'heroes' },
+  { id: 'sword', label: 'Kılıç', category: 'heroes' },
+  { id: 'crown', label: 'Taç', category: 'heroes' },
+  { id: 'trophy', label: 'Kupa', category: 'heroes' },
+  { id: 'hourglass', label: 'Kum Saati', category: 'time' },
+  { id: 'clock', label: 'Saat', category: 'time' },
+  { id: 'timer', label: 'Kronometre', category: 'time' },
+  { id: 'calendar', label: 'Takvim', category: 'time' },
+  { id: 'portal', label: 'Portal', category: 'mythic' },
+  { id: 'wand', label: 'Asa', category: 'mythic' },
+  { id: 'scroll', label: 'Parşömen', category: 'mythic' },
+  { id: 'crystal', label: 'Kristal', category: 'mythic' },
+  { id: 'planet', label: 'Gezegen', category: 'space' },
+  { id: 'rocket', label: 'Roket', category: 'space' },
+  { id: 'orbit', label: 'Yörünge', category: 'space' },
+  { id: 'telescope', label: 'Teleskop', category: 'space' },
+  { id: 'book', label: 'Kitap', category: 'wisdom' },
+  { id: 'compass', label: 'Pusula', category: 'wisdom' },
+  { id: 'brain', label: 'Zihin', category: 'wisdom' },
+  { id: 'landmark', label: 'Anıt', category: 'wisdom' },
+  { id: 'lightning', label: 'Şimşek', category: 'energy' },
+  { id: 'flame', label: 'Alev', category: 'energy' },
+  { id: 'moon', label: 'Ay', category: 'energy' },
+  { id: 'sun', label: 'Güneş', category: 'energy' },
+  { id: 'star', label: 'Yıldız', category: 'energy' },
 ];
 
 const AVATAR_ICON_IDS = new Set(KRONOX_AVATAR_ICONS.map((icon) => icon.id));
@@ -61,11 +80,11 @@ export function isValidAvatarIconId(value) {
   return AVATAR_ICON_IDS.has(String(value || '').trim());
 }
 
-// Only same-origin Base44 storage URLs are treated as safe photo avatars, so
-// no arbitrary third-party hotlink can be persisted as an avatar.
+// Photo avatars must be HTTPS display URLs that were produced by the upload
+// path. Runtime rendering rejects data/blob/javascript URLs and local raw paths.
 export function isSafeAvatarPhotoUrl(value) {
   const text = String(value || '').trim();
-  if (!text) return false;
+  if (!text || text.length > 2048) return false;
   try {
     const url = new URL(text);
     return url.protocol === 'https:';
@@ -74,16 +93,73 @@ export function isSafeAvatarPhotoUrl(value) {
   }
 }
 
+const AVATAR_PHOTO_FIELD_CANDIDATES = [
+  'avatar_url',
+  'avatarUrl',
+  'avatar_image_url',
+  'avatarImageUrl',
+  'profile_avatar_url',
+  'profileAvatarUrl',
+];
+
+function readSafeAvatarPhotoUrl(profile) {
+  for (const field of AVATAR_PHOTO_FIELD_CANDIDATES) {
+    const value = profile?.[field];
+    if (isSafeAvatarPhotoUrl(value)) return String(value).trim();
+  }
+  return '';
+}
+
+export function pickPublicAvatarFields(profile) {
+  const colorId = normalizeAvatarColorId(profile?.avatar_color_id);
+  const type = String(profile?.avatar_type || '').trim();
+  const iconId = String(profile?.avatar_icon_id || '').trim();
+  const photoUrl = readSafeAvatarPhotoUrl(profile);
+
+  if ((type === 'photo' || !type) && photoUrl) {
+    return {
+      avatar_type: 'photo',
+      avatar_icon_id: '',
+      avatar_color_id: colorId,
+      avatar_url: photoUrl,
+    };
+  }
+
+  if (type === 'icon' && isValidAvatarIconId(iconId)) {
+    return {
+      avatar_type: 'icon',
+      avatar_icon_id: iconId,
+      avatar_color_id: colorId,
+      avatar_url: '',
+    };
+  }
+
+  if (!type && isValidAvatarIconId(iconId)) {
+    return {
+      avatar_type: 'icon',
+      avatar_icon_id: iconId,
+      avatar_color_id: colorId,
+      avatar_url: '',
+    };
+  }
+
+  return {
+    avatar_type: '',
+    avatar_icon_id: '',
+    avatar_color_id: colorId,
+    avatar_url: '',
+  };
+}
+
 // Reads any profile-like object (User or GuestProfile public shape) into a
 // normalized, display-safe avatar descriptor.
 export function resolveProfileAvatar(profile) {
-  const type = String(profile?.avatar_type || '').trim();
-  const colorId = normalizeAvatarColorId(profile?.avatar_color_id);
-  if (type === 'photo' && isSafeAvatarPhotoUrl(profile?.avatar_url)) {
-    return { type: 'photo', url: String(profile.avatar_url).trim(), colorId };
+  const avatar = pickPublicAvatarFields(profile);
+  if (avatar.avatar_type === 'photo' && avatar.avatar_url) {
+    return { type: 'photo', url: avatar.avatar_url, colorId: avatar.avatar_color_id };
   }
-  if (type === 'icon' && isValidAvatarIconId(profile?.avatar_icon_id)) {
-    return { type: 'icon', iconId: String(profile.avatar_icon_id).trim(), colorId };
+  if (avatar.avatar_type === 'icon' && avatar.avatar_icon_id) {
+    return { type: 'icon', iconId: avatar.avatar_icon_id, colorId: avatar.avatar_color_id };
   }
-  return { type: 'none', colorId };
+  return { type: 'none', colorId: avatar.avatar_color_id };
 }
