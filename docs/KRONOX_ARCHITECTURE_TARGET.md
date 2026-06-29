@@ -191,6 +191,11 @@ Parity plan:
 - Service-role writes stay inside Base44 functions.
 - Question bank stays backend-only through compact projections.
 - Daily Wheel/Daily Quest remain Diamond-only.
+- Unified Kronox Puan is the only player-facing score source. Solo contributes
+  its best-score component; Online contributes `User.online_progress.score`.
+  Online winner scoring is exactly `+15`, loser scoring is exactly `-6` before
+  checkpoint protection, and Online has no speed bonus. Online elapsed seconds
+  may be stored or displayed for audit/diagnostics but must not change score.
 - Online stays separate from Solo category preferences.
 - Health must protect product contracts and explicitly label manual gates.
 - Android/iOS wrapper work remains manual proof until a repo-owned native

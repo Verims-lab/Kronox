@@ -107,8 +107,8 @@ import {
 // Codex128 — Online score/checkpoint system. Online winner kararlaştığında
 // her client kendi kullanıcısının puanını günceller (idempotent).
 import { applyOnlineMatchToCurrentUser } from '@/lib/applyOnlineResult';
-// Codex146 — Player-own elapsed seconds canonical source for Online score
-// time bonus AND result popup time display. Same source = no inconsistency.
+// Codex477 — Player-own elapsed seconds is retained for Online audit/display.
+// It does not affect Online score because Online has no speed bonus.
 import { getOnlinePlayerElapsedSeconds } from '@/lib/onlinePlayerElapsed';
 
 const GAMEPLAY_DRAG_LOCK_CLASS = 'kronox-game-drag-lock';
@@ -292,9 +292,8 @@ const getOpponentEmailForOnlineResult = (players = [], localEmail = null) => {
   })?.email || '';
 };
 
-// Codex146 — Popup state must always carry the SAME elapsedSeconds value
-// that was used for scoring. We never recompute it on the popup side, so
-// "Süren: X" and "Hız Bonusu: +Y" can never drift apart.
+// Codex477 — Popup state carries the elapsedSeconds used for audit/display,
+// but Online scoring ignores time. Online has no speed bonus.
 const buildOnlineScorePopupState = ({ result, elapsedSeconds, response }) => {
   if (!response) return null;
   if (response.ok === false) {
@@ -1408,8 +1407,8 @@ export default function Game() {
   // timer the FIRST time we observe the match as finished. Subscription
   // events can later overwrite `winner` with a stripped-down
   // { name, email } object (no durationSeconds), but the ref is sticky
-  // so the time used for scoring and the time shown in the popup are
-  // always the same single snapshot.
+  // so the audit/display time shown in the popup is stable. Codex477:
+  // Online score deltas do not use elapsed time or speed bonuses.
   const onlineResultAppliedRef = useRef(false);
   const playerOwnElapsedRef = useRef(null);
   useEffect(() => {
@@ -1434,7 +1433,7 @@ export default function Game() {
     //      used for the loser client and for the winner if subscription
     //      arrived first and stripped durationSeconds)
     // We do NOT use lobby.created_at / lobby.last_activity_at / invite
-    // timestamps for scoring time.
+    // timestamps for elapsed display/audit.
     if (playerOwnElapsedRef.current === null) {
       playerOwnElapsedRef.current = getOnlinePlayerElapsedSeconds(
         { elapsedSeconds: winner.durationSeconds },

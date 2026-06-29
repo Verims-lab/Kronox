@@ -63,6 +63,10 @@ Online results are recorded per-user in OnlineMatchResult for durable
 idempotency (one row per lobby_id + player_email). Each client persists ONLY
 its own user via User.online_progress. Online score stays separate from Solo
 total score.
+Online winner scoring is exactly +15 Kronox Puan, loser scoring is exactly -6
+Kronox Puan before checkpoint protection, and Online has no speed bonus.
+Elapsed seconds may be shown or stored for audit/diagnostics, but they do not
+change the Online score delta.
 
 ## Source of truth
 - Solo: User.solo_progress

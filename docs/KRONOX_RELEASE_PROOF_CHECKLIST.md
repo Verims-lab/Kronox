@@ -119,8 +119,8 @@ Test with two accounts.
 Checklist:
 
 * Winner gets +15 base.
-* Winner gets individual-time bonus when applicable.
-* Winner bonus uses player’s own gameplay time, not total match time.
+* Winner gets exactly +15; Online has no speed bonus.
+* Winner elapsed time may be shown/audited, but it does not change score.
 * Missing elapsed time gives winner +15 only.
 * Loser gets -6.
 * Loser checkpoint floor is applied.

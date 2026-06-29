@@ -5,8 +5,7 @@
 //     • Win  → +15
 //     • Loss → -6
 //     • No draw scoring (Codex136 — removed per docs/KRONOX_SCORING_RULES.md).
-//     • Winner time bonus tiers: <=60s +10, 61-90s +5, 91s+ +0.
-//     • Missing/unknown winner time → +0 bonus (winner still gets +15 base).
+//     • No Online speed bonus; elapsed time is audit/display only.
 //     • Checkpoint ladder: [0,100,250,500,1000,1500,2000,3000]
 //     • Checkpoint floor: a loss can NEVER drop the player's score below
 //       their highest reached checkpoint. Wins are NEVER clamped.
@@ -19,7 +18,6 @@ import {
   ONLINE_WIN_POINTS,
   ONLINE_LOSS_POINTS,
   ONLINE_CHECKPOINTS,
-  ONLINE_TIME_BONUS_TIERS,
   ONLINE_RESULT,
   getOnlineWinnerTimeBonus,
   getReachedCheckpoint,
@@ -103,19 +101,19 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 2. Time bonus tier sınırları (≤60, 61–90, 91+) */
-  makeCase('online_ranking', 'time_bonus_tiers_boundaries',
-    'Winner time bonus: ≤60s → +10, 61–90s → +5, 91s+ → +0 (inclusive boundaries)',
+  /* 2. Online has no speed bonus */
+  makeCase('online_ranking', 'no_speed_bonus',
+    'Online winner speed bonus is always 0; elapsed time never changes +15',
     () => {
       const errors = [];
       const cases = [
-        { seconds: 0,   expected: 10 },
-        { seconds: 1,   expected: 10 },
-        { seconds: 59,  expected: 10 },
-        { seconds: 60,  expected: 10 },
-        { seconds: 61,  expected: 5 },
-        { seconds: 75,  expected: 5 },
-        { seconds: 90,  expected: 5 },
+        { seconds: 0,   expected: 0 },
+        { seconds: 1,   expected: 0 },
+        { seconds: 59,  expected: 0 },
+        { seconds: 60,  expected: 0 },
+        { seconds: 61,  expected: 0 },
+        { seconds: 75,  expected: 0 },
+        { seconds: 90,  expected: 0 },
         { seconds: 91,  expected: 0 },
         { seconds: 120, expected: 0 },
         { seconds: 600, expected: 0 },
@@ -124,19 +122,15 @@ export const EXTRA_TESTS = [
         const got = getOnlineWinnerTimeBonus(c.seconds);
         if (got !== c.expected) errors.push({ ...c, got });
       }
-      // Also assert the tier structure itself matches the product.
-      if (ONLINE_TIME_BONUS_TIERS.length !== 2) {
-        errors.push({ field: 'tier_count', expected: 2, actual: ONLINE_TIME_BONUS_TIERS.length });
-      }
       if (errors.length) {
-        return fail('Winner time bonus tiers drifted.', {
+        return fail('Online winner speed bonus drifted from 0.', {
           verification: 'EXECUTABLE',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
           errors,
         });
       }
-      return pass('Winner time bonus tiers cover product boundaries.',
+      return pass('Online winner speed bonus is always 0.',
         { verification: 'EXECUTABLE' });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
@@ -197,7 +191,7 @@ export const EXTRA_TESTS = [
 
   /* 5. Tek-maç delta hesabı */
   makeCase('online_ranking', 'match_delta_computation',
-    'calculateOnlineMatchDelta combines base + time bonus correctly for each result',
+    'calculateOnlineMatchDelta returns fixed Online win/loss deltas with no speed bonus',
     () => {
       const w30 = calculateOnlineMatchDelta({ result: ONLINE_RESULT.WIN, durationSeconds: 30 });
       const w75 = calculateOnlineMatchDelta({ result: ONLINE_RESULT.WIN, durationSeconds: 75 });
@@ -205,11 +199,11 @@ export const EXTRA_TESTS = [
       const loss = calculateOnlineMatchDelta({ result: ONLINE_RESULT.LOSS, durationSeconds: 999 });
 
       const checks = [
-        assertEq(w30.delta, 25, 'win @30s → 15+10'),
-        assertEq(w75.delta, 20, 'win @75s → 15+5'),
-        assertEq(w150.delta, 15, 'win @150s → 15+0'),
+        assertEq(w30.delta, 15, 'win @30s → +15'),
+        assertEq(w75.delta, 15, 'win @75s → +15'),
+        assertEq(w150.delta, 15, 'win @150s → +15'),
         assertEq(loss.delta, -6, 'loss → -6 (time ignored)'),
-        assertEq(loss.timeBonus, 0, 'loss time bonus must be 0'),
+        assertEq(loss.timeBonus, 0, 'loss speed bonus must be 0'),
       ].filter(Boolean);
 
       if (checks.length) return checks[0];
@@ -253,8 +247,8 @@ export const EXTRA_TESTS = [
     () => {
       const progress = { score: 95, peakScore: 95, peakCheckpoint: 0 };
       const r = applyOnlineMatchResult(progress, { result: ONLINE_RESULT.WIN, durationSeconds: 30 });
-      // 95 + 15 + 10 = 120, no clamp
-      const e1 = assertEq(r.progress.score, 120, 'win adds full delta');
+      // 95 + 15 = 110, no clamp and no speed bonus.
+      const e1 = assertEq(r.progress.score, 110, 'win adds +15');
       if (e1) return e1;
       const e2 = assertEq(r.applied.clampedByCheckpoint, false, 'win never clamped');
       if (e2) return e2;
@@ -274,7 +268,7 @@ export const EXTRA_TESTS = [
       if (e1) return e1;
       const e2 = assertEq(r.applied.delta, 0, 'draw delta = 0');
       if (e2) return e2;
-      const e3 = assertEq(r.applied.timeBonus, 0, 'draw time bonus = 0');
+      const e3 = assertEq(r.applied.timeBonus, 0, 'draw speed bonus = 0');
       if (e3) return e3;
       // draws counter must not appear or increment on the new shape
       const e4 = assertEq(r.progress.draws, undefined, 'no draws counter is written anymore');

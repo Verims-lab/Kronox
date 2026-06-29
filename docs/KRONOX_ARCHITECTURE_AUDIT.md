@@ -105,6 +105,12 @@ Mechanical scan from this pass:
   target-email privacy stay server-side. The current duplicate-send race
   hardening is a function-level `FriendRequestOperationLock`, not DB unique
   proof.
+- Aligned unified Kronox Puan scoring so Online writes only the Online
+  component (`User.online_progress.score`) while visible Profile/Header/
+  Leaderboard surfaces show Solo best-score plus Online score. Online winner
+  scoring is exactly `+15`, loser scoring is exactly `-6` before checkpoint
+  protection, and elapsed seconds are audit/display only with no Online speed
+  bonus.
 - Corrected invite navigation Health expectations from the older
   `lobby: updatedLobby` token to the current `verifiedLobby` / `joinedLobby`
   contract.

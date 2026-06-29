@@ -80,7 +80,7 @@ import * as uiConsolidationCases from './simulationPanelUiConsolidationCases';
 // kategori carousel + arkadaş popup + tek adımda lobi + davet.
 import * as onlineChallengeCases from './simulationPanelOnlineChallengeCases';
 // Codex128 — Online score/checkpoint system: win/loss only, no draw
-// scoring, time bonus + checkpoint floor + idempotent match write contracts.
+// scoring, no speed bonus, checkpoint floor + idempotent match write contracts.
 import * as onlineRankingCases from './simulationPanelOnlineRankingCases';
 // Codex129 — Friend invite delivery & email honesty contracts.
 import * as inviteDeliveryCases from './simulationPanelInviteDeliveryCases';

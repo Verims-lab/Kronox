@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex477 — Unified Kronox Puan scoring:
+//   • Online winner delta is exactly +15 and loser delta is exactly -6 with checkpoint protection.
+//   • Removes Online speed bonus from scoring, result popup copy, Health expectations, docs, and mirrors.
+//   • Preserves Solo time bonus and OnlineMatchResult idempotent write/projection pattern.
+//
 // Codex476 — Health blocker alignment (KRONOX-MQXVGC0M):
 //   • Aligns AuthProvider source with the null-safe current-user contract and exact-pins the root @base44/sdk dependency.
 //   • Hardens inactive guest username cleanup Health tokens for explicit execute mode and privacy-safe reason labels.
@@ -61,7 +66,7 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps Home reward panels visible from a short-lived cache while revalidating and memoizes question text fit tokens.
 //
 
-const BUILD_MARKER = 'Codex476';
+const BUILD_MARKER = 'Codex477';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

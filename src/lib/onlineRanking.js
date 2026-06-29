@@ -4,11 +4,8 @@
 //   • Online win        : +15
 //   • Online loss       : -6
 //   • No draw scoring   : matches must resolve to one winner and one loser.
-//   • Winner time bonus :
-//       0-60 sec   → +10  (60.0 INCLUSIVE)
-//       61-90 sec  → +5   (90.0 INCLUSIVE)
-//       91+ sec    → +0
-//       missing/unknown/non-finite duration → +0  (winner still gets +15 base)
+//   • No Online speed/time bonus. Elapsed seconds may be stored for audit or
+//     display, but they must not change the Online score delta.
 //
 //   Checkpoint ladder:
 //     [0, 100, 250, 500, 1000, 1500, 2000, 3000]
@@ -36,10 +33,7 @@
 export const ONLINE_WIN_POINTS = 15;
 export const ONLINE_LOSS_POINTS = -6;
 
-export const ONLINE_TIME_BONUS_TIERS = Object.freeze([
-  { maxSeconds: 60, bonus: 10 },
-  { maxSeconds: 90, bonus: 5 },
-]);
+export const ONLINE_TIME_BONUS_TIERS = Object.freeze([]);
 
 export const ONLINE_CHECKPOINTS = Object.freeze([
   0, 100, 250, 500, 1000, 1500, 2000, 3000,
@@ -54,35 +48,10 @@ export const ONLINE_RESULT = Object.freeze({
 });
 
 /**
- * Codex136 — Strict "is this a usable elapsed-seconds value?" check.
- * Missing (undefined / null), non-finite (NaN, Infinity), non-number, or
- * negative values are ALL treated as missing — winner time bonus is 0.
- * 0 itself is treated as valid because a real 0-second match is in-range
- * for the 0-60s tier; product can revisit this if a real "0 means missing"
- * source is ever wired in.
+ * Online has no speed bonus. This legacy helper stays exported so older
+ * callers and Health contracts have a stable API, but it always returns 0.
  */
-function hasValidElapsedSeconds(value) {
-  if (value === null || value === undefined) return false;
-  const n = Number(value);
-  if (!Number.isFinite(n)) return false;
-  if (n < 0) return false;
-  return true;
-}
-
-/**
- * Returns the winner time bonus for the given match duration (seconds).
- * Non-winners (loss) receive 0 — call only for the winner.
- *
- * Missing / non-finite / negative duration → +0 (NOT clamped to 0 and
- * pushed through the 0-60s tier). The winner still receives the +15 base
- * elsewhere; this helper only governs the bonus.
- */
-export function getOnlineWinnerTimeBonus(durationSeconds) {
-  if (!hasValidElapsedSeconds(durationSeconds)) return 0;
-  const seconds = Number(durationSeconds);
-  for (const tier of ONLINE_TIME_BONUS_TIERS) {
-    if (seconds <= tier.maxSeconds) return tier.bonus;
-  }
+export function getOnlineWinnerTimeBonus(_durationSeconds) {
   return 0;
 }
 
@@ -104,7 +73,7 @@ export function getReachedCheckpoint(score) {
  * Raw delta for a single match BEFORE checkpoint clamping.
  *
  *   result          : 'win' | 'loss'
- *   durationSeconds : match length in seconds (only used for winners)
+ *   durationSeconds : elapsed seconds retained for audit/display only
  *
  * Codex136 — Draw scoring is removed. Passing result === 'draw' (or anything
  * other than 'win' / 'loss') returns a zero delta — it does NOT silently
@@ -128,7 +97,7 @@ export function calculateOnlineMatchDelta({ result, durationSeconds } = {}) {
  * Inputs:
  *   progress       : current online_progress object (may be null/empty)
  *   result         : 'win' | 'loss'   (draws are not supported)
- *   durationSeconds: total match duration (for winner time bonus)
+ *   durationSeconds: optional elapsed seconds retained for audit/display only
  *
  * Returns:
  *   {
@@ -231,7 +200,7 @@ export function applyOnlineMatchResult(progress, { result, durationSeconds } = {
 // them as thin wrappers around the canonical implementations above so
 // either naming style works. There is still a single source of math.
 
-/** Winner delta (base + time bonus) for a given elapsed time. */
+/** Winner delta is always the +15 base; elapsed time is ignored for scoring. */
 export function calculateOnlineWinnerDelta(elapsedSeconds) {
   return calculateOnlineMatchDelta({ result: RESULT_WIN, durationSeconds: elapsedSeconds }).delta;
 }

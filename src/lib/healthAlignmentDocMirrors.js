@@ -49,6 +49,7 @@ Status: Active product workflow contract.
 - Current Solo shows HAMLE / remaining moves and Puan / Kronox Puan. HATA is legacy/internal and not current visible Solo result/stat copy.
 - Normal Solo uses 2 anchors, an internal 18-question attempt deck buffer, 10 evaluated moves, a 180-second timer, and a 7-card target including anchors. Special Solo uses an internal 19-question attempt deck buffer and a 10-card target.
 - Online uses Lobby.selected_category_ids and a startLobbyGame shared deck selected 100% from active lobby-selected categories with difficulty 1/2 only; Online does not use Solo preferences.
+- Unified Kronox Puan is Solo best-score component plus Online progress score. Online winner scoring is exactly +15 Kronox Puan, loser scoring is exactly -6 Kronox Puan before checkpoint protection, and Online has no speed bonus.
 - Daily Quest and Daily Wheel grant Diamonds only, no Kronox Puan, and no leaderboard impact. Authenticated users and token-proven completed GuestProfile users can use these daily systems. Guest rewards persist on GuestProfile.diamonds with internal guest:<g_owner_key> ledger keys. DiamondTransaction and DailyWheelSpin have function-level idempotency guards plus EconomyOperationLock balance mutation guards; DB/entity unique constraints are not repo-proven.
 - Question Analytics is an admin/private nine-section email-body report sourced from QuestionAttemptEvent. PlayerQuestionExposure is optional anti-repeat memory reset scope.
 - Health PASS is not release-ready proof; manual NOT_AUTOMATABLE gates remain required.
@@ -124,6 +125,12 @@ Friend add now uses backend-owned sendFriendRequest so email or username input
 shares one server-side path for target resolution, self/duplicate/pending
 guards, function-level FriendRequestOperationLock race hardening, and no
 target-email return on username add.
+
+Unified Kronox Puan now keeps Solo and Online components separate internally
+while visible Profile/Header/Leaderboard surfaces use Solo best-score plus
+Online progress. Online winner scoring is exactly +15, loser scoring is
+exactly -6 before checkpoint protection, and elapsed seconds are audit/display
+only with no Online speed bonus.
 `;
 
 export const ARCHITECTURE_TARGET_DOC = `# Kronox Architecture Target
@@ -191,6 +198,12 @@ Admin authorization guard extraction stays a follow-up while Base44 function
 bundles require inline AdminUser-backed guards. SimulationPanel source files
 stay in the Health/admin/test-suite path until a separate test-runner migration
 is planned.
+
+Unified Kronox Puan is the only player-facing score source. Solo contributes
+its best-score component; Online contributes User.online_progress.score. Online
+winner scoring is exactly +15, loser scoring is exactly -6 before checkpoint
+protection, and Online has no speed bonus. Online elapsed seconds may be stored
+or displayed for audit/diagnostics but must not change score.
 `;
 
 export const HEALTH_GAP_ANALYSIS_DOC = `# Kronox Health Gap Analysis
@@ -201,7 +214,8 @@ Health is a contract guard. It is not release proof. Static checks
 cover 4-player Online lobby join/start/recovery, invite verified lobby, notification
 no-flicker, Solo backend record context, Daily Quest Diamond-only rewards,
 leaderboard username-only payloads, Online category isolation, no raw
-Question.list gameplay fallback, economy idempotency guards, and private
+Question.list gameplay fallback, unified Solo + Online Kronox Puan with Online
+winner +15, loser -6, no speed bonus, economy idempotency guards, and private
 identifier display. Focused presence, player-selection, and friend-add
 coverage protects PlayerPresence owner binding, GuestProfile token proof, 75s
 TTL / 25s heartbeat / 12s visible refresh, accepted-friend lookup, online
@@ -253,6 +267,14 @@ economy fraud/race anomalies. Missing event tables must be backward-compatible
 and privacy-safe.
 Daily reward claim reports should keep first-login account-link rewards distinct
 through DiamondTransaction.source first_login_reward.
+
+Unified Kronox Puan is the player-facing score source: Solo contributes the
+Solo best-score component and Online contributes User.online_progress.score.
+Online match scoring is flat and unified: winner +15 Kronox Puan, loser -6
+Kronox Puan with checkpoint protection, and no Online speed bonus. Online
+result writes use OnlineMatchResult per-user/lobby idempotency plus
+User.online_progress / kronox_puan_total projection updates; elapsed seconds
+are audit/display only and do not change the Online score delta.
 
 Admin User Report Phase 1: Kullanıcı Raporu is AdminUser-gated, read-only, and
 aggregate-only. It counts distinct valid username across User and GuestProfile,
@@ -671,7 +693,10 @@ daily_wheel:<playerKey>:<YYYY-MM-DD>
 daily_quest_reward:<playerKey>:<YYYY-MM-DD>:<quest_key>
 
 ## Online Scoring Persistence
-Two-account invite + scoring proof, OnlineMatchResult idempotency.
+Two-account invite + scoring proof, OnlineMatchResult idempotency, winner
+exactly +15, loser exactly -6 with checkpoint protection, no Online speed
+bonus, and Profile/Header/Leaderboard refresh to the same persisted Kronox
+Puan.
 
 ## RLS And Backend Security
 Two/three-account RLS probe matrix, service-role scoping.

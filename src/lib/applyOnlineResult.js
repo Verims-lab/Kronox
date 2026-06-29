@@ -106,7 +106,7 @@ function appliedFromOnlineMatchResultRow(row) {
   const previousScore = Number.isFinite(Number(row.score_before)) ? Number(row.score_before) : 0;
   const nextScore = Number.isFinite(Number(row.score_after)) ? Number(row.score_after) : previousScore + effectiveDelta;
   const base = result === 'win' ? 15 : result === 'loss' ? -6 : 0;
-  const timeBonus = result === 'win' ? Math.max(0, delta - base) : 0;
+  const timeBonus = 0;
   const floorCheckpoint = Number.isFinite(Number(row.checkpoint_before)) ? Number(row.checkpoint_before) : 0;
   const peakCheckpoint = Number.isFinite(Number(row.checkpoint_after)) ? Number(row.checkpoint_after) : floorCheckpoint;
   return {
