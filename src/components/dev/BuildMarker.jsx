@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex487 — Friends screen back button returns to Profile:
+//   • FriendsPage top-left back arrow now navigates to /profile (Profile-owned route) instead of Home.
+//   • Route-ownership Health case extended to require the Friends→/profile back contract and forbid the old back-to-Home handler.
+//   • No friend data, invite, presence, BottomNav, or Online route ownership changes.
+//
 // Codex486 — Settings duplicate account-delete row cleanup:
 //   • Removes the duplicate lower "HESAP → Hesabı Sil" section so Settings shows a single account deletion entry under "Ayarlar ve Güvenlik".
 //   • The remaining "Hesap Silme" row opens the existing two-step confirm (İptal / Evet, Sil) inline; no backend, confirmation, or safety logic changed.
@@ -86,7 +91,7 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps Home reward panels visible from a short-lived cache while revalidating and memoizes question text fit tokens.
 //
 
-const BUILD_MARKER = 'Codex486';
+const BUILD_MARKER = 'Codex487';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

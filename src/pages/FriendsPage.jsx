@@ -180,7 +180,7 @@ export default function FriendsPage() {
     <PageShell>
       <PullToRefresh onRefresh={() => refresh(user.email)} disabled={!user?.email}>
         <div className="space-y-5">
-          <StandardTopBar showBack onBack={() => navigate('/')} diamonds={getLeaderboardDiamondValue(user)} user={user} />
+          <StandardTopBar showBack onBack={() => navigate('/profile')} diamonds={getLeaderboardDiamondValue(user)} user={user} />
           {/* Header subtitle */}
           <p className="font-inter text-xs text-blue-100/60 px-1">
             Arkadaşlarını yönet, davet et, isteklerini gör.
