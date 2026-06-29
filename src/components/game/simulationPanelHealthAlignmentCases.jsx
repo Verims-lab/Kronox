@@ -473,7 +473,6 @@ export const EXTRA_TESTS = [
         'AppPreferencesCard',
         'ResetUserProgressTool',
         'QuestionAnalyticsReportTool',
-        'DailyQuestDefinitionManager',
         'SimulationPanel',
         'Kronox Health Simulator',
       ]);
@@ -498,7 +497,6 @@ export const EXTRA_TESTS = [
         'if (!isAdmin)',
         'ResetUserProgressTool',
         'QuestionAnalyticsReportTool',
-        'DailyQuestDefinitionManager',
         'SimulationPanel',
       ]);
       const topBarMissing = missingTokens(standardTopBarSource, [
@@ -683,7 +681,7 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('daily_quest_definition_health_registered',
-    'Health registers Daily Quest Definition and Runtime v1 coverage',
+    'Health registers Daily Quest canonical runtime coverage',
     () => {
       const combined = [
         dailyQuestDefinitionCasesSource,
@@ -702,14 +700,11 @@ export const EXTRA_TESTS = [
         'UserDailyQuestProgress',
         'claimDailyQuestReward',
         'daily_quest_reward',
-        'Günlük Görev Yönetimi',
-        'createDailyQuestDefinition',
-        'title and description are display-only',
-        'quest_type + target_value',
-        'start_solo_attempt',
-        'correct_cards',
-        'complete_solo_level',
-        'use_joker',
+        'solo_level_complete',
+        'Solo’da Seviye Geç',
+        'Bugün 1 Solo seviyesini tamamla.',
+        'definitionRowsIgnoredAtRuntime',
+        'solo_level_completion_only',
         'reward_diamonds',
         'no Kronox Puan',
         'no leaderboard impact',

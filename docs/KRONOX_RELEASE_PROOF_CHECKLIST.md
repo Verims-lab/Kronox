@@ -402,7 +402,7 @@ Checklist:
 * Daily Wheel claim requires authenticated user context or token-proven
   completed GuestProfile.
 * Daily Wheel grants Diamonds only and never Kronox Puan.
-* Daily Quest Runtime v1 grants diamonds only through the server-backed
+* Daily Quest Runtime v2 grants diamonds only through the server-backed
   `claimDailyQuestReward` path.
 * Daily Wheel and Daily Quest use separate guard fields/idempotency keys:
   `daily_wheel:<playerKey>:<YYYY-MM-DD>` and
@@ -541,57 +541,37 @@ Checklist:
   only; attach Base44 unique constraint proof or live parallel-run evidence
   before marking release-ready.
 
-## Daily Quest Runtime v1
+## Daily Quest Runtime v2
 
-* Daily Quest Runtime v1 is active.
-* `DailyQuestDefinition` exists as the admin-managed template table.
-* Profile / `Admin Ekranı` shows `Günlük Görev Yönetimi` only to active
-  `AdminUser` role `owner`/`admin`.
-* Active admins can list definitions and create new definitions through the
-  server-backed `createDailyQuestDefinition` callable.
-* Normal users and disabled/passive admins cannot view the management UI and
-  must receive 401/403 if they call the backend directly.
-* Required definition fields are `quest_key`, `title`, `description`,
-  `quest_type`, `target_value`, `reward_diamonds`, and `status`.
-* Supported v1 `quest_type` values are `start_solo_attempt`, `correct_cards`,
-  `complete_solo_level`, and `use_joker`.
-* `quest_type` is a dropdown/enum, not arbitrary admin free text.
-* `target_value` and `reward_diamonds` must be integers of at least 1.
-* `title` and `description` are display-only; text is not parsed with AI,
-  NLP, regex, scripts, or any free-text executable condition.
-* Daily Quest definitions are Diamond-only templates: no Kronox Puan field,
-  no leaderboard impact, and no Solo/Online scoring changes.
+* Daily Quest Runtime v2 is active.
+* The only active quest is code-owned:
+  `quest_key = solo_level_complete`,
+  `quest_type = solo_level_complete`,
+  title `Solo’da Seviye Geç`,
+  description `Bugün 1 Solo seviyesini tamamla.`,
+  `target_value = 1`, and `reward_diamonds = 20`.
 * `UserDailyQuestProgress` exists as the user-owned per-day progress table.
-* `getDailyQuestStatus` ensures 1 Daily Quest per UTC day and excludes passive
-  definitions from new daily sets.
-* `DailyQuestDefinition.quest_key` is the logical unique key. Admin create and
-  default seed must reject/skip existing `quest_key` rows; Base44/platform
-  uniqueness is recommended where available.
-* Admin list/refresh is read-only and must not seed default definitions.
-  Existing duplicate `quest_key` rows are grouped into one canonical Admin UI
-  row with a warning; cleanup is manual after backup, not automatic deletion.
-* Runtime groups duplicate active definitions by `quest_key` and selects one
-  canonical definition by `sort_order`, `created_at`, then stable id before
-  selecting the first logical Daily Quest.
-* Günlük Görev requires active `DailyQuestDefinition` rows. Fresh DBs seed
-  the default Solo-focused definitions idempotently when no definitions exist;
-  if no active definitions remain, Home shows
-  `Günlük görev yakında hazır olacak.` instead of a permanent loading state.
-* `getDailyQuestStatus` is authenticated and user-owned, not admin-only. It
-  creates/fetches current-user `UserDailyQuestProgress` rows and preserves
-  newly created rows if an immediate Base44 refresh is stale.
-* Older same-day 3-quest rows are retained but Home displays only the selected
-  current primary quest.
+* `getDailyQuestStatus` ensures exactly 1 canonical Daily Quest per UTC day for
+  each authenticated user or token-proven completed guest.
+* Runtime no longer reads, requires, creates, seeds, or selects active
+  `DailyQuestDefinition` rows. Stale/duplicate definition rows are ignored by
+  runtime and must not duplicate Home quests or rewards.
+* Profile / `Admin Ekranı` does not show `Günlük Görev Yönetimi`; admins cannot
+  add or monitor Daily Quest definitions through app UI.
+* Legacy `DailyQuestDefinition` rows/functions may remain for historical/manual
+  cleanup only. Manual cleanup should keep backups and deactivate/delete stale
+  duplicate definition rows only after explicit operator confirmation.
+* Older same-day rows from the prior multi-event/definition-backed model are
+  retained but Home displays only the canonical `solo_level_complete` quest.
 * Loading or ensuring today’s quests does not grant Diamonds;
   `claimDailyQuestReward` remains the only reward path.
 * Completing progress alone does not grant Diamonds; completed and unclaimed
   quests must show an `Al` claim action.
 * The Home Daily Quest copy is
   `Günlük Görevleri Yap, Elmasları Kazan!`.
-* `recordDailyQuestProgress` updates Solo-only events:
-  `start_solo_attempt`, `correct_cards`, `complete_solo_level`, and `use_joker`.
-  `start_solo_attempt` is recorded only after the Solo deck is built, the first
-  question is selected, and the attempt actually starts.
+* `recordDailyQuestProgress` updates only `solo_level_complete`, emitted after a
+  passed Solo level completion. Solo start/open, failed, abandoned, correct-card,
+  and joker-use events do not progress the Daily Quest.
 * `claimDailyQuestReward` requires completed status, uses the reward copied in
   the progress row, writes `DiamondTransaction.source = daily_quest_reward`,
   updates the visible `User.diamonds` or completed-guest `GuestProfile.diamonds`
@@ -606,18 +586,12 @@ Checklist:
 * Daily Quest grants diamonds only.
 * Active User summary fields are `daily_quest_last_claim_date` and
   `daily_quest_next_available_at`.
-* Initial definitions are seeded idempotently by `quest_key`:
-  `start_1_solo_attempt`, `correct_5_cards`, `complete_1_solo_level`, and
-  `use_1_joker`.
-* Manual duplicate cleanup recommendation: keep one canonical
-  `DailyQuestDefinition` per `quest_key`; deactivate or delete duplicates only
-  after backup/operator confirmation.
 * Daily Wheel remains separate from Daily Quest definitions, and Mağaza /
   Joker Inventory / Solo joker spending remain unaffected.
 * Daily Wheel and Daily Quest are separate.
 * Manual proof: open Home, see `Günlük Ödüller`, confirm Daily Wheel and one
-  `Günlük Görev`, start a Solo attempt, correctly place cards, complete a Solo
-  level, successfully use a joker, claim the completed quest, confirm
+  `Günlük Görev` with `Solo’da Seviye Geç`, complete a Solo level successfully,
+  claim the completed quest, confirm
   Diamonds increase, confirm one `daily_quest_reward` DiamondTransaction exists,
   retry duplicate claim, confirm no Kronox Puan/leaderboard change, and confirm
   Online mode does not progress quests.

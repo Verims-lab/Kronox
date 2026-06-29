@@ -542,7 +542,6 @@ export default function Game() {
   const soloExposureEventIdsRef = useRef(new Set());
   const soloQuestionShownAtRef = useRef(new Map());
   const soloReplacementQuestionIdsRef = useRef(new Set());
-  const soloDailyQuestAttemptRecordedRef = useRef(null);
   const soloDailyQuestCompletionRecordedRef = useRef(null);
   const [currentUserLoaded, setCurrentUserLoaded] = useState(false);
   const [soloCategoryPreferenceState, setSoloCategoryPreferenceState] = useState({
@@ -1048,7 +1047,6 @@ export default function Game() {
     soloAnalyticsEventIdsRef.current = new Set();
     soloQuestionShownAtRef.current = new Map();
     soloReplacementQuestionIdsRef.current = new Set();
-    soloDailyQuestAttemptRecordedRef.current = null;
     soloDailyQuestCompletionRecordedRef.current = null;
     setUsedJokerType(null);
     setGuidedTutorialJokerDemoUsedByCard({});
@@ -1349,20 +1347,11 @@ export default function Game() {
         hasWon: Boolean(event.hasWon),
       },
     });
-    if (event.isCorrect) {
-      recordDailyQuestSoloEvent('correct_cards', `${soloAttemptId || 'solo_attempt'}:correct:${event.question.id}:${event.zone}`, {
-        questionId: event.question.id,
-        zone: event.zone,
-        questType: 'correct_cards',
-      });
-    }
   }, [
     isSoloLevelMode,
     mistakeCount,
     mistakeShieldActive,
     recordSoloQuestionAnalyticsEvent,
-    recordDailyQuestSoloEvent,
-    soloAttemptId,
   ]);
 
   useEffect(() => {
@@ -1644,28 +1633,6 @@ export default function Game() {
       }
       setSoloAttemptDeck(engineResult.deck);
       setSoloAttemptId(engineResult.attemptId);
-      if (
-        (currentUser?.email || guestDailyQuestPayload) &&
-        engineResult.attemptId &&
-        soloDailyQuestAttemptRecordedRef.current !== engineResult.attemptId
-      ) {
-        soloDailyQuestAttemptRecordedRef.current = engineResult.attemptId;
-        recordDailyQuestProgress({
-          ...(guestDailyQuestPayload || {}),
-          eventType: 'start_solo_attempt',
-          mode: 'solo',
-          amount: 1,
-          eventId: engineResult.attemptId,
-          metadata: {
-            soloAttemptId: engineResult.attemptId,
-            soloLevelNumber: soloLevel?.levelNumber,
-            questType: 'start_solo_attempt',
-            source: 'Game.jsx',
-          },
-        }).catch((error) => {
-          debugLog('[Game] daily quest start progress failed:', error?.message || error);
-        });
-      }
       shuffled = engineResult.deck;
     } else {
       // Legacy non-Solo offline path — exclude recently used cross-game
@@ -2026,12 +1993,6 @@ export default function Game() {
       }
       setJokerBalances(normalizeJokerBalances(response?.balances));
       setJokerError('');
-      recordDailyQuestSoloEvent('use_joker', idempotencyKey, {
-        jokerType: inventoryType,
-        uiJokerType: jokerType,
-        relatedQuestionId,
-        questType: 'use_joker',
-      });
       return true;
     } catch {
       setJokerError('Joker kullanılamadı. Lütfen tekrar dene.');
@@ -2046,7 +2007,6 @@ export default function Game() {
     jokerInventoryLoading,
     soloAttemptId,
     soloLevel?.levelNumber,
-    recordDailyQuestSoloEvent,
   ]);
 
   const handleUseSoloJoker = useCallback(async (jokerType) => {
@@ -2361,11 +2321,11 @@ export default function Game() {
         failReason: attempt.failReason,
         soloRulesVersion: SOLO_RULES_VERSION,
       });
-      const completionEventId = `${soloAttemptId || 'solo_attempt'}:complete_solo_level:${soloLevel?.levelNumber || 1}`;
+      const completionEventId = `${soloAttemptId || 'solo_attempt'}:solo_level_complete:${soloLevel?.levelNumber || 1}`;
       if (soloDailyQuestCompletionRecordedRef.current !== completionEventId) {
         soloDailyQuestCompletionRecordedRef.current = completionEventId;
-        recordDailyQuestSoloEvent('complete_solo_level', completionEventId, {
-          questType: 'complete_solo_level',
+        recordDailyQuestSoloEvent('solo_level_complete', completionEventId, {
+          questType: 'solo_level_complete',
           passed: true,
           cardsCompleted: cardTarget,
           elapsedSeconds: elapsed,

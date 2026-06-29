@@ -559,11 +559,11 @@ Status: Active product contract.
 - Mağaza purchases are server-authoritative economy actions: the client is not trusted for price, cost, user identity, or target account; service-role writes stay scoped to the authenticated user.
 - Mağaza purchase idempotency keys, EconomyOperationLock, refreshed server balance reads, and post-lock ledger rechecks protect double-tap/retry/concurrent request flows; real two-device/backend race proof remains manual unless Base44 uniqueness is proven.
 - Mağaza Phase 1 does not expose bundles, subscriptions, cosmetics, random boxes, ads, external payments, or Online-mode joker purchases.
-- Daily Quest Definition management is admin-only under Profile / Admin Ekranı as Günlük Görev Yönetimi.
+- Daily Quest Definition management UI is removed from Profile / Admin Ekranı; runtime no longer depends on Admin-created quest definitions.
 - createDailyQuestDefinition is a Base44 callable with an inline AdminUser-backed guard for active owner/admin rows; normal users and disabled admins are rejected.
 - DailyQuestDefinition title and description are display-only; quest_type plus target_value are the executable logic contract.
 - DailyQuestDefinition.quest_key is the logical unique key. Admin list is read-only and never seeds on refresh; explicit seed/create skip or reject existing keys. Existing duplicate rows are grouped by quest_key with Admin warnings and require manual cleanup after backup, not automatic deletion.
-- Supported Daily Quest v1 quest_type values are start_solo_attempt, correct_cards, complete_solo_level, and use_joker.
+- Supported active Daily Quest runtime quest_type value is solo_level_complete.
 - Daily Quest definitions use reward_diamonds only, never Kronox Puan, and do not affect leaderboard.
 - Daily Quest text is never parsed by AI, NLP, regex, scripts, or arbitrary free-text executable conditions.
 - sendQuestionAnalyticsReportEmail is manual/admin-triggered only and sends the full useful question analytics/product intelligence report inside the email body with text fallback. The PDF attachment flow is intentionally disabled/cancelled for now.
@@ -670,18 +670,15 @@ purchase is a Diamond sink; Daily Wheel remains a Diamond source. Profile
 Joker Çantası and Solo joker bar must show the purchased balance; Online mode
 is unaffected and Daily Wheel remains Diamond-only.
 
-## Daily Quest Runtime v1
-Daily Quest Runtime v1 is active.
-DailyQuestDefinition stores admin-managed system templates. Günlük Görev
-Yönetimi lives under Profile / Admin Ekranı and is visible only to active
-AdminUser owner/admin users. Active admins can list definitions and create new
-definitions through createDailyQuestDefinition. title and description are
-display-only; quest_type + target_value drive runtime progress logic. Supported
-v1 types are start_solo_attempt, correct_cards, complete_solo_level, and
-use_joker. UserDailyQuestProgress stores 1 selected UTC-day player quest from
-active definitions. Authenticated users use normalized email keys; completed
-guests use token-proven internal guest:<g_owner_key> keys and persist rewards
-on GuestProfile.diamonds. recordDailyQuestProgress increments Solo-only progress events, and
+## Daily Quest Runtime v2
+Daily Quest Runtime v2 is active.
+The active quest is code-owned, not Admin-definition-owned:
+solo_level_complete / Solo’da Seviye Geç / Bugün 1 Solo seviyesini tamamla.,
+target 1, reward 20 Diamonds. UserDailyQuestProgress stores 1 selected UTC-day
+player quest from this canonical runtime contract. Authenticated users use
+normalized email keys; completed guests use token-proven internal
+guest:<g_owner_key> keys and persist rewards on GuestProfile.diamonds.
+recordDailyQuestProgress increments only passed Solo level completion, and
 Online mode does not increment Daily Quest progress. claimDailyQuestReward
 grants diamonds only through DiamondTransaction.source = daily_quest_reward,
 using the reward copied into the progress row rather than a client-provided
@@ -694,14 +691,13 @@ leaderboard. Home Daily Quest copy is
 "Günlük Görevleri Yap, Elmasları Kazan!" and the runtime backend functions
 explicitly bind UserDailyQuestProgress for status, progress, and claim
 deployability.
-Günlük Görev requires active DailyQuestDefinition rows; getDailyQuestStatus and
-recordDailyQuestProgress seed fixed default templates idempotently only when no
-definition rows exist. Runtime groups duplicate active definitions by quest_key,
-chooses one canonical definition by sort_order, created_at, and stable id, then
-selects the first logical daily quest. getDailyQuestStatus is authenticated-or-completed-guest
-but not admin-only and preserves newly created rows if immediate Base44 refresh is
-stale. Older same-day 3-quest rows are retained but Home displays only the selected
-current primary quest. Loading or ensuring today’s quests does not grant Diamonds;
+Günlük Görev no longer requires active DailyQuestDefinition rows; getDailyQuestStatus and
+recordDailyQuestProgress do not seed definition rows on app/Home open. Runtime ignores
+stale or duplicate DailyQuestDefinition rows. Profile / Admin Ekranı does not mount
+Günlük Görev Yönetimi. getDailyQuestStatus is authenticated-or-completed-guest but not
+admin-only and preserves newly created rows if immediate Base44 refresh is stale. Older
+same-day rows from the previous model are retained but Home displays only the canonical
+solo_level_complete quest. Loading or ensuring today’s quests does not grant Diamonds;
 claimDailyQuestReward remains the only reward path. \`claimDailyQuestReward\` remains the only reward path.
 One claim per quest per UTC day is enforced by UserDailyQuestProgress and
 daily_quest_reward idempotency keys. User/GuestProfile fields daily_quest_last_claim_date

@@ -3,6 +3,8 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 
 const DAILY_QUEST_REWARD_SOURCE = 'daily_quest_reward';
 const RELATED_ENTITY_TYPE = 'daily_quest';
+const CANONICAL_DAILY_QUEST_KEY = 'solo_level_complete';
+const CANONICAL_DAILY_QUEST_TYPE = 'solo_level_complete';
 const DAY_MS = 24 * 60 * 60 * 1000;
 const GUEST_ID_PREFIX = 'guest_';
 const ECONOMY_LOCK_TTL_MS = 8_000;
@@ -318,6 +320,11 @@ function publicProgress(row: any) {
   };
 }
 
+function isCanonicalDailyQuest(row: any) {
+  return String(row?.quest_key || '') === CANONICAL_DAILY_QUEST_KEY ||
+    String(row?.quest_type || '') === CANONICAL_DAILY_QUEST_TYPE;
+}
+
 function isProgressRowOwnedByPlayer(row: any, player: any) {
   const email = normalizeEmail(player?.row?.email) || normalizeEmail(player?.row?.user_email);
   if (!player?.isGuest && email) return normalizeEmail(row?.user_email) === email;
@@ -462,6 +469,9 @@ Deno.serve(async (req: Request) => {
     if (questDate !== todayKey) {
       return json({ ok: false, code: 'daily_quest_not_claimable_today', error: 'Bu görev bugün için alınamaz.' }, 409);
     }
+    if (!isCanonicalDailyQuest(progress)) {
+      return json({ ok: false, code: 'daily_quest_legacy_not_claimable', error: 'Bu görev artık geçerli değil.' }, 409);
+    }
 
     const targetValue = Math.max(1, normalizeNumber(progress.target_value, 1));
     const progressValue = Math.min(targetValue, normalizeNumber(progress.progress_value, 0));
@@ -565,6 +575,9 @@ Deno.serve(async (req: Request) => {
       : progress;
     if (String(lockedProgress.status || '') === 'claimed' || lockedProgress.claimed_at) {
       return json({ ok: false, code: 'daily_quest_already_claimed', error: 'Bu görev ödülü zaten alındı.' }, 409);
+    }
+    if (!isCanonicalDailyQuest(lockedProgress)) {
+      return json({ ok: false, code: 'daily_quest_legacy_not_claimable', error: 'Bu görev artık geçerli değil.' }, 409);
     }
     const lockedTargetValue = Math.max(1, normalizeNumber(lockedProgress.target_value, 1));
     const lockedProgressValue = Math.min(lockedTargetValue, normalizeNumber(lockedProgress.progress_value, 0));

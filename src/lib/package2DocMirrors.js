@@ -88,21 +88,20 @@ Daily Wheel result shows \`+X Elmas kazandın\`; when the 7-day streak bonus
 applies it also shows \`7 günlük seri bonusu: +150 elmas\` and
 \`Toplam: +Y elmas\`.
 Günlük Ödüller panel contains Daily Wheel plus one Günlük Görev for active
-Daily Quest Runtime v1. DailyQuestDefinition remains admin-managed, while
-UserDailyQuestProgress tracks 1 selected UTC-day quest per user. Progress is
-Solo-only in v1 and claimDailyQuestReward grants diamonds only through
-DiamondTransaction.source = daily_quest_reward. Daily Quest does not grant
-Kronox Puan and has no leaderboard impact. Home copy says "Günlük Görevleri Yap,
-Elmasları Kazan!" and runtime backend functions explicitly bind
-UserDailyQuestProgress. One claim per quest per UTC day is enforced by
-UserDailyQuestProgress plus daily_quest_reward idempotency keys.
-Günlük Görev requires active DailyQuestDefinition rows; fresh DBs seed the
-default Solo-focused definitions idempotently when no definitions exist.
-DailyQuestDefinition.quest_key is the logical unique key; duplicate rows are
-grouped by quest_key, Admin UI warns instead of auto-deleting, and runtime
-selects one canonical active definition before choosing the first logical
-Daily Quest. getDailyQuestStatus preserves newly created rows if immediate
-refresh is stale; loading today’s quests does not grant Diamonds.
+Daily Quest Runtime v2. Runtime owns one canonical code-backed quest:
+solo_level_complete / Solo’da Seviye Geç / Bugün 1 Solo seviyesini tamamla.,
+target 1, reward 20 Diamonds. UserDailyQuestProgress tracks 1 selected UTC-day
+quest per user. Progress is Solo-level-completion-only and
+claimDailyQuestReward grants diamonds only through DiamondTransaction.source =
+daily_quest_reward. Daily Quest does not grant Kronox Puan and has no
+leaderboard impact. Home copy says "Günlük Görevleri Yap, Elmasları Kazan!" and
+runtime backend functions explicitly bind UserDailyQuestProgress. One claim per
+quest per UTC day is enforced by UserDailyQuestProgress plus daily_quest_reward
+idempotency keys.
+Runtime ignores stale/duplicate DailyQuestDefinition rows and does not seed
+definition rows on app/Home open. getDailyQuestStatus preserves newly created
+rows if immediate refresh is stale; loading today’s quests does not grant
+Diamonds.
 Daily Wheel claimed countdown shows \`Yarın hazır\` or compact time text
 without a Diamond icon.
 Admin reset sets \`daily_wheel_last_spin_date\` to the current UTC day, clears Daily Wheel guard fields, and removes target \`DailyWheelSpin\` rows. Retained OnlineMatchResult/DiamondTransaction/DailyWheelSpin rows no longer contain the deleted user.

@@ -387,8 +387,9 @@ Daily Quest:
 * is separate from Daily Wheel
 * completed guests can see, progress, and claim rewards through token-proven
   GuestProfile
-* uses `DailyQuestDefinition`, `UserDailyQuestProgress`, and
+* uses one canonical `solo_level_complete` `UserDailyQuestProgress` row and
   `claimDailyQuestReward`
+* ignores stale/duplicate `DailyQuestDefinition` rows at runtime
 
 Economy idempotency:
 

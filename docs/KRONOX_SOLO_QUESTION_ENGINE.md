@@ -404,19 +404,15 @@ Inventory foundation:
   `UserJokerInventory`/`JokerTransaction` entity fallback, and returns safe
   user-facing errors without changing scoring, timer, deck order, or Online
 
-## Daily Quest Runtime V1
+## Daily Quest Runtime V2
 
-Daily Quest Runtime v1 is Solo-focused:
-- admin-managed `DailyQuestDefinition` rows define system quest templates
-- `DailyQuestDefinition.quest_key` is the logical unique key; create/default
-  seed paths skip or reject existing keys, and existing duplicate rows are
-  grouped/warned in Admin UI instead of auto-deleted
-- `UserDailyQuestProgress` tracks 1 selected user/day quest per UTC day
-- Günlük Görev requires active `DailyQuestDefinition` rows; the runtime selects
-  one canonical active definition per `quest_key` by `sort_order`, `created_at`,
-  and stable id, then selects the first logical daily quest
-- the runtime seeds the default Solo-focused templates idempotently only when no
-  definition rows exist
+Daily Quest Runtime v2 is Solo-completion focused:
+- `UserDailyQuestProgress` tracks 1 canonical user/day quest per UTC day
+- the canonical quest is `solo_level_complete`
+- Home copy is `Solo’da Seviye Geç` / `Bugün 1 Solo seviyesini tamamla.`
+- the target is 1 successful Solo level completion and the reward is 20 Diamonds
+- runtime ignores stale/duplicate `DailyQuestDefinition` rows and does not seed
+  definition rows on Home/app open
 - `getDailyQuestStatus` is authenticated but not admin-only, and preserves
   newly created progress rows if an immediate Base44 refresh is stale
 - loading or ensuring today’s quests does not grant Diamonds;
@@ -424,17 +420,9 @@ Daily Quest Runtime v1 is Solo-focused:
 - completing progress alone does not grant Diamonds; completed and unclaimed
   quests expose the `Al` claim action
 - Home Daily Quest copy is `Günlük Görevleri Yap, Elmasları Kazan!`
-- supported v1 quest types are `start_solo_attempt`, `correct_cards`,
-  `complete_solo_level`, and `use_joker`
-- `title` and `description` are display-only Turkish copy and are never parsed
-  into logic
-- Solo progress is measured only by `quest_type + target_value`
-- `start_solo_attempt` increments only after the Solo deck is built, the first
-  question is selected, and the attempt actually starts; failed question loading
-  must not count
-- `correct_cards` increments after correct Solo card placement
-- `complete_solo_level` increments only after a successful Solo level
-- `use_joker` increments only after a Solo joker is successfully consumed
+- Solo progress is measured only by successful `solo_level_complete`
+- Solo start/open, failed, abandoned, correct-card, and joker-use events do not
+  progress the Daily Quest
 - `reward_diamonds` is the only reward field; Daily Quest does not grant
   Kronox Puan and does not affect leaderboard
 - Daily Quest does not grant Kronox Puan and has no leaderboard impact

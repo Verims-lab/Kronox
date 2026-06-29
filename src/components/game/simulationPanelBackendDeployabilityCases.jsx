@@ -741,7 +741,9 @@ export const EXTRA_TESTS = [
         'Deno.serve',
         'base44.auth.me()',
         'entities.UserDailyQuestProgress',
-        'entities.DailyQuestDefinition',
+        'CANONICAL_DAILY_QUEST',
+        'definitionRowsIgnoredAtRuntime',
+        'solo_level_complete',
         'entities.DiamondTransaction',
         'daily_quest_reward',
       ]);

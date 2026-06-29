@@ -281,21 +281,21 @@ Rules:
   `recipientEmail`, template version, and email dispatch status; it must not
   return report body content, secrets, or stack traces
 
-Daily Quest Definition management:
+Daily Quest runtime and legacy definition management:
 
-* Profile / `Admin Ekranı` may show `Günlük Görev Yönetimi` only after
-  the current user is enriched by `getAdminStatus` as active `AdminUser`
-  `owner`/`admin`
-* definition writes go through `createDailyQuestDefinition`, a Base44 callable
-  with an inline AdminUser-backed guard so flat function deployment does not
-  depend on a local shared import
-* normal users and disabled/passive admins must receive 401/403 before list,
-  seed, create, or status updates
+* Profile / `Admin Ekranı` must not mount `Günlük Görev Yönetimi`; Daily Quest
+  definitions are not added or monitored through app UI.
+* Legacy definition writes, if called directly, go through
+  `createDailyQuestDefinition`, a Base44 callable with an inline
+  AdminUser-backed guard so flat function deployment does not depend on a local
+  shared import.
+* normal users and disabled/passive admins must receive 401/403 before legacy
+  list, seed, create, or status updates.
 * no hardcoded admin email allowlists are allowed
 * admin-entered `title` and `description` are display-only; free text, AI/NLP,
   regex, or scripts must never become executable quest logic
-* only supported `quest_type` enum values plus `target_value` define runtime
-  progress logic
+* current runtime progress logic is the canonical `solo_level_complete` quest
+  plus `target_value`.
 * `DailyQuestDefinition.quest_key` is the logical unique key. Admin list is
   read-only and must not seed definitions on page refresh; explicit default
   seed and create flows must skip/reject existing keys.
@@ -303,14 +303,14 @@ Daily Quest Definition management:
   cleanup after backup; management must not auto-delete duplicate DB rows
 * rewards are Diamonds only; Daily Quest definitions must not grant Kronox
   Puan and must not affect leaderboard
-* Daily Quest Runtime v1 grants diamonds only through `claimDailyQuestReward`
+* Daily Quest Runtime v2 grants diamonds only through `claimDailyQuestReward`
   and `DiamondTransaction.source = daily_quest_reward`
 * Daily Quest does not grant Kronox Puan and has no leaderboard impact
 * Daily Quest does not affect leaderboard
-* Home `getDailyQuestStatus` ensures 1 selected `UserDailyQuestProgress` row
-  per UTC day, groups duplicate active definitions by `quest_key`, and may seed
-  fixed default `DailyQuestDefinition` templates only when the definition table
-  is empty. This idempotent seed does not grant Diamonds.
+* Home `getDailyQuestStatus` ensures 1 canonical `solo_level_complete`
+  `UserDailyQuestProgress` row per UTC day and must not read, create, seed, or
+  select active `DailyQuestDefinition` rows. Definition rows are ignored by
+  runtime, and loading/ensuring the canonical row does not grant Diamonds.
 * `getDailyQuestStatus` is authenticated runtime, not admin-only; it derives
   the user from backend auth context, writes only that user's progress rows,
   and treats no active definitions as a safe empty state.
@@ -847,7 +847,7 @@ Joker inventory is user-owned data:
   create and confirm by `idempotency_key` after create. Without a DB/entity
   unique constraint this remains function-level guard only / Medium P1
   hardening, not Low risk.
-* Home `Günlük Ödüller` includes Daily Wheel and Daily Quest Runtime v1
+* Home `Günlük Ödüller` includes Daily Wheel and Daily Quest Runtime v2
   `Günlük Görev`; Daily Quest claims grant diamonds only through
   server-backed, player-bound `claimDailyQuestReward`
 * Daily Wheel and Daily Quest rewards use separate guard fields and

@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex480 — Daily Quest Runtime v2 reset:
+//   • Home/runtime now use one canonical solo_level_complete quest: "Solo’da Seviye Geç" / "Bugün 1 Solo seviyesini tamamla." / 20 Diamonds.
+//   • Progress advances only after passed Solo level completion; Solo start/correct-card/joker events are no-ops for Daily Quest.
+//   • Runtime ignores DailyQuestDefinition rows and Admin Ekranı no longer mounts Günlük Görev Yönetimi.
+//
 // Codex479 — Runtime Kronox ID Profile display + Health blockers:
 //   • Unwraps nested Base44 function responses so ensured kronox_user_id reaches Auth/Profile state.
 //   • Profile Info actively ensures/backfills the current player's ID and shows retryable failure instead of permanent loading copy.
@@ -76,7 +81,7 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps Home reward panels visible from a short-lived cache while revalidating and memoizes question text fit tokens.
 //
 
-const BUILD_MARKER = 'Codex479';
+const BUILD_MARKER = 'Codex480';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

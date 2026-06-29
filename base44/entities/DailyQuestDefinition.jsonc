@@ -1,12 +1,12 @@
 {
   "name": "DailyQuestDefinition",
   "type": "object",
-  "description": "Admin-managed Daily Quest v1 template definitions. title and description are display-only; quest_type plus target_value drive runtime progress logic through UserDailyQuestProgress. Definitions do not grant rewards by themselves; claimDailyQuestReward grants diamonds only through daily_quest_reward. Daily Quest does not grant Kronox Puan and has no leaderboard impact.",
+  "description": "Legacy/admin-only Daily Quest template definitions. Current Runtime v2 ignores these rows and assigns the canonical solo_level_complete UserDailyQuestProgress row from code to avoid duplicate-definition DB bloat. Definitions do not grant rewards by themselves; claimDailyQuestReward grants diamonds only through daily_quest_reward. Daily Quest does not grant Kronox Puan and has no leaderboard impact.",
   "properties": {
     "quest_key": {
       "type": "string",
       "pattern": "^[a-z0-9_]+$",
-      "description": "Stable unique machine-readable key such as start_1_solo_attempt, correct_5_cards, complete_1_solo_level, or use_1_joker."
+      "description": "Legacy stable machine-readable key. Current runtime canonical key is solo_level_complete and does not require a DailyQuestDefinition row."
     },
     "title": {
       "type": "string",
@@ -21,12 +21,13 @@
     "quest_type": {
       "type": "string",
       "enum": [
+        "solo_level_complete",
         "start_solo_attempt",
         "correct_cards",
         "complete_solo_level",
         "use_joker"
       ],
-      "description": "System-supported quest logic type. This enum, together with target_value, is the executable progress contract."
+      "description": "Legacy template logic type. Runtime v2 progresses only solo_level_complete from code; old values are retained for historical rows."
     },
     "target_value": {
       "type": "integer",
