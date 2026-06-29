@@ -28,9 +28,12 @@
 export const GET_SOLO_LEADERBOARD_PATH = 'functions/getSoloLeaderboard.js';
 
 export const GET_SOLO_LEADERBOARD_SOURCE = `// getSoloLeaderboard — public-safe Kronox Puan projection.
-// Reads SoloLeaderboardEntry first with service role, then uses a bounded
-// server-side User.list('-kronox_puan_total', limit) repair window so stale
-// or incomplete projection rows cannot claim a false global rank. No email,
+// Reads SoloLeaderboardEntry first with service role. Normal maintenance reads
+// may use a bounded server-side User.list('-kronox_puan_total', limit) repair
+// window so stale or incomplete projection rows cannot claim a false global
+// rank, but the Liderlik hot path can request repairMode: 'skip' and
+// includeFriendBadges: false to return projection rows without waiting for
+// score repair or friend enrichment. No email,
 // notification settings, auth/private profile fields, push/device data, or
 // full User rows leave this function. Public rows return username,
 // leaderboard_id, and safe avatar_type/avatar_icon_id/avatar_color_id/avatar_url
@@ -140,25 +143,30 @@ Deno.serve(async (req) => {
   const body = await req.json().catch(() => ({}));
   const actor = await resolveLeaderboardActor(base44, body);
   if (!actor) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const repairMode = normalizeRepairMode(body?.repairMode);
+  const shouldRunUserRepair = repairMode !== 'skip';
+  const includeFriendBadges = body?.includeFriendBadges !== false;
 
   // Service role used ONLY internally; rows returned are rank-safe.
   const projectionEntity = base44?.asServiceRole?.entities?.SoloLeaderboardEntry;
   const projectionRows = await projectionEntity.list('-total_kronox_score', limit);
-  const userRows = await base44.asServiceRole.entities.User.list('-kronox_puan_total', limit);
+  const userRows = shouldRunUserRepair ? await base44.asServiceRole.entities.User.list('-kronox_puan_total', limit) : [];
   const userScoreRows = dedupeProjectionRows((userRows || []).map((row) => toLeaderboardRow(row, 0)).filter(Boolean));
-  const fallbackReason = findProjectionRepairReason(projectionRows, userScoreRows, topLimit);
+  const fallbackReason = shouldRunUserRepair
+    ? findProjectionRepairReason(projectionRows, userScoreRows, topLimit)
+    : 'projection_repair_skipped_empty_projection';
   const fallbackUsed = Boolean(fallbackReason);
-  const rankedWindowRows = mergeProjectionAndUserScoreRows(
+  const rankedWindowRows = shouldRunUserRepair ? mergeProjectionAndUserScoreRows(
     (projectionRows || []).map((row) => toProjectionLeaderboardRow(row)).filter(Boolean),
     userScoreRows,
-  );
-  const scoreSourceMismatches = scoreSourceMismatchSummary(projectionRows, userScoreRows);
+  ) : (projectionRows || []).map((row) => toProjectionLeaderboardRow(row)).filter(Boolean);
+  const scoreSourceMismatches = shouldRunUserRepair ? scoreSourceMismatchSummary(projectionRows, userScoreRows) : { count: 0 };
   // User.kronox_puan_total plus computed solo_progress can reconstruct zeroed scores.
   // User-derived rows win only when at least as high as projection rows; projection-above-user mismatches need manual audit.
   // projection_missing_positive_top_rows and positive_user_score_missing_from_projection force limited rank before exact.
   // projection_score_stale_above_user_score and projection_score_stale_below_user_score both trigger repair.
-  const backfillResult = fallbackUsed ? await repairSoloLeaderboardProjection(base44, projectionRows, userScoreRows) : { attempted: 0 };
-  const friendUserKeys = actor.actorType === 'registered'
+  const backfillResult = fallbackUsed && shouldRunUserRepair ? await repairSoloLeaderboardProjection(base44, projectionRows, userScoreRows) : { attempted: 0 };
+  const friendUserKeys = actor.actorType === 'registered' && includeFriendBadges
     ? await loadAcceptedFriendOwnerKeys(base44, normalizeEmail(actor.user?.email))
     : new Set();
   const positiveDecoratedRows = rankedWindowRows.filter(isPositiveScoreRow);
@@ -179,9 +187,12 @@ Deno.serve(async (req) => {
     projectionSource: 'solo_leaderboard_entry_projection',
     projection: 'solo_leaderboard_entry_total_kronox_score_projection',
     projectionFirst: true,
-    broadUserListUsed: true,
+    repairMode,
+    broadUserListUsed: shouldRunUserRepair,
     broadUserRowsReturned: false,
-    serverSideUserRepairUsed: fallbackUsed,
+    serverSideUserRepairUsed: fallbackUsed && shouldRunUserRepair,
+    repairSkipped: !shouldRunUserRepair,
+    friendBadgesDeferred: !includeFriendBadges,
     topRows: publicTopRows,
     currentUserRow: publicCurrentUserRow,
     currentUserRank,

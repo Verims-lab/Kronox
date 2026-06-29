@@ -105,6 +105,10 @@ fallback polling/refetch.
   route/inventory warm-up, fast `UserJokerInventory` reads before starter
   self-heal, explicit `Satın Al` readiness, and parallel starter repair in the
   purchase function while preserving server-authoritative price/idempotency.
+- Added Liderlik performance/score-storage coverage so static checks require
+  idle Leaderboard chunk/snapshot warm-up, projection-only fast reads,
+  cached-row rendering while refetching, deferred friend enrichment, and
+  materialized `kronox_puan_total` as the primary visible score read path.
 
 ## Required Coverage Areas
 
@@ -123,6 +127,7 @@ fallback polling/refetch.
 | Immutable Kronox user ID | Static source checks for backend generation/backfill, link preservation, Profile Info read-only/copy display, internal dual-write fields, tombstone non-reuse, and public output stripping | Deployed two-account/guest-link proof; DB uniqueness/index proof if the platform adds first-class constraints; full production backfill audit |
 | Global profile avatar propagation | Static UI/projection checks for shared renderer usage, safe avatar quartet, bundled icon categories, leaderboard/friends/Online/lobby/invite/header propagation, and no private avatar payload fields | Manual visual proof across leaderboard, friends, player select, lobby, invites, header, uploaded photo fallback, and guest/linked profiles |
 | Mağaza open / purchase readiness | Static Market checks for idle chunk/cache warm-up, fast inventory read before starter self-heal, explicit purchase-readiness helper, and backend server-price/idempotency/lock guards | Manual low-end mobile proof for first open/reopen, sufficient/insufficient Diamond CTA state, purchase success, and double-tap/retry behavior |
+| Liderlik open / score projection performance | Static Leaderboard checks for idle chunk/snapshot warm-up, projection-only `getSoloLeaderboard` fast mode, cached rows during refetch, deferred friend enrichment, bounded repair, and materialized score reads | Manual low-end mobile proof for cold/repeat BottomNav opens, deployed Base44 latency, DB index/sort behavior, exact rank at scale, and post-score-change refresh |
 | Daily Quest Diamond-only | Static runtime/backend checks | Two-device claim race proof |
 | Leaderboard username-only | Static public payload checks | RLS/BOLA live probe |
 | Online category isolation | Static start/Game/Health mirror checks | Live lobby start with Solo preferences set differently |

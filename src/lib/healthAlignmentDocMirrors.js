@@ -228,6 +228,13 @@ its best-score component; Online contributes User.online_progress.score. Online
 winner scoring is exactly +15, loser scoring is exactly -6 before checkpoint
 protection, and Online has no speed bonus. Online elapsed seconds may be stored
 or displayed for audit/diagnostics but must not change score.
+
+User.kronox_puan_total / GuestProfile.kronox_puan_total are the materialized
+current-score projections for visible score reads. The public leaderboard hot
+path reads bounded SoloLeaderboardEntry projection rows sorted by
+total_kronox_score; bounded User repair is maintenance/fallback work, not
+required before first Liderlik rows render. Home may idle-prefetch the
+Liderlik chunk and projection-only snapshot.
 `;
 
 export const HEALTH_GAP_ANALYSIS_DOC = `# Kronox Health Gap Analysis
@@ -261,6 +268,10 @@ dedupe, and privacy transitions. Mağaza performance/readiness coverage requires
 idle route/inventory warm-up, fast UserJokerInventory reads before starter
 self-heal, explicit Satın Al readiness, and parallel starter repair in the
 purchase function while preserving server-authoritative price/idempotency.
+Liderlik performance/score-storage coverage requires idle Leaderboard
+chunk/snapshot warm-up, projection-only fast reads, cached-row rendering while
+refetching, deferred friend enrichment, and materialized kronox_puan_total as
+the primary visible score read path.
 Security Pass 3 coverage protects accessible
 loading/status semantics, labeled custom modals, profile/onboarding form
 feedback semantics, incremental unused-import lint behavior, the menubar
@@ -301,6 +312,12 @@ and privacy-safe.
 Daily reward claim reports should keep first-login account-link rewards distinct
 through DiamondTransaction.source first_login_reward.
 
+Leaderboard reads use the materialized SoloLeaderboardEntry.total_kronox_score
+projection first. The fast player-facing Liderlik path may skip bounded
+User.kronox_puan_total repair and friend enrichment so top rows can render from
+projection/cache; repair remains a bounded server-side maintenance or fallback
+path and never returns full User rows.
+
 Unified Kronox Puan is the player-facing score source: Solo contributes the
 Solo best-score component and Online contributes User.online_progress.score.
 Online match scoring is flat and unified: winner +15 Kronox Puan, loser -6
@@ -308,6 +325,9 @@ Kronox Puan with checkpoint protection, and no Online speed bonus. Online
 result writes use OnlineMatchResult per-user/lobby idempotency plus
 User.online_progress / kronox_puan_total projection updates; elapsed seconds
 are audit/display only and do not change the Online score delta.
+Visible score reads prefer the materialized kronox_puan_total projection when
+present, with derived Solo+Online computation only as a compatibility fallback
+for older rows.
 
 Admin User Report Phase 1: Kullanıcı Raporu is AdminUser-gated, read-only, and
 aggregate-only. It counts distinct valid username across User and GuestProfile,

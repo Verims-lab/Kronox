@@ -178,6 +178,12 @@ function finiteNumber(value: unknown, fallback = 0) {
   return Number.isFinite(number) ? number : fallback;
 }
 
+function normalizeRepairMode(value: unknown) {
+  const mode = String(value || '').trim().toLowerCase();
+  if (mode === 'skip' || mode === 'projection_only' || mode === 'fast') return 'skip';
+  return 'bounded';
+}
+
 function onlineScoreFromUser(user: any) {
   return Math.max(0, Math.floor(finiteNumber(user?.online_progress?.score, 0)));
 }
@@ -874,7 +880,10 @@ Deno.serve(async (req) => {
 
     if (!levelNumber) {
       const currentOwnerKey = actor.ownerKey;
-      const friendUserKeys = actor.email
+      const includeFriendBadges = body?.includeFriendBadges !== false;
+      const repairMode = normalizeRepairMode(body?.repairMode);
+      const shouldRunUserRepair = repairMode !== 'skip';
+      const friendUserKeys = actor.email && includeFriendBadges
         ? await loadAcceptedFriendOwnerKeys(base44, actor.email)
         : [];
       const friendOwnerKeySet = new Set(friendUserKeys);
@@ -885,19 +894,27 @@ Deno.serve(async (req) => {
       const projectionWindowRows = dedupeProjectionRows((Array.isArray(projectionRows) ? projectionRows : [])
         .map((row) => toProjectionLeaderboardRow(row))
         .filter(Boolean));
-      const userRows = await base44.asServiceRole.entities.User
-        .list('-kronox_puan_total', limit)
-        .catch(() => []);
+      const userRows = shouldRunUserRepair
+        ? await base44.asServiceRole.entities.User
+          .list('-kronox_puan_total', limit)
+          .catch(() => [])
+        : [];
       const userScoreRows = dedupeProjectionRows((Array.isArray(userRows) ? userRows : [])
         .map((row) => toLeaderboardRow(row, 0))
         .filter(Boolean));
-      const fallbackReason = findProjectionRepairReason(projectionWindowRows, userScoreRows, topLimit);
+      const fallbackReason = shouldRunUserRepair
+        ? findProjectionRepairReason(projectionWindowRows, userScoreRows, topLimit)
+        : (projectionWindowRows.length ? null : 'projection_repair_skipped_empty_projection');
       const fallbackUsed = Boolean(fallbackReason);
-      const rankedWindowRows = mergeProjectionAndUserScoreRows(projectionWindowRows, userScoreRows).slice(0, limit);
-      const backfillResult = fallbackUsed
+      const rankedWindowRows = (shouldRunUserRepair
+        ? mergeProjectionAndUserScoreRows(projectionWindowRows, userScoreRows)
+        : projectionWindowRows).slice(0, limit);
+      const backfillResult = fallbackUsed && shouldRunUserRepair
         ? await repairSoloLeaderboardProjection(base44, projectionWindowRows, userScoreRows)
         : { attempted: 0, created: 0, updated: 0, failed: 0 };
-      const scoreSourceMismatches = scoreSourceMismatchSummary(projectionWindowRows, userScoreRows);
+      const scoreSourceMismatches = shouldRunUserRepair
+        ? scoreSourceMismatchSummary(projectionWindowRows, userScoreRows)
+        : { count: 0, projectionAboveUserCount: 0, userAboveProjectionCount: 0, sample: [] };
       const decoratedRows = decorateRows(rankedWindowRows, currentOwnerKey, friendOwnerKeySet);
       const positiveDecoratedRows = decoratedRows.filter(isPositiveScoreRow);
       const zeroDecoratedRows = decoratedRows.filter((row) => !isPositiveScoreRow(row));
@@ -930,24 +947,27 @@ Deno.serve(async (req) => {
         : null;
       const rankConfidence = currentUserRank
         ? 'exact'
-        : (fallbackUsed ? 'fallback' : (currentUserRow ? 'limited' : 'stale_projection'));
+        : (fallbackUsed && shouldRunUserRepair ? 'fallback' : (currentUserRow ? 'limited' : 'stale_projection'));
       const rankScope = currentUserRank
         ? 'global'
-        : (currentUserRow ? 'projection_limited' : (fallbackUsed ? 'fallback' : 'projection_limited'));
+        : (currentUserRow ? 'projection_limited' : (fallbackUsed && shouldRunUserRepair ? 'fallback' : 'projection_limited'));
       const positiveScoreRowsRead = rankedWindowRows.filter(isPositiveScoreRow).length;
       const zeroScoreRowsRead = rankedWindowRows.filter((row) => !isPositiveScoreRow(row)).length;
 
       return json({
         ok: true,
-        source: fallbackUsed
+        source: fallbackUsed && shouldRunUserRepair
           ? 'SoloLeaderboardEntry_with_user_score_repair'
           : 'SoloLeaderboardEntry',
         projectionSource: 'solo_leaderboard_entry_projection',
         projection: 'solo_leaderboard_entry_total_kronox_score_projection',
         projectionFirst: true,
-        broadUserListUsed: true,
+        repairMode,
+        broadUserListUsed: shouldRunUserRepair,
         broadUserRowsReturned: false,
-        serverSideUserRepairUsed: fallbackUsed,
+        serverSideUserRepairUsed: fallbackUsed && shouldRunUserRepair,
+        repairSkipped: !shouldRunUserRepair,
+        friendBadgesDeferred: !includeFriendBadges,
         topRows: publicTopRows,
         currentUserRow: publicCurrentUserRow,
         currentUserRank,
@@ -967,7 +987,7 @@ Deno.serve(async (req) => {
         topRowsCount: topRows.length,
         fallbackUsed,
         fallbackReason,
-        backfillRun: fallbackUsed,
+        backfillRun: fallbackUsed && shouldRunUserRepair,
         backfillQueued: false,
         backfillResult,
         scoreSourceMismatches,

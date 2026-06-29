@@ -6,6 +6,11 @@ export function getOnlineProgressScore(user) {
   return Number.isFinite(score) ? Math.max(0, Math.floor(score)) : 0;
 }
 
+export function getMaterializedKronoxScore(user) {
+  const score = Number(user?.kronox_puan_total);
+  return Number.isFinite(score) && score >= 0 ? Math.floor(score) : null;
+}
+
 export function getSoloProgressScore(user, options = {}) {
   const totalLevels = options.totalLevels || getSoloLevelCount();
   const progress = options.soloProgress || readSoloProgress(user);
@@ -22,10 +27,17 @@ export function getSoloProgressScore(user, options = {}) {
  * surfaces must all show the same durable game score after both Solo and
  * Online play:
  *
- *   kronoxPuan = solo_progress.totalSoloScore + online_progress.score
+ *   kronoxPuan = kronox_puan_total
+ *
+ * When older rows are missing that materialized projection, the helper
+ * derives a backward-compatible value from Solo best-score progress plus the
+ * Online score component. If both values exist, the higher non-negative value
+ * wins so a stale local progress object cannot down-display a persisted score.
  */
 export function getKronoxVisibleScore(user, options = {}) {
-  return getSoloProgressScore(user, options) + getOnlineProgressScore(user);
+  const materialized = getMaterializedKronoxScore(user);
+  const derived = getSoloProgressScore(user, options) + getOnlineProgressScore(user);
+  return materialized === null ? derived : Math.max(materialized, derived);
 }
 
 export function getUnifiedKronoxPuan(user, options = {}) {

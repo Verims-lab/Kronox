@@ -43,6 +43,11 @@ and exports must use username-safe or anonymized labels.
 - Question analytics has a private/admin report source in
   `QuestionAttemptEvent`.
 - Leaderboard public payload is compact and username-safe.
+- Leaderboard reads use the materialized `SoloLeaderboardEntry.total_kronox_score`
+  projection first. The fast player-facing Liderlik path may skip bounded
+  `User.kronox_puan_total` repair and friend enrichment so top rows can render
+  from projection/cache; repair remains a bounded server-side maintenance or
+  fallback path and never returns full User rows.
 - Guest account linking has a ledger-like `AccountLinkTransaction`.
 - Daily Quest and Daily Wheel are separate from Kronox Puan.
 - Unified Kronox Puan is the player-facing score source: Solo contributes the
@@ -53,6 +58,9 @@ and exports must use username-safe or anonymized labels.
   idempotency row plus `User.online_progress` / `kronox_puan_total`
   projection update pattern. Elapsed seconds are audit/display only and do not
   change the Online score delta.
+- Visible score reads prefer the materialized `kronox_puan_total` projection
+  when present, with derived Solo+Online computation only as a compatibility
+  fallback for older rows.
 
 ## Current Gaps
 
@@ -67,6 +75,10 @@ and exports must use username-safe or anonymized labels.
   event stream.
 - Notification shown/dismissed behavior is mostly UI state, not reporting data.
 - DB unique/index proof is not present in repo for several idempotency keys.
+- DB/index proof for `SoloLeaderboardEntry.total_kronox_score` and
+  `owner_key` remains manual/platform-level; the repo uses bounded sorted
+  projection reads, owner-key dedupe, and optional repair rather than fake
+  unsupported index syntax.
 - Coarse device/platform reporting is latest-state only through
   `recordAppOpen`; historical platform/session cohorts still need a future
   aggregate/event table.

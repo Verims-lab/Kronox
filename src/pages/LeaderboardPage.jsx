@@ -13,9 +13,12 @@ import { getKronoxVisibleScore } from '@/lib/kronoxScore';
 import {
   buildGuestSoloLeaderboardPayload,
   getFriendLeaderboardKeys,
+  getCachedSoloLeaderboardSnapshot,
+  getLeaderboardSnapshotCacheKey,
   getGuestLeaderboardOwnerKey,
   getLeaderboardDiamondValue,
   getLeaderboardOwnerKey,
+  LEADERBOARD_FAST_SNAPSHOT_OPTIONS,
   LEADERBOARD_FETCH_LIMIT,
   LEADERBOARD_TOP_LIMIT,
   buildSoloLeaderboardPayload,
@@ -98,6 +101,7 @@ export default function LeaderboardPage() {
   const [authChecked, setAuthChecked] = useState(false);
   const [leaderboard, setLeaderboard] = useState({
     loading: false,
+    refreshing: false,
     loaded: false,
     error: '',
     rankedRows: [],
@@ -114,6 +118,7 @@ export default function LeaderboardPage() {
     ownScoreFallback: { totalKronoxScore: 0, totalSoloScore: 0, currentLevel: 1 },
   });
   const friendInvitePendingTargetsRef = useRef(new Set());
+  const leaderboardRequestSeqRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -126,17 +131,15 @@ export default function LeaderboardPage() {
       setAuthChecked(true);
       return () => { cancelled = true; };
     }
-    (async () => {
-      try {
-        const adminCheckedUser = await withAdminStatus(authUser);
+    setUser(authUser || null);
+    setAuthChecked(true);
+    Promise.resolve()
+      .then(() => withAdminStatus(authUser))
+      .then(async (adminCheckedUser) => {
         const normalizedProgress = await ensureSoloProgressBackfill(adminCheckedUser);
         if (!cancelled) setUser({ ...adminCheckedUser, solo_progress: normalizedProgress });
-      } catch {
-        if (!cancelled) setUser(authUser || null);
-      } finally {
-        if (!cancelled) setAuthChecked(true);
-      }
-    })();
+      })
+      .catch(() => {});
     return () => { cancelled = true; };
   }, [authUser, contextAuthChecked]);
 
@@ -170,26 +173,19 @@ export default function LeaderboardPage() {
       ownScoreFallback.totalKronoxScore = currentPayload.total_kronox_score;
     }
 
-    setLeaderboard((prev) => ({ ...prev, loading: true, error: '', ownScoreFallback }));
-    try {
-      const normalizedUserEmail = String(user?.email || user?.user_email || '').trim().toLowerCase();
-      const guestPayload = completedGuestProfile
-        ? getCompletedGuestCredentialsPayload(completedGuestProfile)
-        : null;
-      const [snapshot, acceptedFriends] = await Promise.all([
-        loadSoloLeaderboardSnapshot({
-          limit: LEADERBOARD_FETCH_LIMIT,
-          topLimit: LEADERBOARD_TOP_LIMIT,
-          payload: guestPayload || {},
-        }),
-        normalizedUserEmail ? loadFriends(normalizedUserEmail).catch(() => []) : Promise.resolve([]),
-      ]);
-      const acceptedFriendKeys = getFriendLeaderboardKeys(
-        (acceptedFriends || []).map((friend) => friend.friend_email),
-      );
+    const requestId = leaderboardRequestSeqRef.current + 1;
+    leaderboardRequestSeqRef.current = requestId;
+    const normalizedUserEmail = String(user?.email || user?.user_email || '').trim().toLowerCase();
+    const guestPayload = completedGuestProfile
+      ? getCompletedGuestCredentialsPayload(completedGuestProfile)
+      : null;
+    const cacheKey = getLeaderboardSnapshotCacheKey(currentOwnerKey);
+
+    const applySnapshot = (snapshot, extraFriendKeys = new Set(), options = {}) => {
+      if (leaderboardRequestSeqRef.current !== requestId) return false;
       const friendKeys = new Set([
         ...(snapshot.friendUserKeys || []),
-        ...acceptedFriendKeys,
+        ...extraFriendKeys,
       ]);
       const topRows = (snapshot.topRows || [])
         .map((row) => hydrateLeaderboardRow(row, friendKeys, currentOwnerKey))
@@ -222,6 +218,7 @@ export default function LeaderboardPage() {
           : [];
         setLeaderboard({
           loading: false,
+          refreshing: Boolean(options.refreshing),
           loaded: true,
           error: '',
           rankedRows: [],
@@ -236,11 +233,11 @@ export default function LeaderboardPage() {
           rankConfidence: snapshot.rankConfidence || '',
           rankScope: snapshot.rankScope || '',
         });
-        publishOwnLeaderboardProjectionInBackground(user, currentProgress);
-        return;
+        return true;
       }
       setLeaderboard({
         loading: false,
+        refreshing: Boolean(options.refreshing),
         loaded: true,
         error: '',
         rankedRows,
@@ -252,22 +249,70 @@ export default function LeaderboardPage() {
         rankConfidence: snapshot.rankConfidence || '',
         rankScope: snapshot.rankScope || '',
       });
+      return true;
+    };
+
+    const cachedSnapshot = getCachedSoloLeaderboardSnapshot(cacheKey);
+    if (cachedSnapshot) {
+      applySnapshot(cachedSnapshot, new Set(), { refreshing: true });
+    } else {
+      setLeaderboard((prev) => ({
+        ...prev,
+        loading: true,
+        refreshing: false,
+        error: '',
+        ownScoreFallback,
+      }));
+    }
+
+    try {
+      const snapshot = await loadSoloLeaderboardSnapshot({
+        limit: LEADERBOARD_FETCH_LIMIT,
+        topLimit: LEADERBOARD_TOP_LIMIT,
+        payload: guestPayload || {},
+        ...LEADERBOARD_FAST_SNAPSHOT_OPTIONS,
+      });
+      setCachedSoloLeaderboardSnapshot(cacheKey, snapshot);
+      if (!applySnapshot(snapshot)) return;
       publishOwnLeaderboardProjectionInBackground(user, currentProgress);
+
+      if (normalizedUserEmail) {
+        loadFriends(normalizedUserEmail)
+          .then((acceptedFriends) => {
+            const acceptedFriendKeys = getFriendLeaderboardKeys(
+              (acceptedFriends || []).map((friend) => friend.friend_email),
+            );
+            applySnapshot(snapshot, acceptedFriendKeys);
+          })
+          .catch(() => {});
+      }
     } catch (err) {
       const ownScoreRow = toSoloLeaderboardEntry(currentPayload, new Set(), currentOwnerKey);
-      setLeaderboard({
-        loading: false,
-        loaded: true,
-        error: err?.message || 'Sıralama kaynağı hazırlanıyor.',
-        rankedRows: [],
-        topRows: [],
-        currentUserRow: null,
-        currentUserInTop: false,
-        friendsOutsideTop: [],
-        ownScoreRow,
-        rankFinalizing: true,
-        friendCount: 0,
-        ownScoreFallback,
+      setLeaderboard((prev) => {
+        if (prev.loaded && (prev.topRows.length || prev.currentUserRow || prev.ownScoreRow)) {
+          return {
+            ...prev,
+            loading: false,
+            refreshing: false,
+            error: '',
+            ownScoreFallback,
+          };
+        }
+        return {
+          loading: false,
+          refreshing: false,
+          loaded: true,
+          error: err?.message || 'Sıralama kaynağı hazırlanıyor.',
+          rankedRows: [],
+          topRows: [],
+          currentUserRow: null,
+          currentUserInTop: false,
+          friendsOutsideTop: [],
+          ownScoreRow,
+          rankFinalizing: true,
+          friendCount: 0,
+          ownScoreFallback,
+        };
       });
     }
   }, [guestProfile, localGuestProfile, user]);
