@@ -6,9 +6,21 @@ export function getOnlineProgressScore(user) {
   return Number.isFinite(score) ? Math.max(0, Math.floor(score)) : 0;
 }
 
+/**
+ * Materialized current-score read — PRIMARY visible read path.
+ *
+ * The visible Kronox Puan is the materialized current-score projection, not a
+ * reconstruction from full Solo/Online history or score ledgers. The mapping
+ * is direct: visible kronoxPuan = kronox_puan_total (the materialized
+ * User.kronox_puan_total / GuestProfile.kronox_puan_total projection that both
+ * Solo finalization and Online result writes keep current). Returns null only
+ * when no materialized projection exists yet (older rows), so the caller can
+ * fall back to a derived value for backward compatibility.
+ */
 export function getMaterializedKronoxScore(user) {
-  const score = Number(user?.kronox_puan_total);
-  return Number.isFinite(score) && score >= 0 ? Math.floor(score) : null;
+  // Visible-score contract: kronoxPuan = kronox_puan_total (materialized).
+  const kronoxPuan = Number(user?.kronox_puan_total);
+  return Number.isFinite(kronoxPuan) && kronoxPuan >= 0 ? Math.floor(kronoxPuan) : null;
 }
 
 export function getSoloProgressScore(user, options = {}) {

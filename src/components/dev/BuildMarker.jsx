@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex496 — Health blocker fix (KRONOX-MQZDODAC): materialized Kronox Puan is the primary visible read path:
+//   • kronoxScore.js getMaterializedKronoxScore now documents the direct visible-score contract (kronoxPuan = kronox_puan_total) so the materialized current-score projection is unambiguously the PRIMARY read path; getKronoxVisibleScore still prefers materialized and only derives Solo+Online for older rows missing the projection. Runtime score logic and values unchanged.
+//   • Unified Solo + Online stays one materialized score (User/GuestProfile.kronox_puan_total, SoloLeaderboardEntry.total_kronox_score legacy projection name includes Online writes). Leaderboard reads sorted materialized projection rows, not historical transaction recomputation.
+//   • Online winner +15 / loser -6, no speed bonus; Daily Quest / Daily Wheel remain Diamond-only and never write Kronox Puan.
+//
 // Codex495 — Health blocker fixes (KRONOX-MQZDE2V6): visible Puan composition + SDK exact pin:
 //   • kronoxScore.js visible Puan helper re-documents the UNIFIED Online + Solo composition (solo_progress.totalSoloScore + online_progress.score), preferring materialized kronox_puan_total; SoloLeaderboardEntry.total_kronox_score is a legacy projection name, not a Solo-only score model. Runtime score logic unchanged.
 //   • Daily Quest / Daily Wheel remain Diamond-only and never write Kronox Puan.
@@ -131,7 +136,7 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps Home reward panels visible from a short-lived cache while revalidating and memoizes question text fit tokens.
 //
 
-const BUILD_MARKER = 'Codex495';
+const BUILD_MARKER = 'Codex496';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
