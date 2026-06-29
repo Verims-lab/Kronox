@@ -747,6 +747,10 @@ export const EXTRA_TESTS = [
         'Kullanıcı ID',
         'data-kronox-user-id-readonly="true"',
         'getKronoxUserId(profile)',
+        'ensureKronoxUserIdForCurrentActor()',
+        'response?.data?.data',
+        'Kullanıcı ID hazırlanamadı',
+        'Kullanıcı ID tekrar hazırla',
         'aria-label="Kullanıcı ID kopyala"',
         'Kategori seçimi',
         'CategoryPreferencesSection',
@@ -806,6 +810,7 @@ export const EXTRA_TESTS = [
         'preserved_from_guest_profile',
         'kronoxUserIdPreservedThroughLinking',
         'ensureKronoxUserIdForCurrentActor',
+        'response?.data?.data',
         'getKronoxUserId(profile)',
       ]);
       const forbidden = presentTokens(combined, [

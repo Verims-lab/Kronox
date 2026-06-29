@@ -1,12 +1,12 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowLeft, Check, ChevronRight, Copy, Loader2, Pencil, UserRound, X } from 'lucide-react';
+import { ArrowLeft, Check, ChevronRight, Copy, Loader2, Pencil, RefreshCw, UserRound, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { sounds } from '@/lib/gameSounds';
 import { useAuth } from '@/lib/AuthContext';
 import CategoryPreferencesSection from '@/components/settings/CategoryPreferencesSection';
 import { normalizeSafePublicUsernameInput, resolveSafePublicUsername } from '@/lib/guestProfile';
-import { getKronoxUserId } from '@/lib/kronoxUserId';
+import { ensureKronoxUserIdForCurrentActor, getKronoxUserId } from '@/lib/kronoxUserId';
 import {
   PROFILE_AGE_GROUP_OPTIONS,
   PROFILE_GENDER_OPTIONS,
@@ -29,6 +29,8 @@ export default function ProfileEditPage() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [copiedId, setCopiedId] = useState(false);
+  const [kronoxIdStatus, setKronoxIdStatus] = useState('idle');
+  const [kronoxIdError, setKronoxIdError] = useState('');
 
   useEffect(() => {
     setLocalProfile(user || guestProfile || null);
@@ -40,8 +42,82 @@ export default function ProfileEditPage() {
   ), [profile?.username]);
   const gender = String(profile?.gender || '');
   const ageGroup = normalizeProfileAgeGroupValue(profile?.age_group) || ageToAgeGroup(profile?.age);
-  const kronoxUserId = getKronoxUserId(profile) || 'Hazırlanıyor';
+  const actualKronoxUserId = getKronoxUserId(profile);
+  const kronoxUserId = actualKronoxUserId || (kronoxIdStatus === 'error' ? 'Kullanıcı ID hazırlanamadı' : 'Hazırlanıyor');
   const avatarInitial = username.charAt(0).toLocaleUpperCase('tr-TR') || 'K';
+
+  const mergeKronoxIdentityResult = useCallback((result, sourceProfile) => {
+    const ensuredProfile = result?.user || result?.profile || (
+      result?.kronox_user_id ? { ...(sourceProfile || {}), kronox_user_id: result.kronox_user_id } : null
+    );
+    const ensuredId = getKronoxUserId(ensuredProfile) || getKronoxUserId({ kronox_user_id: result?.kronox_user_id });
+    if (ensuredProfile) {
+      setLocalProfile((previous) => ({
+        ...(previous || sourceProfile || {}),
+        ...ensuredProfile,
+        ...(ensuredId ? { kronox_user_id: ensuredId } : {}),
+      }));
+    }
+    return ensuredId;
+  }, []);
+
+  const ensureProfileKronoxId = useCallback(async ({ allowSettingsFallback = true } = {}) => {
+    const sourceProfile = localProfile || user || guestProfile || null;
+    const existingId = getKronoxUserId(sourceProfile);
+    if (existingId) {
+      setKronoxIdStatus('ready');
+      setKronoxIdError('');
+      return existingId;
+    }
+    if (!sourceProfile) return '';
+
+    setKronoxIdStatus('loading');
+    setKronoxIdError('');
+    try {
+      const result = await ensureKronoxUserIdForCurrentActor();
+      const ensuredId = mergeKronoxIdentityResult(result, sourceProfile);
+      if (!ensuredId) throw new Error('kronox_user_id_missing_after_ensure');
+      setKronoxIdStatus('ready');
+      await checkUserAuth?.();
+      return ensuredId;
+    } catch (identityError) {
+      if (allowSettingsFallback && normalizeSafePublicUsernameInput(username)) {
+        try {
+          const fallbackResult = await updateProfileSettings({
+            username,
+            gender,
+            age_group: ageGroup,
+          });
+          const fallbackId = mergeKronoxIdentityResult(fallbackResult, sourceProfile);
+          if (!fallbackId) throw new Error('kronox_user_id_missing_after_profile_backfill');
+          setKronoxIdStatus('ready');
+          await checkUserAuth?.();
+          return fallbackId;
+        } catch (fallbackError) {
+          console.warn('[kronoxUserId] profile screen fallback failed', {
+            reason: String(fallbackError?.code || fallbackError?.message || 'kronox_user_id_profile_fallback_failed').slice(0, 120),
+          });
+        }
+      }
+      console.warn('[kronoxUserId] profile screen ensure failed', {
+        reason: String(identityError?.code || identityError?.message || 'kronox_user_id_profile_ensure_failed').slice(0, 120),
+      });
+      setKronoxIdStatus('error');
+      setKronoxIdError('Kullanıcı ID hazırlanamadı');
+      return '';
+    }
+  }, [ageGroup, checkUserAuth, gender, guestProfile, localProfile, mergeKronoxIdentityResult, user, username]);
+
+  useEffect(() => {
+    if (actualKronoxUserId) {
+      setKronoxIdStatus('ready');
+      setKronoxIdError('');
+      return;
+    }
+    if (localProfile && kronoxIdStatus === 'idle') {
+      ensureProfileKronoxId();
+    }
+  }, [actualKronoxUserId, ensureProfileKronoxId, kronoxIdStatus, localProfile]);
 
   const openEditor = (field) => {
     sounds.tap();
@@ -113,6 +189,11 @@ export default function ProfileEditPage() {
     } catch {
       setError('Kopyalama engellendi. Kronox ID satırındaki değeri manuel seçebilirsin.');
     }
+  };
+
+  const retryKronoxUserId = async () => {
+    sounds.tap();
+    await ensureProfileKronoxId({ allowSettingsFallback: true });
   };
 
   if (isLoadingAuth && !localProfile) {
@@ -198,8 +279,11 @@ export default function ProfileEditPage() {
           <KronoxIdRow
             value={kronoxUserId}
             copied={copiedId}
-            disabled={!getKronoxUserId(profile)}
+            disabled={!actualKronoxUserId}
+            loading={!actualKronoxUserId && kronoxIdStatus === 'loading'}
+            error={kronoxIdError}
             onCopy={copyKronoxUserId}
+            onRetry={retryKronoxUserId}
           />
         </div>
 
@@ -317,7 +401,7 @@ function ProfileFieldRow({ label, value, muted = false, onClick }) {
   );
 }
 
-function KronoxIdRow({ value, copied, disabled, onCopy }) {
+function KronoxIdRow({ value, copied, disabled, loading, error, onCopy, onRetry }) {
   return (
     <section className="space-y-2" data-kronox-user-id-readonly="true">
       <h2 className="font-inter text-lg font-bold text-white">Kullanıcı ID</h2>
@@ -328,7 +412,7 @@ function KronoxIdRow({ value, copied, disabled, onCopy }) {
           boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.06)',
         }}
       >
-        <span className={`min-w-0 flex-1 break-all font-inter text-lg font-bold ${disabled ? 'text-white/45' : 'text-white/72'}`}>
+        <span className={`min-w-0 flex-1 break-all font-inter text-lg font-bold ${error ? 'text-red-100/80' : disabled ? 'text-white/45' : 'text-white/72'}`}>
           {value}
         </span>
         <button
@@ -339,8 +423,19 @@ function KronoxIdRow({ value, copied, disabled, onCopy }) {
           aria-label="Kullanıcı ID kopyala"
           title="Kullanıcı ID kopyala"
         >
-          {copied ? <Check className="h-4 w-4 text-emerald-200" /> : <Copy className="h-4 w-4" />}
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : copied ? <Check className="h-4 w-4 text-emerald-200" /> : <Copy className="h-4 w-4" />}
         </button>
+        {error && (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-300/15 text-amber-100"
+            aria-label="Kullanıcı ID tekrar hazırla"
+            title="Kullanıcı ID tekrar hazırla"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </button>
+        )}
       </div>
     </section>
   );

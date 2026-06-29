@@ -49,13 +49,20 @@ export function normalizeProfileSettingsError(error) {
   return 'Profil ayarların kaydedilemedi. Lütfen tekrar dene.';
 }
 
+function unwrapFunctionResponse(response) {
+  if (response?.data?.data && typeof response.data.data === 'object') return response.data.data;
+  if (response?.data && typeof response.data === 'object') return response.data;
+  if (response && typeof response === 'object') return response;
+  return {};
+}
+
 export async function updateProfileSettings(patch = {}) {
   const credentials = getStoredGuestCredentials();
   const response = await base44.functions.invoke('updateProfileSettings', {
     ...patch,
     ...(credentials.guest_id && credentials.guest_token ? credentials : {}),
   });
-  const data = response?.data || response || {};
+  const data = unwrapFunctionResponse(response);
   if (data?.ok === false) {
     const error = new Error(data.code || data.error || 'profile_settings_update_failed');
     error.code = data.code || data.error || 'profile_settings_update_failed';
