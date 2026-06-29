@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex495 — Health blocker fixes (KRONOX-MQZDE2V6): visible Puan composition + SDK exact pin:
+//   • kronoxScore.js visible Puan helper re-documents the UNIFIED Online + Solo composition (solo_progress.totalSoloScore + online_progress.score), preferring materialized kronox_puan_total; SoloLeaderboardEntry.total_kronox_score is a legacy projection name, not a Solo-only score model. Runtime score logic unchanged.
+//   • Daily Quest / Daily Wheel remain Diamond-only and never write Kronox Puan.
+//   • Re-pinned @base44/sdk to exact 0.8.34 in root package.json + package-lock.json (root spec, resolved node, integrity); critical Base44 functions already import npm:@base44/sdk@0.8.34.
+//
 // Codex494 — Liderlik performance + materialized score projection:
 //   • Home idles the Liderlik chunk and projection-only leaderboard snapshot; Liderlik renders cached rows while refetching.
 //   • getSoloLeaderboard supports fast projection reads with repairMode: 'skip' and deferred friend badges, while bounded repair remains available off the hot path.
@@ -126,7 +131,7 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps Home reward panels visible from a short-lived cache while revalidating and memoizes question text fit tokens.
 //
 
-const BUILD_MARKER = 'Codex494';
+const BUILD_MARKER = 'Codex495';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

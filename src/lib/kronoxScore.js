@@ -21,18 +21,37 @@ export function getSoloProgressScore(user, options = {}) {
 }
 
 /**
- * Visible Kronox Puan source of truth.
+ * Visible Kronox Puan source of truth — UNIFIED across Solo and Online.
  *
- * Leaderboard ranking, headers, Profile, and other player-facing score
- * surfaces must all show the same durable game score after both Solo and
- * Online play:
+ * Kronox Puan is ONE score. Solo and Online are not separate public score
+ * systems: both Solo level finalization and Online result writes update the
+ * SAME materialized current score, and Leaderboard / Profile / headers all
+ * read that one unified visible source. There is no separate Solo-only or
+ * Online-only public score field.
  *
- *   kronoxPuan = kronox_puan_total
+ * Online + Solo composition contract:
+ *   visibleKronoxPuan = solo_progress.totalSoloScore + online_progress.score
+ *     • Solo level finalization writes Solo best-score progress
+ *       (solo_progress.totalSoloScore) AND the materialized kronox_puan_total.
+ *     • Online result finalization writes online_progress?.score (winner +15,
+ *       loser -6, no speed bonus) AND the SAME materialized kronox_puan_total.
+ *     • Daily Quest and Daily Wheel are Diamond-only and DO NOT write Kronox
+ *       Puan, so they never affect this visible score or the leaderboard.
+ *
+ * Preferred read = the materialized projection (kronox_puan_total). The
+ * leaderboard reads this materialized value rather than recomputing from full
+ * historical score transactions; any ledger/history exists for audit and
+ * idempotency only, not the normal leaderboard read path. Materialized
+ * sources/projections: User.kronox_puan_total, GuestProfile.kronox_puan_total,
+ * and SoloLeaderboardEntry.total_kronox_score (a LEGACY leaderboard projection
+ * name — despite "Solo" in the name it already includes Online writes, so it
+ * is not proof of a Solo-only public score model).
  *
  * When older rows are missing that materialized projection, the helper
- * derives a backward-compatible value from Solo best-score progress plus the
- * Online score component. If both values exist, the higher non-negative value
- * wins so a stale local progress object cannot down-display a persisted score.
+ * derives a backward-compatible value from the same Online + Solo composition
+ * (solo_progress.totalSoloScore + online_progress.score). If both a
+ * materialized and a derived value exist, the higher non-negative value wins
+ * so a stale local progress object cannot down-display a persisted score.
  */
 export function getKronoxVisibleScore(user, options = {}) {
   const materialized = getMaterializedKronoxScore(user);

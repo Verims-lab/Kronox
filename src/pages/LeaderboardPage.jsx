@@ -26,6 +26,7 @@ import {
   publishSoloLeaderboardEntry,
   rankSoloLeaderboardEntries,
   selectLeaderboardSections,
+  setCachedSoloLeaderboardSnapshot,
   toSoloLeaderboardEntry,
 } from '@/lib/leaderboard';
 import {
