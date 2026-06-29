@@ -264,7 +264,7 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('daily_rewards_panel_quest_v1_no_client_grant',
-    'Daily Quest Runtime v1 is visible and claims through backend only',
+    'Daily Quest Runtime v2 is visible and claims through backend only',
     () => {
       const combined = `${dailyRewardsPanelSource}\n${economyRulesSource}\n${economyGatewaySource}`;
       const missing = missingTokens(combined, [
@@ -282,12 +282,12 @@ export const EXTRA_TESTS = [
         'kronox_puan_total',
       ]);
       if (missing.length || forbidden.length) {
-        return fail('Daily Quest Runtime v1 can grant rewards client-side or lacks separate backend claim contract.', {
+        return fail('Daily Quest Runtime v2 can grant rewards client-side or lacks separate backend claim contract.', {
           verification: 'STATIC_CONTRACT',
           actual: { missing, forbidden },
         });
       }
-      return pass('Daily Quest Runtime v1 is panel-visible and Diamond claims are backend-owned, not client-mutated.', { verification: 'STATIC_CONTRACT' });
+      return pass('Daily Quest Runtime v2 is panel-visible and Diamond claims are backend-owned, not client-mutated.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('daily_wheel_diamonds_only_no_puan',

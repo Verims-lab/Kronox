@@ -53,12 +53,6 @@ export default function DailyRewardsPanel({ user, guestProfile, onUserUpdated, o
 
 function DailyQuestV1Card({ user, guestProfile, onUserUpdated, onLogin }) {
   const dailyQuests = useDailyQuests({ user, guestProfile, onUserUpdated });
-  const canSeeAdminQuestHint = Boolean(
-    user?.is_admin === true ||
-    user?.role === 'admin' ||
-    user?.role === 'owner' ||
-    user?.admin_status_debug?.parsedIsAdmin === true
-  );
   const emptyCopy = dailyQuests.emptyStateReason === 'progress_rows_missing_after_ensure'
     ? 'Görevler yenilenemedi. Tekrar dene.'
     : 'Günlük görev yakında hazır olacak.';
@@ -142,11 +136,6 @@ function DailyQuestV1Card({ user, guestProfile, onUserUpdated, onLogin }) {
         <div className="rounded-xl px-3 py-2 text-[11px] font-bold text-slate-300"
           style={{ background: 'rgba(15,23,42,0.45)' }}>
           <p>{emptyCopy}</p>
-          {canSeeAdminQuestHint && dailyQuests.adminWarning === 'insufficient_active_definitions' && (
-            <p className="mt-1 text-[10px] font-semibold text-amber-100">
-              Aktif günlük görev tanımı yok. Admin Ekranı &gt; Günlük Görev Yönetimi bölümünden aktif görev ekleyin.
-            </p>
-          )}
         </div>
       )}
 

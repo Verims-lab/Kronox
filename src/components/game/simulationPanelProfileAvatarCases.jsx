@@ -11,7 +11,6 @@
 //   no private/internal IDs) and uploads accept image types only.
 
 import updateProfileSettingsSource from '../../../base44/functions/updateProfileSettings/entry.ts?raw';
-import createGuestProfileSource from '../../../base44/functions/createGuestProfile/entry.ts?raw';
 import avatarOptionsSource from '../../lib/avatarOptions.js?raw';
 import avatarUpdateSource from '../../lib/avatarUpdate.js?raw';
 import avatarPickerSource from '../profile/AvatarPickerSheet.jsx?raw';

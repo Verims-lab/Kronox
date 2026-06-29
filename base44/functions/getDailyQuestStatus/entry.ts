@@ -2,57 +2,24 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 
 const QUEST_TYPES = [
-  'start_solo_attempt',
-  'correct_cards',
-  'complete_solo_level',
-  'use_joker',
+  'solo_level_complete',
 ] as const;
-const DAILY_QUEST_RUNTIME_VERSION = 'daily-quest-runtime-v1';
+const DAILY_QUEST_RUNTIME_VERSION = 'daily-quest-runtime-v2-solo-level-complete';
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DAILY_QUESTS_PER_DAY = 1;
 const GUEST_ID_PREFIX = 'guest_';
-const DEFAULT_DEFINITIONS = [
-  {
-    quest_key: 'start_1_solo_attempt',
-    title: 'Solo’ya Başla',
-    description: 'Bugün 1 Solo oyunu başlat.',
-    quest_type: 'start_solo_attempt',
-    target_value: 1,
-    reward_diamonds: 20,
-    status: 'active',
-    sort_order: 10,
-  },
-  {
-    quest_key: 'correct_5_cards',
-    title: '5 Kart Doğru Yerleştir',
-    description: 'Bugün 5 kartı doğru yerleştir.',
-    quest_type: 'correct_cards',
-    target_value: 5,
-    reward_diamonds: 30,
-    status: 'active',
-    sort_order: 20,
-  },
-  {
-    quest_key: 'complete_1_solo_level',
-    title: '1 Level Tamamla',
-    description: 'Bugün 1 Solo level tamamla.',
-    quest_type: 'complete_solo_level',
-    target_value: 1,
-    reward_diamonds: 50,
-    status: 'active',
-    sort_order: 30,
-  },
-  {
-    quest_key: 'use_1_joker',
-    title: '1 Joker Kullan',
-    description: 'Bugün 1 joker kullan.',
-    quest_type: 'use_joker',
-    target_value: 1,
-    reward_diamonds: 20,
-    status: 'active',
-    sort_order: 40,
-  },
-] as const;
+const CANONICAL_DAILY_QUEST = {
+  id: 'system:daily_quest:solo_level_complete:v2',
+  quest_definition_id: 'system:daily_quest:solo_level_complete:v2',
+  quest_key: 'solo_level_complete',
+  title: 'Solo’da Seviye Geç',
+  description: 'Bugün 1 Solo seviyesini tamamla.',
+  quest_type: 'solo_level_complete',
+  target_value: 1,
+  reward_diamonds: 20,
+  status: 'active',
+  sort_order: 10,
+} as const;
 
 
 function json(payload: unknown, status = 200) {
@@ -82,6 +49,11 @@ function normalizeQuestKey(value: unknown) {
     .replace(/_+/g, '_')
     .replace(/^_+|_+$/g, '')
     .slice(0, 80);
+}
+
+function isCanonicalQuestRow(row: any) {
+  return String(row?.quest_key || '') === CANONICAL_DAILY_QUEST.quest_key ||
+    String(row?.quest_type || '') === CANONICAL_DAILY_QUEST.quest_type;
 }
 
 function utcDateKey(now = new Date()) {
@@ -244,7 +216,7 @@ function publicProgress(row: any) {
 
 function publicDefinition(row: any) {
   return {
-    id: row?.id || null,
+    id: row?.id || row?.quest_definition_id || CANONICAL_DAILY_QUEST.quest_definition_id,
     quest_key: normalizeQuestKey(row?.quest_key),
     title: String(row?.title || ''),
     description: String(row?.description || ''),
@@ -331,73 +303,6 @@ function sortDefinitions(rows: any[] = []) {
     });
 }
 
-async function readActiveDefinitions(base44: any) {
-  const entity = base44.asServiceRole.entities.DailyQuestDefinition;
-  const rows = await entity.filter({ status: 'active' }, 'sort_order', 100).catch(() => []);
-  return dedupeDefinitionsByQuestKey(sortDefinitions(Array.isArray(rows) ? rows : []));
-}
-
-async function readAllDefinitions(base44: any) {
-  const entity = base44.asServiceRole.entities.DailyQuestDefinition;
-  if (entity?.list) {
-    const rows = await entity.list('sort_order', 100).catch(() => []);
-    if (Array.isArray(rows) && rows.length) return rows;
-  }
-  const rows = await entity.filter({}, 'sort_order', 100).catch(() => []);
-  return Array.isArray(rows) ? rows : [];
-}
-
-async function findDefinitionByKey(base44: any, questKey: string) {
-  const normalizedQuestKey = normalizeQuestKey(questKey);
-  const rows = await base44.asServiceRole.entities.DailyQuestDefinition
-    .filter({ quest_key: normalizedQuestKey }, '-updated_at', 50)
-    .catch(() => []);
-  const grouped = dedupeDefinitionsByQuestKey(Array.isArray(rows) ? rows : []);
-  return grouped.definitions.length ? grouped.definitions[0] : null;
-}
-
-async function ensureDefaultDefinitions(base44: any) {
-  const entity = base44.asServiceRole.entities.DailyQuestDefinition;
-  const allDefinitions = await readAllDefinitions(base44);
-  if (allDefinitions.length > 0) {
-    return { seededDefaultKeys: [], seedMode: 'definitions_present' };
-  }
-  if (!entity?.create) {
-    return { seededDefaultKeys: [], seedMode: 'definition_create_unavailable' };
-  }
-  const timestamp = new Date().toISOString();
-  const seededDefaultKeys: string[] = [];
-  const existingKeys = new Set(
-    (allDefinitions || [])
-      .map((definition: any) => normalizeQuestKey(definition?.quest_key))
-      .filter(Boolean),
-  );
-  for (const definition of DEFAULT_DEFINITIONS) {
-    if (existingKeys.has(definition.quest_key)) continue;
-    const existing = await findDefinitionByKey(base44, definition.quest_key);
-    if (existing) {
-      existingKeys.add(definition.quest_key);
-      continue;
-    }
-    try {
-      await entity.create({
-        ...definition,
-        created_by: 'system:daily_quest_runtime_seed',
-        created_at: timestamp,
-        updated_by: 'system:daily_quest_runtime_seed',
-        updated_at: timestamp,
-      });
-      seededDefaultKeys.push(definition.quest_key);
-      existingKeys.add(definition.quest_key);
-    } catch (error) {
-      const afterRace = await findDefinitionByKey(base44, definition.quest_key);
-      if (!afterRace) throw error;
-      existingKeys.add(definition.quest_key);
-    }
-  }
-  return { seededDefaultKeys, seedMode: seededDefaultKeys.length ? 'default_seed_created' : 'default_seed_existing' };
-}
-
 async function readTodayRows(base44: any, player: any, dateKey: string) {
   const entity = progressEntity(base44, player);
   if (!entity?.filter) return [];
@@ -434,7 +339,7 @@ async function createProgressRow(base44: any, player: any, dateKey: string, defi
       user_email: player.playerKey,
       owner_key: player.ownerKey,
       player_type: player.isGuest ? 'guest' : 'registered',
-      quest_definition_id: definition.id,
+      quest_definition_id: definition.quest_definition_id || definition.id || CANONICAL_DAILY_QUEST.quest_definition_id,
       quest_key: definition.quest_key,
       quest_date: dateKey,
       title: definition.title,
@@ -449,11 +354,13 @@ async function createProgressRow(base44: any, player: any, dateKey: string, defi
       idempotency_key: idempotencyKey,
       metadata: {
         runtimeVersion: DAILY_QUEST_RUNTIME_VERSION,
-        sourceDefinitionStatus: 'active',
+        sourceDefinitionStatus: 'code_canonical',
         selectionOrder: definition.sort_order,
         serverDayBoundary: 'UTC',
         guestProfileQuest: player.isGuest,
         rawGuestTokenServerStored: false,
+        definitionRowsIgnoredAtRuntime: true,
+        progressTrigger: 'solo_level_completion_only',
       },
       created_at: timestamp,
       updated_at: timestamp,
@@ -469,16 +376,14 @@ async function createProgressRow(base44: any, player: any, dateKey: string, defi
 }
 
 async function ensureTodayDailyQuests(base44: any, player: any, dateKey: string) {
-  const seedResult = await ensureDefaultDefinitions(base44);
-  const activeDefinitionPayload = await readActiveDefinitions(base44);
-  const definitions = activeDefinitionPayload.definitions;
+  const definitions = [publicDefinition(CANONICAL_DAILY_QUEST)];
   const selectedDefinitions = definitions.slice(0, DAILY_QUESTS_PER_DAY);
   const selectedQuestKeys = new Set(selectedDefinitions.map((definition) => definition.quest_key));
   let rows = await readTodayRows(base44, player, dateKey);
-  const existingQuestKeys = new Set(rows.map((row: any) => String(row?.quest_key || '')));
+  const existingQuestKeys = new Set(rows.filter(isCanonicalQuestRow).map((row: any) => String(row?.quest_key || '')));
 
   for (const definition of selectedDefinitions) {
-    if (rows.filter((row: any) => selectedQuestKeys.has(String(row?.quest_key || ''))).length >= DAILY_QUESTS_PER_DAY) break;
+    if (rows.filter(isCanonicalQuestRow).length >= DAILY_QUESTS_PER_DAY) break;
     if (existingQuestKeys.has(definition.quest_key)) continue;
     const created = await createProgressRow(base44, player, dateKey, definition);
     if (created?.id) {
@@ -492,13 +397,13 @@ async function ensureTodayDailyQuests(base44: any, player: any, dateKey: string)
   rows = refreshedRows.length ? refreshedRows : ensuredRows;
   return {
     definitions: selectedDefinitions,
-    activeDefinitionCount: definitions.length,
-    definitionDuplicateGroups: activeDefinitionPayload.duplicateGroups,
-    duplicateDefinitionCount: activeDefinitionPayload.duplicateGroups.reduce((total, group) => total + Number(group.duplicate_count || 0), 0),
-    seededDefaultKeys: seedResult.seededDefaultKeys,
-    seedMode: seedResult.seedMode,
+    activeDefinitionCount: 1,
+    definitionDuplicateGroups: [],
+    duplicateDefinitionCount: 0,
+    seededDefaultKeys: [],
+    seedMode: 'code_canonical_no_definition_seed',
     rows: rows
-      .filter((row: any) => selectedQuestKeys.has(String(row?.quest_key || '')))
+      .filter((row: any) => selectedQuestKeys.has(String(row?.quest_key || '')) || isCanonicalQuestRow(row))
       .sort((a: any, b: any) => String(a?.quest_key || '').localeCompare(String(b?.quest_key || ''), 'tr'))
       .slice(0, DAILY_QUESTS_PER_DAY),
   };
@@ -518,8 +423,7 @@ Deno.serve(async (req: Request) => {
     const serverDate = utcDateKey();
     const nextAvailableAt = nextUtcMidnightIso(serverDate);
     const entity = progressEntity(base44, player);
-    const definitionEntity = base44.asServiceRole.entities.DailyQuestDefinition;
-    if (!entity?.filter || !entity?.create || !definitionEntity?.filter) {
+    if (!entity?.filter || !entity?.create) {
       return json({ ok: false, code: 'daily_quest_entities_missing', error: 'Günlük görev kayıtları hazır değil.' }, 500);
     }
 
@@ -544,10 +448,13 @@ Deno.serve(async (req: Request) => {
       seededDefaultKeys: ensured.seededDefaultKeys,
       seedMode: ensured.seedMode,
       progressEntitySource: progressEntitySource(base44, player),
+      canonicalQuestKey: CANONICAL_DAILY_QUEST.quest_key,
+      canonicalQuestType: CANONICAL_DAILY_QUEST.quest_type,
+      definitionRowsIgnoredAtRuntime: true,
       emptyStateReason: quests.length
         ? ''
-        : (activeDefinitionCount > 0 ? 'progress_rows_missing_after_ensure' : 'no_active_definitions'),
-      adminWarning: activeDefinitionCount < 1 ? 'insufficient_active_definitions' : null,
+        : 'progress_rows_missing_after_ensure',
+      adminWarning: null,
       noRewardDuringEnsure: true,
       grantsDiamondsOnly: true,
       doesNotGrantKronoxPuan: true,

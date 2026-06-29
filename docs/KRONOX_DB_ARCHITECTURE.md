@@ -224,7 +224,7 @@ remains a live backend manual gate.
 
 Daily Reward Wheel uses active `daily_wheel_*` User/GuestProfile guard fields
 plus `daily_wheel:<playerKey>:<YYYY-MM-DD>`. The Home `Günlük Ödüller` panel
-also shows Daily Quest Runtime v1. Daily Wheel and Daily Quest are separate
+also shows Daily Quest Runtime v2. Daily Wheel and Daily Quest are separate
 reward systems: Daily Wheel uses `daily_wheel`, while Daily Quest claims use
 `daily_quest_reward` and
 `daily_quest_reward:<playerKey>:<YYYY-MM-DD>:<quest_key>` idempotency.
@@ -236,31 +236,24 @@ and the `daily_quest_reward` ledger idempotency key.
 Daily Wheel remains separate from Daily Quest definitions.
 Daily Wheel and Daily Quest are separate.
 
-Daily Quest Runtime v1 is active. `DailyQuestDefinition` remains admin-managed
-system templates. `quest_key` is the logical unique key; the platform/manual DB
-constraint should enforce uniqueness where available, and the backend also
-guards create/seed by normalized `quest_key`. Runtime shows 1 daily quest per
-UTC day by grouping duplicate definitions by `quest_key`, choosing one
-canonical active definition by `sort_order`, `created_at`, and stable id, then
-selecting the first logical definition. `title` and `description` are
-display-only; they are never parsed by regex, AI/NLP, free text, or scripts.
-The executable contract is strictly `quest_type + target_value`, with v1
-`quest_type` limited to `start_solo_attempt`, `correct_cards`,
-`complete_solo_level`, and `use_joker`.
-Günlük Görev requires active `DailyQuestDefinition` rows. On a fresh DB, the
-runtime status/progress functions seed the four default Solo-focused
-definitions idempotently only when no definition rows exist; if admins have
-passivated definitions, Home shows a safe empty state instead of granting or
-recreating rewards.
-Admin list is read-only and does not seed defaults on page load/refresh; the
-explicit seed action is idempotent by `quest_key`. Existing duplicate
-definition rows are not auto-deleted. Admin UI shows one canonical row per
-`quest_key` plus a duplicate warning; manual cleanup should keep one canonical
-row and deactivate/delete duplicate rows only after backup/operator approval.
+Daily Quest Runtime v2 is active. Runtime shows 1 canonical daily quest per UTC
+day from code, not from `DailyQuestDefinition`: `solo_level_complete` /
+`Solo’da Seviye Geç` / `Bugün 1 Solo seviyesini tamamla.`, target 1, reward 20
+Diamonds. `title` and `description` remain display-only and are never parsed by
+regex, AI/NLP, free text, or scripts. The executable progress contract is
+strictly `solo_level_complete + target_value`.
+Günlük Görev no longer requires active `DailyQuestDefinition` rows. Runtime
+status/progress functions do not seed definition rows on fresh DBs or app/Home
+open; stale duplicate definitions are ignored by runtime and must not duplicate
+Home quests or rewards.
+Legacy Admin definition list/create paths are not mounted in app UI. Existing
+duplicate definition rows are not auto-deleted. Manual cleanup should keep a DB
+backup and deactivate/delete stale duplicate definition rows only after explicit
+operator approval.
 `getDailyQuestStatus` is authenticated user-owned runtime, not admin-only. It
 creates/fetches only the current user's `UserDailyQuestProgress` rows and keeps
 newly created rows as the response fallback if Base44 read-after-write refresh
-lags. No active definitions is an empty state, not a function failure.
+lags. Missing/stale definitions are ignored, not a function failure.
 Loading or ensuring today’s quests does not grant Diamonds;
 `claimDailyQuestReward` remains the only reward path.
 Completing progress alone does not grant Diamonds; completed and unclaimed
@@ -279,8 +272,8 @@ Kronox Puan and has no leaderboard impact.
 Daily Quest does not affect leaderboard.
 Future versions may expand to multiple quests again if Home UI is redesigned.
 | `DailyWheelSpin` | Daily Reward Wheel claim ledger and streak audit. | `getDailyWheelStatus` reads current day; `claimDailyWheelReward` creates server-backed claim and updates `User.diamonds` or completed-guest `GuestProfile.diamonds`. | Audit/idempotency for Daily Wheel; `User.diamonds` / `GuestProfile.diamonds` are balance sources. | Backend service-role functions only for claim; user/admin read by RLS. Claim uses `daily_wheel:<playerKey>:<YYYY-MM-DD>`, checks existing spin by key/date, reserves a spin row, re-reads canonical same-player/same-day spin, re-checks the User/GuestProfile guard, and re-checks `DiamondTransaction` before balance mutation. | Unique idempotency is not guaranteed in repo schema; there is no repo-proven atomic upsert. Function-level guard only is Medium/P1 hardening, and race proof needs platform unique key or live parallel probe. | Unique `idempotency_key`; unique `user_email + spin_date`; `owner_key + spin_date`; `user_email + claimed_at`; `spin_date`. | Retain/anonymize on account deletion; admin reset removes target test rows; archive old rows after retention policy. | Keep. | N/A. |
-| `DailyQuestDefinition` | Admin-managed Daily Quest v1 templates. | Profile / `Admin Ekranı` / `Günlük Görev Yönetimi` lists definitions and creates new templates through `createDailyQuestDefinition`. | Yes for system quest templates only; not user progress. | `base44/functions/createDailyQuestDefinition/entry.ts`, `src/lib/dbGateway/dailyQuestGateway.js`, `DailyQuestDefinitionManager`. | Admin-only. Backend guard uses `AdminUser` active owner/admin. Normal users cannot view `Admin Ekranı` and cannot create definitions. Create/seed/list normalize and dedupe by `quest_key`; Admin list never seeds on refresh. | Unique `quest_key` where platform supports it; `status`; `sort_order`; `created_at`. | Passive instead of delete for routine removal. Existing duplicate `quest_key` rows require manual cleanup after backup; no automatic delete is enabled. | Keep/additive. | Prove active admin can list/create, non-admin and disabled admin receive 403; verify refresh/getDailyQuestStatus does not create duplicates. |
-| `UserDailyQuestProgress` | Player-owned Daily Quest Runtime v1 per-day progress. | `getDailyQuestStatus` ensures 1 selected UTC-day row; `recordDailyQuestProgress` increments Solo-only events for that selected quest; `claimDailyQuestReward` marks rows claimed and grants Diamonds. | Yes for daily quest progress/claim state. | `base44/functions/getDailyQuestStatus`, `recordDailyQuestProgress`, `claimDailyQuestReward`, `src/lib/dbGateway/dailyQuestGateway.js`, `DailyRewardsPanel`, `Game.jsx`. | Registered users are owned by normalized email; completed guests use internal `guest:<g_owner_key>` after `guest_id + guest_token` proof. Users/guests cannot claim another player's progress or control reward amount. | Unique `idempotency_key`; `user_email + quest_date + quest_key`; `owner_key + quest_date + quest_key`; `user_email + quest_date`; `status + quest_date`. | Retain for audit; archive old rows after retention policy. | Keep/additive. | Runtime two-account/RLS, guest-token, and duplicate-claim race proof remain manual. |
+| `DailyQuestDefinition` | Legacy/admin-only Daily Quest template rows. Runtime v2 ignores them. | No app UI is mounted for list/create. Legacy callable remains guarded for historical/manual cleanup paths only. | Historical/manual cleanup only; not active runtime. | `base44/functions/createDailyQuestDefinition/entry.ts`, `src/lib/dbGateway/dailyQuestGateway.js`. | Admin-only callable guard uses `AdminUser` active owner/admin. Runtime status/progress functions must not read, create, seed, or select definition rows. | Unique `quest_key` where platform supports it; `status`; `sort_order`; `created_at`. | Stale duplicate rows require manual cleanup after backup/operator approval; no runtime auto-delete is enabled. | Keep/additive until data cleanup/migration plan. | Prove runtime Home/status calls do not create duplicate definitions; legacy callable auth proof remains manual if used. |
+| `UserDailyQuestProgress` | Player-owned Daily Quest Runtime v2 per-day progress. | `getDailyQuestStatus` ensures 1 canonical `solo_level_complete` UTC-day row; `recordDailyQuestProgress` increments only passed Solo level completion; `claimDailyQuestReward` marks rows claimed and grants Diamonds. | Yes for daily quest progress/claim state. | `base44/functions/getDailyQuestStatus`, `recordDailyQuestProgress`, `claimDailyQuestReward`, `src/lib/dbGateway/dailyQuestGateway.js`, `DailyRewardsPanel`, `Game.jsx`. | Registered users are owned by normalized email; completed guests use internal `guest:<g_owner_key>` after `guest_id + guest_token` proof. Users/guests cannot claim another player's progress or control reward amount. | Unique `idempotency_key`; `user_email + quest_date + quest_key`; `owner_key + quest_date + quest_key`; `user_email + quest_date`; `status + quest_date`. | Retain for audit; archive old rows after retention policy. | Keep/additive. | Runtime two-account/RLS, guest-token, and duplicate-claim race proof remain manual. |
 | `OnlineMatchResult` | Per-user online score audit/idempotency. | `applyOnlineResult` creates/checks row before visible score write. | Audit/idempotency; `User.online_progress` is visible score source. | Client helper creates via entity SDK; reads own rows; admin can update/delete. | Logical idempotency key not declared unique in repo. Client-side per-user application means opponent disconnect recovery is limited. | Unique `idempotency_key`; unique `lobby_id + player_email`; `lobby_id`; `player_email + applied_at`. | Retain for audit/reconciliation. Archive after long retention. | Keep but move write authority backend-side. | N/A. |
 | `Lobby` | Authoritative online lobby/game state. | Lobby create/join/start, realtime sync, waiting room, online game state updates, bounded shared Online question deck. | Yes for online match state. | `LobbyRoom`, `useLobbySync`, `useWaitingRoomSync`, service functions (`findLobbyByCode`, `startLobbyGame`, `updateLobbyGameState`, `acceptGameInvite`). | RLS lets host update; backend service functions also validate host/player. `startLobbyGame` writes `online_question_deck` before gameplay so all participants read the same selected-category difficulty-1/2 deck; `updateLobbyGameState` rejects next-question IDs outside the persisted deck when present. Embedded `players` array makes member lookup hard. | Unique `code`; `host_email + status`; `status + last_activity_at`; `status + updated_at`; `started_at`; `completed_at`; possible `players.email` limitation. | Mark stale waiting lobbies `cancelled`; preserve finished/audit rows. | Keep but refactor projections. | N/A. |
 | `GameInvite` | Pending/actionable online invite lifecycle. | Notification center, header, in-app toast, Online pending list, accept/decline/open, push function. | Yes for invite lifecycle. | `inviteApi`, `useNotificationCenter`, `acceptGameInvite`, `sendGameInvitePush`, `dataRetention`. | Read/update by sender/recipient/admin. Toast dismissal must not mutate row. | `to_email + status + expires_at`; `from_email + status`; `lobby_id`; `status + expires_at`; `to_email + status`. | Pending past `expires_at` -> `expired`; completed/cancelled retained then archived. | Keep. | N/A. |

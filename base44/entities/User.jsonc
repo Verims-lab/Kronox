@@ -318,11 +318,11 @@
     "daily_quest_last_claim_at": {
       "type": "string",
       "format": "date-time",
-      "description": "ISO timestamp for the latest server-backed Daily Quest Runtime v1 reward claim. Separate from Daily Wheel guard fields so quest rewards cannot conflict with wheel spins."
+      "description": "ISO timestamp for the latest server-backed Daily Quest Runtime v2 reward claim. Separate from Daily Wheel guard fields so quest rewards cannot conflict with wheel spins."
     },
     "daily_quest_last_claim_date": {
       "type": "string",
-      "description": "UTC YYYY-MM-DD key for the latest Daily Quest Runtime v1 reward claim. Actual duplicate-claim idempotency uses UserDailyQuestProgress + DiamondTransaction daily_quest_reward keys, not this field alone."
+      "description": "UTC YYYY-MM-DD key for the latest Daily Quest Runtime v2 reward claim. Actual duplicate-claim idempotency uses UserDailyQuestProgress + DiamondTransaction daily_quest_reward keys, not this field alone."
     },
     "daily_quest_next_available_at": {
       "type": "string",

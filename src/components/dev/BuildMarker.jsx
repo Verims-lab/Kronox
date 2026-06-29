@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex488 — Daily Quest Runtime v2 reset:
+//   • Home/runtime now use one canonical solo_level_complete quest: "Solo’da Seviye Geç" / "Bugün 1 Solo seviyesini tamamla." / 20 Diamonds.
+//   • Progress advances only after passed Solo level completion; Solo start/correct-card/joker events are no-ops for Daily Quest.
+//   • Runtime ignores DailyQuestDefinition rows and Admin Ekranı no longer mounts Günlük Görev Yönetimi.
+//
 // Codex487 — Friends screen back button returns to Profile:
 //   • FriendsPage top-left back arrow now navigates to /profile (Profile-owned route) instead of Home.
 //   • Route-ownership Health case extended to require the Friends→/profile back contract and forbid the old back-to-Home handler.
@@ -91,7 +96,7 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps Home reward panels visible from a short-lived cache while revalidating and memoizes question text fit tokens.
 //
 
-const BUILD_MARKER = 'Codex487';
+const BUILD_MARKER = 'Codex488';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

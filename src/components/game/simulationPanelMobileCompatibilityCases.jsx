@@ -12,7 +12,6 @@ import friendsPageSource from '../../pages/FriendsPage.jsx?raw';
 import leaderboardPageSource from '../../pages/LeaderboardPage.jsx?raw';
 import adminPageSource from '../../pages/AdminPage.jsx?raw';
 import categoryPreferencesSource from '../settings/CategoryPreferencesSection.jsx?raw';
-import dailyQuestManagerSource from '../admin/DailyQuestDefinitionManager.jsx?raw';
 import questionAnalyticsToolSource from '../admin/QuestionAnalyticsReportTool.jsx?raw';
 import resetUserProgressToolSource from '../admin/ResetUserProgressTool.jsx?raw';
 import gameSource from '../../pages/Game.jsx?raw';
@@ -56,7 +55,7 @@ function makeCase(suiteId, suiteName, id, name, run, options = {}) {
   };
 }
 
-const adminSelectSources = `${dailyQuestManagerSource}\n${questionAnalyticsToolSource}\n${resetUserProgressToolSource}`;
+const adminSelectSources = `${questionAnalyticsToolSource}\n${resetUserProgressToolSource}`;
 const tabStackSources = `${bottomNavSource}\n${navigationStackSource}\n${appSource}`;
 
 export const EXTRA_SUITES = [];
@@ -122,12 +121,11 @@ export const EXTRA_TESTS = [
     'admin_maintenance_lists_use_pull_to_refresh',
     'Admin maintenance lists use PullToRefresh without bypassing admin auth',
     () => {
-      const missing = missingTokens(`${adminPageSource}\n${dailyQuestManagerSource}`, [
+      const missing = missingTokens(`${adminPageSource}\n${adminSelectSources}`, [
         "import PullToRefresh from '@/components/mobile/PullToRefresh'",
         '<PullToRefresh onRefresh={refreshAdminMaintenanceLists}',
         'registerAdminRefresh',
         'AdminRefreshContext.Provider',
-        '<DailyQuestDefinitionManager />',
         'useContext(AdminRefreshContext)',
         'parsedAdminStatus',
         'if (!isAdmin)',

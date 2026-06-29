@@ -1,7 +1,7 @@
 {
   "name": "UserDailyQuestProgress",
   "type": "object",
-  "description": "Daily Quest Runtime v1 user-owned per-day progress row. Exactly 1 row is ensured per authenticated user per UTC quest_date when at least one active DailyQuestDefinition template exists. Older same-day extra rows from the previous multi-quest implementation are retained but the UI displays only the selected primary quest. Claim grants diamonds only through claimDailyQuestReward / DiamondTransaction source daily_quest_reward; Daily Quest does not grant Kronox Puan and has no leaderboard impact.",
+  "description": "Daily Quest Runtime v2 user-owned per-day progress row. Exactly 1 canonical solo_level_complete row is ensured per authenticated/completed-guest user per UTC quest_date without reading or creating DailyQuestDefinition rows. Older same-day rows from previous definition-backed or multi-event implementations are retained but ignored by runtime/UI. Claim grants diamonds only through claimDailyQuestReward / DiamondTransaction source daily_quest_reward; Daily Quest does not grant Kronox Puan and has no leaderboard impact.",
   "properties": {
     "user_email": {
       "type": "string",
@@ -21,11 +21,11 @@
     },
     "quest_definition_id": {
       "type": "string",
-      "description": "DailyQuestDefinition id copied when the row is assigned."
+      "description": "System daily quest definition marker for the canonical code-owned quest, or a legacy DailyQuestDefinition id retained from older rows."
     },
     "quest_key": {
       "type": "string",
-      "description": "Stable quest key copied from DailyQuestDefinition."
+      "description": "Stable quest key. Current runtime uses solo_level_complete only."
     },
     "quest_date": {
       "type": "string",
@@ -33,21 +33,22 @@
     },
     "title": {
       "type": "string",
-      "description": "Display-only title copied from DailyQuestDefinition at assignment time."
+      "description": "Display-only title copied from the canonical runtime contract at assignment time."
     },
     "description": {
       "type": "string",
-      "description": "Display-only description copied from DailyQuestDefinition at assignment time; never parsed into logic."
+      "description": "Display-only description copied from the canonical runtime contract at assignment time; never parsed into logic."
     },
     "quest_type": {
       "type": "string",
       "enum": [
+        "solo_level_complete",
         "start_solo_attempt",
         "correct_cards",
         "complete_solo_level",
         "use_joker"
       ],
-      "description": "Executable progress type. Only quest_type plus target_value drives runtime progress."
+      "description": "Executable progress type. Current runtime advances only solo_level_complete on passed Solo level completion; older enum values are legacy-retained/no-op."
     },
     "progress_value": {
       "type": "integer",
@@ -57,12 +58,12 @@
     "target_value": {
       "type": "integer",
       "minimum": 1,
-      "description": "Target copied from DailyQuestDefinition when assigned."
+      "description": "Target copied from the canonical runtime contract when assigned."
     },
     "reward_diamonds": {
       "type": "integer",
       "minimum": 1,
-      "description": "Diamond reward copied from DailyQuestDefinition when assigned. Daily Quest grants diamonds only."
+      "description": "Diamond reward copied from the canonical runtime contract when assigned. Daily Quest grants diamonds only."
     },
     "status": {
       "type": "string",

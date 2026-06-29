@@ -65,13 +65,12 @@ also shows 7 günlük seri bonusu: +150 elmas and Toplam: +Y elmas. The Home
 claimed-state countdown uses Yarın hazır or compact time text such as 11 sa
 24 dk without a Diamond icon.
 
-Günlük Ödüller panel contains Daily Wheel and Daily Quest Runtime v1 Günlük
-Görev. DailyQuestDefinition templates are admin-managed and
-title/description are display-only; quest_type + target_value drive runtime
-logic. UserDailyQuestProgress stores 1 selected UTC-day player quest.
-Fresh DBs seed the four default Solo-focused DailyQuestDefinition rows
-idempotently when no definitions exist; if no active definitions remain, Home
-shows a safe empty state and does not grant Diamonds. getDailyQuestStatus is
+Günlük Ödüller panel contains Daily Wheel and Daily Quest Runtime v2 Günlük
+Görev. Runtime owns one canonical code-backed quest: solo_level_complete /
+Solo’da Seviye Geç / Bugün 1 Solo seviyesini tamamla., target 1, reward 20
+Diamonds. UserDailyQuestProgress stores 1 selected UTC-day player quest.
+Runtime ignores stale or duplicate DailyQuestDefinition rows and does not seed
+definition rows on app/Home open. getDailyQuestStatus is
 authenticated-or-completed-guest but not admin-only and preserves newly created
 progress rows if immediate refresh is stale.
 claimDailyQuestReward grants diamonds only, writes DiamondTransaction.source =

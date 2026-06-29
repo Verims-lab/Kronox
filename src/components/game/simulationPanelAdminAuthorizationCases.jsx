@@ -579,7 +579,6 @@ export const EXTRA_TESTS = [
         'Admin Ekranı',
         'QuestionAnalyticsReportTool',
         'ResetUserProgressTool',
-        'DailyQuestDefinitionManager',
         'Regression Test Panel',
       ].filter((token) => !combined.includes(token));
       const forbidden = [
@@ -691,7 +690,6 @@ export const EXTRA_TESTS = [
         'Admin Ekranı',
         'QuestionAnalyticsReportTool',
         'ResetUserProgressTool',
-        'DailyQuestDefinitionManager',
         'SimulationPanel',
       ].filter((token) => !safeStr(adminPageSource).includes(token));
       const forbidden = [

@@ -566,7 +566,7 @@ Daily Wheel:
 
 Daily Quest:
 
-* templates: `DailyQuestDefinition`
+* canonical runtime quest: `solo_level_complete`
 * user state: `UserDailyQuestProgress`
 * claim function: `claimDailyQuestReward`
 * ledger source: `daily_quest_reward`
@@ -576,6 +576,8 @@ Daily Quest:
 * separate from Daily Wheel
 * completed guests use token-proven `GuestProfile` and `GuestProfile.diamonds`
   before linking
+* stale/duplicate `DailyQuestDefinition` rows are ignored by runtime and not
+  created on app/Home open
 
 Current hardening:
 

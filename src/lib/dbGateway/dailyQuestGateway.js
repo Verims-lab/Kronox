@@ -1,40 +1,35 @@
 import { base44 } from '@/api/base44Client';
 
 export const DAILY_QUEST_V1_TYPES = Object.freeze([
-  'start_solo_attempt',
-  'correct_cards',
-  'complete_solo_level',
-  'use_joker',
+  'solo_level_complete',
 ]);
 
 export const DAILY_QUEST_TYPE_LABELS = Object.freeze({
-  start_solo_attempt: 'Solo oyunu başlat',
-  correct_cards: 'Kart doğru yerleştir',
-  complete_solo_level: 'Solo level tamamla',
-  use_joker: 'Joker kullan',
+  solo_level_complete: 'Solo seviyesi tamamla',
 });
 
 export const DAILY_QUEST_DEFINITION_CONTRACT = Object.freeze({
-  entity: 'DailyQuestDefinition',
+  entity: 'DailyQuestDefinition (legacy/admin-only; runtime ignores definition rows)',
   progressEntity: 'UserDailyQuestProgress',
-  adminFunction: 'createDailyQuestDefinition',
   statusFunction: 'getDailyQuestStatus',
   progressFunction: 'recordDailyQuestProgress',
   claimFunction: 'claimDailyQuestReward',
-  displayOnlyFields: ['title', 'description'],
-  executableLogicFields: ['quest_type', 'target_value'],
+  canonicalQuestKey: 'solo_level_complete',
+  canonicalQuestType: 'solo_level_complete',
+  canonicalTitle: 'Solo’da Seviye Geç',
+  canonicalDescription: 'Bugün 1 Solo seviyesini tamamla.',
+  executableLogicFields: ['quest_type', 'target_value', 'quest_date'],
   rewardField: 'reward_diamonds',
   diamondsOnly: true,
   noKronoxPuan: true,
   noLeaderboardImpact: true,
   noFreeTextParser: true,
-  runtimeVersion: 'daily-quest-runtime-v1',
+  runtimeVersion: 'daily-quest-runtime-v2-solo-level-complete',
   transactionSource: 'daily_quest_reward',
   dayBoundary: 'UTC',
-  logicalUniqueKey: 'quest_key',
-  adminListSeedsDefaults: false,
-  duplicateDefinitionsGrouped: true,
-  duplicateCleanupMode: 'manual_after_backup',
+  logicalUniqueKey: 'quest_key + quest_date + player_key',
+  adminDefinitionRowsIgnoredAtRuntime: true,
+  duplicateCleanupMode: 'manual_after_backup_no_runtime_dependency',
 });
 
 function unwrapFunctionResponse(response) {
@@ -69,6 +64,7 @@ function safeRuntimeError(errorOrBody, fallback) {
   if (code === 'unauthenticated') return 'Oturum doğrulaması gerekli.';
   if (code === 'daily_quest_not_completed') return 'Görev henüz tamamlanmadı.';
   if (code === 'daily_quest_already_claimed') return 'Bu görev ödülü zaten alındı.';
+  if (code === 'daily_quest_legacy_not_claimable') return 'Bu günlük görev artık geçerli değil.';
   return fallback;
 }
 

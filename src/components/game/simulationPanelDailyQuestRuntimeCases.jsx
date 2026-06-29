@@ -1,8 +1,9 @@
-// Kronox Health Center — Daily Quest Runtime v1 contracts.
+// Kronox Health Center — Daily Quest Runtime v2 contracts.
 //
-// Scope: one user-owned daily progress row, UTC-day quest assignment, Solo-only
-// progress events, server-backed Diamond claim, Günlük Ödüller panel, and
-// strict no Kronox Puan / no leaderboard impact boundaries.
+// Scope: one user-owned daily progress row, UTC-day quest assignment,
+// Solo-level-completion-only progress, server-backed Diamond claim, Günlük
+// Ödüller panel, no Admin definition dependency, and strict no Kronox Puan /
+// no leaderboard impact boundaries.
 
 import dailyQuestProgressEntitySource from '../../../base44/entities/UserDailyQuestProgress.jsonc?raw';
 import dailyQuestDefinitionEntitySource from '../../../base44/entities/DailyQuestDefinition.jsonc?raw';
@@ -57,7 +58,7 @@ function makeCase(id, name, run, options = {}) {
     name,
     critical: options.critical ?? true,
     actionType: options.actionType || ACTION_TYPES.CODE_FIX,
-    nextStep: options.nextStep || 'Keep Daily Quest Runtime v1 server-backed, Solo-only, Diamond-only, and separate from Daily Wheel/leaderboard.',
+    nextStep: options.nextStep || 'Keep Daily Quest Runtime v2 server-backed, Solo-level-completion-only, Diamond-only, and separate from Daily Wheel/leaderboard.',
     ...options,
     run,
   };
@@ -107,7 +108,7 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('utc_day_and_today_ensure_contract',
-    'Daily Quest uses UTC quest_date and ensureTodayDailyQuests creates 1 row idempotently',
+    'Daily Quest uses UTC quest_date and ensureTodayDailyQuests creates 1 canonical row idempotently',
     () => {
       const missing = missingTokens(getDailyQuestStatusSource, [
         'utcDateKey',
@@ -115,22 +116,19 @@ export const EXTRA_TESTS = [
         'nextUtcMidnightIso',
         'ensureTodayDailyQuests',
         'DAILY_QUESTS_PER_DAY = 1',
-        'dedupeDefinitionsByQuestKey',
-        'canonicalDefinitionSort',
-        'duplicateDefinitionCount',
-        'definitionDuplicateGroups',
-        'canonical_definition_id',
+        'CANONICAL_DAILY_QUEST',
+        "quest_key: 'solo_level_complete'",
+        "title: 'Solo’da Seviye Geç'",
+        "description: 'Bugün 1 Solo seviyesini tamamla.'",
+        "quest_type: 'solo_level_complete'",
+        'reward_diamonds: 20',
         'definitions.slice(0, DAILY_QUESTS_PER_DAY)',
         'selectedQuestKeys',
-        'selectedQuestKeys.has',
+        'isCanonicalQuestRow',
         'slice(0, DAILY_QUESTS_PER_DAY)',
         'dailyQuestLimit: DAILY_QUESTS_PER_DAY',
-        "filter({ status: 'active' }",
-        'ensureDefaultDefinitions',
-        'DEFAULT_DEFINITIONS',
-        'definitions_present',
-        'default_seed_created',
-        'seededDefaultKeys',
+        "seedMode: 'code_canonical_no_definition_seed'",
+        'definitionRowsIgnoredAtRuntime: true',
         'function progressEntity(base44',
         'base44?.entities?.UserDailyQuestProgress',
         'progressEntitySource',
@@ -145,33 +143,34 @@ export const EXTRA_TESTS = [
         'refreshedRows.length ? refreshedRows : ensuredRows',
         'noRewardDuringEnsure: true',
       ]);
-      if (missing.length) return fail('UTC daily ensure/idempotency/active-definition contract is incomplete.', {
+      const forbidden = forbiddenTokens(getDailyQuestStatusSource, [
+        'ensureDefaultDefinitions(base44)',
+        "filter({ status: 'active' }",
+        'DEFAULT_DEFINITIONS',
+        "created_by: 'system:daily_quest_runtime_seed'",
+      ]);
+      if (missing.length || forbidden.length) return fail('UTC daily ensure/idempotency/canonical-runtime contract is incomplete.', {
         verification: 'STATIC_CONTRACT',
         file: 'base44/functions/getDailyQuestStatus/entry.ts',
-        missing,
+        actual: { missing, forbidden },
       });
-      return pass('getDailyQuestStatus uses UTC, excludes passive definitions, and idempotently ensures exactly 1 selected row.', { verification: 'STATIC_CONTRACT' });
+      return pass('getDailyQuestStatus uses UTC and idempotently ensures exactly 1 code-owned Solo level completion row without definition seeding.', { verification: 'STATIC_CONTRACT' });
     }),
 
-  makeCase('home_empty_state_and_seed_contract',
-    'Home Daily Quest load seeds fresh DB defaults and has a clear no-active-definition state',
+  makeCase('home_canonical_contract',
+    'Home Daily Quest load uses the canonical Solo level completion contract',
     () => {
       const combined = `${getDailyQuestStatusSource}\n${recordDailyQuestProgressSource}\n${dailyRewardsPanelSource}\n${docsCombined}`;
       const missing = missingTokens(combined, [
-        'DEFAULT_DEFINITIONS',
-        'Solo’ya Başla',
-        'correct_5_cards',
-        'complete_1_solo_level',
-        'use_1_joker',
-        'readAllDefinitions',
-        'allDefinitions.length > 0',
-        'created_by: \'system:daily_quest_runtime_seed\'',
+        'solo_level_complete',
+        'Solo’da Seviye Geç',
+        'Bugün 1 Solo seviyesini tamamla.',
+        'reward_diamonds: 20',
+        'definitionRowsIgnoredAtRuntime',
         'emptyStateReason',
-        'no_active_definitions',
         'Günlük görev yakında hazır olacak.',
         'Görevler yükleniyor...',
-        'Older same-day 3-quest rows are retained but Home displays only the selected',
-        'Aktif günlük görev tanımı yok. Admin Ekranı &gt; Günlük Görev Yönetimi bölümünden aktif görev ekleyin.',
+        'code_canonical_no_definition_seed',
         '`claimDailyQuestReward` remains the only reward path',
       ]);
       const forbidden = forbiddenTokens(`${getDailyQuestStatusSource}\n${recordDailyQuestProgressSource}`, [
@@ -179,16 +178,18 @@ export const EXTRA_TESTS = [
         'source: \'daily_quest_reward\'',
         'kronox_puan_total',
         'SoloLeaderboardEntry',
+        'start_1_solo_attempt',
+        'Bugün 1 Solo oyunu başlat.',
       ]);
       if (missing.length || forbidden.length) return fail('Daily Quest Home load can remain empty/stuck or can grant rewards during ensure.', {
         verification: 'STATIC_CONTRACT',
         actual: { missing, forbidden },
       });
-      return pass('Home status load idempotently seeds fresh DB defaults, reports no-active-definition state, and never grants during ensure.', { verification: 'STATIC_CONTRACT' });
+      return pass('Home status load is code-owned, shows the Solo level completion copy, ignores definition rows, and never grants during ensure.', { verification: 'STATIC_CONTRACT' });
     }),
 
-  makeCase('definition_copy_and_logic_boundary',
-    'Daily Quest progress copies target/reward and keeps title/description display-only',
+  makeCase('canonical_copy_and_logic_boundary',
+    'Daily Quest progress copies canonical target/reward and keeps title/description display-only',
     () => {
       const missing = missingTokens(`${dailyQuestProgressEntitySource}\n${getDailyQuestStatusSource}\n${dailyQuestDefinitionEntitySource}`, [
         'title',
@@ -197,10 +198,11 @@ export const EXTRA_TESTS = [
         'quest_type',
         'target_value',
         'reward_diamonds',
-        'title: definition.title',
-        'description: definition.description',
-        'target_value: definition.target_value',
-        'reward_diamonds: definition.reward_diamonds',
+        'CANONICAL_DAILY_QUEST',
+        "title: 'Solo’da Seviye Geç'",
+        "description: 'Bugün 1 Solo seviyesini tamamla.'",
+        'target_value: 1',
+        'reward_diamonds: 20',
       ]);
       const forbidden = forbiddenTokens(runtimeSources, [
         'parseQuestText',
@@ -214,29 +216,36 @@ export const EXTRA_TESTS = [
         verification: 'STATIC_CONTRACT',
         actual: { missing, forbidden },
       });
-      return pass('Progress rows copy display/target/reward values and runtime logic uses quest_type + target_value only.', { verification: 'STATIC_CONTRACT' });
+      return pass('Progress rows copy canonical display/target/reward values and runtime logic uses solo_level_complete + target_value only.', { verification: 'STATIC_CONTRACT' });
     }),
 
-  makeCase('solo_progress_events_are_wired',
-    'Solo events increment supported Daily Quest types',
+  makeCase('solo_completion_event_is_only_progress_trigger',
+    'Only passed Solo level completion increments Daily Quest progress',
     () => {
       const missing = missingTokens(`${gameSource}\n${recordDailyQuestProgressSource}`, [
         "recordDailyQuestProgress({",
-        "eventType: 'start_solo_attempt'",
-        "recordDailyQuestSoloEvent('correct_cards'",
-        "recordDailyQuestSoloEvent('complete_solo_level'",
-        "recordDailyQuestSoloEvent('use_joker'",
+        "recordDailyQuestSoloEvent('solo_level_complete'",
+        'completionEventId',
+        'passed: true',
+        "questType: 'solo_level_complete'",
         "mode: 'solo'",
+        'unsupported_daily_quest_event',
         'progress_value',
         'status: nextStatus',
         'completed_at',
       ]);
-      if (missing.length) return fail('Solo Daily Quest progress event wiring is incomplete.', {
+      const forbidden = forbiddenTokens(gameSource, [
+        "eventType: 'start_solo_attempt'",
+        "recordDailyQuestSoloEvent('correct_cards'",
+        "recordDailyQuestSoloEvent('complete_solo_level'",
+        "recordDailyQuestSoloEvent('use_joker'",
+      ]);
+      if (missing.length || forbidden.length) return fail('Solo Daily Quest progress event wiring is not completion-only.', {
         verification: 'STATIC_CONTRACT',
         files: ['src/pages/Game.jsx', 'base44/functions/recordDailyQuestProgress/entry.ts'],
-        missing,
+        actual: { missing, forbidden },
       });
-      return pass('Game.jsx emits Solo-only start/correct/complete/joker events and recordDailyQuestProgress completes rows at target.', { verification: 'STATIC_CONTRACT' });
+      return pass('Game.jsx emits only passed Solo level completion progress and recordDailyQuestProgress no-ops unsupported legacy events.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('completed_guest_daily_quest_runtime_contract',
@@ -304,6 +313,8 @@ export const EXTRA_TESTS = [
         'claimDailyQuestReward',
         'base44.auth.me()',
         'findProgress',
+        'isCanonicalDailyQuest',
+        'daily_quest_legacy_not_claimable',
         "progressStatus !== 'completed'",
         'progressValue < targetValue',
         'daily_quest_not_completed',

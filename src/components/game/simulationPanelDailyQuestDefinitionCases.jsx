@@ -278,29 +278,33 @@ export const EXTRA_TESTS = [
       return pass('Definition management is disconnected from Kronox Puan and leaderboard writes.', { verification: 'STATIC_CONTRACT' });
     }),
 
-  makeCase('admin_ui_under_profile_settings',
-    'Admin-only management UI exists under Profile/Admin Ekranı',
+  makeCase('admin_ui_removed_from_admin_page',
+    'Daily Quest definition manager is not mounted in Admin Ekranı',
     () => {
-      const missing = missingTokens(`${profilePageSource}\n${adminPageSource}\n${appSource}\n${dailyQuestManagerUiSource}`, [
+      const missing = missingTokens(`${profilePageSource}\n${adminPageSource}\n${appSource}`, [
         'Admin Ekranı',
         "navigate('/admin')",
         'path="/admin"',
+        'const isAdmin = parsedAdminStatus',
+        'if (!isAdmin)',
+        'QuestionAnalyticsReportTool',
+        'ResetUserProgressTool',
+      ]);
+      const forbidden = forbiddenTokens(adminPageSource, [
         "import DailyQuestDefinitionManager",
         '<DailyQuestDefinitionManager />',
-        'DailyQuestDefinitionList',
         'Günlük Görev Yönetimi',
-        'Tanımlı Görevler',
-        'Yeni Görev Ekle',
       ]);
-      if (missing.length) return fail('Daily Quest management UI is not mounted under Admin Ekranı.', { verification: 'STATIC_CONTRACT', missing });
-      return pass('Profile Admin Ekranı includes Günlük Görev Yönetimi and the split Tanımlı Görevler list.', { verification: 'STATIC_CONTRACT' });
+      if (missing.length || forbidden.length) return fail('Admin Ekranı either lost its gate/tools or still mounts the removed Daily Quest manager.', {
+        verification: 'STATIC_CONTRACT',
+        actual: { missing, forbidden },
+      });
+      return pass('Admin Ekranı remains gated while the Daily Quest definition manager/add/monitor UI is removed.', { verification: 'STATIC_CONTRACT' });
     }),
 
-  makeCase('normal_users_cannot_see_admin_ui',
-    'Normal users cannot see Daily Quest management UI',
+  makeCase('definition_backend_not_runtime_ui',
+    'Legacy definition backend is not exposed as runtime Admin UI',
     () => {
-      const managerIdx = safeStr(adminPageSource).indexOf('<DailyQuestDefinitionManager />');
-      const deniedIdx = safeStr(adminPageSource).indexOf('if (!isAdmin)');
       const missing = missingTokens(`${profilePageSource}\n${adminPageSource}\n${createDailyQuestDefinitionSource}`, [
         'const isAdmin = parsedAdminStatus',
         'if (!isAdmin)',
@@ -308,12 +312,16 @@ export const EXTRA_TESTS = [
         'requireAdmin(base44)',
         'Admin yetkisi gerekli.',
       ]);
-      const gated = managerIdx >= 0 && deniedIdx >= 0 && deniedIdx < managerIdx;
-      if (missing.length || !gated) return fail('Daily Quest management may be visible without active admin status.', {
+      const forbidden = forbiddenTokens(adminPageSource, [
+        '<DailyQuestDefinitionManager />',
+        'listDailyQuestDefinitions',
+        'createDailyQuestDefinition',
+      ]);
+      if (missing.length || forbidden.length) return fail('Daily Quest definition backend can still be exposed through Admin UI.', {
         verification: 'STATIC_CONTRACT',
-        actual: { missing, gated },
+        actual: { missing, forbidden },
       });
-      return pass('Daily Quest management is inside the admin-only Admin Ekranı and backend guarded.', { verification: 'STATIC_CONTRACT' });
+      return pass('Legacy definition function remains backend-guarded while Admin UI no longer exposes list/create controls.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('admin_can_list_definitions',
@@ -533,15 +541,18 @@ export const EXTRA_TESTS = [
     () => {
       const missing = missingTokens(gameSource, [
         'recordDailyQuestProgress',
-        "eventType: 'start_solo_attempt'",
-        "recordDailyQuestSoloEvent('correct_cards'",
-        "recordDailyQuestSoloEvent('complete_solo_level'",
-        "recordDailyQuestSoloEvent('use_joker'",
+        "recordDailyQuestSoloEvent('solo_level_complete'",
+        "questType: 'solo_level_complete'",
+        'passed: true',
       ]);
       const forbidden = forbiddenTokens(gameSource, [
         'DailyQuestDefinition',
         'createDailyQuestDefinition',
         'daily_quest_reward',
+        "eventType: 'start_solo_attempt'",
+        "recordDailyQuestSoloEvent('correct_cards'",
+        "recordDailyQuestSoloEvent('complete_solo_level'",
+        "recordDailyQuestSoloEvent('use_joker'",
       ]);
       if (missing.length || forbidden.length) return fail('Solo runtime Daily Quest wiring can mix definition/admin/claim concerns.', {
         verification: 'STATIC_CONTRACT',

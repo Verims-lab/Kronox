@@ -121,28 +121,25 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('daily_quest_definition_entity_registered',
-    'DailyQuestDefinition template entity is registered in DB architecture',
+    'DailyQuestDefinition legacy entity is registered while runtime is canonical',
     () => {
       const combined = `${dailyQuestGatewaySource}\n${DB_ARCHITECTURE_IMPLEMENTATION_MIRROR}`;
       const missing = missingTokens(combined, [
         'DailyQuestDefinition',
-        'createDailyQuestDefinition',
-        'quest_type + target_value',
+        'legacy/admin-only',
+        'runtime ignores definition rows',
+        'solo_level_complete',
         'reward_diamonds only',
         'never Kronox Puan',
-        'start_solo_attempt',
-        'correct_cards',
-        'complete_solo_level',
-        'use_joker',
       ]);
       if (missing.length) {
-        return fail('DailyQuestDefinition DB architecture contract is incomplete.', {
+        return fail('DailyQuestDefinition/canonical runtime DB architecture contract is incomplete.', {
           verification: 'STATIC_CONTRACT',
           missing,
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('DailyQuestDefinition is documented as an admin-managed template entity with enum logic and Diamond-only rewards.', {
+      return pass('DailyQuestDefinition is documented as legacy/admin-only while Daily Quest runtime uses the canonical solo_level_complete progress row.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

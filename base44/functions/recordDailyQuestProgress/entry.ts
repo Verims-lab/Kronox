@@ -2,56 +2,24 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 
 const QUEST_TYPES = [
-  'start_solo_attempt',
-  'correct_cards',
-  'complete_solo_level',
-  'use_joker',
+  'solo_level_complete',
 ] as const;
-const DAILY_QUEST_RUNTIME_VERSION = 'daily-quest-runtime-v1';
+const LEGACY_COMPLETION_EVENT_TYPES = new Set(['complete_solo_level']);
+const DAILY_QUEST_RUNTIME_VERSION = 'daily-quest-runtime-v2-solo-level-complete';
 const DAILY_QUESTS_PER_DAY = 1;
 const GUEST_ID_PREFIX = 'guest_';
-const DEFAULT_DEFINITIONS = [
-  {
-    quest_key: 'start_1_solo_attempt',
-    title: 'Solo’ya Başla',
-    description: 'Bugün 1 Solo oyunu başlat.',
-    quest_type: 'start_solo_attempt',
-    target_value: 1,
-    reward_diamonds: 20,
-    status: 'active',
-    sort_order: 10,
-  },
-  {
-    quest_key: 'correct_5_cards',
-    title: '5 Kart Doğru Yerleştir',
-    description: 'Bugün 5 kartı doğru yerleştir.',
-    quest_type: 'correct_cards',
-    target_value: 5,
-    reward_diamonds: 30,
-    status: 'active',
-    sort_order: 20,
-  },
-  {
-    quest_key: 'complete_1_solo_level',
-    title: '1 Level Tamamla',
-    description: 'Bugün 1 Solo level tamamla.',
-    quest_type: 'complete_solo_level',
-    target_value: 1,
-    reward_diamonds: 50,
-    status: 'active',
-    sort_order: 30,
-  },
-  {
-    quest_key: 'use_1_joker',
-    title: '1 Joker Kullan',
-    description: 'Bugün 1 joker kullan.',
-    quest_type: 'use_joker',
-    target_value: 1,
-    reward_diamonds: 20,
-    status: 'active',
-    sort_order: 40,
-  },
-] as const;
+const CANONICAL_DAILY_QUEST = {
+  id: 'system:daily_quest:solo_level_complete:v2',
+  quest_definition_id: 'system:daily_quest:solo_level_complete:v2',
+  quest_key: 'solo_level_complete',
+  title: 'Solo’da Seviye Geç',
+  description: 'Bugün 1 Solo seviyesini tamamla.',
+  quest_type: 'solo_level_complete',
+  target_value: 1,
+  reward_diamonds: 20,
+  status: 'active',
+  sort_order: 10,
+} as const;
 
 function json(payload: unknown, status = 200) {
   return Response.json(payload, { status });
@@ -63,6 +31,7 @@ function normalizeEmail(value: unknown) {
 
 function normalizeQuestType(value: unknown) {
   const text = String(value || '').trim();
+  if (LEGACY_COMPLETION_EVENT_TYPES.has(text)) return 'solo_level_complete';
   return QUEST_TYPES.includes(text as typeof QUEST_TYPES[number]) ? text : '';
 }
 
@@ -75,6 +44,11 @@ function normalizeQuestKey(value: unknown) {
     .replace(/_+/g, '_')
     .replace(/^_+|_+$/g, '')
     .slice(0, 80);
+}
+
+function isCanonicalQuestRow(row: any) {
+  return String(row?.quest_key || '') === CANONICAL_DAILY_QUEST.quest_key ||
+    String(row?.quest_type || '') === CANONICAL_DAILY_QUEST.quest_type;
 }
 
 function normalizeNumber(value: unknown, fallback = 0) {
@@ -232,7 +206,7 @@ function publicProgress(row: any) {
 
 function publicDefinition(row: any) {
   return {
-    id: row?.id || null,
+    id: row?.id || row?.quest_definition_id || CANONICAL_DAILY_QUEST.quest_definition_id,
     quest_key: normalizeQuestKey(row?.quest_key),
     title: String(row?.title || ''),
     description: String(row?.description || ''),
@@ -296,74 +270,6 @@ function progressEntitySource(base44: any, player: any = null) {
   return base44?.entities?.UserDailyQuestProgress ? 'auth_user' : 'service_role_fallback';
 }
 
-async function readActiveDefinitions(base44: any) {
-  const rows = await base44.asServiceRole.entities.DailyQuestDefinition
-    .filter({ status: 'active' }, 'sort_order', 100)
-    .catch(() => []);
-  return dedupeDefinitionsByQuestKey(Array.isArray(rows) ? rows : []);
-}
-
-async function readAllDefinitions(base44: any) {
-  const entity = base44.asServiceRole.entities.DailyQuestDefinition;
-  if (entity?.list) {
-    const rows = await entity.list('sort_order', 100).catch(() => []);
-    if (Array.isArray(rows) && rows.length) return rows;
-  }
-  const rows = await entity.filter({}, 'sort_order', 100).catch(() => []);
-  return Array.isArray(rows) ? rows : [];
-}
-
-async function findDefinitionByKey(base44: any, questKey: string) {
-  const normalizedQuestKey = normalizeQuestKey(questKey);
-  const rows = await base44.asServiceRole.entities.DailyQuestDefinition
-    .filter({ quest_key: normalizedQuestKey }, '-updated_at', 50)
-    .catch(() => []);
-  const definitions = dedupeDefinitionsByQuestKey(Array.isArray(rows) ? rows : []);
-  return definitions.length ? definitions[0] : null;
-}
-
-async function ensureDefaultDefinitions(base44: any) {
-  const entity = base44.asServiceRole.entities.DailyQuestDefinition;
-  const allDefinitions = await readAllDefinitions(base44);
-  if (allDefinitions.length > 0) {
-    return { seededDefaultKeys: [], seedMode: 'definitions_present' };
-  }
-  if (!entity?.create) {
-    return { seededDefaultKeys: [], seedMode: 'definition_create_unavailable' };
-  }
-  const timestamp = new Date().toISOString();
-  const seededDefaultKeys: string[] = [];
-  const existingKeys = new Set(
-    (allDefinitions || [])
-      .map((definition: any) => normalizeQuestKey(definition?.quest_key))
-      .filter(Boolean),
-  );
-  for (const definition of DEFAULT_DEFINITIONS) {
-    if (existingKeys.has(definition.quest_key)) continue;
-    const existing = await findDefinitionByKey(base44, definition.quest_key);
-    if (existing) {
-      existingKeys.add(definition.quest_key);
-      continue;
-    }
-    try {
-      await entity.create({
-        ...definition,
-        created_by: 'system:daily_quest_runtime_seed',
-        created_at: timestamp,
-        updated_by: 'system:daily_quest_runtime_seed',
-        updated_at: timestamp,
-      });
-      seededDefaultKeys.push(definition.quest_key);
-      existingKeys.add(definition.quest_key);
-    } catch (error) {
-      const afterRace = await findDefinitionByKey(base44, definition.quest_key);
-      if (!afterRace) throw error;
-      existingKeys.add(definition.quest_key);
-    }
-  }
-  return { seededDefaultKeys, seedMode: seededDefaultKeys.length ? 'default_seed_created' : 'default_seed_existing' };
-}
-
 async function readTodayRows(base44: any, player: any, dateKey: string) {
   const entity = progressEntity(base44, player);
   if (!entity?.filter) return [];
@@ -400,7 +306,7 @@ async function createProgressRow(base44: any, player: any, dateKey: string, defi
       user_email: player.playerKey,
       owner_key: player.ownerKey,
       player_type: player.isGuest ? 'guest' : 'registered',
-      quest_definition_id: definition.id,
+      quest_definition_id: definition.quest_definition_id || definition.id || CANONICAL_DAILY_QUEST.quest_definition_id,
       quest_key: String(definition.quest_key || ''),
       quest_date: dateKey,
       title: String(definition.title || ''),
@@ -418,6 +324,9 @@ async function createProgressRow(base44: any, player: any, dateKey: string, defi
         serverDayBoundary: 'UTC',
         guestProfileQuest: player.isGuest,
         rawGuestTokenServerStored: false,
+        sourceDefinitionStatus: 'code_canonical',
+        definitionRowsIgnoredAtRuntime: true,
+        progressTrigger: 'solo_level_completion_only',
       },
       created_at: timestamp,
       updated_at: timestamp,
@@ -433,14 +342,13 @@ async function createProgressRow(base44: any, player: any, dateKey: string, defi
 }
 
 async function ensureTodayDailyQuests(base44: any, player: any, dateKey: string) {
-  await ensureDefaultDefinitions(base44);
-  const definitions = await readActiveDefinitions(base44);
+  const definitions = [publicDefinition(CANONICAL_DAILY_QUEST)];
   const selectedDefinitions = definitions.slice(0, DAILY_QUESTS_PER_DAY);
   const selectedQuestKeys = new Set(selectedDefinitions.map((definition: any) => String(definition.quest_key || '')));
   let rows = await readTodayRows(base44, player, dateKey);
-  const keys = new Set(rows.map((row: any) => String(row?.quest_key || '')));
+  const keys = new Set(rows.filter(isCanonicalQuestRow).map((row: any) => String(row?.quest_key || '')));
   for (const definition of selectedDefinitions) {
-    if (rows.filter((row: any) => selectedQuestKeys.has(String(row?.quest_key || ''))).length >= DAILY_QUESTS_PER_DAY) break;
+    if (rows.filter(isCanonicalQuestRow).length >= DAILY_QUESTS_PER_DAY) break;
     if (keys.has(String(definition.quest_key || ''))) continue;
     const created = await createProgressRow(base44, player, dateKey, definition);
     if (created?.id) {
@@ -450,7 +358,7 @@ async function ensureTodayDailyQuests(base44: any, player: any, dateKey: string)
   }
   const refreshedRows = await readTodayRows(base44, player, dateKey);
   return (refreshedRows.length ? refreshedRows : rows)
-    .filter((row: any) => selectedQuestKeys.has(String(row?.quest_key || '')))
+    .filter((row: any) => selectedQuestKeys.has(String(row?.quest_key || '')) || isCanonicalQuestRow(row))
     .slice(0, DAILY_QUESTS_PER_DAY);
 }
 
@@ -464,11 +372,24 @@ Deno.serve(async (req: Request) => {
     const body = await req.json().catch(() => ({}));
     const player = await resolveDailyQuestPlayer(base44, body);
     if (!player.ok) return player.response;
-    const eventType = normalizeQuestType(body?.eventType || body?.quest_type || body?.questType);
     const mode = String(body?.mode || '').trim().toLowerCase();
-    if (!eventType) return json({ ok: false, code: 'invalid_quest_event', error: 'Görev olayı geçersiz.' }, 400);
     if (mode !== 'solo') {
       return json({ ok: true, skipped: true, reason: 'non_solo_mode', updated: [], onlineModeExcluded: true });
+    }
+    const requestedEventType = String(body?.eventType || body?.quest_type || body?.questType || '').trim();
+    const eventType = normalizeQuestType(requestedEventType);
+    if (!eventType) {
+      return json({
+        ok: true,
+        skipped: true,
+        reason: 'unsupported_daily_quest_event',
+        requestedEventType,
+        supportedEventType: CANONICAL_DAILY_QUEST.quest_type,
+        updated: [],
+        noDiamondGrantDuringProgress: true,
+        noKronoxPuan: true,
+        noLeaderboardImpact: true,
+      });
     }
 
     const dateKey = utcDateKey();
@@ -516,6 +437,7 @@ Deno.serve(async (req: Request) => {
           lastEventType: eventType,
           lastEventId: baseEventId || null,
           lastMode: 'solo',
+          progressTrigger: 'solo_level_completion_only',
         },
       });
       updates.push(publicProgress(updated));
@@ -534,6 +456,9 @@ Deno.serve(async (req: Request) => {
       updated: updates,
       dailyQuestLimit: DAILY_QUESTS_PER_DAY,
       quests: responseRows.slice(0, DAILY_QUESTS_PER_DAY).map(publicProgress),
+      canonicalQuestKey: CANONICAL_DAILY_QUEST.quest_key,
+      canonicalQuestType: CANONICAL_DAILY_QUEST.quest_type,
+      definitionRowsIgnoredAtRuntime: true,
       noDiamondGrantDuringProgress: true,
       grantsDiamondsOnlyOnClaim: true,
       noKronoxPuan: true,
