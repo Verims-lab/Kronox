@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex493 — Health blocker fixes (KRONOX-MQZBZ0FS): Market refresh + readiness + admin pull-to-refresh:
+//   • MarketPage post-purchase setUser((current) => ({...})) patches the shared auth Diamond total so Home/Profile refresh without reload.
+//   • Purchase CTA derives from explicit readiness: const disabled = readiness.disabled / const buttonLabel = readiness.label (no broad page/inventory loading gate).
+//   • ResetUserProgressTool consumes useContext(AdminRefreshContext) so admin PullToRefresh reloads a previewed user inside the AdminUser-gated page.
+//
 // Codex492 — Market post-purchase balance sync + CTA states:
 //   • MarketPage pushes the authoritative post-purchase Diamond total into shared auth via setUser so Home/Profile refresh without reload.
 //   • Product card CTA is explicit "Satın Al" with an "İşleniyor" in-flight state; catalog falls back to MARKET_JOKER_PRODUCTS.
@@ -116,7 +121,7 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps Home reward panels visible from a short-lived cache while revalidating and memoizes question text fit tokens.
 //
 
-const BUILD_MARKER = 'Codex492';
+const BUILD_MARKER = 'Codex493';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

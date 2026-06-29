@@ -1,8 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Loader2, RotateCcw, Search, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
 import KronoxSelectSheet from '@/components/mobile/KronoxSelectSheet';
+import { AdminRefreshContext } from '@/lib/AdminRefreshContext';
 
 const MODE_HARD_ZERO = 'hard_zero';
 const MODE_NEW_PLAYER = 'new_player';
@@ -38,6 +39,7 @@ async function callAdminResetUserProgress(payload) {
 }
 
 export default function ResetUserProgressTool() {
+  const registerAdminRefresh = useContext(AdminRefreshContext);
   const [targetEmail, setTargetEmail] = useState('');
   const [confirmEmail, setConfirmEmail] = useState('');
   const [mode, setMode] = useState(MODE_HARD_ZERO);
@@ -105,6 +107,28 @@ export default function ResetUserProgressTool() {
       setLoading('');
     }
   };
+
+  // Admin-gated pull-to-refresh: re-fetch the currently open preview (if any)
+  // so the displayed user values stay current. The backend reset function
+  // enforces the AdminUser gate, so this never bypasses authorization.
+  const refreshOpenPreview = useCallback(async () => {
+    if (!preview || !normalizedTarget) return;
+    try {
+      const body = await callAdminResetUserProgress({
+        action: 'preview',
+        targetEmail: normalizedTarget,
+        mode,
+      });
+      setPreview(body.preview || null);
+    } catch {
+      /* keep the existing preview if a refresh attempt fails */
+    }
+  }, [mode, normalizedTarget, preview]);
+
+  useEffect(() => {
+    if (typeof registerAdminRefresh !== 'function') return undefined;
+    return registerAdminRefresh(refreshOpenPreview);
+  }, [registerAdminRefresh, refreshOpenPreview]);
 
   return (
     <div className="rounded-2xl border border-amber-300/25 bg-amber-300/5 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">

@@ -143,20 +143,21 @@ export default function MarketPage() {
           [product.jokerType]: normalizeJokerQuantity(current?.[product.jokerType]) + 1,
         }));
       }
-      const purchasedDiamondBalance = normalizeJokerQuantity(result.diamondBalanceAfter);
       setLocalUserPatch((current) => ({
         ...(current || {}),
         ...(result.userPatch || {}),
-        diamonds: purchasedDiamondBalance,
+        diamonds: normalizeJokerQuantity(result.diamondBalanceAfter),
       }));
       // Push the authoritative post-purchase Diamond total into the shared
       // auth user so Home/Profile (which read useAuth().user) refresh their
       // visible Elmas balance without a full reload.
-      setUser?.((current) => ({
-        ...(current || authUser || {}),
-        ...(result.userPatch || {}),
-        diamonds: normalizeJokerQuantity(result.diamondBalanceAfter),
-      }));
+      if (typeof setUser === 'function') {
+        setUser((current) => ({
+          ...(current || authUser || {}),
+          ...(result.userPatch || {}),
+          diamonds: normalizeJokerQuantity(result.diamondBalanceAfter),
+        }));
+      }
       checkUserAuth?.();
       setNotice({ type: 'success', text: `${product.name} alındı.` });
     } catch {
@@ -267,13 +268,12 @@ function MarketProductCard({
     pending,
     anyPending,
   });
+  // Explicit readiness drives both disabled state and label so the CTA is
+  // never gated by broad/non-critical page or inventory loading.
+  // readiness.label resolves to "Satın Al" when ready and "İşleniyor" while a
+  // purchase is in-flight.
   const disabled = readiness.disabled;
-  // Default purchase CTA is "Satın Al"; an in-flight purchase shows "İşleniyor".
-  // readiness.label already resolves to these, but we keep explicit fallbacks
-  // so the card always presents a clear, controlled CTA state.
-  const buttonLabel = pending
-    ? 'İşleniyor'
-    : (readiness.label || 'Satın Al');
+  const buttonLabel = readiness.label;
 
   return (
     <motion.article
