@@ -14,6 +14,7 @@ const ACTIVE_GAME_INVITE_STATUSES = new Set(['pending', 'accepted']);
 const ACTIVE_LOBBY_STATUSES = new Set(['waiting', 'starting', 'in_game']);
 const UNSAFE_PUBLIC_USERNAME_PATTERN = /^(apple|google|firebase|auth0|base44|provider|uid|owner)(?:[\w:-].*)?$/i;
 const INTERNAL_ID_PUBLIC_USERNAME_PATTERN = /^(guest|player|owner|user_key|player_key|g|u)_[A-Za-z0-9_-]{4,}$/i;
+const KRONOX_ID_PATTERN = /^KX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
 
 function json(payload: unknown, status = 200) {
   return Response.json(payload, { status });
@@ -33,6 +34,11 @@ function rowId(row: any) {
 
 function normalizeEmail(value: unknown) {
   return String(value || '').trim().toLowerCase();
+}
+
+function normalizeKronoxUserId(value: unknown) {
+  const text = String(value || '').trim().toUpperCase();
+  return KRONOX_ID_PATTERN.test(text) ? text : '';
 }
 
 function normalizeAdminAuthEmail(value: unknown) {
@@ -339,6 +345,7 @@ function evaluateGuest(row: any, context: any) {
   if (context.userUsernameKeys.has(usernameKey)) reasons.push('linked_or_logged_in');
 
   const profileScore = safeInteger(row?.kronox_puan_total);
+  const kronoxUserId = normalizeKronoxUserId(row?.kronox_user_id);
   const sameOwnerLeaderboardRows = ownerKey ? uniqueRows(context.leaderboardByOwner.get(ownerKey) || []) : [];
   const sameUsernameLeaderboardRows = usernameKey ? uniqueRows(context.leaderboardByUsername.get(usernameKey) || []) : [];
   const otherOwnerLeaderboardRows = sameUsernameLeaderboardRows.filter((item) => String(item?.owner_key || '').trim() !== ownerKey);
@@ -356,11 +363,13 @@ function evaluateGuest(row: any, context: any) {
 
   const acceptedFriendRows = context.activeFriendRequests.filter((item: any) => (
     String(item?.status || '').toLowerCase() === 'accepted' &&
-    rowMatchesUsername(item, usernameKey, ['from_username', 'from_name', 'to_username', 'to_name'])
+    (rowMatchesUsername(item, usernameKey, ['from_username', 'from_name', 'to_username', 'to_name']) ||
+      (kronoxUserId && [item?.from_kronox_user_id, item?.to_kronox_user_id].some((value) => normalizeKronoxUserId(value) === kronoxUserId)))
   ));
   const pendingFriendRows = context.activeFriendRequests.filter((item: any) => (
     String(item?.status || '').toLowerCase() === 'pending' &&
-    rowMatchesUsername(item, usernameKey, ['from_username', 'from_name', 'to_username', 'to_name'])
+    (rowMatchesUsername(item, usernameKey, ['from_username', 'from_name', 'to_username', 'to_name']) ||
+      (kronoxUserId && [item?.from_kronox_user_id, item?.to_kronox_user_id].some((value) => normalizeKronoxUserId(value) === kronoxUserId)))
   ));
   const legacyFriendRows = context.legacyFriendships.filter((item: any) => (
     rowMatchesUsername(item, usernameKey, ['friend_name'])
@@ -369,13 +378,18 @@ function evaluateGuest(row: any, context: any) {
   if (pendingFriendRows.length) reasons.push('has_active_social_relation');
 
   const activeInviteRows = context.activeGameInvites.filter((item: any) => (
-    rowMatchesUsername(item, usernameKey, ['from_name', 'to_name'])
+    rowMatchesUsername(item, usernameKey, ['from_name', 'to_name']) ||
+    (kronoxUserId && [item?.from_kronox_user_id, item?.to_kronox_user_id].some((value) => normalizeKronoxUserId(value) === kronoxUserId))
   ));
   if (activeInviteRows.length) reasons.push('has_active_social_relation');
 
   const activeLobbyRows = context.activeLobbies.filter((lobby: any) => {
     if (rowMatchesUsername(lobby, usernameKey, ['host_name', 'winner'])) return true;
-    return Array.isArray(lobby?.players) && lobby.players.some((player: any) => rowMatchesUsername(player, usernameKey, ['name']));
+    if (kronoxUserId && [lobby?.host_kronox_user_id, lobby?.winner_kronox_user_id].some((value) => normalizeKronoxUserId(value) === kronoxUserId)) return true;
+    return Array.isArray(lobby?.players) && lobby.players.some((player: any) => (
+      rowMatchesUsername(player, usernameKey, ['name']) ||
+      (kronoxUserId && normalizeKronoxUserId(player?.kronox_user_id) === kronoxUserId)
+    ));
   });
   if (activeLobbyRows.length) reasons.push('has_active_social_relation');
 
@@ -470,6 +484,26 @@ async function deleteRows(entity: any, rows: any[]) {
   return deleted;
 }
 
+async function reserveKronoxUserIdTombstone(base44: any, kronoxUserId: string) {
+  const normalized = normalizeKronoxUserId(kronoxUserId);
+  const entity = base44.asServiceRole.entities.KronoxUserIdTombstone;
+  if (!normalized || !entity?.filter || !entity?.create) return false;
+  const existing = await entity.filter({ kronox_user_id: normalized }, '-reserved_at', 1).catch(() => []);
+  if (existing?.[0]) return true;
+  await entity.create({
+    kronox_user_id: normalized,
+    source_entity: 'GuestProfile',
+    source: 'inactive_guest_cleanup',
+    reserved_at: new Date().toISOString(),
+    metadata: {
+      privacySafeTombstone: true,
+      noRawGuestId: true,
+      noEmail: true,
+    },
+  }).catch(() => null);
+  return true;
+}
+
 async function cleanupCandidate(base44: any, candidate: any) {
   const entities = base44.asServiceRole.entities;
   const leaderboardRows = candidate.sameOwnerLeaderboardRows;
@@ -483,6 +517,7 @@ async function cleanupCandidate(base44: any, candidate: any) {
 
   const leaderboardRowsDeleted = await deleteRows(entities.SoloLeaderboardEntry, leaderboardRows);
   const presenceRowsDeleted = await deleteRows(entities.PlayerPresence, presenceRows);
+  await reserveKronoxUserIdTombstone(base44, candidate.row?.kronox_user_id).catch(() => null);
   await entities.GuestProfile.delete(candidate.id);
 
   return {

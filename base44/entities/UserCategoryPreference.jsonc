@@ -15,6 +15,10 @@
       "type": "string",
       "description": "Lowercased owner email. Preferences are private to this user/admin."
     },
+    "kronox_user_id": {
+      "type": "string",
+      "description": "Immutable Kronox ID of the preference owner when available. Optional Phase 1 migration field; legacy user_email RLS remains active."
+    },
     "category_id": {
       "type": "number",
       "description": "Selected Category.category_id value."

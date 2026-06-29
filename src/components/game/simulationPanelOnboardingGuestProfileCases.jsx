@@ -7,11 +7,24 @@
 import guestProfileEntitySource from '../../../base44/entities/GuestProfile.jsonc?raw';
 import guestCreationThrottleEntitySource from '../../../base44/entities/GuestCreationThrottle.jsonc?raw';
 import accountLinkTransactionEntitySource from '../../../base44/entities/AccountLinkTransaction.jsonc?raw';
+import kronoxUserIdTombstoneEntitySource from '../../../base44/entities/KronoxUserIdTombstone.jsonc?raw';
+import friendRequestEntitySource from '../../../base44/entities/FriendRequest.jsonc?raw';
+import gameInviteEntitySource from '../../../base44/entities/GameInvite.jsonc?raw';
+import playerPresenceEntitySource from '../../../base44/entities/PlayerPresence.jsonc?raw';
+import lobbyEntitySource from '../../../base44/entities/Lobby.jsonc?raw';
+import soloLeaderboardEntitySource from '../../../base44/entities/SoloLeaderboardEntry.jsonc?raw';
+import onlineMatchResultEntitySource from '../../../base44/entities/OnlineMatchResult.jsonc?raw';
 import createGuestProfileSource from '../../../base44/functions/createGuestProfile/entry.ts?raw';
+import ensureKronoxUserIdSource from '../../../base44/functions/ensureKronoxUserId/entry.ts?raw';
 import getCategoryMetadataSource from '../../../base44/functions/getCategoryMetadata/entry.ts?raw';
 import linkGuestAccountSource from '../../../base44/functions/linkGuestAccount/entry.ts?raw';
 import updateProfileSettingsSource from '../../../base44/functions/updateProfileSettings/entry.ts?raw';
+import sendFriendRequestSource from '../../../base44/functions/sendFriendRequest/entry.ts?raw';
+import updatePlayerPresenceSource from '../../../base44/functions/updatePlayerPresence/entry.ts?raw';
+import createGameInvitesForTargetsSource from '../../../base44/functions/createGameInvitesForTargets/entry.ts?raw';
+import getSoloLeaderboardSource from '../../../base44/functions/getSoloLeaderboard/entry.ts?raw';
 import guestProfileClientSource from '../../lib/guestProfile.js?raw';
+import kronoxUserIdClientSource from '../../lib/kronoxUserId.js?raw';
 import profileSettingsClientSource from '../../lib/profileSettings.js?raw';
 import userProfileHydrationSource from '../../lib/userProfileHydration.js?raw';
 import userCategoryPreferencesSource from '../../lib/userCategoryPreferences.js?raw';
@@ -731,6 +744,10 @@ export const EXTRA_TESTS = [
         'Takma Ad',
         'Cinsiyet',
         'Yaş grubu',
+        'Kullanıcı ID',
+        'data-kronox-user-id-readonly="true"',
+        'getKronoxUserId(profile)',
+        'aria-label="Kullanıcı ID kopyala"',
         'Kategori seçimi',
         'CategoryPreferencesSection',
         'PROFILE_AGE_GROUP_OPTIONS',
@@ -740,7 +757,6 @@ export const EXTRA_TESTS = [
         'role="dialog"',
       ]);
       const forbidden = presentTokens(profileEditPageSource, [
-        'Kullanıcı ID',
         'owner_key',
         'player_key',
         'provider_id',
@@ -754,12 +770,116 @@ export const EXTRA_TESTS = [
         return fail('Profile edit screen route, field contract, or privacy boundary drifted.', {
           verification: 'STATIC_CONTRACT',
           files: ['src/App.jsx', 'src/pages/ProfilePage.jsx', 'src/pages/ProfileEditPage.jsx', 'src/lib/profileSettings.js', 'base44/functions/updateProfileSettings/entry.ts'],
-          expected: 'Profile name button routes to /profile/edit; edit screen writes username, gender, and age_group only; no public ID/email/provider/internal fields are rendered.',
+          expected: 'Profile name button routes to /profile/edit; edit screen writes username, gender, and age_group only; only read-only/copyable kronox_user_id may be rendered, with no email/provider/internal IDs.',
           actual: { missing, forbidden },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Profile name area opens a private-safe profile edit screen for username, gender, and age group.', {
+      return pass('Profile name area opens a private-safe profile edit screen for username, gender, age group, and read-only Kronox ID.', {
+        verification: 'STATIC_CONTRACT',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('immutable_kronox_user_id_foundation',
+    'Immutable Kronox ID is backend-assigned, backfilled, preserved through linking, and tombstoned on deletion',
+    () => {
+      const combined = [
+        guestProfileEntitySource,
+        kronoxUserIdTombstoneEntitySource,
+        createGuestProfileSource,
+        ensureKronoxUserIdSource,
+        updateProfileSettingsSource,
+        linkGuestAccountSource,
+        authContextSource,
+        userProfileHydrationSource,
+        guestProfileClientSource,
+        kronoxUserIdClientSource,
+      ].join('\n');
+      const missing = missingTokens(combined, [
+        '"kronox_user_id"',
+        'KX-[A-HJ-NP-Z2-9]{4}',
+        'crypto.getRandomValues',
+        'generateUniqueKronoxUserId',
+        'KronoxUserIdTombstone',
+        'kronox_user_id_client_input_forbidden',
+        'preserved_from_guest_profile',
+        'kronoxUserIdPreservedThroughLinking',
+        'ensureKronoxUserIdForCurrentActor',
+        'getKronoxUserId(profile)',
+      ]);
+      const forbidden = presentTokens(combined, [
+        'Math.random()',
+        'rawGuestTokenServerStored: true',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Immutable Kronox ID backend/backfill/link/tombstone contract is incomplete.', {
+          verification: 'STATIC_CONTRACT',
+          files: [
+            'base44/functions/ensureKronoxUserId/entry.ts',
+            'base44/functions/createGuestProfile/entry.ts',
+            'base44/functions/linkGuestAccount/entry.ts',
+            'base44/entities/KronoxUserIdTombstone.jsonc',
+            'src/lib/kronoxUserId.js',
+          ],
+          actual: { missing, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Kronox ID is backend-assigned/backfilled, client input is forbidden, linking preserves it, and tombstones prevent reuse.', {
+        verification: 'STATIC_CONTRACT',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('canonical_kronox_id_dual_write_surfaces',
+    'Friends, Online presence/invites/lobbies, and leaderboard projections carry Kronox ID internally without public exposure',
+    () => {
+      const internalSources = [
+        friendRequestEntitySource,
+        gameInviteEntitySource,
+        playerPresenceEntitySource,
+        lobbyEntitySource,
+        soloLeaderboardEntitySource,
+        onlineMatchResultEntitySource,
+        sendFriendRequestSource,
+        updatePlayerPresenceSource,
+        createGameInvitesForTargetsSource,
+        leaderboardSource,
+      ].join('\n');
+      const publicSource = getSoloLeaderboardSource;
+      const missing = missingTokens(internalSources, [
+        'from_kronox_user_id',
+        'to_kronox_user_id',
+        'kronox_user_id',
+        'host_kronox_user_id',
+        'winner_kronox_user_id',
+        'player_kronox_user_id',
+        'normalizeKronoxUserId',
+      ]);
+      const publicRowStart = publicSource.indexOf('function toPublicLeaderboardRow');
+      const publicRowEnd = publicSource.indexOf('function toPublicLeaderboardRows');
+      const publicRowBody = publicSource.slice(publicRowStart, publicRowEnd > publicRowStart ? publicRowEnd : undefined);
+      const publicForbidden = presentTokens(publicRowBody, [
+        'kronox_user_id',
+        'guest_id',
+      ]);
+      if (missing.length || publicForbidden.length) {
+        return fail('Canonical Kronox ID dual-write or public-stripping contract drifted.', {
+          verification: 'STATIC_CONTRACT',
+          files: [
+            'base44/entities/FriendRequest.jsonc',
+            'base44/entities/GameInvite.jsonc',
+            'base44/entities/PlayerPresence.jsonc',
+            'base44/entities/Lobby.jsonc',
+            'base44/entities/SoloLeaderboardEntry.jsonc',
+            'base44/functions/getSoloLeaderboard/entry.ts',
+          ],
+          actual: { missing, publicForbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Canonical Kronox ID is dual-written internally while public leaderboard output remains username-only.', {
         verification: 'STATIC_CONTRACT',
         actionType: ACTION_TYPES.CODE_FIX,
       });

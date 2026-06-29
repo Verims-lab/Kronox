@@ -14,6 +14,12 @@ const summarizePlayers = (players: any[] = []) =>
 
 const VALID_STATUSES = new Set(['waiting', 'starting', 'in_game', 'finished']);
 const VALID_ACTIONS = new Set(['place_card', 'advance_turn', 'skip_question']);
+const KRONOX_ID_PATTERN = /^KX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
+
+const normalizeKronoxUserId = (value: unknown) => {
+  const text = String(value || '').trim().toUpperCase();
+  return KRONOX_ID_PATTERN.test(text) ? text : '';
+};
 
 const reject = (message: string, debug: Record<string, unknown> = {}, status = 400, code = 'validation_error') =>
   json({ error: message, code, debug }, status);
@@ -404,6 +410,11 @@ Deno.serve(async (req) => {
       if (body.winner_email) {
         updateData.winner_email = body.winner_email;
       }
+      const winnerPlayer = incomingPlayers.find((player) => (
+        (body.winner_email && player?.email === body.winner_email) || player?.name === body.winner
+      ));
+      const winnerKronoxUserId = normalizeKronoxUserId(body.winner_kronox_user_id || winnerPlayer?.kronox_user_id);
+      if (winnerKronoxUserId) updateData.winner_kronox_user_id = winnerKronoxUserId;
     }
 
     const debug = {

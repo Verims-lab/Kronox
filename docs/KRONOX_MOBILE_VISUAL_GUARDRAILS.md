@@ -32,6 +32,9 @@ checks that source code and static Health cannot honestly prove alone.
   Guest account linking belongs under Profile. The first-launch welcome may
   show a secondary `Hesabım Var` route into that Profile flow, but provider
   buttons must not appear on the welcome screen.
+* Profile > Profil Bilgileri may show the current player's read-only/copyable
+  `Kullanıcı ID`; the row must fit 320px-class screens without becoming an
+  editable field or leaking private/internal IDs elsewhere.
 * Solo gameplay shows the remaining move counter as `10 HAMLE`, `9 HAMLE`,
   etc.; result popups show `HAMLE` instead of `HATA`.
 * Manual mobile proof must confirm touch, slight drag, invalid drop, tutorial

@@ -17,6 +17,11 @@ function safeUsernameFromProfile(profile) {
   return normalizeSafePublicUsernameInput(profile?.username);
 }
 
+function safeKronoxUserIdFromProfile(profile) {
+  const text = String(profile?.kronox_user_id || '').trim().toUpperCase();
+  return /^KX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/.test(text) ? text : '';
+}
+
 export function mergeAuthenticatedUserProfile(authUser, storedUser) {
   if (!authUser || typeof authUser !== 'object') return authUser || null;
 
@@ -25,6 +30,7 @@ export function mergeAuthenticatedUserProfile(authUser, storedUser) {
   const authUsername = safeUsernameFromProfile(authUser);
   const username = storedUsername || authUsername;
   const merged = { ...(storedProfile || {}), ...authUser };
+  const kronoxUserId = safeKronoxUserIdFromProfile(storedProfile) || safeKronoxUserIdFromProfile(authUser);
 
   if (username) {
     merged.username = username;
@@ -34,6 +40,8 @@ export function mergeAuthenticatedUserProfile(authUser, storedUser) {
     delete merged.username;
     delete merged.username_normalized;
   }
+  if (kronoxUserId) merged.kronox_user_id = kronoxUserId;
+  else delete merged.kronox_user_id;
 
   return merged;
 }

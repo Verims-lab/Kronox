@@ -14,6 +14,10 @@
       "type": "string",
       "description": "Lowercased email of the inviting host"
     },
+    "from_kronox_user_id": {
+      "type": "string",
+      "description": "Immutable Kronox ID of the inviting host when available. Durable invite relation key for new rows; not displayed in public UI."
+    },
     "from_name": {
       "type": "string",
       "description": "Display name of the inviting host at invite time"
@@ -21,6 +25,10 @@
     "to_email": {
       "type": "string",
       "description": "Lowercased email of the invited recipient. For Online player selection this is resolved backend-side from an opaque target_ref and never returned by the picker."
+    },
+    "to_kronox_user_id": {
+      "type": "string",
+      "description": "Immutable Kronox ID of the invited recipient when available. Public invite UI remains username-first."
     },
     "to_name": {
       "type": "string",

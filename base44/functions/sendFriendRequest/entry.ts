@@ -7,6 +7,7 @@ const FRIEND_REQUEST_IN_PROGRESS_MESSAGE = 'Arkadaşlık isteği işleniyor. Lü
 const FRIEND_REQUEST_TTL_MS = 3 * 24 * 60 * 60 * 1000;
 const FRIEND_REQUEST_LOCK_TTL_MS = 8_000;
 const FRIEND_REQUEST_LOCK_SETTLE_MS = 80;
+const KRONOX_ID_PATTERN = /^KX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
 const UNSAFE_PUBLIC_USERNAME_PATTERN = /^(apple|google|firebase|auth0|base44|provider|uid|owner)(?:[\w:-].*)?$/i;
 const INTERNAL_ID_PUBLIC_USERNAME_PATTERN = /^(guest|player|owner|user_key|player_key|g|u)_[A-Za-z0-9_-]{4,}$/i;
 
@@ -36,6 +37,11 @@ function normalizeUsernameInput(value: unknown) {
 
 function normalizeUsernameKey(value: unknown) {
   return normalizeUsernameInput(value).toLowerCase();
+}
+
+function normalizeKronoxUserId(value: unknown) {
+  const text = String(value || '').trim().toUpperCase();
+  return KRONOX_ID_PATTERN.test(text) ? text : '';
 }
 
 function makeUsernameFallback(seed: unknown) {
@@ -337,6 +343,7 @@ async function findTargetByEmail(base44: any, email: string) {
   const user = rows?.[0] || null;
   return {
     email,
+    kronoxUserId: normalizeKronoxUserId(user?.kronox_user_id),
     username: user ? safePublicUsername(user.username || user.public_username || user.display_name, email) : makeUsernameFallback(email),
     registered: Boolean(user),
   };
@@ -361,6 +368,7 @@ async function findTargetByUsername(base44: any, username: string) {
     ok: true,
     target: {
       email: normalizeEmail(exact.email),
+      kronoxUserId: normalizeKronoxUserId(exact.kronox_user_id),
       username: safePublicUsername(exact.username || exact.public_username || exact.display_name, username),
       registered: true,
     },
@@ -415,8 +423,9 @@ Deno.serve(async (req) => {
       currentUser?.username || currentUser?.public_username || authUser?.username || authUser?.public_username || authUser?.full_name,
       fromEmail,
     );
+    const fromKronoxUserId = normalizeKronoxUserId(currentUser?.kronox_user_id);
 
-    let target: { email: string; username: string; registered: boolean };
+    let target: { email: string; kronoxUserId?: string; username: string; registered: boolean };
     if (inputKind === 'email') {
       const targetEmail = normalizeEmail(rawInput);
       if (!isValidEmail(targetEmail)) return json({ ok: false, code: 'invalid_email', error: 'Geçerli bir e-posta adresi gir.' }, 400);
@@ -428,10 +437,11 @@ Deno.serve(async (req) => {
     }
 
     const targetEmail = normalizeEmail(target.email);
+    const targetKronoxUserId = normalizeKronoxUserId(target.kronoxUserId);
     if (!targetEmail) return json({ ok: false, code: 'target_not_found', error: USERNAME_NOT_FOUND_MESSAGE }, 404);
     if (targetEmail === fromEmail) return json({ ok: false, code: 'self_add', error: 'Kendini ekleyemezsin.' }, 400);
 
-    const lockKey = buildFriendRequestLockKey(fromEmail, targetEmail);
+    const lockKey = buildFriendRequestLockKey(fromKronoxUserId || fromEmail, targetKronoxUserId || targetEmail);
     return await withFriendRequestOperationLock(base44, lockKey, {
       actorKeyHash: hashLockComponent(fromEmail),
       targetKeyHash: hashLockComponent(targetEmail),
@@ -442,11 +452,17 @@ Deno.serve(async (req) => {
         targetEmailReturned: false,
       },
     }, async () => {
-      const [acceptedOut, acceptedIn] = await Promise.all([
+      const [acceptedOut, acceptedIn, acceptedOutById, acceptedInById] = await Promise.all([
         base44.asServiceRole.entities.FriendRequest.filter({ from_email: fromEmail, to_email: targetEmail, status: 'accepted' }, '-updated_date', 1),
         base44.asServiceRole.entities.FriendRequest.filter({ from_email: targetEmail, to_email: fromEmail, status: 'accepted' }, '-updated_date', 1),
+        fromKronoxUserId && targetKronoxUserId
+          ? base44.asServiceRole.entities.FriendRequest.filter({ from_kronox_user_id: fromKronoxUserId, to_kronox_user_id: targetKronoxUserId, status: 'accepted' }, '-updated_date', 1)
+          : Promise.resolve([]),
+        fromKronoxUserId && targetKronoxUserId
+          ? base44.asServiceRole.entities.FriendRequest.filter({ from_kronox_user_id: targetKronoxUserId, to_kronox_user_id: fromKronoxUserId, status: 'accepted' }, '-updated_date', 1)
+          : Promise.resolve([]),
       ]);
-      const existingFriend = acceptedOut?.[0] || acceptedIn?.[0] || null;
+      const existingFriend = acceptedOut?.[0] || acceptedIn?.[0] || acceptedOutById?.[0] || acceptedInById?.[0] || null;
       if (existingFriend) {
         return json({ ok: false, code: 'already_friends', error: 'Bu kullanıcı zaten arkadaşın.' }, 409);
       }
@@ -489,9 +505,11 @@ Deno.serve(async (req) => {
       const expiresAt = new Date(nowMs + FRIEND_REQUEST_TTL_MS);
       const created = await base44.asServiceRole.entities.FriendRequest.create({
         from_email: fromEmail,
+        ...(fromKronoxUserId ? { from_kronox_user_id: fromKronoxUserId } : {}),
         from_name: senderName,
         from_username: senderName,
         to_email: targetEmail,
+        ...(targetKronoxUserId ? { to_kronox_user_id: targetKronoxUserId } : {}),
         to_name: target.username,
         to_username: target.username,
         status: 'pending',

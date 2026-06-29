@@ -3,6 +3,9 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 const HASH_ALGORITHM = 'sha256:kronox_guest_v1';
 const GUEST_ID_PREFIX = 'guest_';
 const USERNAME_PREFIX = 'KronoxUser';
+const KRONOX_ID_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const KRONOX_ID_PATTERN = /^KX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
+const MAX_KRONOX_USER_ID_ATTEMPTS = 10;
 const JOKER_TYPES = ['mistake_shield', 'card_swap', 'time_freeze'] as const;
 const ACCOUNT_LINK_SOURCE = 'account_link_merge';
 const ACCOUNT_LINK_RELATED_TYPE = 'account_link';
@@ -103,6 +106,23 @@ function bytesToBase64Url(bytes: Uint8Array) {
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
 
+function randomBytes(length: number) {
+  const bytes = new Uint8Array(length);
+  crypto.getRandomValues(bytes);
+  return bytes;
+}
+
+function normalizeKronoxUserId(value: unknown) {
+  const text = String(value || '').trim().toUpperCase();
+  return KRONOX_ID_PATTERN.test(text) ? text : '';
+}
+
+function makeKronoxUserId() {
+  const bytes = randomBytes(12);
+  const chars = Array.from(bytes, (byte) => KRONOX_ID_ALPHABET[byte % KRONOX_ID_ALPHABET.length]);
+  return `KX-${chars.slice(0, 4).join('')}-${chars.slice(4, 8).join('')}-${chars.slice(8, 12).join('')}`;
+}
+
 async function sha256Base64Url(input: string) {
   const data = new TextEncoder().encode(input);
   const digest = await crypto.subtle.digest('SHA-256', data);
@@ -178,6 +198,24 @@ async function findRows(entity: any, filter: Record<string, unknown>, sort = '-c
   if (!entity?.filter) return [];
   const rows = await entity.filter(filter, sort, limit).catch(() => []);
   return Array.isArray(rows) ? rows : [];
+}
+
+async function kronoxUserIdExists(base44: any, kronoxUserId: string) {
+  if (!kronoxUserId) return false;
+  const [guestRows, userRows, tombstoneRows] = await Promise.all([
+    findRows(entityStore(base44, 'GuestProfile'), { kronox_user_id: kronoxUserId }, '-updated_date', 2),
+    findRows(entityStore(base44, 'User'), { kronox_user_id: kronoxUserId }, '-updated_date', 2),
+    findRows(entityStore(base44, 'KronoxUserIdTombstone'), { kronox_user_id: kronoxUserId }, '-reserved_at', 2),
+  ]);
+  return Boolean(guestRows.length || userRows.length || tombstoneRows.length);
+}
+
+async function generateUniqueKronoxUserId(base44: any) {
+  for (let attempt = 0; attempt < MAX_KRONOX_USER_ID_ATTEMPTS; attempt += 1) {
+    const candidate = makeKronoxUserId();
+    if (!(await kronoxUserIdExists(base44, candidate))) return candidate;
+  }
+  throw new Error('kronox_user_id_generation_failed');
 }
 
 async function findGuestProfile(base44: any, guestId: string) {
@@ -554,7 +592,7 @@ async function mergeJokerBalances(base44: any, email: string, guestId: string, g
   return { balances: result, mergedCount };
 }
 
-async function upsertLeaderboard(base44: any, email: string, guestId: string, displayName: string, soloProgress: any, onlineProgress: any, totalKronoxScore: number) {
+async function upsertLeaderboard(base44: any, email: string, guestId: string, displayName: string, soloProgress: any, onlineProgress: any, totalKronoxScore: number, kronoxUserId = '') {
   const entity = entityStore(base44, 'SoloLeaderboardEntry');
   if (!entity?.filter || !entity?.create || !entity?.update) return { updated: false, guestPassivated: false };
   const authOwnerKey = getAuthOwnerKey(email);
@@ -563,6 +601,7 @@ async function upsertLeaderboard(base44: any, email: string, guestId: string, di
   const onlineScore = normalizeNonNegativeInteger(onlineProgress?.score);
   const payload = {
     owner_key: authOwnerKey,
+    ...(kronoxUserId ? { kronox_user_id: kronoxUserId } : {}),
     username: displayName,
     display_name: displayName,
     initial: initialFromName(displayName),
@@ -948,6 +987,9 @@ Deno.serve(async (req: Request) => {
     }
 
     const user = await findCurrentUserRow(base44, authUser, email);
+    const linkedKronoxUserId = normalizeKronoxUserId(guest?.kronox_user_id)
+      || normalizeKronoxUserId(user?.kronox_user_id)
+      || await generateUniqueKronoxUserId(base44);
     const linkedGuestIds = Array.isArray(user?.linked_guest_ids) ? user.linked_guest_ids.map(String) : [];
     const guestAlreadyLinkedToThisUser = String(guest?.status || '') === 'linked' && linkedEmail === email;
     const additiveAllowed = !guestAlreadyLinkedToThisUser && !linkedGuestIds.includes(guestId);
@@ -1027,6 +1069,11 @@ Deno.serve(async (req: Request) => {
       display_name: displayName,
     } : {};
     const userPatch = {
+      kronox_user_id: linkedKronoxUserId,
+      kronox_user_id_created_at: user?.kronox_user_id_created_at || guest?.kronox_user_id_created_at || nowIso(),
+      kronox_user_id_source: normalizeKronoxUserId(guest?.kronox_user_id)
+        ? 'preserved_from_guest_profile'
+        : (normalizeKronoxUserId(user?.kronox_user_id) ? user?.kronox_user_id_source || 'existing_user' : 'system_account_link_backfill'),
       solo_progress: mergedSoloProgress,
       online_progress: mergedOnlineProgress,
       kronox_puan_total: bestTotalScore,
@@ -1046,7 +1093,7 @@ Deno.serve(async (req: Request) => {
     };
     const updatedUser = await updateCurrentUser(base44, user, userPatch);
     const leaderboard = username
-      ? await upsertLeaderboard(base44, email, guestId, displayName, mergedSoloProgress, mergedOnlineProgress, bestTotalScore)
+      ? await upsertLeaderboard(base44, email, guestId, displayName, mergedSoloProgress, mergedOnlineProgress, bestTotalScore, linkedKronoxUserId)
       : { updated: false, guestPassivated: false, usernameMissingRequiresProfileSetup: true };
     const exposureMerge = await mergePlayerQuestionExposureRows(base44, email, guestId).catch(() => ({
       mergedExposureRows: 0,
@@ -1072,6 +1119,7 @@ Deno.serve(async (req: Request) => {
       firstLoginRewardGranted: Boolean(firstLoginReward.granted),
       firstLoginRewardAmount: FIRST_LOGIN_REWARD_AMOUNT,
       firstLoginRewardAlreadyGranted: Boolean(firstLoginReward.alreadyGranted),
+      kronoxUserIdPreserved: true,
       usernameDisplayApplied: Boolean(username),
       usernameMergeSource: usernameChoice.source,
       usernameMissingRequiresProfileSetup: !username,
@@ -1082,6 +1130,9 @@ Deno.serve(async (req: Request) => {
     if (guestEntity?.update && rowId(guest)) {
       await guestEntity.update(rowId(guest), {
         status: 'linked',
+        kronox_user_id: linkedKronoxUserId,
+        kronox_user_id_created_at: guest?.kronox_user_id_created_at || nowIso(),
+        kronox_user_id_source: guest?.kronox_user_id_source || 'system_account_link_backfill',
         linked_user_email: email,
         linked_auth_user_id: String(authUser?.id || authUser?.user_id || ''),
         linked_at: nowIso(),
@@ -1128,6 +1179,7 @@ Deno.serve(async (req: Request) => {
         usernameFirstLeaderboardIdentity: true,
         usernameMergeRule: 'linked_user_username_wins_else_guest_username',
         providerIdsDisplayedInLeaderboard: false,
+        kronoxUserIdPreservedThroughLinking: true,
       },
     });
   } catch (error) {

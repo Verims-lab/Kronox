@@ -5,6 +5,7 @@ const STORAGE_GUEST_TOKEN_KEY = 'kronox.guestProfile.guest_token';
 const STORAGE_GUEST_PUBLIC_KEY = 'kronox.guestProfile.public';
 const STORAGE_GUEST_LINK_INTENT_KEY = 'kronox.guestProfile.linkIntent';
 const STORAGE_GUEST_INSTALL_ID_KEY = 'kronox.guestProfile.install_id';
+const KRONOX_USER_ID_PATTERN = /^KX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
 const USERNAME_PREFIX = 'KronoxUser';
 const UNSAFE_PUBLIC_USERNAME_PATTERN = /^(apple|google|firebase|auth0|base44|provider|uid|owner)(?:[\w:-].*)?$/i;
 const INTERNAL_ID_PUBLIC_USERNAME_PATTERN = /^(guest|player|owner|user_key|player_key|g|u)_[A-Za-z0-9_-]{4,}$/i;
@@ -57,6 +58,7 @@ function normalizePublicProfile(profile) {
     : [];
   return {
     guest_id: guestId,
+    kronox_user_id: normalizeKronoxUserId(profile.kronox_user_id),
     username,
     display_name: username,
     status: String(profile.status || 'guest').trim() || 'guest',
@@ -86,6 +88,11 @@ function normalizePublicProfile(profile) {
     daily_quest_next_available_at: profile.daily_quest_next_available_at || null,
     daily_quest_claim_count: Number.isFinite(Number(profile.daily_quest_claim_count)) ? Math.max(0, Math.floor(Number(profile.daily_quest_claim_count))) : 0,
   };
+}
+
+function normalizeKronoxUserId(value) {
+  const text = String(value || '').trim().toUpperCase();
+  return KRONOX_USER_ID_PATTERN.test(text) ? text : '';
 }
 
 function storeGuestSession(profile, rawToken) {

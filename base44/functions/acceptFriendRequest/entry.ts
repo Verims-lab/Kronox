@@ -23,9 +23,15 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 // because the new friend list query no longer depends on Friendship.
 
 const normalizeEmail = (value) => String(value || '').trim().toLowerCase();
+const KRONOX_ID_PATTERN = /^KX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
 
 function json(payload, status = 200) {
   return Response.json(payload, { status });
+}
+
+function normalizeKronoxUserId(value) {
+  const text = String(value || '').trim().toUpperCase();
+  return KRONOX_ID_PATTERN.test(text) ? text : '';
 }
 
 function parseTime(raw) {
@@ -45,6 +51,12 @@ function isFriendRequestExpired(row) {
   if (String(row?.status || '').toLowerCase() === 'expired') return true;
   const expiresAt = parseTime(row?.expires_at || row?.expiresAt);
   return Number.isFinite(expiresAt) && expiresAt <= Date.now();
+}
+
+async function findUserByEmail(base44, email) {
+  if (!email) return null;
+  const rows = await base44.asServiceRole.entities.User.filter({ email }, '-updated_date', 1).catch(() => []);
+  return rows?.[0] || null;
 }
 
 Deno.serve(async (req) => {
@@ -92,7 +104,19 @@ Deno.serve(async (req) => {
 
     // Idempotent flip. If status is already accepted, this is a no-op success.
     if (fr.status === 'pending') {
-      await base44.asServiceRole.entities.FriendRequest.update(requestId, { status: 'accepted' });
+      const [senderUser, receiverUser] = await Promise.all([
+        findUserByEmail(base44, fromEmail),
+        findUserByEmail(base44, toEmail),
+      ]);
+      await base44.asServiceRole.entities.FriendRequest.update(requestId, {
+        status: 'accepted',
+        ...(normalizeKronoxUserId(fr.from_kronox_user_id) ? {} : {
+          from_kronox_user_id: normalizeKronoxUserId(senderUser?.kronox_user_id),
+        }),
+        ...(normalizeKronoxUserId(fr.to_kronox_user_id) ? {} : {
+          to_kronox_user_id: normalizeKronoxUserId(receiverUser?.kronox_user_id),
+        }),
+      });
     }
 
     return json({

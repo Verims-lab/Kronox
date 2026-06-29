@@ -6,6 +6,7 @@ const MAX_LEADERBOARD_ROWS = 10000;
 const PLATFORM_VALUES = ['ios', 'android', 'other', 'unknown'] as const;
 const UNSAFE_PUBLIC_USERNAME_PATTERN = /^(apple|google|firebase|auth0|base44|provider|uid|owner)(?:[\w:-].*)?$/i;
 const INTERNAL_ID_PUBLIC_USERNAME_PATTERN = /^(guest|player|owner|user_key|player_key|g|u)_[A-Za-z0-9_-]{4,}$/i;
+const KRONOX_ID_PATTERN = /^KX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
 
 function json(payload: unknown, status = 200) {
   return Response.json(payload, { status });
@@ -125,6 +126,10 @@ function normalizeUsernameKey(value: unknown) {
   return isSafePublicUsername(username) ? username.toLowerCase() : '';
 }
 
+function hasKronoxUserId(row: any) {
+  return KRONOX_ID_PATTERN.test(String(row?.kronox_user_id || '').trim().toUpperCase());
+}
+
 function usernameKeyFromRow(row: any) {
   return normalizeUsernameKey(row?.username || row?.public_username || row?.display_name) || '';
 }
@@ -192,6 +197,8 @@ function buildUserReport(users: any[], guests: any[], leaderboardRows: any[]) {
   const loggedInEmails = new Set<string>();
   const guestUsernames = new Set<string>();
   let invalidUsernameRows = 0;
+  let userRowsWithKronoxId = 0;
+  let guestRowsWithKronoxId = 0;
 
   const upsertProfile = (usernameKey: string, patch: any) => {
     if (!usernameKey) return;
@@ -210,6 +217,7 @@ function buildUserReport(users: any[], guests: any[], leaderboardRows: any[]) {
   };
 
   for (const user of users) {
+    if (hasKronoxUserId(user)) userRowsWithKronoxId += 1;
     const usernameKey = usernameKeyFromRow(user);
     if (!usernameKey) {
       invalidUsernameRows += 1;
@@ -226,6 +234,7 @@ function buildUserReport(users: any[], guests: any[], leaderboardRows: any[]) {
   }
 
   for (const guest of guests) {
+    if (hasKronoxUserId(guest)) guestRowsWithKronoxId += 1;
     const usernameKey = usernameKeyFromRow(guest);
     const isLinkedGuest = String(guest?.status || '').trim().toLowerCase() === 'linked' || Boolean(guest?.linked_user_email);
     if (!usernameKey) {
@@ -317,6 +326,8 @@ function buildUserReport(users: any[], guests: any[], leaderboardRows: any[]) {
       activeUsers1Day: active1Day,
       activeUsers7Days: active7Days,
       activeUsers30Days: active30Days,
+      rowsWithKronoxUserId: userRowsWithKronoxId + guestRowsWithKronoxId,
+      rowsMissingKronoxUserId: Math.max(0, users.length + guests.length - userRowsWithKronoxId - guestRowsWithKronoxId),
     },
     platformBreakdown,
     active30DayPlatformBreakdown: active30PlatformBreakdown,
@@ -332,10 +343,12 @@ function buildUserReport(users: any[], guests: any[], leaderboardRows: any[]) {
       score: 'SoloLeaderboardEntry.total_kronox_score plus User/GuestProfile.kronox_puan_total repair where projection is missing',
       activity: 'server-written last_app_open_at or last_seen_at; missing timestamps are reported separately',
       platform: 'server-recorded coarse app_platform: ios/android/other/unknown',
+      kronoxUserId: 'aggregate coverage only; immutable Kronox ID values are not exported from this report',
     },
     notes: [
       'Bu rapor salt okunurdur; kullanıcı silmez.',
       'E-posta, provider ID, owner_key, raw guest_id ve internal player_key döndürülmez.',
+      'Kronox ID sadece toplu kapsam sayılarıyla raporlanır; kimlik listesi dışa aktarılmaz.',
       'Son açılış bilgisi olmayan kullanıcılar 10+ gün inaktif sayısına sessizce eklenmez.',
     ],
   };

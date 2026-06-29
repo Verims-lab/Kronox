@@ -18,6 +18,19 @@
         "sha256:kronox_guest_v1"
       ]
     },
+    "kronox_user_id": {
+      "type": "string",
+      "description": "Immutable system-assigned Kronox ID (KX-XXXX-XXXX-XXXX). Canonical durable app user/support identifier for the guest identity and preserved if the guest links an account. Not a raw guest_id, token, owner_key, provider id, or authorization proof."
+    },
+    "kronox_user_id_created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Server timestamp when kronox_user_id was created or backfilled."
+    },
+    "kronox_user_id_source": {
+      "type": "string",
+      "description": "Operational marker for how kronox_user_id was assigned."
+    },
     "username": {
       "type": "string",
       "description": "Public unique username, default format KronoxUser#### or KronoxUser#####. Not derived from email, Google ID, Apple ID, or provider UID."

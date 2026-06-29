@@ -7,6 +7,10 @@
       "type": "string",
       "description": "Public-safe deterministic user key."
     },
+    "kronox_user_id": {
+      "type": "string",
+      "description": "Immutable Kronox ID for admin/reporting joins when available. Not exposed in public leaderboard rows."
+    },
     "user_email": {
       "type": "string",
       "description": "Lowercased user email. Admin/private only; do not expose in public leaderboard rows."

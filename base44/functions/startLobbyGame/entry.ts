@@ -18,8 +18,16 @@ const readNumber = (value: unknown, fallback: number) => {
 
 const normalizeEmail = (value: unknown) =>
   String(value ?? '').trim().toLowerCase();
+const KRONOX_ID_PATTERN = /^KX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
+
+const normalizeKronoxUserId = (value: unknown) => {
+  const text = String(value || '').trim().toUpperCase();
+  return KRONOX_ID_PATTERN.test(text) ? text : '';
+};
 
 const getPlayerIdentityKey = (player: any) => {
+  const kronoxUserId = normalizeKronoxUserId(player?.kronox_user_id);
+  if (kronoxUserId) return `kronox:${kronoxUserId}`;
   const email = normalizeEmail(player?.email);
   if (email) return `email:${email}`;
   const name = String(player?.name || '').trim().toLowerCase();
@@ -28,6 +36,7 @@ const getPlayerIdentityKey = (player: any) => {
 
 const normalizeLobbyPlayer = (player: any) => ({
   ...player,
+  kronox_user_id: normalizeKronoxUserId(player?.kronox_user_id),
   email: player?.email || '',
   name: String(player?.name || '').trim() || 'Oyuncu',
   ready: player?.ready ?? true,
@@ -73,6 +82,7 @@ const loadAcceptedInvitePlayers = async (base44: any, lobbyId: string) => {
       const email = normalizeEmail(invite?.to_email);
       if (!email) return null;
       return {
+        kronox_user_id: normalizeKronoxUserId(invite?.to_kronox_user_id),
         email,
         name: getInvitePlayerName(invite),
         ready: true,

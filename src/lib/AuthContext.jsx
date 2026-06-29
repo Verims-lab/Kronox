@@ -8,6 +8,7 @@ import { ensureGuestProfile, linkPendingGuestAccount, repairGuestOnboardingCompl
 import { readSoloProgress } from '@/lib/soloLevels';
 import { hydrateAuthenticatedUserProfile } from '@/lib/userProfileHydration';
 import { recordAppOpenActivity } from '@/lib/appActivity';
+import { ensureKronoxUserIdForCurrentActor } from '@/lib/kronoxUserId';
 
 const AuthContext = createContext();
 
@@ -95,6 +96,18 @@ export const AuthProvider = ({ children }) => {
       if (currentUser?.email) {
         setGuestProfile(null);
         currentUser = await hydrateAuthenticatedUserProfile(base44, currentUser);
+        try {
+          const kronoxIdentity = await ensureKronoxUserIdForCurrentActor();
+          if (kronoxIdentity?.user) {
+            currentUser = await hydrateAuthenticatedUserProfile(base44, kronoxIdentity.user);
+          } else if (kronoxIdentity?.kronox_user_id) {
+            currentUser = { ...currentUser, kronox_user_id: kronoxIdentity.kronox_user_id };
+          }
+        } catch (identityError) {
+          console.warn('[kronoxUserId] registered ensure skipped', {
+            reason: String(identityError?.code || identityError?.message || 'kronox_user_id_ensure_failed').slice(0, 120),
+          });
+        }
         applyUserProgressResetMarker(currentUser);
         const economyKey = `${String(currentUser.email).trim().toLowerCase()}:${getDiamondDailyKey()}`;
         if (economyEnsureKeyRef.current !== economyKey) {
@@ -153,6 +166,21 @@ export const AuthProvider = ({ children }) => {
           });
           return null;
         });
+        if (currentGuestProfile) {
+          const identityResult = await ensureKronoxUserIdForCurrentActor().catch((identityError) => {
+            console.warn('[kronoxUserId] guest ensure skipped', {
+              reason: String(identityError?.code || identityError?.message || 'kronox_user_id_ensure_failed').slice(0, 120),
+            });
+            return null;
+          });
+          if (identityResult?.profile) currentGuestProfile = identityResult.profile;
+          else if (identityResult?.kronox_user_id) {
+            currentGuestProfile = {
+              ...currentGuestProfile,
+              kronox_user_id: identityResult.kronox_user_id,
+            };
+          }
+        }
         if (currentGuestProfile) {
           currentGuestProfile = await repairGuestOnboardingCompletionIfNeeded(currentGuestProfile)
             .catch(() => currentGuestProfile);

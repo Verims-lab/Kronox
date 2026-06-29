@@ -431,6 +431,7 @@ function toLeaderboardRow(user: any, levelNumber = 0) {
 
   return {
     owner_key: ownerKey,
+    ...(String(user?.kronox_user_id || '').trim() ? { kronox_user_id: String(user.kronox_user_id).trim() } : {}),
     username,
     display_name: username,
     initial: initialFromName(username),
@@ -465,6 +466,7 @@ function toProjectionLeaderboardRow(row: any) {
 
   return {
     owner_key: ownerKey,
+    ...(String(row?.kronox_user_id || '').trim() ? { kronox_user_id: String(row.kronox_user_id).trim() } : {}),
     username,
     display_name: username,
     initial: cleanDisplayText(row?.initial) || initialFromName(username),
@@ -537,6 +539,7 @@ function buildProjectionWritePayload(row: any) {
   const username = safePublicUsername(row, ownerKey);
   return {
     owner_key: ownerKey,
+    ...(String(row?.kronox_user_id || '').trim() ? { kronox_user_id: String(row.kronox_user_id).trim() } : {}),
     username,
     display_name: username,
     initial: cleanDisplayText(row?.initial).slice(0, 1) || initialFromName(username),

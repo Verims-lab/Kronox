@@ -164,6 +164,17 @@ Parity plan:
 ## Cross-Cutting Rules
 
 - Public identity is username only.
+- `kronox_user_id` is the immutable canonical app user identity for
+  backend-owned relationships and support/admin correlation. It is system
+  assigned, opaque, non-sequential, never user-editable, preserved through
+  guest-to-account linking, and never reused after deletion. It is not an
+  authorization token: Base44 functions must still enforce current
+  user/profile ownership.
+- Profile > Profil Bilgileri may show the current player their own
+  `Kullanıcı ID` as a read-only/copyable support value. Public leaderboard,
+  friend, invite, lobby, notification, and Online surfaces continue to render
+  username-safe labels rather than Kronox ID, email, provider IDs, owner_key,
+  raw guest_id, or internal player_key values.
 - Friends can be added by email address or registered Kronox username. Username
   lookup and duplicate/self checks stay backend-owned, and username-based add
   responses must return only username-safe labels, never the target email.
@@ -223,9 +234,10 @@ Parity plan:
   AdminUser-gated, dry-run first, typed-confirmed, server-side rechecked, and
   deletes only eligible inactive zero-score guest-only `GuestProfile` username
   sources plus that guest-owner zero-score leaderboard/presence residue so the
-  username can be reused. It must not delete linked users, scored users, users
-  with social relations, users with missing last-open data, or real auth
-  accounts.
+  username can be reused. It tombstones eligible deleted `kronox_user_id`
+  values so Kronox IDs are never recycled. It must not delete linked users,
+  scored users, users with social relations, users with missing last-open data,
+  or real auth accounts.
 
 ## UX Polish Governance
 

@@ -134,6 +134,7 @@ export default function LobbyRoom() {
     const lobbyPayload = {
       code,
       host_email: identity.email,
+      ...(identity.kronox_user_id ? { host_kronox_user_id: identity.kronox_user_id } : {}),
       host_name: derivedName,
       players: [player],
       status: 'waiting',

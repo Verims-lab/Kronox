@@ -1,0 +1,54 @@
+{
+  "name": "KronoxUserIdTombstone",
+  "type": "object",
+  "description": "Reserved immutable Kronox IDs from deleted/anonymized/released profiles. Generators check this entity so a previously assigned kronox_user_id is never intentionally reused after the original profile row is removed.",
+  "properties": {
+    "kronox_user_id": {
+      "type": "string",
+      "description": "Reserved KX-XXXX-XXXX-XXXX identifier."
+    },
+    "source_entity": {
+      "type": "string",
+      "description": "Original entity class, for example User or GuestProfile."
+    },
+    "source": {
+      "type": "string",
+      "description": "Operation that reserved the ID, for example account_deletion or inactive_guest_cleanup."
+    },
+    "reserved_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Privacy-safe operational metadata. Must not contain email, provider id, raw guest_id, owner_key, or raw guest token."
+    }
+  },
+  "required": [
+    "kronox_user_id",
+    "source",
+    "reserved_at"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

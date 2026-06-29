@@ -171,6 +171,8 @@ export default function UserReportTool() {
                 <SmallStat label="Aktif 1 gün" value={counts.activeUsers1Day} />
                 <SmallStat label="Aktif 7 gün" value={counts.activeUsers7Days} />
                 <SmallStat label="Aktif 30 gün" value={counts.activeUsers30Days} />
+                <SmallStat label="Kronox ID hazır" value={counts.rowsWithKronoxUserId} />
+                <SmallStat label="Kronox ID eksik" value={counts.rowsMissingKronoxUserId} />
               </div>
 
               <div className="rounded-xl border border-border/30 bg-background/20 p-3">
@@ -194,7 +196,7 @@ export default function UserReportTool() {
 
               <div className="font-inter text-[11px] leading-4 text-muted-foreground">
                 {generatedAt && <p>Oluşturma: {generatedAt}</p>}
-                <p>Kaynak: username bazlı User + GuestProfile; skor için SoloLeaderboardEntry total_kronox_score ve güvenli kronox_puan_total onarımı.</p>
+                <p>Kaynak: username bazlı User + GuestProfile; skor için SoloLeaderboardEntry total_kronox_score, Kronox ID için aggregate kapsam sayımı ve güvenli kronox_puan_total onarımı.</p>
                 <p>Okunan satırlar: User {formatNumber(report?.sourceRows?.userRowsRead)}, GuestProfile {formatNumber(report?.sourceRows?.guestProfileRowsRead)}, Liderlik {formatNumber(report?.sourceRows?.soloLeaderboardRowsRead)}.</p>
               </div>
             </>
@@ -205,7 +207,7 @@ export default function UserReportTool() {
   );
 }
 
-function Metric({ icon, label, value, helper }) {
+function Metric({ icon, label, value, helper = null }) {
   return (
     <div className="rounded-xl border border-border/30 bg-background/20 p-3">
       <div className="mb-2 flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10 text-primary [&>svg]:h-3.5 [&>svg]:w-3.5">
@@ -220,7 +222,7 @@ function Metric({ icon, label, value, helper }) {
   );
 }
 
-function SmallStat({ label, value }) {
+function SmallStat({ label, value = 0 }) {
   return (
     <div className="rounded-lg border border-white/10 bg-black/10 px-2.5 py-2">
       <p className="font-inter text-[10px] font-semibold leading-4 text-muted-foreground">{label}</p>

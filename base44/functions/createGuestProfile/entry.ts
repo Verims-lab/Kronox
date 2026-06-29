@@ -5,7 +5,10 @@ const USERNAME_PREFIX = 'KronoxUser';
 const GUEST_ID_PREFIX = 'guest_';
 const MAX_USERNAME_ATTEMPTS = 18;
 const MAX_GUEST_ID_ATTEMPTS = 8;
+const MAX_KRONOX_USER_ID_ATTEMPTS = 10;
 const TOKEN_BYTE_LENGTH = 32;
+const KRONOX_ID_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const KRONOX_ID_PATTERN = /^KX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
 const MAX_REQUEST_BODY_BYTES = 128 * 1024;
 const GUEST_CREATION_HOURLY_LIMIT = 12;
 const GUEST_CREATION_DAILY_LIMIT = 40;
@@ -186,6 +189,17 @@ function randomUsernameCandidate() {
   ) >>> 0;
   const suffix = 1000 + (value % 90000);
   return `${USERNAME_PREFIX}${suffix}`;
+}
+
+function normalizeKronoxUserId(value: unknown) {
+  const text = String(value || '').trim().toUpperCase();
+  return KRONOX_ID_PATTERN.test(text) ? text : '';
+}
+
+function makeKronoxUserId() {
+  const bytes = randomBytes(12);
+  const chars = Array.from(bytes, (byte) => KRONOX_ID_ALPHABET[byte % KRONOX_ID_ALPHABET.length]);
+  return `KX-${chars.slice(0, 4).join('')}-${chars.slice(4, 8).join('')}-${chars.slice(8, 12).join('')}`;
 }
 
 function safeCredentialText(value: unknown, maxLength = 180) {
@@ -372,6 +386,31 @@ async function usernameExists(base44: any, username: string, excludeGuestId = ''
   ));
 }
 
+async function kronoxUserIdExists(base44: any, kronoxUserId: string) {
+  if (!kronoxUserId) return false;
+  const guestEntity = guestProfileEntity(base44);
+  const userEntity = base44?.asServiceRole?.entities?.User || base44?.entities?.User || null;
+  const tombstoneEntity = base44?.asServiceRole?.entities?.KronoxUserIdTombstone || base44?.entities?.KronoxUserIdTombstone || null;
+  const [guestRows, userRows, tombstoneRows] = await Promise.all([
+    guestEntity?.filter ? guestEntity.filter({ kronox_user_id: kronoxUserId }, '-updated_date', 2).catch(() => []) : [],
+    userEntity?.filter ? userEntity.filter({ kronox_user_id: kronoxUserId }, '-updated_date', 2).catch(() => []) : [],
+    tombstoneEntity?.filter ? tombstoneEntity.filter({ kronox_user_id: kronoxUserId }, '-reserved_at', 2).catch(() => []) : [],
+  ]);
+  return Boolean(
+    (Array.isArray(guestRows) && guestRows.length) ||
+    (Array.isArray(userRows) && userRows.length) ||
+    (Array.isArray(tombstoneRows) && tombstoneRows.length)
+  );
+}
+
+async function generateUniqueKronoxUserId(base44: any) {
+  for (let attempt = 0; attempt < MAX_KRONOX_USER_ID_ATTEMPTS; attempt += 1) {
+    const candidate = makeKronoxUserId();
+    if (!(await kronoxUserIdExists(base44, candidate))) return candidate;
+  }
+  throw new Error('kronox_user_id_generation_failed');
+}
+
 async function generateUniqueUsername(base44: any) {
   for (let attempt = 0; attempt < MAX_USERNAME_ATTEMPTS; attempt += 1) {
     const username = randomUsernameCandidate();
@@ -391,6 +430,7 @@ function publicGuestProfile(row: any) {
     : [];
   return {
     guest_id: String(row?.guest_id || ''),
+    kronox_user_id: normalizeKronoxUserId(row?.kronox_user_id),
     username,
     display_name: username,
     status: String(row?.status || 'guest'),
@@ -416,7 +456,16 @@ async function updateLastSeen(base44: any, row: any) {
   const entity = guestProfileEntity(base44);
   const id = rowId(row);
   if (!entity?.update || !id) return row;
-  return entity.update(id, { last_seen_at: nowIso() });
+  const timestamp = nowIso();
+  const existingKronoxUserId = normalizeKronoxUserId(row?.kronox_user_id);
+  return entity.update(id, {
+    last_seen_at: timestamp,
+    ...(existingKronoxUserId ? {} : {
+      kronox_user_id: await generateUniqueKronoxUserId(base44),
+      kronox_user_id_created_at: timestamp,
+      kronox_user_id_source: 'system_backfill',
+    }),
+  });
 }
 
 async function getVerifiedGuestRow(base44: any, guestId: string, guestToken: string) {
@@ -629,6 +678,7 @@ async function publishGuestLeaderboardEntry(base44: any, row: any, soloProgress:
   const displayName = cleanPublicName(row?.username, guestId);
   const payload = {
     owner_key: ownerKey,
+    ...(normalizeKronoxUserId(row?.kronox_user_id) ? { kronox_user_id: normalizeKronoxUserId(row.kronox_user_id) } : {}),
     username: displayName,
     display_name: displayName,
     initial: initialFromName(displayName),
@@ -851,6 +901,7 @@ async function createGuestProfile(base44: any, throttle: any = {}) {
 
   const timestamp = nowIso();
   const username = await generateUniqueUsername(base44);
+  const kronoxUserId = await generateUniqueKronoxUserId(base44);
   let lastError: unknown = null;
 
   for (let attempt = 0; attempt < MAX_GUEST_ID_ATTEMPTS; attempt += 1) {
@@ -864,6 +915,9 @@ async function createGuestProfile(base44: any, throttle: any = {}) {
         guest_id: guestId,
         guest_token_hash: tokenHash,
         guest_token_hash_algorithm: HASH_ALGORITHM,
+        kronox_user_id: kronoxUserId,
+        kronox_user_id_created_at: timestamp,
+        kronox_user_id_source: 'system_create_guest_profile',
         username,
         username_normalized: normalizeUsernameKey(username),
         display_name: username,
@@ -887,6 +941,7 @@ async function createGuestProfile(base44: any, throttle: any = {}) {
           guestCreationThrottleAvailable: Boolean(throttle?.throttleAvailable),
           guestCreationSourceHash: String(throttle?.sourceHash || ''),
           guestCreationDayBucket: String(throttle?.dayBucket || ''),
+          kronoxUserIdBackendAssigned: true,
         },
       });
       return json({
@@ -908,6 +963,7 @@ async function createGuestProfile(base44: any, throttle: any = {}) {
           rawIpStored: false,
           rawHeadersStored: false,
           requestBodyTrustedForIdentity: false,
+          kronoxUserIdBackendAssigned: true,
         },
       }, 201);
     } catch (error) {

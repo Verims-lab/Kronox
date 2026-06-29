@@ -3,6 +3,9 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 const HASH_ALGORITHM = 'sha256:kronox_guest_v1';
 const USERNAME_PREFIX = 'KronoxUser';
 const GUEST_ID_PREFIX = 'guest_';
+const KRONOX_ID_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const KRONOX_ID_PATTERN = /^KX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
+const MAX_KRONOX_USER_ID_ATTEMPTS = 10;
 const GENDER_VALUES = new Set(['', 'female', 'male', 'non_binary', 'prefer_not_to_say', 'custom']);
 const AGE_GROUP_VALUES = new Set(['', '13_17', '18_24', '25_34', '35_44', '45_plus']);
 const UNSAFE_PUBLIC_USERNAME_PATTERN = /^(apple|google|firebase|auth0|base44|provider|uid|owner)(?:[\w:-].*)?$/i;
@@ -94,6 +97,23 @@ function bytesToBase64Url(bytes: Uint8Array) {
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
 
+function randomBytes(length: number) {
+  const bytes = new Uint8Array(length);
+  crypto.getRandomValues(bytes);
+  return bytes;
+}
+
+function normalizeKronoxUserId(value: unknown) {
+  const text = String(value || '').trim().toUpperCase();
+  return KRONOX_ID_PATTERN.test(text) ? text : '';
+}
+
+function makeKronoxUserId() {
+  const bytes = randomBytes(12);
+  const chars = Array.from(bytes, (byte) => KRONOX_ID_ALPHABET[byte % KRONOX_ID_ALPHABET.length]);
+  return `KX-${chars.slice(0, 4).join('')}-${chars.slice(4, 8).join('')}-${chars.slice(8, 12).join('')}`;
+}
+
 async function sha256Base64Url(input: string) {
   const data = new TextEncoder().encode(input);
   const digest = await crypto.subtle.digest('SHA-256', data);
@@ -143,6 +163,33 @@ async function findRows(entity: any, filter: Record<string, unknown>, sort = '-u
   if (!entity?.filter) return [];
   const rows = await entity.filter(filter, sort, limit).catch(() => []);
   return Array.isArray(rows) ? rows : [];
+}
+
+async function kronoxUserIdExists(base44: any, kronoxUserId: string) {
+  if (!kronoxUserId) return false;
+  const [guestRows, userRows, tombstoneRows] = await Promise.all([
+    findRows(entityStore(base44, 'GuestProfile'), { kronox_user_id: kronoxUserId }, '-updated_date', 2),
+    findRows(entityStore(base44, 'User'), { kronox_user_id: kronoxUserId }, '-updated_date', 2),
+    findRows(entityStore(base44, 'KronoxUserIdTombstone'), { kronox_user_id: kronoxUserId }, '-reserved_at', 2),
+  ]);
+  return Boolean(guestRows.length || userRows.length || tombstoneRows.length);
+}
+
+async function generateUniqueKronoxUserId(base44: any) {
+  for (let attempt = 0; attempt < MAX_KRONOX_USER_ID_ATTEMPTS; attempt += 1) {
+    const candidate = makeKronoxUserId();
+    if (!(await kronoxUserIdExists(base44, candidate))) return candidate;
+  }
+  throw new Error('kronox_user_id_generation_failed');
+}
+
+async function ensureKronoxUserIdPatch(base44: any, row: any, source: string) {
+  if (normalizeKronoxUserId(row?.kronox_user_id)) return {};
+  return {
+    kronox_user_id: await generateUniqueKronoxUserId(base44),
+    kronox_user_id_created_at: nowIso(),
+    kronox_user_id_source: source,
+  };
 }
 
 async function listRows(entity: any, sort = '-updated_at', limit = 500) {
@@ -213,6 +260,7 @@ function publicGuestProfile(row: any) {
   const username = safePublicUsername(row?.username, row?.guest_id || rowId(row) || '');
   return {
     guest_id: String(row?.guest_id || ''),
+    kronox_user_id: normalizeKronoxUserId(row?.kronox_user_id),
     username,
     display_name: username,
     status: String(row?.status || 'guest'),
@@ -287,6 +335,9 @@ Deno.serve(async (req: Request) => {
 
     const base44 = createClientFromRequest(req);
     const body = await req.json().catch(() => ({}));
+    if (Object.prototype.hasOwnProperty.call(body || {}, 'kronox_user_id')) {
+      return json({ ok: false, code: 'kronox_user_id_client_input_forbidden', error: 'Kronox ID sistem tarafından atanır.' }, 400);
+    }
     const authUser = await base44.auth.me().catch(() => null);
     const email = normalizeEmail(authUser?.email || authUser?.user_email);
     const timestamp = nowIso();
@@ -301,6 +352,7 @@ Deno.serve(async (req: Request) => {
       }
       const updatedUser = await updateCurrentUser(base44, user, {
         ...built.patch,
+        ...(await ensureKronoxUserIdPatch(base44, user, 'system_profile_settings_backfill')),
         profile_settings_updated_at: timestamp,
       });
       const leaderboardUpdated = await refreshLeaderboardIdentity(
@@ -348,6 +400,7 @@ Deno.serve(async (req: Request) => {
     if (!entity?.update || !id) return json({ ok: false, code: 'guest_profile_update_unavailable' }, 500);
     const updatedGuest = await entity.update(id, {
       ...built.patch,
+      ...(await ensureKronoxUserIdPatch(base44, guest, 'system_profile_settings_backfill')),
       last_seen_at: timestamp,
     });
     const leaderboardUpdated = await refreshLeaderboardIdentity(

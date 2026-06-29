@@ -4,6 +4,7 @@ const GAME_INVITE_TTL_MS = 10 * 60 * 1000;
 const LOBBY_STALE_AFTER_MS = 10 * 60 * 1000;
 const PRESENCE_ONLINE_TTL_MS = 75 * 1000;
 const TARGET_REF_PATTERN = /^u_[a-z0-9]{3,32}$/;
+const KRONOX_ID_PATTERN = /^KX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
 
 const normalizeEmail = (value: unknown) => String(value || '').trim().toLowerCase();
 const json = (body: unknown, status = 200) => Response.json(body, { status });
@@ -39,6 +40,11 @@ function safePublicUsername(value: unknown, fallbackSeed: unknown) {
       && !/^(guest|player|owner|user_key|player_key|g|u)_[A-Za-z0-9_-]{4,}$/i.test(normalized)
   );
   return safe ? normalized : makeUsernameFallback(fallbackSeed);
+}
+
+function normalizeKronoxUserId(value: unknown) {
+  const text = String(value || '').trim().toUpperCase();
+  return KRONOX_ID_PATTERN.test(text) ? text : '';
 }
 
 function readTime(value: unknown) {
@@ -93,20 +99,26 @@ async function getAcceptedFriendTargetMap(base44: any, myEmail: string) {
     base44.asServiceRole.entities.FriendRequest.filter({ from_email: myEmail, status: 'accepted' }, '-updated_date', 200),
   ]);
   const byTargetRef = new Map<string, any>();
-  const addFriend = (email: string, username: unknown) => {
+  const addFriend = (email: string, username: unknown, kronoxUserId: unknown) => {
     const normalized = normalizeEmail(email);
     const targetRef = makeOwnerKeyHash(normalized);
     if (!normalized || !targetRef || normalized === myEmail || byTargetRef.has(targetRef)) return;
     byTargetRef.set(targetRef, {
       targetRef,
       email: normalized,
+      kronoxUserId: normalizeKronoxUserId(kronoxUserId),
       username: safePublicUsername(username, normalized),
       relation: 'friend',
     });
   };
-  (incomingAccepted || []).forEach((row: any) => addFriend(row.from_email, row.from_username || row.from_name));
-  (outgoingAccepted || []).forEach((row: any) => addFriend(row.to_email, row.to_username || row.to_name));
+  (incomingAccepted || []).forEach((row: any) => addFriend(row.from_email, row.from_username || row.from_name, row.from_kronox_user_id));
+  (outgoingAccepted || []).forEach((row: any) => addFriend(row.to_email, row.to_username || row.to_name, row.to_kronox_user_id));
   return byTargetRef;
+}
+
+async function findCurrentUserRow(base44: any, user: any, email: string) {
+  const rows = await base44.asServiceRole.entities.User.filter({ email }, '-updated_date', 1).catch(() => []);
+  return rows?.[0] || user || null;
 }
 
 async function resolveTarget(base44: any, targetRef: string, {
@@ -142,6 +154,7 @@ async function resolveTarget(base44: any, targetRef: string, {
     ok: true,
     targetRef,
     email,
+    kronoxUserId: normalizeKronoxUserId(freshPresence.kronox_user_id),
     username: safePublicUsername(freshPresence.username, targetRef),
     relation: 'not_friend',
   };
@@ -160,6 +173,8 @@ Deno.serve(async (req) => {
     if (!targetRefs.length) return json({ ok: false, error: 'At least one invite target is required' }, 400);
 
     const myEmail = normalizeEmail(user.email);
+    const currentUser = await findCurrentUserRow(base44, user, myEmail);
+    const fromKronoxUserId = normalizeKronoxUserId(currentUser?.kronox_user_id || user?.kronox_user_id);
     const myPresenceKey = makeOwnerKeyHash(myEmail);
     const lobby = await base44.asServiceRole.entities.Lobby.get(lobbyId);
     if (!lobby) return json({ ok: false, error: 'Lobi bulunamadı.' }, 404);
@@ -208,14 +223,17 @@ Deno.serve(async (req) => {
           to_email: target.email,
           status: 'pending',
         }, '-created_date', 1).catch(() => []);
+        const targetKronoxUserId = normalizeKronoxUserId(target.kronoxUserId);
         const createdAt = new Date();
         const expiresAt = new Date(createdAt.getTime() + GAME_INVITE_TTL_MS);
         const invite = existing?.[0] || await base44.asServiceRole.entities.GameInvite.create({
           lobby_id: lobby.id,
           lobby_code: lobby.code || '',
           from_email: myEmail,
+          ...(fromKronoxUserId ? { from_kronox_user_id: fromKronoxUserId } : {}),
           from_name: fromName,
           to_email: target.email,
+          ...(targetKronoxUserId ? { to_kronox_user_id: targetKronoxUserId } : {}),
           to_name: target.username,
           status: 'pending',
           created_at: createdAt.toISOString(),

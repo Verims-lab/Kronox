@@ -11,6 +11,10 @@
       "type": "string",
       "description": "Optional internal owner key (u_... or g_...) for audit/account-link correlation. Public APIs must not expose it."
     },
+    "kronox_user_id": {
+      "type": "string",
+      "description": "Immutable Kronox ID of the economy owner when available. Admin/private audit field; not public identity and not authorization proof."
+    },
     "player_type": {
       "type": "string",
       "enum": [

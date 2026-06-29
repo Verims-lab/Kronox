@@ -62,6 +62,12 @@ const getLobbyExpiry = (lobby: any) => {
 };
 
 const normalizeEmail = (value: unknown) => String(value || '').trim().toLowerCase();
+const KRONOX_ID_PATTERN = /^KX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
+
+function normalizeKronoxUserId(value: unknown) {
+  const text = String(value || '').trim().toUpperCase();
+  return KRONOX_ID_PATTERN.test(text) ? text : '';
+}
 
 const readRevision = (value: unknown) => {
   const revision = Number(value);
@@ -71,6 +77,8 @@ const readRevision = (value: unknown) => {
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const getPlayerIdentityKey = (player: any) => {
+  const kronoxUserId = normalizeKronoxUserId(player?.kronox_user_id);
+  if (kronoxUserId) return `kronox:${kronoxUserId}`;
   const email = normalizeEmail(player?.email);
   if (email) return `email:${email}`;
   const name = String(player?.name || '').trim().toLowerCase();
@@ -79,6 +87,7 @@ const getPlayerIdentityKey = (player: any) => {
 
 const normalizeLobbyPlayer = (player: any) => ({
   ...player,
+  kronox_user_id: normalizeKronoxUserId(player?.kronox_user_id),
   email: player?.email || '',
   name: String(player?.name || '').trim() || 'Oyuncu',
   ready: player?.ready ?? true,
@@ -204,6 +213,7 @@ Deno.serve(async (req) => {
           let returnLobby = acceptedLobby;
           if (acceptedLobby.status === 'waiting') {
             const newPlayer = {
+              kronox_user_id: normalizeKronoxUserId(invite?.to_kronox_user_id || user?.kronox_user_id),
               email: user.email,
               name: getInvitePlayerName(user, invite),
               ready: true,
@@ -280,6 +290,7 @@ Deno.serve(async (req) => {
     const nowIso = new Date().toISOString();
     const acceptedPlayerName = getInvitePlayerName(user, invite);
     const newPlayer = {
+      kronox_user_id: normalizeKronoxUserId(invite?.to_kronox_user_id || user?.kronox_user_id),
       email: user.email,
       name: acceptedPlayerName,
       ready: true,
@@ -298,6 +309,9 @@ Deno.serve(async (req) => {
     const updatedInvite = await base44.asServiceRole.entities.GameInvite.update(inviteId, {
       status: 'accepted',
       accepted_at: nowIso,
+      ...(normalizeKronoxUserId(invite?.to_kronox_user_id || user?.kronox_user_id) ? {
+        to_kronox_user_id: normalizeKronoxUserId(invite?.to_kronox_user_id || user?.kronox_user_id),
+      } : {}),
       to_name: acceptedPlayerName,
     });
 

@@ -3,6 +3,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 
 const MAX_ROWS = 500;
 const PENDING_STATUSES = new Set(['pending', 'waiting', 'starting']);
+const KRONOX_ID_PATTERN = /^KX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
 
 function json(payload: unknown, status = 200) {
   return Response.json(payload, { status });
@@ -10,6 +11,11 @@ function json(payload: unknown, status = 200) {
 
 function normalizeEmail(value: unknown) {
   return String(value || '').trim().toLowerCase();
+}
+
+function normalizeKronoxUserId(value: unknown) {
+  const text = String(value || '').trim().toUpperCase();
+  return KRONOX_ID_PATTERN.test(text) ? text : '';
 }
 
 function safeId(value: unknown) {
@@ -97,6 +103,27 @@ async function updateRows(base44: any, entityName: string, rows: any[], buildPat
   return updated;
 }
 
+async function reserveKronoxUserIdTombstone(base44: any, kronoxUserId: string, sourceEntity: string, source: string) {
+  const normalized = normalizeKronoxUserId(kronoxUserId);
+  const entity = base44.asServiceRole.entities.KronoxUserIdTombstone;
+  if (!normalized || !entity?.filter || !entity?.create) return false;
+  const existing = await entity.filter({ kronox_user_id: normalized }, '-reserved_at', 1).catch(() => []);
+  if (existing?.[0]) return true;
+  await entity.create({
+    kronox_user_id: normalized,
+    source_entity: sourceEntity,
+    source,
+    reserved_at: new Date().toISOString(),
+    metadata: {
+      privacySafeTombstone: true,
+      noEmail: true,
+      noProviderId: true,
+      noRawGuestId: true,
+    },
+  }).catch(() => null);
+  return true;
+}
+
 async function removePushSubscriptions(base44: any, userEmail: string) {
   const rows = await safeFilter(base44, 'PushSubscription', { user_email: userEmail }, '-last_seen_at');
   return deleteRows(base44, 'PushSubscription', rows);
@@ -127,8 +154,8 @@ async function cancelOrAnonymizeInvites(base44: any, userEmail: string, anon: Re
     const toMatches = normalizeEmail(invite?.to_email) === userEmail;
     const status = String(invite?.status || 'pending');
     return {
-      ...(fromMatches ? { from_email: anon.email, from_name: anon.name } : {}),
-      ...(toMatches ? { to_email: anon.email, to_name: anon.name } : {}),
+      ...(fromMatches ? { from_email: anon.email, from_name: anon.name, from_kronox_user_id: '' } : {}),
+      ...(toMatches ? { to_email: anon.email, to_name: anon.name, to_kronox_user_id: '' } : {}),
       ...(status === 'pending' ? { status: 'cancelled', cancelled_at: now } : {}),
       description: accountDeletedDescription(invite?.description),
     };
@@ -139,6 +166,7 @@ function scrubLobbyPlayer(player: any, userEmail: string, anon: ReturnType<typeo
   if (normalizeEmail(player?.email) !== userEmail) return player;
   return {
     ...player,
+    kronox_user_id: '',
     email: anon.email,
     name: anon.name,
     cards: [],
@@ -170,7 +198,8 @@ async function anonymizeLobbyRows(base44: any, userEmail: string, userId: string
 
     return {
       ...(hostMatches ? { host_email: anon.email, host_name: anon.name } : {}),
-      ...(winnerMatches ? { winner_email: anon.email, winner: anon.name } : {}),
+      ...(hostMatches ? { host_kronox_user_id: '' } : {}),
+      ...(winnerMatches ? { winner_email: anon.email, winner: anon.name, winner_kronox_user_id: '' } : {}),
       players,
       invited_emails: invitedEmails,
       ...(shouldCancel ? { status: 'cancelled', cancelled_at: now } : {}),
@@ -281,6 +310,7 @@ Deno.serve(async (req) => {
     }
 
     const anon = anonymizedIdentity(user);
+    await reserveKronoxUserIdTombstone(base44, normalizeKronoxUserId(user?.kronox_user_id), 'User', 'account_deletion').catch(() => null);
     await Promise.all([
       removePushSubscriptions(base44, userEmail),
       removeSocialRows(base44, userEmail),
