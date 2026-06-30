@@ -75,13 +75,12 @@ import {
   buildSoloJokerUseIdempotencyKey,
   emptyJokerBalances,
   getUserJokerBalances,
-  isKnownJokerType,
-  mergeJokerBalances,
   normalizeJokerBalances,
   normalizeJokerQuantity,
   soloUiJokerTypeToInventoryType,
   spendUserJoker,
 } from '@/lib/jokerInventory';
+import { mergeJokerSpendMutationBalances } from '@/lib/jokerInventorySpendMerge';
 import { getOrderedSoloDeckQuestion, getSoloSeedQuestions } from '@/lib/soloDeckRuntime';
 import {
   buildQuestionAttemptEventId,
@@ -1788,24 +1787,11 @@ export default function Game() {
     }
 
     const setSoloJokerBalancesFromSpendResponse = (response) => {
-      let nextBalances = normalizeJokerBalances(jokerBalances);
-      const balancePayloadTypes = Array.isArray(response?.balancePayloadTypes)
-        ? Array.from(new Set(response.balancePayloadTypes.filter((type) => isKnownJokerType(type))))
-        : null;
-      if (balancePayloadTypes) {
-        const responseBalances = normalizeJokerBalances(response?.balances);
-        balancePayloadTypes.forEach((type) => {
-          nextBalances[type] = responseBalances[type];
-        });
-      } else {
-        nextBalances = mergeJokerBalances(nextBalances, response?.balances);
-      }
-      nextBalances = mergeJokerBalances(nextBalances, response?.items);
-      const balanceAfter = response?.balanceAfter ?? response?.inventory?.quantity;
-      if (balanceAfter !== undefined && balanceAfter !== null) {
-        nextBalances[inventoryType] = normalizeJokerQuantity(balanceAfter);
-      }
-      setJokerBalances(nextBalances);
+      setJokerBalances((previousBalances) => mergeJokerSpendMutationBalances(
+        previousBalances,
+        response,
+        inventoryType,
+      ));
     };
 
     jokerSpendPendingRef.current = true;

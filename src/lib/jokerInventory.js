@@ -1,4 +1,8 @@
 import { base44 } from '@/api/base44Client';
+import {
+  getJokerSpendBalancePayloadTypes,
+  mergeJokerSpendMutationBalances,
+} from '@/lib/jokerInventorySpendMerge';
 
 export const JOKER_TYPES = Object.freeze({
   MISTAKE_SHIELD: 'mistake_shield',
@@ -260,26 +264,11 @@ export function mergeJokerBalances(baseBalances, incomingBalances) {
 }
 
 function normalizeJokerSpendBalances(body, jokerType, fallbackBalances = null) {
-  let balances = normalizeJokerBalances(fallbackBalances);
-  balances = mergeJokerBalances(balances, body?.balances);
-  balances = mergeJokerBalances(balances, body?.items);
-  const balanceAfter = body?.balanceAfter ?? body?.balance_after ?? body?.inventory?.quantity;
-  if (isKnownJokerType(jokerType) && balanceAfter !== undefined && balanceAfter !== null) {
-    balances[jokerType] = normalizeJokerQuantity(balanceAfter);
-  }
-  return balances;
+  return mergeJokerSpendMutationBalances(fallbackBalances, body, jokerType);
 }
 
 function jokerSpendBalancePayloadTypes(body, jokerType) {
-  const types = new Set([
-    ...jokerTypesInBalanceInput(body?.balances),
-    ...jokerTypesInBalanceInput(body?.items),
-  ]);
-  const balanceAfter = body?.balanceAfter ?? body?.balance_after ?? body?.inventory?.quantity;
-  if (isKnownJokerType(jokerType) && balanceAfter !== undefined && balanceAfter !== null) {
-    types.add(jokerType);
-  }
-  return Array.from(types);
+  return getJokerSpendBalancePayloadTypes(body, jokerType);
 }
 
 function unwrapFunctionResponse(response) {

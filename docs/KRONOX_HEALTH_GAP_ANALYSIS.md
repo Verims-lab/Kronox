@@ -113,6 +113,11 @@ fallback polling/refetch.
   the initial shell, cached GuestProfile repeat-launch support, and post-paint
   background maintenance for profile/Kronox ID/economy/joker/admin/rewards,
   presence, invite, Market, and Liderlik work.
+- Added Solo joker inventory merge coverage so executable checks prove
+  `Kart Değiştir`, `Kronokalkan`, and `Zaman Dondur` decrement only the
+  selected joker, preserve untouched counts through partial mutation payloads,
+  keep idempotent retries from double-spending, and keep guided tutorial demos
+  separate from real inventory spend.
 
 ## Required Coverage Areas
 
