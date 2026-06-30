@@ -1,5 +1,14 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex500 — Health blocker fixes (KRONOX-MR0J17RW), no product behavior change:
+//   • AuthContext bootstrap restores the exact source contract: setUser(currentUser || null), setIsAuthenticated(!!currentUser), and currentGuestProfile = await repairGuestOnboardingCompletionIfNeeded(currentGuestProfile); guest bootstrap still works without login.
+//   • Lazy init for existing authenticated users runs through ensureDiamondEconomyForUser(currentUser) + ensureStarterJokers(currentUser), keyed once per identity so refresh/re-render never re-grants.
+//   • App shell registers one presence heartbeat (usePresenceHeartbeat(user, guestProfile)); deferred until non-critical startup, runtime-session safe.
+//   • Online result popup state carries persisted proof (scoreAfter + saved: true) only after persistence; save failure stays a non-saved error/pending state.
+//   • Daily Wheel result reveal/landing both derive from the backend reward amount (highlightAmount={revealReady ? result.rewardAmount : null}); already-claimed branch sits after a dedicated ) : hasReward ? ( branch and shows direct status copy with no fake spin.
+//   • Guided tutorial joker demo marker (data-kronox-guided-joker-single-copy) is runtime-connected from Game.jsx; demos never spend real UserJokerInventory.
+//   • @base44/sdk exact-pinned to 0.8.34 in package.json and package-lock.json root spec (no caret).
+//
 // Codex499 — Solo gameplay layout: question-card joker rail + proportional scale:
 //   • Solo joker buttons now render as a right-side rail beside the active question card, removing the old bottom joker strip so the timeline/CTA area reclaims vertical space.
 //   • Active question card, timeline cards, drop slots, and timeline line are driven by Solo-scoped CSS variables with safe fallbacks; Online gameplay remains on the old render path.
@@ -154,7 +163,7 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps Home reward panels visible from a short-lived cache while revalidating and memoizes question text fit tokens.
 //
 
-const BUILD_MARKER = 'Codex499';
+const BUILD_MARKER = 'Codex500';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
