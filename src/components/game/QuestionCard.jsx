@@ -259,8 +259,8 @@ export default function QuestionCard({
         ${draggable ? 'cursor-grab active:cursor-grabbing' : ''}
       `}
       style={{
-        width: 160,
-        minHeight: 240,
+        width: readableCard ? 'var(--solo-active-question-card-width, 160px)' : 160,
+        minHeight: readableCard ? 'var(--solo-active-question-card-height, 240px)' : 240,
         background: hasAlbumArt 
           ? 'transparent'
           : useOldPaperSurface
@@ -354,8 +354,8 @@ export default function QuestionCard({
               className="text-center font-inter text-white"
               style={{
                 width: '100%',
-                maxWidth: readableCard ? 136 : undefined,
-                fontSize: useOldPaperSurface ? 'clamp(16px, 5vw, 20px)' : (readableCard ? 'clamp(13px, 3.8vw, 15px)' : (isMuzik ? 11 : 10)),
+                maxWidth: readableCard ? 'calc(var(--solo-active-question-card-width, 160px) - 24px)' : undefined,
+                fontSize: useOldPaperSurface ? 'clamp(16px, 5vw, 22px)' : (readableCard ? 'clamp(13px, 3.8vw, 15px)' : (isMuzik ? 11 : 10)),
                 lineHeight: useOldPaperSurface ? 1.28 : (readableCard ? 1.2 : 1.3),
                 fontWeight: readableCard ? 600 : 700,
                 letterSpacing: readableCard ? SOLO_READABLE_QUESTION_LETTER_SPACING : '0',

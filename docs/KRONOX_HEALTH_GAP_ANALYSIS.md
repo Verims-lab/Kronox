@@ -109,6 +109,10 @@ fallback polling/refetch.
   idle Leaderboard chunk/snapshot warm-up, projection-only fast reads,
   cached-row rendering while refetching, deferred friend enrichment, and
   materialized `kronox_puan_total` as the primary visible score read path.
+- Added app startup fast-path coverage so static checks require Home to be in
+  the initial shell, cached GuestProfile repeat-launch support, and post-paint
+  background maintenance for profile/Kronox ID/economy/joker/admin/rewards,
+  presence, invite, Market, and Liderlik work.
 
 ## Required Coverage Areas
 
@@ -128,6 +132,7 @@ fallback polling/refetch.
 | Global profile avatar propagation | Static UI/projection checks for shared renderer usage, safe avatar quartet, bundled icon categories, leaderboard/friends/Online/lobby/invite/header propagation, and no private avatar payload fields | Manual visual proof across leaderboard, friends, player select, lobby, invites, header, uploaded photo fallback, and guest/linked profiles |
 | Mağaza open / purchase readiness | Static Market checks for idle chunk/cache warm-up, fast inventory read before starter self-heal, explicit purchase-readiness helper, and backend server-price/idempotency/lock guards | Manual low-end mobile proof for first open/reopen, sufficient/insufficient Diamond CTA state, purchase success, and double-tap/retry behavior |
 | Liderlik open / score projection performance | Static Leaderboard checks for idle chunk/snapshot warm-up, projection-only `getSoloLeaderboard` fast mode, cached rows during refetch, deferred friend enrichment, bounded repair, and materialized score reads | Manual low-end mobile proof for cold/repeat BottomNav opens, deployed Base44 latency, DB index/sort behavior, exact rank at scale, and post-score-change refresh |
+| App startup / Home first render | Static startup fast-path checks for direct Home shell import, cached GuestProfile repeat launch, post-paint AuthContext maintenance, deferred presence/invite/category modules, idle Market/Liderlik warm-up, and delayed Daily Wheel/Daily Quest status refresh | Manual Android/WebView proof for cold/repeat app launch, splash duration, dark-loader duration, first Home paint, and deployed Base44 latency |
 | Daily Quest Diamond-only | Static runtime/backend checks | Two-device claim race proof |
 | Leaderboard username-only | Static public payload checks | RLS/BOLA live probe |
 | Online category isolation | Static start/Game/Health mirror checks | Live lobby start with Solo preferences set differently |

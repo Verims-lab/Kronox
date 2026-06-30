@@ -55,6 +55,32 @@ shape when it reduces risk.
 
 ## Pilot Flow Targets
 
+### App Startup / Home First Render
+
+Current:
+- `AuthContext` owns app identity bootstrap for authenticated users and
+  app-owned GuestProfile players.
+- Home also starts optional daily reward, market, leaderboard, presence, invite,
+  category-modal, and service-worker work around app entry.
+
+Target:
+- Startup is split into: critical identity bootstrap, first Home render, then
+  non-critical background refresh.
+- Critical identity may use the cached public GuestProfile for repeat guest
+  launches; backend GuestProfile verification, Kronox ID ensure, profile
+  hydration, Diamond economy grant, starter joker repair, account-link merge,
+  admin status, app-open activity, presence, invite checks, reward status, and
+  Market/Liderlik warm-up must not block Home first paint.
+- Home is part of the initial app shell rather than a lazy route chunk. Heavy
+  non-home screens remain lazy.
+
+Parity plan:
+- Guest/profile correctness remains backend-verified in background and must
+  patch shared auth state when authoritative data arrives.
+- Daily Wheel and Daily Quest remain server-authoritative and Diamond-only;
+  Home may show loading/cached status while post-paint refresh completes.
+- Low-end Android/WebView startup timing remains a manual release proof gate.
+
 ### Solo Gameplay Completion / Records
 
 Current:

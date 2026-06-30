@@ -15,6 +15,7 @@
 //     append-only.
 
 import appSource from '../../../App.jsx?raw';
+import authContextSource from '../../../lib/AuthContext.jsx?raw';
 import mainSource from '../../../main.jsx?raw';
 import indexCssSource from '../../../index.css?raw';
 import mainMenuSource from '../../../pages/MainMenu.jsx?raw';
@@ -31,6 +32,7 @@ import appDiagnosticsSource from '../../dev/AppDiagnostics.jsx?raw';
 import gameDebugLogSource from '../GameDebugLog.jsx?raw';
 import gameLayoutSource from '../GameLayout.jsx?raw';
 import questionCardSource from '../QuestionCard.jsx?raw';
+import soloJokerBarSource from '../SoloJokerBar.jsx?raw';
 import timelineSource from '../Timeline.jsx?raw';
 import timelineCardSource from '../TimelineCard.jsx?raw';
 import useGameActionsSource from '../../../hooks/useGameActions.js?raw';
@@ -156,6 +158,7 @@ export const SRC = {
   App: appSource,
   AdminPage: adminPageSource,
   AppDiagnostics: appDiagnosticsSource,
+  AuthContext: authContextSource,
   BuildMarker: buildMarkerSource,
   DebugLog: debugLogSource,
   FindLobbyByCode: findLobbyByCodeSource,
@@ -175,6 +178,7 @@ export const SRC = {
   QuestionCache: questionCacheSource,
   QuestionCard: questionCardSource,
   SettingsPage: settingsPageSource,
+  SoloJokerBar: soloJokerBarSource,
   SoloChallenge: soloChallengeSource,
   StartLobbyGame: startLobbyGameSource,
   TestSuite: testSuiteSource,
@@ -493,6 +497,37 @@ export const TESTS = [
     return notAutomatable('Web Vitals-like metrics require live observer lifecycle in browser/CI, not a static warning.', { actual: supported, verification: 'NOT_AUTOMATABLE', verificationLabels: ['NOT_AUTOMATABLE', 'MANUAL_REQUIRED'], actionType: ACTION_TYPES.CI_ENVIRONMENT });
   }),
   sourceLacks('performance_ux', 'app_bootstrap_avoids_duplicate_auth_me', 'App shell does not duplicate AuthContext auth bootstrap', 'App.jsx', SRC.App, ['base44.auth.me(']),
+  makeCase('performance_ux', 'startup_home_first_render_fast_path', 'Startup releases Home before non-critical profile/economy/reward work', () => {
+    const required = [
+      'import MainMenu from \'./pages/MainMenu\'',
+      'nonCriticalStartupReady',
+      'usePresenceHeartbeat(\n    nonCriticalModulesEnabled ? user : null',
+      'getCachedGuestProfile',
+      'runAuthenticatedBootstrapMaintenance',
+      'runGuestBootstrapMaintenance',
+      'cleanupOAuthUrlAfterAuth',
+      'scheduleDailyWheelStatusRefresh',
+      'scheduleDailyQuestStatusRefresh',
+      'setTimeout(warmMarket, 1800)',
+    ];
+    const combined = `${SRC.App}\n${SRC.AuthContext}\n${SRC.MainMenu}\n${SRC.UseDailyWheel}\n${SRC.UseDailyQuests}`;
+    const missing = missingTokens(combined, required);
+    const forbidden = [
+      "const MainMenu = lazyWithRetry(() => import('./pages/MainMenu')",
+      'await new Promise(r => setTimeout(r, 600))',
+    ].filter(token => combined.includes(token));
+    if (missing.length || forbidden.length) {
+      return fail('Startup fast-path contract drifted: Home may again wait for non-critical bootstrap work.', {
+        verification: 'STATIC_CONTRACT',
+        files: ['src/App.jsx', 'src/lib/AuthContext.jsx', 'src/pages/MainMenu.jsx', 'src/hooks/useDailyWheel.js', 'src/hooks/useDailyQuests.js'],
+        expected: 'Home is a direct shell import; cached GuestProfile can release first render; profile/Kronox ID/economy/joker/admin/reward/market work is post-paint or background.',
+        actual: { missing, forbidden },
+      });
+    }
+    return pass('Startup fast path keeps Home in the initial shell and defers optional bootstrap, reward, presence, invite, and warm-up work.', {
+      verification: 'STATIC_CONTRACT',
+    });
+  }),
   makeCase('performance_ux', 'game_bootstrap_reuses_auth_context', 'Game first-open user bootstrap reuses AuthContext state', () => {
     const required = ['authChecked', 'isLoadingAuth', 'setCurrentUser(authUser || null)', 'setCurrentUserLoaded(true)'];
     const missing = missingTokens(SRC.Game, required);
@@ -581,6 +616,47 @@ export const TESTS = [
       })
       : pass('Shared QuestionCard applies per-word long-word fitting to both Solo and Online active question cards.', {
         verification: 'STATIC_CONTRACT',
+      });
+  }),
+  makeCase('visual_guardrails', 'solo_joker_right_rail_drag_safe_layout', 'Solo jokers render beside the question card with proportional card/timeline scaling and drag-safe guards', () => {
+    const source = `${SRC.Game}\n${SRC.GameLayout}\n${SRC.SoloJokerBar}\n${SRC.QuestionCard}\n${SRC.Timeline}\n${SRC.TimelineCard}`;
+    const required = [
+      'data-kronox-solo-joker-right-layout',
+      'data-kronox-solo-joker-right-rail',
+      'layout="questionRail"',
+      'gridTemplateColumns',
+      '--solo-active-question-card-width',
+      '--solo-active-question-card-height',
+      '--solo-timeline-card-width',
+      '--solo-timeline-card-height',
+      '--solo-timeline-card-line-offset',
+      'SOLO_JOKER_POST_DRAG_GUARD_MS = 160',
+      'soloJokerDragLocked',
+      'dragLocked',
+      'pointerEvents: dragLocked ? \'none\' : \'auto\'',
+      'scale: [1, 0.90, 1.08, 1]',
+      'duration: 0.26',
+      'scale: [0.75, 1.35]',
+      'opacity: [0.75, 0]',
+      'duration: 0.42',
+      'borderRadius: \'50%\'',
+      'inset: \'-5px\'',
+    ];
+    const forbidden = [
+      '<SoloJokerBar\n        enabled={Boolean(soloJokers?.enabled) && !winner && !isOnline && Boolean(currentQuestion)}\n        usedJokerType={soloJokers?.usedJokerType || null}',
+    ];
+    const missing = missingTokens(source, required);
+    const presentForbidden = forbidden.filter((token) => source.includes(token));
+    return missing.length || presentForbidden.length
+      ? fail('Solo joker right-rail layout/drag-safety contract is incomplete.', {
+        expected: { required, forbidden },
+        actual: { missing, presentForbidden },
+        verification: 'STATIC_CONTRACT',
+        classification: 'REAL_PRODUCT_RISK',
+      })
+      : pass('Solo joker rail, proportional scaling, drag guard, and tap/ring animation contracts are protected.', {
+        verification: 'STATIC_CONTRACT',
+        file: 'GameLayout.jsx / SoloJokerBar.jsx / Game.jsx',
       });
   }),
   sourceLacks('visual_guardrails', 'no_plain_default_buttons_gameplay', 'no plain default button styling in gameplay critical controls', 'GameLayout/QuestionCard/Timeline', `${SRC.GameLayout}\n${SRC.QuestionCard}\n${SRC.Timeline}`, ['<button>Confirm', '<button>Submit']),

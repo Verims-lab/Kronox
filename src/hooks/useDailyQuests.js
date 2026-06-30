@@ -65,6 +65,19 @@ function writeDailyQuestStatusCache(cacheKey, body) {
   });
 }
 
+function scheduleDailyQuestStatusRefresh(callback) {
+  if (typeof window === 'undefined') {
+    callback();
+    return () => {};
+  }
+  if (typeof window.requestIdleCallback === 'function') {
+    const id = window.requestIdleCallback(callback, { timeout: 2200 });
+    return () => window.cancelIdleCallback?.(id);
+  }
+  const id = window.setTimeout(callback, 650);
+  return () => window.clearTimeout(id);
+}
+
 export function useDailyQuests({ user, guestProfile, onUserUpdated } = {}) {
   const [status, setStatus] = useState('loading');
   const [quests, setQuests] = useState([]);
@@ -130,12 +143,15 @@ export function useDailyQuests({ user, guestProfile, onUserUpdated } = {}) {
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    const cancelScheduledRefresh = scheduleDailyQuestStatusRefresh(async () => {
       const body = await refresh();
       if (cancelled || !body) return;
       if (body?.userPatch && typeof onUserUpdated === 'function') onUserUpdated(body.userPatch);
-    })();
-    return () => { cancelled = true; };
+    });
+    return () => {
+      cancelled = true;
+      cancelScheduledRefresh();
+    };
   }, [refresh, onUserUpdated]);
 
   const claim = useCallback(async (quest) => {

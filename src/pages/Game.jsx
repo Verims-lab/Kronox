@@ -112,6 +112,7 @@ import { applyOnlineMatchToCurrentUser } from '@/lib/applyOnlineResult';
 import { getOnlinePlayerElapsedSeconds } from '@/lib/onlinePlayerElapsed';
 
 const GAMEPLAY_DRAG_LOCK_CLASS = 'kronox-game-drag-lock';
+const SOLO_JOKER_POST_DRAG_GUARD_MS = 160;
 const GUIDED_TUTORIAL_TIME_LIMIT_SECONDS = SOLO_LEVEL_TIME_SECONDS;
 const GUIDED_TIMELINE_SWIPE_HINT_MIN_MS = 3000;
 const GUIDED_TIMELINE_SWIPE_HINT_MAX_MS = 10000;
@@ -522,6 +523,9 @@ export default function Game() {
   const timerFreezeElapsedAtStartRef = useRef(null);
   const timerFreezeTimeoutRef = useRef(null);
   const timerFreezeIntervalRef = useRef(null);
+  const soloJokerDragGuardUntilRef = useRef(0);
+  const soloJokerDragGuardTimerRef = useRef(null);
+  const [soloJokerDragLocked, setSoloJokerDragLocked] = useState(false);
   const guidedTutorialPauseElapsedAtStartRef = useRef(null);
   const timelineSwipeHintStartedAtRef = useRef(null);
   const timelineSwipeHintMinimumTimerRef = useRef(null);
@@ -982,6 +986,44 @@ export default function Game() {
     debugLog('[Game] guided joker tap hint stopped', { reason });
   }, [clearGuidedJokerTapHintTimers]);
 
+  const clearSoloJokerDragGuard = useCallback(() => {
+    if (soloJokerDragGuardTimerRef.current) {
+      window.clearTimeout(soloJokerDragGuardTimerRef.current);
+      soloJokerDragGuardTimerRef.current = null;
+    }
+    soloJokerDragGuardUntilRef.current = 0;
+    setSoloJokerDragLocked(false);
+  }, []);
+
+  const lockSoloJokersForDrag = useCallback(() => {
+    if (!isSoloLevelMode) return;
+    if (soloJokerDragGuardTimerRef.current) {
+      window.clearTimeout(soloJokerDragGuardTimerRef.current);
+      soloJokerDragGuardTimerRef.current = null;
+    }
+    soloJokerDragGuardUntilRef.current = Number.POSITIVE_INFINITY;
+    setSoloJokerDragLocked(true);
+  }, [isSoloLevelMode]);
+
+  const releaseSoloJokersAfterDrag = useCallback(() => {
+    if (!isSoloLevelMode) return;
+    const guardUntil = Date.now() + SOLO_JOKER_POST_DRAG_GUARD_MS;
+    if (soloJokerDragGuardTimerRef.current) {
+      window.clearTimeout(soloJokerDragGuardTimerRef.current);
+    }
+    soloJokerDragGuardUntilRef.current = guardUntil;
+    setSoloJokerDragLocked(true);
+    soloJokerDragGuardTimerRef.current = window.setTimeout(() => {
+      if (Date.now() >= soloJokerDragGuardUntilRef.current) {
+        soloJokerDragGuardUntilRef.current = 0;
+        setSoloJokerDragLocked(false);
+      }
+      soloJokerDragGuardTimerRef.current = null;
+    }, SOLO_JOKER_POST_DRAG_GUARD_MS);
+  }, [isSoloLevelMode]);
+
+  useEffect(() => () => clearSoloJokerDragGuard(), [clearSoloJokerDragGuard]);
+
   const handleTimelineSwipeHintInteraction = useCallback((reason = 'user_interaction') => {
     if (!timelineSwipeHintActiveRef.current) return;
     if (timelineSwipeHintMinimumElapsedRef.current) {
@@ -1038,6 +1080,7 @@ export default function Game() {
   }, [frozenElapsedOffset, isSoloTimerFrozen, overallSecondsRef]);
 
   const resetSoloJokers = useCallback(() => {
+    clearSoloJokerDragGuard();
     clearSoloTimerFreeze(false);
     jokerUsedRef.current = false;
     jokerSpendPendingRef.current = false;
@@ -1062,7 +1105,7 @@ export default function Game() {
     setGuidedTutorialPauseOffset(0);
     guidedTutorialPauseElapsedAtStartRef.current = null;
     stopTimelineSwipeHint('solo_joker_reset');
-  }, [clearSoloTimerFreeze, stopGuidedJokerTapHint, stopTimelineSwipeHint]);
+  }, [clearSoloJokerDragGuard, clearSoloTimerFreeze, stopGuidedJokerTapHint, stopTimelineSwipeHint]);
 
   const closeGuidedTutorialPopup = useCallback(() => {
     const pausedAt = Number(guidedTutorialPauseElapsedAtStartRef.current);
@@ -1889,31 +1932,36 @@ export default function Game() {
   const handleGameplayCardDragStart = useCallback(() => {
     handleTimelineSwipeHintInteraction('question_card_drag_start');
     engageGameplayDragLock();
+    lockSoloJokersForDrag();
     setIsDragging(true);
-  }, [engageGameplayDragLock, handleTimelineSwipeHintInteraction, setIsDragging]);
+  }, [engageGameplayDragLock, handleTimelineSwipeHintInteraction, lockSoloJokersForDrag, setIsDragging]);
   const handleGameplayCardDragEnd = useCallback(() => {
     releaseGameplayDragLock();
+    releaseSoloJokersAfterDrag();
     setIsDragging(false);
     setTouchDragPos(null);
-  }, [releaseGameplayDragLock, setIsDragging, setTouchDragPos]);
+  }, [releaseGameplayDragLock, releaseSoloJokersAfterDrag, setIsDragging, setTouchDragPos]);
   const handleGameplayCardTouchMove = useCallback((x, y) => {
     handleTimelineSwipeHintInteraction('question_card_touch_drag');
     engageGameplayDragLock();
+    lockSoloJokersForDrag();
     setIsDragging(true);
     setTouchDragPos({ x, y });
-  }, [engageGameplayDragLock, handleTimelineSwipeHintInteraction, setIsDragging, setTouchDragPos]);
+  }, [engageGameplayDragLock, handleTimelineSwipeHintInteraction, lockSoloJokersForDrag, setIsDragging, setTouchDragPos]);
   const handleGameplayCardTouchEnd = useCallback((x, y) => {
     releaseGameplayDragLock();
+    releaseSoloJokersAfterDrag();
     setIsDragging(false);
     setTouchDragPos(null);
     setTouchDragEnd({ x, y });
     setTimeout(() => setTouchDragEnd(null), 100);
-  }, [releaseGameplayDragLock, setIsDragging, setTouchDragEnd, setTouchDragPos]);
+  }, [releaseGameplayDragLock, releaseSoloJokersAfterDrag, setIsDragging, setTouchDragEnd, setTouchDragPos]);
   const handleGameplayCardTouchCancel = useCallback(() => {
     releaseGameplayDragLock();
+    releaseSoloJokersAfterDrag();
     setIsDragging(false);
     setTouchDragPos(null);
-  }, [releaseGameplayDragLock, setIsDragging, setTouchDragPos]);
+  }, [releaseGameplayDragLock, releaseSoloJokersAfterDrag, setIsDragging, setTouchDragPos]);
 
   const markSoloJokerUsedForDecision = useCallback((decisionKey, jokerType) => {
     if (!decisionKey || !jokerType) return;
@@ -2011,6 +2059,12 @@ export default function Game() {
 
   const handleUseSoloJoker = useCallback(async (jokerType) => {
     if (!isSoloLevelMode || soloLevelResult || winner || feedback || !isMyTurn || jokerSpendPendingRef.current) return;
+    const dragGuardActive = Boolean(
+      isDragging ||
+      soloJokerDragLocked ||
+      Date.now() < soloJokerDragGuardUntilRef.current
+    );
+    if (dragGuardActive) return;
     if (!currentQuestion?.id) return;
     setJokerError('');
 
@@ -2224,6 +2278,8 @@ export default function Game() {
     winner,
     feedback,
     isMyTurn,
+    isDragging,
+    soloJokerDragLocked,
     guidedTutorialAskedCardNumber,
     guidedTutorialExpectedJokerType,
     guidedTutorialJokerStepActive,
@@ -3052,8 +3108,11 @@ export default function Game() {
       jokerInventoryLoading ||
       jokerSpendPendingType ||
       guidedTutorialPopup ||
+      isDragging ||
+      soloJokerDragLocked ||
       (isGuidedSoloTutorial && !guidedTutorialJokerStepActive)
     ),
+    dragLocked: Boolean(isDragging || soloJokerDragLocked),
     tutorialDemoType: isGuidedSoloTutorial ? guidedTutorialExpectedJokerType : null,
     tutorialDemoHintActive: guidedJokerDemoHintActive,
     tutorialFocusActive: guidedJokerDemoHintActive,

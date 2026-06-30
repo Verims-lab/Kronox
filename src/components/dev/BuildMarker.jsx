@@ -1,5 +1,16 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex499 — Solo gameplay layout: question-card joker rail + proportional scale:
+//   • Solo joker buttons now render as a right-side rail beside the active question card, removing the old bottom joker strip so the timeline/CTA area reclaims vertical space.
+//   • Active question card, timeline cards, drop slots, and timeline line are driven by Solo-scoped CSS variables with safe fallbacks; Online gameplay remains on the old render path.
+//   • Joker use is blocked during active card drag plus a 160ms post-drag guard, while the usable tap feedback uses the requested 0.26s scale sequence and one-shot 0.42s activation ring.
+//   • Health visual guardrail protects the right-rail layout, proportional sizing variables, drag-safe joker lock, and tap/ring animation tokens.
+//
+// Codex498 — App startup fast path after Android video review:
+//   • Auth bootstrap now releases Home after minimal identity readiness; profile hydration, Kronox ID ensure, Diamond economy grant, starter joker repair, guest account-link merge, admin status, app-open activity, and guest verification run as guarded background maintenance.
+//   • Home is part of the initial app shell instead of a lazy route chunk; presence, invite notifier, category modal, Market/Liderlik warm-up, Daily Wheel status, and Daily Quest status are deferred until after paint/idle.
+//   • Health/docs now protect the startup split: critical identity bootstrap, first Home render, then non-critical background refresh. Low-end Android/WebView timing proof remains manual.
+//
 // Codex497 — Daily Wheel UX/visual/motion redesign (no security/economy change):
 //   • Spin now starts immediately on tap. Opening the wheel (card tap or modal "Çevir") opens the result and calls claim() in one motion — the visible "Ödül hazırlanıyor..." prepare wait is removed; the button locks with "Çevriliyor...".
 //   • RewardWheel motion replaced with one coherent loop→landing model: a steady continuous pre-spin loop while the server reward is in-flight, then a SINGLE cubic-bezier deceleration (WHEEL_LANDING_EASE) to the winning slice. Removes the old 6-keyframe array with linear-then-overshoot-then-bounce that produced the 2–3 perceived speed phases.
@@ -143,7 +154,7 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps Home reward panels visible from a short-lived cache while revalidating and memoizes question text fit tokens.
 //
 
-const BUILD_MARKER = 'Codex497';
+const BUILD_MARKER = 'Codex499';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
