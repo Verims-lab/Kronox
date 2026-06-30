@@ -623,8 +623,10 @@ export const TESTS = [
     const required = [
       'data-kronox-solo-joker-right-layout',
       'data-kronox-solo-joker-right-rail',
+      'data-kronox-solo-joker-gutter-center',
       'layout="questionRail"',
       'gridTemplateColumns',
+      "justifySelf: 'center'",
       '--solo-active-question-card-width',
       '--solo-active-question-card-height',
       '--solo-timeline-card-width',

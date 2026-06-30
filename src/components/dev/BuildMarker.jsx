@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex501 — Solo joker spend/runtime polish:
+//   • Normal Solo joker use now treats spendUserJoker balanceAfter as authoritative for the used joker in UI/cache, so badges decrement immediately after a successful server-backed spend.
+//   • spendUserJoker reconciles duplicate same-user/same-joker UserJokerInventory rows to the post-spend balance, preventing refresh/reopen from restoring stale higher counts.
+//   • Guided/tutorial joker demos still use attempt-local demo balances and never call the real inventory spend path.
+//   • Solo joker rail renders only safe error text; normal success/status overlays such as timer-freeze completion or shield protection copy are removed from gameplay.
+//   • The Solo joker rail is centered in the right gutter beside the active question card while preserving drag locks and Online isolation.
+//
 // Codex500 — Health blocker fixes (KRONOX-MR0J17RW), no product behavior change:
 //   • AuthContext bootstrap restores the exact source contract: setUser(currentUser || null), setIsAuthenticated(!!currentUser), and currentGuestProfile = await repairGuestOnboardingCompletionIfNeeded(currentGuestProfile); guest bootstrap still works without login.
 //   • Lazy init for existing authenticated users runs through ensureDiamondEconomyForUser(currentUser) + ensureStarterJokers(currentUser), keyed once per identity so refresh/re-render never re-grants.

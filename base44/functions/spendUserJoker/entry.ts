@@ -211,20 +211,54 @@ function safeMetadata(value: unknown) {
 }
 
 async function findInventory(base44: any, email: string, jokerType: string) {
-  const entity = entityStore(base44, 'UserJokerInventory');
-  if (!entity?.filter) return null;
-  const rows = await entity
-    .filter({ user_email: email, joker_type: jokerType }, '-updated_at', 10)
-    .catch(() => []);
-  return Array.isArray(rows) && rows.length
-    ? rows.slice().sort((a, b) => {
-      const quantityDiff = normalizeQuantity(b?.quantity) - normalizeQuantity(a?.quantity);
-      if (quantityDiff !== 0) return quantityDiff;
-      return String(b?.updated_at || b?.created_at || '').localeCompare(String(a?.updated_at || a?.created_at || ''));
-    })[0]
-    : null;
+  const rows = await findInventoryRows(base44, email, jokerType);
+  return selectPrimaryInventoryRow(rows);
 }
 
+async function findInventoryRows(base44: any, email: string, jokerType: string) {
+  const entity = entityStore(base44, 'UserJokerInventory');
+  if (!entity?.filter) return [];
+  const rows = await entity
+    .filter({ user_email: email, joker_type: jokerType }, '-updated_at', 25)
+    .catch(() => []);
+  return (Array.isArray(rows) ? rows : [])
+    .filter((row) => normalizeEmail(row?.user_email) === email && normalizeJokerType(row?.joker_type) === jokerType);
+}
+
+function selectPrimaryInventoryRow(rows: any[] = []) {
+  return rows.slice().sort((a, b) => {
+    const quantityDiff = normalizeQuantity(b?.quantity) - normalizeQuantity(a?.quantity);
+    if (quantityDiff !== 0) return quantityDiff;
+    return String(b?.updated_at || b?.created_at || '').localeCompare(String(a?.updated_at || a?.created_at || ''));
+  })[0] || null;
+}
+
+async function repairDuplicateInventoryRowsAfterSpend(
+  base44: any,
+  email: string,
+  jokerType: string,
+  balanceAfter: number,
+  transactionId: string,
+  primaryInventoryId = '',
+) {
+  const entity = entityStore(base44, 'UserJokerInventory');
+  if (!entity?.filter || !entity?.update) return 0;
+  const rows = await findInventoryRows(base44, email, jokerType);
+  const duplicateRows = rows.filter((row) => rowId(row) && rowId(row) !== primaryInventoryId);
+  const timestamp = nowIso();
+  const repaired = await Promise.all(duplicateRows.map((row) => entity.update(rowId(row), {
+    quantity: balanceAfter,
+    updated_at: timestamp,
+    last_transaction_id: transactionId,
+    metadata: {
+      ...(row?.metadata && typeof row.metadata === 'object' ? row.metadata : {}),
+      duplicateSpendBalanceReconciled: true,
+      duplicateSpendBalanceAfter: balanceAfter,
+      duplicateSpendTransactionId: transactionId,
+    },
+  }).then(() => true).catch(() => false)));
+  return repaired.filter(Boolean).length;
+}
 
 async function findTransaction(base44: any, email: string, jokerType: string, idempotencyKey: string) {
   const entity = entityStore(base44, 'JokerTransaction');
@@ -334,7 +368,8 @@ Deno.serve(async (req: Request) => {
         guidedTutorialSpendBypass: false,
       },
     }, async () => {
-    const inventory = await findInventory(base44, email, jokerType);
+    const inventoryRows = await findInventoryRows(base44, email, jokerType);
+    const inventory = selectPrimaryInventoryRow(inventoryRows);
     const quantityBefore = normalizeQuantity(inventory?.quantity);
     const insufficientBalance = quantityBefore <= 0 || !hasPositiveSpendableQuantity(quantityBefore);
     if (!rowId(inventory) || insufficientBalance) {
@@ -418,6 +453,14 @@ Deno.serve(async (req: Request) => {
       last_transaction_id: rowId(transaction),
       updated_at: timestamp,
     }).catch(() => updatedInventory);
+    const duplicateRowsRepaired = await repairDuplicateInventoryRowsAfterSpend(
+      base44,
+      email,
+      jokerType,
+      balanceAfter,
+      rowId(transaction),
+      rowId(finalInventory) || rowId(updatedInventory) || rowId(inventory) || '',
+    );
 
     return json({
       ok: true,
@@ -432,6 +475,7 @@ Deno.serve(async (req: Request) => {
       balanceAfter,
       inventory: publicInventoryRow(finalInventory),
       balances: await readBalances(base44, email),
+      duplicateRowsRepaired,
       appliedAt: timestamp,
     });
     });

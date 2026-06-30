@@ -149,6 +149,36 @@ export const EXTRA_TESTS = [
       return pass('Solo joker badges show actual owned counts and zero-balance buttons lock.', { verification: 'STATIC_CONTRACT' });
     }),
 
+  makeCase('solo_joker_success_text_overlays_removed',
+    'Solo joker success/status text overlays are removed',
+    () => {
+      const combined = `${gameSource}\n${soloJokerBarSource}`;
+      const forbidden = forbiddenTokens(combined, [
+        'Zaman Dondur tamamlandı.',
+        'Süre 10 saniye durdu.',
+        'Kronokalkan aktif.',
+        'Kronokalkan aktif:',
+        'Zaman Dondur aktif:',
+        'Kart Değiştir aktif:',
+        'Kart değiştirildi.',
+        'Kronokalkan hamle hakkını korudu!',
+        'Süre donduruldu.',
+        'Bu kartta joker kullandın.',
+      ]);
+      const missing = missingTokens(soloJokerBarSource, [
+        '{Boolean(error) && (',
+        'key={error}',
+        "{error}",
+        "color: '#fca5a5'",
+      ]);
+      if (forbidden.length || missing.length) return fail('Solo joker rail can still show normal success/status text instead of error-only feedback.', {
+        verification: 'STATIC_CONTRACT',
+        files: ['pages/Game.jsx', 'components/game/SoloJokerBar.jsx'],
+        actual: { forbidden, missing },
+      });
+      return pass('Solo joker rail renders error-only text; normal success/status overlays are absent.', { verification: 'STATIC_CONTRACT' });
+    }),
+
   makeCase('old_one_joker_per_level_limit_removed',
     'Old one-joker-per-level limit is removed',
     () => {
@@ -248,7 +278,9 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(gameSource, [
         "feedback.result === 'wrong'",
         'if (mistakeShieldActive)',
-        'Kronokalkan hamle hakkını korudu!',
+        'setMistakeShieldActive(false)',
+        "setJokerMessage('')",
+        "setJokerError('')",
         'return;',
         'setUsedMoveCount((prev) => Math.min(soloMaxMoves, prev + 1))',
         'setMistakeCount((prev) => prev + 1)',
