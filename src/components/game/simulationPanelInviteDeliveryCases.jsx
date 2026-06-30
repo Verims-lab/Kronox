@@ -703,7 +703,8 @@ export const EXTRA_TESTS = [
     () => {
       const src = `${safeStr(appSource)}\n${safeStr(usePresenceHeartbeatSource)}\n${safeStr(presenceSource)}`;
       const required = [
-        'usePresenceHeartbeat(user, guestProfile)',
+        'usePresenceHeartbeat(\n    nonCriticalModulesEnabled ? user : null',
+        'nonCriticalModulesEnabled ? guestProfile : null',
         "functions.invoke('updatePlayerPresence'",
         'PRESENCE_HEARTBEAT_MS',
         'PRESENCE_REFRESH_MS',

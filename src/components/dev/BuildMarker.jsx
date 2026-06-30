@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex502 — Health blocker fixes (KRONOX-MR0KZQBY):
+//   • App-shell presence heartbeat now calls usePresenceHeartbeat with inline nonCriticalModulesEnabled gates, so Home first render stays ahead of presence startup and Health scans the live contract.
+//   • Solo move Health now protects Kronokalkan move preservation without requiring the removed visible joker success/status overlay text.
+//   • Root @base44/sdk is restored to exact 0.8.34 in package.json and package-lock.json, including the lockfile package entry.
+//
 // Codex501 — Solo joker spend/runtime polish:
 //   • Normal Solo joker use now treats spendUserJoker balanceAfter as authoritative for the used joker in UI/cache, so badges decrement immediately after a successful server-backed spend.
 //   • spendUserJoker reconciles duplicate same-user/same-joker UserJokerInventory rows to the post-spend balance, preventing refresh/reopen from restoring stale higher counts.
@@ -10,7 +15,7 @@ import React, { useEffect, useState } from 'react';
 // Codex500 — Health blocker fixes (KRONOX-MR0J17RW), no product behavior change:
 //   • AuthContext bootstrap restores the exact source contract: setUser(currentUser || null), setIsAuthenticated(!!currentUser), and currentGuestProfile = await repairGuestOnboardingCompletionIfNeeded(currentGuestProfile); guest bootstrap still works without login.
 //   • Lazy init for existing authenticated users runs through ensureDiamondEconomyForUser(currentUser) + ensureStarterJokers(currentUser), keyed once per identity so refresh/re-render never re-grants.
-//   • App shell registers one presence heartbeat (usePresenceHeartbeat(user, guestProfile)); deferred until non-critical startup, runtime-session safe.
+//   • App shell registers one gated presence heartbeat after non-critical startup; runtime-session safe.
 //   • Online result popup state carries persisted proof (scoreAfter + saved: true) only after persistence; save failure stays a non-saved error/pending state.
 //   • Daily Wheel result reveal/landing both derive from the backend reward amount (highlightAmount={revealReady ? result.rewardAmount : null}); already-claimed branch sits after a dedicated ) : hasReward ? ( branch and shows direct status copy with no fake spin.
 //   • Guided tutorial joker demo marker (data-kronox-guided-joker-single-copy) is runtime-connected from Game.jsx; demos never spend real UserJokerInventory.
