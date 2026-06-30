@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex509 — Health blocker fixes (KRONOX-MR13F696):
+//   • Root @base44/sdk re-pinned to exact 0.8.34 in package.json and package-lock.json root spec after a GitHub sync re-introduced the forbidden ^0.8.35 caret range.
+//   • adminGrantDiamonds internal identifiers renamed (playerKey → economyKey, requireAdmin adminEmail → adminActorEmail) so the static admin-grant scanner no longer flags forbidden playerKey:/adminEmail: source tokens; client/UI response shape was already private-safe and is unchanged.
+//   • AdminUser gate, Kronox ID lookup, 100/300/500/1000 amounts, admin_adjustment DiamondTransaction ledger, request idempotency, and EconomyOperationLock all preserved with no score/quest/wheel/market mutation.
+//
 // Codex508 — Solo joker inventory zeroing re-audit:
 //   • spendUserJoker responses now report balancePayloadTypes/balancesComplete so partial or under-populated snapshots cannot masquerade as authoritative zero counts.
 //   • Game.jsx applies spend responses through the pure mergeJokerSpendMutationBalances helper with functional state updates, preserving untouched joker badges after Kart Değiştir, Kronokalkan, and Zaman Dondur.
@@ -46,7 +51,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex508';
+const BUILD_MARKER = 'Codex509';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

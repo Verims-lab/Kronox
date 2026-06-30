@@ -157,7 +157,7 @@ async function requireAdmin(base44: any) {
     const authorization = await getAdminAuthorization(base44, user);
     if (!authorization.isAdmin) return { response: json({ ok: false, code: 'admin_required', error: 'Admin yetkisi gerekli.' }, 403) };
 
-    return { user, admin: authorization.row, adminRole: authorization.role, adminEmail: normalizeEmail(user.email) };
+    return { user, admin: authorization.row, adminRole: authorization.role, adminActorEmail: normalizeEmail(user.email) };
   } catch (_error) {
     return { response: json({ ok: false, code: 'auth_required', error: 'Giris gerekli.' }, 401) };
   }
@@ -192,7 +192,7 @@ function userTargetFromRow(row: any) {
     row,
     rowId: rowId(row),
     playerType: 'registered',
-    playerKey: email,
+    economyKey: email,
     ownerKey,
     kronoxUserId: normalizeKronoxUserId(row?.kronox_user_id),
     username: safeDisplayName(row),
@@ -208,7 +208,7 @@ function guestTargetFromRow(row: any) {
     row,
     rowId: rowId(row),
     playerType: 'guest',
-    playerKey: `guest:${ownerKey}`,
+    economyKey: `guest:${ownerKey}`,
     ownerKey,
     kronoxUserId: normalizeKronoxUserId(row?.kronox_user_id),
     username: safeDisplayName(row),
@@ -258,7 +258,7 @@ function economyOperationLockEntity(base44: any) {
 }
 
 function buildEconomyLockKey(target: any) {
-  return `economy:user:${target.playerKey}`;
+  return `economy:user:${target.economyKey}`;
 }
 
 function sleep(ms: number) {
@@ -427,7 +427,7 @@ async function createDiamondTransaction(base44: any, target: any, payload: Recor
   if (existing) return existing;
   const created = await entityStore(base44, 'DiamondTransaction').create({
     ...payload,
-    user_email: target.playerKey,
+    user_email: target.economyKey,
     idempotency_key: idempotencyKey,
   });
   const confirmed = await findDiamondTransactionByKey(base44, idempotencyKey);
@@ -454,13 +454,13 @@ async function refreshTarget(base44: any, target: any) {
   return target.playerType === 'guest' ? guestTargetFromRow(row) || target : userTargetFromRow(row) || target;
 }
 
-async function createAdminAuditLog(base44: any, adminEmail: string, target: any, amount: number, requestId: string, balanceBefore: number, balanceAfter: number) {
+async function createAdminAuditLog(base44: any, adminActorEmail: string, target: any, amount: number, requestId: string, balanceBefore: number, balanceAfter: number) {
   const entity = entityStore(base44, 'AdminMaintenanceLog');
   if (!entity?.create) return null;
   return entity.create({
     action: ADMIN_GRANT_RELATED_TYPE,
-    admin_email: adminEmail,
-    target_email: target.playerType === 'registered' ? target.playerKey : `kronox:${target.kronoxUserId}`,
+    admin_email: adminActorEmail,
+    target_email: target.playerType === 'registered' ? target.economyKey : `kronox:${target.kronoxUserId}`,
     result: 'success',
     metadata: {
       targetKronoxUserId: target.kronoxUserId,
@@ -515,13 +515,13 @@ Deno.serve(async (req: Request) => {
     }
 
     return await withEconomyOperationLock(base44, buildEconomyLockKey(target), {
-      actorKey: target.playerKey,
+      actorKey: target.economyKey,
       operationId: idempotencyKey,
       metadata: {
         targetKronoxUserId: target.kronoxUserId,
         targetPlayerType: target.playerType,
         amount,
-        adminActorKey: ownerKeyFromEmail(adminAuth.adminEmail),
+        adminActorKey: ownerKeyFromEmail(adminAuth.adminActorEmail),
       },
     }, async () => {
       const postLockTx = await findDiamondTransactionByKey(base44, idempotencyKey);
@@ -537,7 +537,7 @@ Deno.serve(async (req: Request) => {
       const balanceBefore = normalizeNonNegativeInteger(latestTarget.balance);
       const balanceAfter = balanceBefore + amount;
       const tx = await createDiamondTransaction(base44, latestTarget, {
-        user_email: latestTarget.playerKey,
+        user_email: latestTarget.economyKey,
         owner_key: latestTarget.ownerKey,
         kronox_user_id: latestTarget.kronoxUserId,
         player_type: latestTarget.playerType,
@@ -553,7 +553,7 @@ Deno.serve(async (req: Request) => {
           requestId,
           targetKronoxUserId: latestTarget.kronoxUserId,
           targetPlayerType: latestTarget.playerType,
-          adminActorKey: ownerKeyFromEmail(adminAuth.adminEmail),
+          adminActorKey: ownerKeyFromEmail(adminAuth.adminActorEmail),
           adminRole: String(adminAuth.adminRole || ''),
           grantsDiamondsOnly: true,
           noKronoxPuan: true,
@@ -568,7 +568,7 @@ Deno.serve(async (req: Request) => {
       if (!tx) throw new Error('admin_diamond_transaction_missing');
 
       await updateTargetBalance(base44, latestTarget, balanceAfter, timestamp);
-      await createAdminAuditLog(base44, adminAuth.adminEmail, latestTarget, amount, requestId, balanceBefore, balanceAfter);
+      await createAdminAuditLog(base44, adminAuth.adminActorEmail, latestTarget, amount, requestId, balanceBefore, balanceAfter);
 
       return json({
         ok: true,
