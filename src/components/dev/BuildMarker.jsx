@@ -1,5 +1,22 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex504 — Solo Kronokalkan active visual state:
+//   • The real Solo mistakeShieldActive state now drives a blue/cyan active glow on the Kronokalkan button while the shield is armed.
+//   • The active Solo question card switches its yellow/gold border and glow to Kronokalkan blue while the shield is active, without changing layout or hit-testing.
+//   • Online remains isolated from the Solo shield card glow, and Health now guards the button/card visual-state wiring plus removed text overlays.
+//
+// Codex503 — Solo joker inventory audit:
+//   • Solo spend responses now merge partial backend balance payloads into the current real inventory object, so untouched joker counts are never zeroed as a disabled-state shortcut.
+//   • Normal Solo selected-joker count still uses server balanceAfter as authoritative; other joker badges preserve their real counts after Kronokalkan, Kart Değiştir, and Zaman Dondur.
+//   • Failed spend responses no longer synthesize a missing backend balanceAfter into zero, avoiding false badge drops after transient request errors.
+//   • spendUserJoker also reconciles duplicate inventory rows on already-applied/idempotent retry responses, keeping refresh/reopen counts aligned.
+//   • Health now guards partial-payload merge behavior, duplicate-row repair, and UI badge preservation.
+//
+// Codex502 — Health blocker fixes (KRONOX-MR0KZQBY):
+//   • App-shell presence heartbeat now calls usePresenceHeartbeat with inline nonCriticalModulesEnabled gates, so Home first render stays ahead of presence startup and Health scans the live contract.
+//   • Solo move Health now protects Kronokalkan move preservation without requiring the removed visible joker success/status overlay text.
+//   • Root @base44/sdk is restored to exact 0.8.34 in package.json and package-lock.json, including the lockfile package entry.
+//
 // Codex501 — Solo joker spend/runtime polish:
 //   • Normal Solo joker use now treats spendUserJoker balanceAfter as authoritative for the used joker in UI/cache, so badges decrement immediately after a successful server-backed spend.
 //   • spendUserJoker reconciles duplicate same-user/same-joker UserJokerInventory rows to the post-spend balance, preventing refresh/reopen from restoring stale higher counts.
@@ -10,7 +27,7 @@ import React, { useEffect, useState } from 'react';
 // Codex500 — Health blocker fixes (KRONOX-MR0J17RW), no product behavior change:
 //   • AuthContext bootstrap restores the exact source contract: setUser(currentUser || null), setIsAuthenticated(!!currentUser), and currentGuestProfile = await repairGuestOnboardingCompletionIfNeeded(currentGuestProfile); guest bootstrap still works without login.
 //   • Lazy init for existing authenticated users runs through ensureDiamondEconomyForUser(currentUser) + ensureStarterJokers(currentUser), keyed once per identity so refresh/re-render never re-grants.
-//   • App shell registers one presence heartbeat (usePresenceHeartbeat(user, guestProfile)); deferred until non-critical startup, runtime-session safe.
+//   • App shell registers one gated presence heartbeat after non-critical startup; runtime-session safe.
 //   • Online result popup state carries persisted proof (scoreAfter + saved: true) only after persistence; save failure stays a non-saved error/pending state.
 //   • Daily Wheel result reveal/landing both derive from the backend reward amount (highlightAmount={revealReady ? result.rewardAmount : null}); already-claimed branch sits after a dedicated ) : hasReward ? ( branch and shows direct status copy with no fake spin.
 //   • Guided tutorial joker demo marker (data-kronox-guided-joker-single-copy) is runtime-connected from Game.jsx; demos never spend real UserJokerInventory.

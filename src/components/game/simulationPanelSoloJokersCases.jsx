@@ -5,6 +5,7 @@
 
 import gameSource from '../../pages/Game.jsx?raw';
 import gameLayoutSource from './GameLayout.jsx?raw';
+import questionCardSource from './QuestionCard.jsx?raw';
 import soloJokerBarSource from './SoloJokerBar.jsx?raw';
 import soloTimerSource from './SoloLevelTimer.jsx?raw';
 import jokerInventorySource from '../../lib/jokerInventory.js?raw';
@@ -291,6 +292,40 @@ export const EXTRA_TESTS = [
         missing,
       });
       return pass('Wrong feedback consumes Kronokalkan before the move counter decrements.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('kronokalkan_active_visual_state',
+    'Kronokalkan active state drives Solo button and question-card blue glow',
+    () => {
+      const combined = `${gameSource}\n${gameLayoutSource}\n${questionCardSource}\n${soloJokerBarSource}`;
+      const missing = missingTokens(combined, [
+        'const isSoloKronokalkanActive = Boolean(',
+        '!isOnline &&',
+        'soloJokers?.mistakeShieldActive',
+        'isKronokalkanActive={isSoloKronokalkanActive}',
+        'isKronokalkanActive = false',
+        'const kronokalkanGlowActive = Boolean(soloReadableCard && isKronokalkanActive)',
+        'data-kronox-kronokalkan-card-glow',
+        'KRONOKALKAN_ACTIVE_CARD_BORDER',
+        'KRONOKALKAN_ACTIVE_CARD_GLOW',
+        'mistakeShieldActive = false',
+        "const isMistakeShieldActive = Boolean(type === 'mistakeShield' && mistakeShieldActive)",
+        'data-kronox-kronokalkan-button-active',
+        'aria-pressed={isRecentlyUsed || isMistakeShieldActive}',
+        "feedback.result === 'wrong'",
+        'setMistakeShieldActive(false)',
+      ]);
+      const forbidden = forbiddenTokens(`${gameSource}\n${gameLayoutSource}\n${questionCardSource}\n${soloJokerBarSource}`, [
+        'Kronokalkan aktif.',
+        'Kronokalkan aktif:',
+        'Kronokalkan hamle hakkını korudu!',
+      ]);
+      if (missing.length || forbidden.length) return fail('Kronokalkan active visual state is not fully tied to the real Solo shield state.', {
+        verification: 'STATIC_CONTRACT',
+        files: ['pages/Game.jsx', 'components/game/GameLayout.jsx', 'components/game/QuestionCard.jsx', 'components/game/SoloJokerBar.jsx'],
+        actual: { missing, forbidden },
+      });
+      return pass('Kronokalkan active state is Solo-only, drives the blue question-card glow and active button glow, and clears through the protected-wrong shield state.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('kart_degistir_spends_only_after_replacement_exists',

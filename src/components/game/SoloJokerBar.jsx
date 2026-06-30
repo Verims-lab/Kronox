@@ -66,6 +66,7 @@ export default function SoloJokerBar({
   balances = null,
   loading = false,
   pendingType = null,
+  mistakeShieldActive = false,
   error = '',
   disabled = false,
   tutorialDemoType = null,
@@ -136,9 +137,10 @@ export default function SoloJokerBar({
           const isRecentlyUsed = recentlyUsedType === type;
           const balance = normalizeJokerQuantity(balances?.[inventoryType]);
           const isPending = pendingType === type;
+          const isMistakeShieldActive = Boolean(type === 'mistakeShield' && mistakeShieldActive);
           const isLocked = disabled || dragLocked || loading || jokerUsedOnCurrentCard || isPending || balance <= 0;
           const active = !isLocked;
-          const dimmed = isLocked && !isRecentlyUsed;
+          const dimmed = isLocked && !isRecentlyUsed && !isMistakeShieldActive;
           const isTutorialDemoTarget = tutorialDemoType === type;
           const shouldPlayTap = pressedType === type;
           return (
@@ -148,9 +150,10 @@ export default function SoloJokerBar({
               type="button"
               disabled={isLocked}
               aria-disabled={isLocked}
-              aria-pressed={isRecentlyUsed}
+              aria-pressed={isRecentlyUsed || isMistakeShieldActive}
               aria-busy={isPending}
               aria-label={`${label}, kalan ${balance}`}
+              data-kronox-kronokalkan-button-active={isMistakeShieldActive ? 'true' : undefined}
               data-kronox-guided-joker-demo-target={isTutorialDemoTarget ? 'true' : undefined}
               onClick={() => {
                 if (!active || !onUseJoker) return;
@@ -180,11 +183,13 @@ export default function SoloJokerBar({
                   background: dimmed
                     ? 'linear-gradient(180deg, rgba(30,41,59,0.88), rgba(15,23,42,0.92))'
                     : `radial-gradient(circle at 34% 24%, rgba(255,255,255,0.18), transparent 36%), linear-gradient(180deg, rgba(18,42,80,0.96), rgba(7,15,36,0.98))`,
-                  border: `1.5px solid ${dimmed ? 'rgba(148,163,184,0.28)' : accent}`,
+                  border: `1.5px solid ${dimmed ? 'rgba(148,163,184,0.28)' : (isMistakeShieldActive ? '#55D8FF' : accent)}`,
                   boxShadow: dimmed
                     ? 'inset 0 0 10px rgba(255,255,255,0.032), 0 3px 9px rgba(0,0,0,0.26)'
-                    : isRecentlyUsed
-                      ? `0 0 16px rgba(250,204,21,0.34), 0 0 13px ${glow}, inset 0 0 12px rgba(255,255,255,0.06), inset 0 -5px 10px rgba(0,0,0,0.30)`
+                    : isMistakeShieldActive
+                      ? '0 0 18px rgba(85,216,255,0.52), 0 0 10px rgba(85,216,255,0.36), inset 0 0 14px rgba(85,216,255,0.16), inset 0 -5px 10px rgba(0,0,0,0.30)'
+                      : isRecentlyUsed
+                        ? `0 0 16px rgba(250,204,21,0.34), 0 0 13px ${glow}, inset 0 0 12px rgba(255,255,255,0.06), inset 0 -5px 10px rgba(0,0,0,0.30)`
                       : `0 0 12px ${glow}, inset 0 0 12px rgba(255,255,255,0.06), inset 0 -5px 10px rgba(0,0,0,0.30)`,
                 }}
               >
@@ -208,7 +213,7 @@ export default function SoloJokerBar({
                 </AnimatePresence>
                 <Icon
                   className="h-5 w-5"
-                  style={{ color: dimmed ? 'rgba(203,213,225,0.48)' : accent }}
+                  style={{ color: dimmed ? 'rgba(203,213,225,0.48)' : (isMistakeShieldActive ? '#8DEBFF' : accent) }}
                   strokeWidth={2.45}
                 />
                 <span
@@ -231,8 +236,8 @@ export default function SoloJokerBar({
                 className="max-w-full text-center font-black leading-tight"
                 style={{
                   ...labelStyleBase,
-                  color: dimmed ? 'rgba(203,213,225,0.52)' : (isRecentlyUsed ? '#fde68a' : accent),
-                  textShadow: dimmed ? 'none' : `0 0 8px ${glow}`,
+                  color: dimmed ? 'rgba(203,213,225,0.52)' : (isMistakeShieldActive ? '#8DEBFF' : (isRecentlyUsed ? '#fde68a' : accent)),
+                  textShadow: dimmed ? 'none' : (isMistakeShieldActive ? '0 0 9px rgba(85,216,255,0.58)' : `0 0 8px ${glow}`),
                 }}
               >
                 {label}

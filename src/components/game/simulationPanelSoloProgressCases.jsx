@@ -36,6 +36,7 @@ import soloLevelResultSource from './SoloLevelResult.jsx?raw';
 import soloSuccessPopupSource from './SoloSuccessPopup.jsx?raw';
 import soloFailureCardSource from './SoloFailureCard.jsx?raw';
 import soloLevelTimerSource from './SoloLevelTimer.jsx?raw';
+import soloJokerBarSource from './SoloJokerBar.jsx?raw';
 import gameSoundsSource from '../../lib/gameSounds.js?raw';
 import { DB_REPORTING_READINESS_SOURCE as dbReportingReadinessSource } from '@/lib/healthMirrors/dbReportingReadinessMirror';
 import { GET_SOLO_LEADERBOARD_SOURCE as getSoloLeaderboardFunctionSource } from '@/lib/healthMirrors/getSoloLeaderboardMirror';
@@ -720,7 +721,11 @@ export const EXTRA_TESTS = [
           "feedback.result === 'wrong'",
           "feedback.result === 'correct'",
           'setUsedMoveCount((prev) => Math.min(soloMaxMoves, prev + 1))',
-          'Kronokalkan hamle hakkını korudu!',
+          'if (mistakeShieldActive)',
+          'setMistakeShieldActive(false)',
+          "setJokerMessage('')",
+          "setJokerError('')",
+          'return;',
           "failReason: attempt.failReason || 'moves'",
           'remainingMoves={isSoloLevelMode ? remainingMoveCount : undefined}',
           'maxMoves={isSoloLevelMode ? soloMaxMoves : undefined}',
@@ -731,17 +736,24 @@ export const EXTRA_TESTS = [
           'MoveHorizontal',
         ]),
       ];
+      const forbiddenVisibleJokerOverlays = [
+        'Kronokalkan hamle hakkını korudu!',
+        'Zaman Dondur tamamlandı.',
+        'Zaman Dondur aktif:',
+        'Kart Değiştir aktif:',
+        'Kronokalkan aktif:',
+      ].filter((token) => `${gamePageSource}\n${soloJokerBarSource}`.includes(token));
       const dragHandlerConsumesMoves = /handleGameplayCard(?:Drag|Touch)[\s\S]{0,900}setUsedMoveCount/.test(gamePageSource);
-      if (required.length || dragHandlerConsumesMoves) {
+      if (required.length || dragHandlerConsumesMoves || forbiddenVisibleJokerOverlays.length) {
         return fail('Solo move-based runtime contract drifted.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'used moves increment only from evaluated feedback; HAMLE result stats; no drag/touch decrement; Online gated by isSoloLevelMode',
-          actual: { required, dragHandlerConsumesMoves },
+          expected: 'used moves increment only from evaluated feedback; Kronokalkan preserves a protected wrong move without visible status overlay; HAMLE result stats; no drag/touch decrement; Online gated by isSoloLevelMode',
+          actual: { required, dragHandlerConsumesMoves, forbiddenVisibleJokerOverlays },
         });
       }
-      return pass('Solo v3 remaining-move accounting is wired to evaluated feedback and result popups use HAMLE.', {
+      return pass('Solo v3 remaining-move accounting is wired to evaluated feedback, Kronokalkan preserves the protected wrong move silently, and result popups use HAMLE.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,

@@ -832,16 +832,30 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('solo_spend_reconciles_duplicate_rows_and_badge_balance',
-    'Solo spend repairs duplicate inventory rows and badge balance uses balanceAfter',
+    'Solo spend repairs duplicate inventory rows and badge balance merges partial payloads',
     () => {
       const combined = `${spendUserJokerSource}\n${jokerInventorySource}\n${gameSource}`;
       const missing = missingTokens(combined, [
         'repairDuplicateInventoryRowsAfterSpend',
         'duplicateSpendBalanceReconciled',
         'duplicateRowsRepaired',
+        'jokerTypesInBalanceInput',
+        'jokerSpendBalancePayloadTypes',
+        'mergeJokerBalances',
+        'normalizeOptionalJokerQuantity',
         'normalizeJokerSpendBalances',
+        'balances = mergeJokerBalances(balances, body?.balances)',
+        'balances = mergeJokerBalances(balances, body?.items)',
+        'balancePayloadTypes',
+        'balancePayloadTypes.length === JOKER_DEFINITIONS.length',
         'body?.balanceAfter ?? body?.balance_after ?? body?.inventory?.quantity',
+        'normalizeOptionalJokerQuantity(balanceAfter)',
         'setSoloJokerBalancesFromSpendResponse',
+        'response?.balancePayloadTypes',
+        'let nextBalances = normalizeJokerBalances(jokerBalances)',
+        'response.balancePayloadTypes.filter((type) => isKnownJokerType(type))',
+        'const responseBalances = normalizeJokerBalances(response?.balances)',
+        'nextBalances = mergeJokerBalances(nextBalances, response?.items)',
         'nextBalances[inventoryType] = normalizeJokerQuantity(balanceAfter)',
         "setCachedJokerBalances(email, result.balances",
       ]);
@@ -850,7 +864,7 @@ export const EXTRA_TESTS = [
         files: ['base44/functions/spendUserJoker/entry.ts', 'src/lib/jokerInventory.js', 'src/pages/Game.jsx'],
         missing,
       });
-      return pass('Post-spend balanceAfter is authoritative for the used joker, cache/UI badge updates immediately, and duplicate inventory rows are reconciled.', { verification: 'STATIC_CONTRACT' });
+      return pass('Post-spend balanceAfter is authoritative for the used joker, partial payloads merge into current balances, cache/UI badges update immediately, and duplicate inventory rows are reconciled.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('joker_inventory_rls_runtime_proof_manual',
