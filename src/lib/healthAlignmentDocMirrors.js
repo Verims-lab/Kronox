@@ -286,6 +286,11 @@ the primary visible score read path. App startup fast-path coverage requires
 direct Home shell import, cached GuestProfile repeat-launch support, post-paint
 AuthContext maintenance, deferred presence/invite/category modules, idle
 Market/Liderlik warm-up, and delayed Daily Wheel/Daily Quest status refresh.
+Solo joker inventory merge coverage now executable-checks that Kart Değiştir,
+Kronokalkan, and Zaman Dondur decrement only the selected joker, preserve
+untouched counts through partial mutation payloads, avoid double-spend on
+idempotent retries, and keep guided tutorial demos separate from real inventory
+spend.
 Security Pass 3 coverage protects accessible
 loading/status semantics, labeled custom modals, profile/onboarding form
 feedback semantics, incremental unused-import lint behavior, the menubar

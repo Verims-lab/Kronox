@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex508 — Solo joker inventory zeroing re-audit:
+//   • spendUserJoker responses now report balancePayloadTypes/balancesComplete so partial or under-populated snapshots cannot masquerade as authoritative zero counts.
+//   • Game.jsx applies spend responses through the pure mergeJokerSpendMutationBalances helper with functional state updates, preserving untouched joker badges after Kart Değiştir, Kronokalkan, and Zaman Dondur.
+//   • Joker Inventory Health adds an executable A-G merge matrix for selected-joker decrement, partial response safety, idempotent retry no-double-spend, and tutorial no-spend separation.
+//
 // Codex507 — Admin screen collapsible operations cleanup:
 //   • Major Admin Ekranı operations now use a shared collapsed-by-default section pattern so reports, cleanup, reset, and test Diamond grant do not fill the first viewport.
 //   • Soru Analiz Raporu keeps report sending separate from the destructive/manual analytics reset details: report group opens when the section opens, reset group stays closed.
@@ -202,7 +207,7 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps Home reward panels visible from a short-lived cache while revalidating and memoizes question text fit tokens.
 //
 
-const BUILD_MARKER = 'Codex507';
+const BUILD_MARKER = 'Codex508';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

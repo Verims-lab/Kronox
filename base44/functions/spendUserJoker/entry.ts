@@ -269,20 +269,44 @@ async function findTransaction(base44: any, email: string, jokerType: string, id
   return Array.isArray(rows) && rows.length ? rows[0] : null;
 }
 
-async function readBalances(base44: any, email: string) {
+async function readBalanceSnapshot(base44: any, email: string) {
   const entity = entityStore(base44, 'UserJokerInventory');
-  if (!entity?.filter) return emptyBalances();
+  if (!entity?.filter) {
+    return {
+      balances: emptyBalances(),
+      balancePayloadTypes: [],
+      balancesComplete: false,
+    };
+  }
   const rows = await entity
     .filter({ user_email: email }, '-updated_at', 20)
     .catch(() => []);
   const balances = emptyBalances();
+  const payloadTypes = new Set<string>();
   if (Array.isArray(rows)) {
     rows.forEach((row) => {
       const type = normalizeJokerType(row?.joker_type);
-      if (type) balances[type] = Math.max(balances[type], normalizeQuantity(row?.quantity));
+      if (type) {
+        payloadTypes.add(type);
+        balances[type] = Math.max(balances[type], normalizeQuantity(row?.quantity));
+      }
     });
   }
-  return balances;
+  const balancePayloadTypes = JOKER_TYPES.filter((jokerType) => payloadTypes.has(jokerType));
+  return {
+    balances,
+    balancePayloadTypes,
+    balancesComplete: balancePayloadTypes.length === JOKER_TYPES.length,
+  };
+}
+
+async function readBalancePayload(base44: any, email: string) {
+  const snapshot = await readBalanceSnapshot(base44, email);
+  return {
+    balances: snapshot.balances,
+    balancePayloadTypes: snapshot.balancePayloadTypes,
+    balancesComplete: snapshot.balancesComplete,
+  };
 }
 
 Deno.serve(async (req: Request) => {
@@ -331,7 +355,7 @@ Deno.serve(async (req: Request) => {
         code: 'invalid_joker_context',
         error: 'Joker yalnızca Solo modda kullanılabilir.',
         jokerType,
-        balances: await readBalances(base44, email),
+        ...(await readBalancePayload(base44, email)),
       }, 400);
     }
 
@@ -362,7 +386,7 @@ Deno.serve(async (req: Request) => {
         idempotencyKey,
         transactionId: rowId(existingTransaction),
         balanceAfter,
-        balances: await readBalances(base44, email),
+        ...(await readBalancePayload(base44, email)),
         duplicateRowsRepaired,
       });
     }
@@ -388,7 +412,7 @@ Deno.serve(async (req: Request) => {
         error: 'Bu jokerden kalmadı.',
         jokerType,
         balanceAfter: quantityBefore,
-        balances: await readBalances(base44, email),
+        ...(await readBalancePayload(base44, email)),
       }, 409);
     }
 
@@ -413,7 +437,7 @@ Deno.serve(async (req: Request) => {
         idempotencyKey,
         transactionId: rowId(secondExistingTransaction),
         balanceAfter,
-        balances: await readBalances(base44, email),
+        ...(await readBalancePayload(base44, email)),
         duplicateRowsRepaired,
       });
     }
@@ -492,7 +516,7 @@ Deno.serve(async (req: Request) => {
       balanceBefore: quantityBefore,
       balanceAfter,
       inventory: publicInventoryRow(finalInventory),
-      balances: await readBalances(base44, email),
+      ...(await readBalancePayload(base44, email)),
       duplicateRowsRepaired,
       appliedAt: timestamp,
     });

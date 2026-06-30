@@ -11,6 +11,7 @@ import ensureUserJokerInventoryManifestSource from '../../../base44/functions/en
 import spendUserJokerSource from '../../../base44/functions/spendUserJoker/entry.ts?raw';
 import spendUserJokerManifestSource from '../../../base44/functions/spendUserJoker/function.jsonc?raw';
 import jokerInventorySource from '../../lib/jokerInventory.js?raw';
+import jokerInventorySpendMergeSource from '../../lib/jokerInventorySpendMerge.js?raw';
 import authContextSource from '../../lib/AuthContext.jsx?raw';
 import profilePageSource from '../../pages/ProfilePage.jsx?raw';
 import mainMenuSource from '../../pages/MainMenu.jsx?raw';
@@ -20,6 +21,7 @@ import purchaseJokerWithDiamondsSource from '../../../base44/functions/purchaseJ
 import soloJokerBarSource from './SoloJokerBar.jsx?raw';
 import gameSource from '../../pages/Game.jsx?raw';
 import claimDailyWheelRewardSource from '../../../base44/functions/claimDailyWheelReward/entry.ts?raw';
+import { runJokerSpendMergeMatrix } from '@/lib/jokerInventorySpendMerge';
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL', NOT_AUTOMATABLE: 'NOT_AUTOMATABLE' };
 const ACTION_TYPES = { CODE_FIX: 'CODE_FIX', MANUAL_VERIFY: 'MANUAL_VERIFY' };
@@ -834,37 +836,65 @@ export const EXTRA_TESTS = [
   makeCase('solo_spend_reconciles_duplicate_rows_and_badge_balance',
     'Solo spend repairs duplicate inventory rows and badge balance merges partial payloads',
     () => {
-      const combined = `${spendUserJokerSource}\n${jokerInventorySource}\n${gameSource}`;
+      const combined = `${spendUserJokerSource}\n${jokerInventorySource}\n${jokerInventorySpendMergeSource}\n${gameSource}`;
       const missing = missingTokens(combined, [
         'repairDuplicateInventoryRowsAfterSpend',
         'duplicateSpendBalanceReconciled',
         'duplicateRowsRepaired',
-        'jokerTypesInBalanceInput',
-        'jokerSpendBalancePayloadTypes',
+        'getJokerBalancePayloadTypes',
+        'getJokerSpendBalancePayloadTypes',
         'mergeJokerBalances',
-        'normalizeOptionalJokerQuantity',
+        'mergeJokerSpendMutationBalances',
         'normalizeJokerSpendBalances',
-        'balances = mergeJokerBalances(balances, body?.balances)',
-        'balances = mergeJokerBalances(balances, body?.items)',
         'balancePayloadTypes',
+        'balancesComplete',
+        'readBalanceSnapshot',
+        'readBalancePayload',
         'balancePayloadTypes.length === JOKER_DEFINITIONS.length',
-        'body?.balanceAfter ?? body?.balance_after ?? body?.inventory?.quantity',
+        'response?.updatedCount',
+        'response?.updated_count',
+        'balancesComplete === true',
         'normalizeOptionalJokerQuantity(balanceAfter)',
         'setSoloJokerBalancesFromSpendResponse',
-        'response?.balancePayloadTypes',
-        'let nextBalances = normalizeJokerBalances(jokerBalances)',
-        'response.balancePayloadTypes.filter((type) => isKnownJokerType(type))',
-        'const responseBalances = normalizeJokerBalances(response?.balances)',
-        'nextBalances = mergeJokerBalances(nextBalances, response?.items)',
-        'nextBalances[inventoryType] = normalizeJokerQuantity(balanceAfter)',
+        'setJokerBalances((previousBalances) => mergeJokerSpendMutationBalances',
         "setCachedJokerBalances(email, result.balances",
       ]);
       if (missing.length) return fail('Solo joker spend can still show stale counts from duplicate inventory rows or partial balance payloads.', {
         verification: 'STATIC_CONTRACT',
-        files: ['base44/functions/spendUserJoker/entry.ts', 'src/lib/jokerInventory.js', 'src/pages/Game.jsx'],
+        files: ['base44/functions/spendUserJoker/entry.ts', 'src/lib/jokerInventory.js', 'src/lib/jokerInventorySpendMerge.js', 'src/pages/Game.jsx'],
         missing,
       });
       return pass('Post-spend balanceAfter is authoritative for the used joker, partial payloads merge into current balances, cache/UI badges update immediately, and duplicate inventory rows are reconciled.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('solo_spend_preserves_untouched_joker_counts_matrix',
+    'Solo spend merge preserves untouched joker counts for all jokers and partial responses',
+    () => {
+      const failed = runJokerSpendMergeMatrix().filter((scenario) => !scenario.passed);
+      const missing = missingTokens(`${jokerInventorySpendMergeSource}\n${gameSource}\n${spendUserJokerSource}`, [
+        'A_CARD_SWAP_SELECTED_ONLY',
+        'B_MISTAKE_SHIELD_SELECTED_ONLY',
+        'C_TIME_FREEZE_SELECTED_ONLY',
+        'D_PARTIAL_CARD_SWAP_RESPONSE',
+        'E_MISSING_FIELDS_STAY_UNCHANGED',
+        'F_IDEMPOTENT_DUPLICATE_RESULT_DOES_NOT_DOUBLE_SPEND',
+        'G_TUTORIAL_NO_SPEND_BASELINE_UNCHANGED',
+        'H_UNDERPOPULATED_FULL_BALANCES_NO_COMPLETE_FLAG',
+        'mergeJokerBalancesByPayloadTypes',
+        'getJokerSpendBalancePayloadTypes',
+        'balancePayloadTypes',
+        'balancesComplete',
+        'setJokerBalances((previousBalances) => mergeJokerSpendMutationBalances',
+      ]);
+      if (failed.length || missing.length) return fail('Solo joker spend merge can still zero untouched counts or double-decrement selected counts.', {
+        verification: 'EXECUTABLE_HELPER_AND_STATIC_CONTRACT',
+        files: ['src/lib/jokerInventorySpendMerge.js', 'src/pages/Game.jsx', 'base44/functions/spendUserJoker/entry.ts'],
+        actual: { failed, missing },
+      });
+      return pass('Executable merge matrix preserves untouched counts after Kart Değiştir, Kronokalkan, Zaman Dondur, partial payloads, idempotent retries, and tutorial no-spend baseline.', {
+        verification: 'EXECUTABLE_HELPER_AND_STATIC_CONTRACT',
+        scenarios: runJokerSpendMergeMatrix().map((scenario) => scenario.id),
+      });
     }),
 
   makeCase('joker_inventory_rls_runtime_proof_manual',
