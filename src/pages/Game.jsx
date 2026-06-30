@@ -217,8 +217,6 @@ export default function Game() {
     return () => { pushAppDiag({ gameMounted: false, gameUnmounted: true }); };
   }, [routeState, lobbyId, isOnlineFromState]);
 
-  /* imports moved to top: GuidedTutorialPopup, GuidedSoloTutorialOverlay, onlineScorePopup helpers */
-
   useEffect(() => {
     setResolvedLobbyId(routeLobbyId);
   }, [routeLobbyId]);
