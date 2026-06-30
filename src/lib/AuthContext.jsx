@@ -132,6 +132,10 @@ export const AuthProvider = ({ children }) => {
     if (!initialUser?.email) return;
 
     (async () => {
+      // `currentUser` is the stable authenticated actor for this run; lazy
+      // initialization (Diamond economy + starter jokers) is keyed off it so
+      // it runs once per identity and never re-grants on refresh/re-render.
+      const currentUser = initialUser;
       let workingUser = initialUser;
 
       recordAppOpenActivity({ user: workingUser, guestProfile: null }).catch((activityError) => {
@@ -173,7 +177,7 @@ export const AuthProvider = ({ children }) => {
       if (economyEnsureKeyRef.current !== economyKey) {
         try {
           if (!economyEnsurePromiseRef.current) {
-            economyEnsurePromiseRef.current = ensureDiamondEconomyForUser(workingUser)
+            economyEnsurePromiseRef.current = ensureDiamondEconomyForUser(currentUser)
               .finally(() => {
                 economyEnsurePromiseRef.current = null;
               });
@@ -191,7 +195,7 @@ export const AuthProvider = ({ children }) => {
       if (jokerKey && jokerEnsureKeyRef.current !== jokerKey) {
         try {
           if (!jokerEnsurePromiseRef.current) {
-            jokerEnsurePromiseRef.current = ensureStarterJokers(workingUser)
+            jokerEnsurePromiseRef.current = ensureStarterJokers(currentUser)
               .finally(() => {
                 jokerEnsurePromiseRef.current = null;
               });
@@ -275,9 +279,9 @@ export const AuthProvider = ({ children }) => {
       }
 
       try {
-        const repaired = await repairGuestOnboardingCompletionIfNeeded(currentGuestProfile);
+        currentGuestProfile = await repairGuestOnboardingCompletionIfNeeded(currentGuestProfile);
         if (!isCurrentAuthRun(runId)) return;
-        if (repaired) patchGuestProfile(runId, repaired);
+        if (currentGuestProfile) patchGuestProfile(runId, currentGuestProfile);
       } catch (repairError) {
         warnMaintenanceSkipped('[guestProfile] onboarding repair skipped', repairError, 'guest_profile_repair_failed');
       }
@@ -327,8 +331,8 @@ export const AuthProvider = ({ children }) => {
 
       if (currentUser?.email) {
         setGuestProfile(null);
-        setUser(currentUser);
-        setIsAuthenticated(true);
+        setUser(currentUser || null);
+        setIsAuthenticated(!!currentUser);
         setAdminStatus(makePendingAdminStatus(currentUser));
         setAuthError(null);
         setIsLoadingAuth(false);
@@ -352,9 +356,9 @@ export const AuthProvider = ({ children }) => {
 
       if (!isCurrentAuthRun(runId)) return null;
 
-      setUser(null);
+      setUser(currentUser || null);
       setGuestProfile(currentGuestProfile || null);
-      setIsAuthenticated(false);
+      setIsAuthenticated(!!currentUser);
       setAuthError(null);
       setIsLoadingAuth(false);
       setAuthChecked(true);

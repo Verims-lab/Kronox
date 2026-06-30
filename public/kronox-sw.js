@@ -1,4 +1,25 @@
-self.__KRONOX_SW_VERSION = 'Codex098';
+self.__KRONOX_SW_VERSION = 'Codex099';
+
+// Codex099 — Self-healing lifecycle. Older deployed builds may have shipped a
+// service worker that cached JS chunks and could serve a stale React copy,
+// causing "Cannot read properties of null (reading 'useEffect')". This SW does
+// NOT cache or intercept fetches; on activate it also clears any leftover
+// caches and claims open clients so a previous caching SW is fully superseded.
+self.addEventListener('install', () => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil((async () => {
+    try {
+      if (typeof caches !== 'undefined' && caches.keys) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((key) => caches.delete(key).catch(() => null)));
+      }
+    } catch (_error) { /* best effort */ }
+    await self.clients.claim();
+  })());
+});
 
 function resolveSameOriginTarget(targetUrl) {
   try {

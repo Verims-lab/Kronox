@@ -569,12 +569,12 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
             </ModalButton>
           </div>
         </>
-      ) : (hasReward || (claiming && !alreadyClaimed)) ? (
+      ) : hasReward ? (
         <>
           <RewardWheel
             phase={wheelPhase}
             targetRotation={targetRotation}
-            highlightAmount={revealReady ? result?.rewardAmount : null}
+            highlightAmount={revealReady ? result.rewardAmount : null}
             compact={revealReady}
             reducedMotion={prefersReducedMotion}
           />

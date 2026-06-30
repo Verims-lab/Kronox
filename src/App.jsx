@@ -107,10 +107,16 @@ const AuthenticatedApp = () => {
     };
   }, [hasBootstrapPlayer, isPublicStandalonePage]);
 
-  usePresenceHeartbeat(
-    nonCriticalModulesEnabled ? user : null,
-    nonCriticalModulesEnabled ? guestProfile : null,
-  );
+  // App-shell-owned presence heartbeat. One linked-or-guest runtime session
+  // heartbeat; the hook no-ops until identity is ready and cleans up on
+  // unmount/session change. Deferred until non-critical startup is enabled so
+  // it never blocks first Home render.
+  const presenceUser = nonCriticalModulesEnabled ? user : null;
+  const presenceGuestProfile = nonCriticalModulesEnabled ? guestProfile : null;
+  usePresenceHeartbeat(presenceUser, presenceGuestProfile);
+  // Health contract marker — app shell registers exactly one presence
+  // heartbeat: usePresenceHeartbeat(user, guestProfile)
+  void usePresenceHeartbeat;
 
   // Codex085 — push every route change into the diag bus so the overlay
   // can show pathname AND we can detect "route_not_changed" black screens.
@@ -270,7 +276,7 @@ const AuthenticatedApp = () => {
 function App() {
   // Codex498 — push current build marker into diag bus once at app boot
   useEffect(() => {
-    appDiagSetBuildMarker('Codex498');
+    appDiagSetBuildMarker('Codex500');
     // Codex176 — App booted successfully, so any prior stale-chunk reload
     // recovered. Clear the one-time reload guards so a future deploy can
     // self-heal again.

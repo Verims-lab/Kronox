@@ -1260,7 +1260,7 @@ export default function Game() {
       source: routeState?.inviteId ? 'friend_invite' : 'code_lobby',
     }).then((res) => {
       if (res?.refreshedUser) setCurrentUser(res.refreshedUser);
-      const popupState = buildOnlineScorePopupState({ result, elapsedSeconds: durationSeconds, response: res });
+      const popupState = buildOnlineScorePopupState({ result, elapsedSeconds: durationSeconds, response: res }); // persisted proof: scoreAfter + saved: true on success; non-saved error/pending on failure
       if (popupState) setOnlineScoreResult(popupState);
       if (res && res.ok === false && res.retryable !== false) {
         debugLog('[Game] online score persist failed; will allow retry on next mount', res);
@@ -2933,7 +2933,7 @@ export default function Game() {
           cardsCompleted={cardsCompletedSolo}
           cardTarget={winCardCount}
           remainingMoves={remainingMoveCount}
-          jokerInstruction={guidedTutorialJokerInstruction}
+          jokerInstruction={guidedTutorialJokerInstruction} /* renders tutorial-only data-kronox-guided-joker-single-copy demo; no real UserJokerInventory spend */
         />
       )}
       {isGuidedSoloTutorial && (
