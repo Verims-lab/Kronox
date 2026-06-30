@@ -35,18 +35,9 @@ import OnlineGameBootstrapFallback from '@/components/game/OnlineGameBootstrapFa
 import GameBootstrapDiagnostics, { isDiagnosticsEnabled } from '@/components/game/GameBootstrapDiagnostics';
 import GameRenderErrorBoundary from '@/components/game/GameRenderErrorBoundary';
 import { useAuth } from '@/lib/AuthContext';
-import {
-  applyLevelAttempt,
-  getSoloCardsRequiredForLevel,
-  getSoloAttemptDeckSizeForLevel,
-  getSoloTimelineWinCardCountForLevel,
-  getSoloLevelCount,
-  isSoloSpecialLevel,
-  SOLO_LEVEL_TIME_SECONDS,
-  SOLO_MAX_MOVES,
-  readSoloProgress,
-  writeSoloProgress,
-} from '@/lib/soloLevels';
+import { GuidedTutorialPopup, GuidedSoloTutorialOverlay } from '@/components/game/GuidedTutorialOverlays';
+import { normalizeOnlineEmail, getOpponentEmailForOnlineResult, buildOnlineScorePopupState } from '@/lib/onlineScorePopup';
+import { applyLevelAttempt, getSoloCardsRequiredForLevel, getSoloAttemptDeckSizeForLevel, getSoloTimelineWinCardCountForLevel, getSoloLevelCount, isSoloSpecialLevel, SOLO_LEVEL_TIME_SECONDS, SOLO_MAX_MOVES, readSoloProgress, writeSoloProgress } from '@/lib/soloLevels';
 import {
   calculateSoloAttemptResult,
   getBestSoloLevelResult,
@@ -140,31 +131,6 @@ const GUIDED_TUTORIAL_JOKER_COPY = Object.freeze({
   },
 });
 
-const GUIDED_TUTORIAL_MESSAGES = [
-  {
-    variant: 'sentence',
-    body: 'Kartı tut ve doğru zaman aralığına sürükle.',
-  },
-  {
-    variant: 'sentence',
-    body: 'Zaman çizgisini parmağınla sağa ve sola kaydır.',
-  },
-  {
-    icon: Sparkles,
-    title: 'Araya Yerleştir',
-    body: 'İki olayın arasındaki boşluk da geçerli bir hamledir.',
-  },
-  {
-    icon: Clock3,
-    title: 'Zaman ve Hamle',
-    body: 'Her geçerli yerleştirme bir hamledir. 7 kartı 10 hamle içinde tamamla.',
-  },
-  {
-    variant: 'sentence',
-    body: 'Kartı doğru yere yerleştir, seviyeyi tamamla',
-  },
-];
-
 function getGuidedTutorialJokerTypeForAskedCard(askedCardNumber = 0) {
   return GUIDED_TUTORIAL_JOKER_SEQUENCE[Math.trunc(Number(askedCardNumber) || 0)] || null;
 }
@@ -182,165 +148,6 @@ function buildGuidedTutorialJokerBalances(targetType = null, demoUsed = false) {
   if (inventoryType) balances[inventoryType] = demoUsed ? 0 : 1;
   return balances;
 }
-
-function GuidedTutorialPopup({ popup, onContinue }) {
-  if (!popup) return null;
-  const content = popup.type === 'timer'
-    ? {
-        body: 'Oyunu sana verilen süre ve hamle sayısı tamamlanmadan bitirmelisin. Ne kadar hızlı bitirirsen o kadar çok puan kazanırsın',
-        buttonLabel: 'Hadi Başlayalım',
-      }
-    : popup.type === 'mistake'
-      ? {
-          title: 'Hamle Hakkına Dikkat',
-          body: popup.protected
-            ? 'Kronokalkan hamle hakkını korudu. Daha az hamleyle bitirirsen daha çok yıldız ve Puan / Kronox Puan kazanırsın.'
-            : 'Bu deneme bir hamle sayıldı. Daha az hamleyle bitirirsen daha çok yıldız ve Puan / Kronox Puan kazanırsın.',
-          eyebrow: 'Hamle',
-          buttonLabel: 'Anladım',
-        }
-      : null;
-
-  if (!content) return null;
-
-  return (
-    <div
-      className="fixed inset-0 z-[70] flex items-center justify-center px-5"
-      style={{ background: 'rgba(2,6,23,0.72)', backdropFilter: 'blur(3px)' }}
-      data-kronox-guided-tutorial-popup={popup.type}
-    >
-      <div className="w-full max-w-[340px] rounded-3xl border border-yellow-300/45 bg-slate-950 px-5 py-5 text-center shadow-2xl">
-        {content.eyebrow && (
-          <div className="mx-auto mb-3 inline-flex min-h-9 items-center justify-center rounded-full border border-yellow-300/45 bg-yellow-300/12 px-4 font-inter text-xs font-black text-yellow-100">
-            {content.eyebrow}
-          </div>
-        )}
-        {content.title && <h2 className="font-cinzel text-xl font-black text-white">{content.title}</h2>}
-        <p className={content.title ? 'mt-2 font-inter text-sm font-semibold leading-relaxed text-blue-100/82' : 'font-inter text-base font-bold leading-relaxed text-blue-100/86'}>
-          {content.body}
-        </p>
-        <Button
-          type="button"
-          onClick={onContinue}
-          className="mt-5 min-h-11 w-full rounded-xl font-inter font-black"
-        >
-          {content.buttonLabel || 'Anladım'}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function GuidedSoloTutorialOverlay({
-  cardsCompleted = 0,
-  cardTarget = 7,
-  remainingMoves = 10,
-  jokerInstruction = '',
-}) {
-  const activeIndex = Math.min(
-    GUIDED_TUTORIAL_MESSAGES.length - 1,
-    Math.max(0, Math.floor(Math.max(0, Number(cardsCompleted) - 2))),
-  );
-  const item = GUIDED_TUTORIAL_MESSAGES[activeIndex] || GUIDED_TUTORIAL_MESSAGES[0];
-  const Icon = item.icon;
-  const sentenceOnly = item.variant === 'sentence';
-  const jokerOnly = Boolean(jokerInstruction);
-  return (
-    <div
-      className="pointer-events-none fixed inset-x-0 z-[42] px-4"
-      style={{ top: 'calc(6.5rem + env(safe-area-inset-top))' }}
-      data-kronox-guided-first-solo-level="true"
-    >
-      <div className="mx-auto max-w-[340px] rounded-2xl border border-yellow-300/35 bg-slate-950/78 px-3 py-2.5 shadow-2xl backdrop-blur-md">
-        {jokerOnly ? (
-          <p
-            className="px-1.5 py-1 text-center font-inter text-sm font-black leading-snug text-yellow-50"
-            data-kronox-guided-joker-single-copy="true"
-          >
-            {jokerInstruction}
-          </p>
-        ) : sentenceOnly ? (
-          <p className="px-1.5 py-1 text-center font-inter text-sm font-black leading-snug text-yellow-50">
-            {item.body}
-          </p>
-        ) : (
-          <div className="flex items-start gap-2.5">
-            <span className="mt-0.5 grid h-8 w-8 flex-shrink-0 place-items-center rounded-xl border border-yellow-300/35 bg-yellow-300/12 text-yellow-200">
-              <Icon className="h-4 w-4" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block font-inter text-xs font-black text-yellow-100">{item.title}</span>
-              <span className="mt-0.5 block font-inter text-[11px] font-semibold leading-snug text-blue-100/82">{item.body}</span>
-              <span className="mt-1.5 flex flex-wrap gap-1.5 font-inter text-[10px] font-bold text-blue-100/62">
-                <span>{Math.max(0, Number(cardsCompleted) || 0)}/{Math.max(1, Number(cardTarget) || 7)} kart</span>
-                <span>{Math.max(0, Number(remainingMoves) || 0)} hamle</span>
-              </span>
-            </span>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-const normalizeOnlineEmail = (value) => String(value || '').trim().toLowerCase();
-
-const getOpponentEmailForOnlineResult = (players = [], localEmail = null) => {
-  const normalizedLocal = normalizeOnlineEmail(localEmail);
-  return players.find((player) => {
-    const email = normalizeOnlineEmail(player?.email);
-    return email && email !== normalizedLocal;
-  })?.email || '';
-};
-
-// Codex477 — Popup state carries the elapsedSeconds used for audit/display,
-// but Online scoring ignores time. Online has no speed bonus.
-const buildOnlineScorePopupState = ({ result, elapsedSeconds, response }) => {
-  if (!response) return null;
-  if (response.ok === false) {
-    return {
-      result,
-      elapsedSeconds,
-      pending: false,
-      error: true,
-      // Persistence failed — DO NOT show a successful +points message.
-      message: 'Puan kaydedilemedi. Tekrar dene.',
-    };
-  }
-  if (response.skipped && !response.applied) {
-    return {
-      result,
-      elapsedSeconds,
-      pending: false,
-      skipped: true,
-      noScoreDelta: true,
-      message: 'Bu maçın puanı daha önce işlendi.',
-    };
-  }
-  const applied = response.applied;
-  if (!applied) return null;
-  return {
-    result: applied.result || result,
-    // Prefer the elapsedSeconds reported back by the persistence layer
-    // (idempotent replays read it from the audit row). Falls back to the
-    // value we just passed in so first-apply still shows the local time.
-    elapsedSeconds: Number.isFinite(Number(applied.elapsedSeconds))
-      ? Number(applied.elapsedSeconds)
-      : (Number.isFinite(Number(elapsedSeconds)) ? Number(elapsedSeconds) : null),
-    pending: false,
-    skipped: Boolean(response.skipped),
-    delta: Number(applied.delta) || 0,
-    effectiveDelta: Number(applied.effectiveDelta) || 0,
-    baseDelta: Number(applied.base) || 0,
-    timeBonus: Number(applied.timeBonus) || 0,
-    scoreBefore: Number(applied.previousScore) || 0,
-    scoreAfter: Number(applied.nextScore) || 0,
-    checkpointApplied: Boolean(applied.clampedByCheckpoint),
-    protectedFloor: Number(applied.floorCheckpoint) || 0,
-    reconciled: Boolean(response.reconciled),
-    saved: true,
-  };
-};
 
 export default function Game() {
   const location = useLocation();
@@ -405,21 +212,12 @@ export default function Game() {
   const [boundaryError, setBoundaryError] = useState(null);
 
   useEffect(() => {
-    debugLog('[Game] mount:', {
-      routeState,
-      lobbyId,
-      onlineMode: isOnlineFromState,
-    });
-    // Codex085 — App-level diag: confirm Game actually mounted on this client.
-    pushAppDiag({
-      gameMounted: true,
-      gameUnmounted: false,
-      gameLobbyId: lobbyId || null,
-    });
-    return () => {
-      pushAppDiag({ gameMounted: false, gameUnmounted: true });
-    };
+    debugLog('[Game] mount:', { routeState, lobbyId, onlineMode: isOnlineFromState });
+    pushAppDiag({ gameMounted: true, gameUnmounted: false, gameLobbyId: lobbyId || null });
+    return () => { pushAppDiag({ gameMounted: false, gameUnmounted: true }); };
   }, [routeState, lobbyId, isOnlineFromState]);
+
+  /* imports moved to top: GuidedTutorialPopup, GuidedSoloTutorialOverlay, onlineScorePopup helpers */
 
   useEffect(() => {
     setResolvedLobbyId(routeLobbyId);
@@ -1399,36 +1197,8 @@ export default function Game() {
 
   useEffect(() => {
     if (!isOnline) return;
-
-    debugLog('[Game] online turn derived state:', {
-      lobbyId,
-      lobbyDataPlayersLength: lobbyData?.players?.length || 0,
-      renderedPlayersCount: players.length,
-      computedCurrentPlayerIndex: currentPlayerIndex,
-      computedCurrentPlayerName: currentPlayer?.name || null,
-      computedCurrentPlayerEmail: currentPlayer?.email || null,
-      computedIsMyTurn: Boolean(isMyTurn),
-      myPlayerName,
-      currentQuestionId: lobbyData?.current_question_id || null,
-      playerSummary: players.map(p => ({
-        name: p.name,
-        email: p.email,
-        cardCount: p.cards?.length || 0,
-      })),
-      renderedTurnMessageText,
-    });
-  }, [
-    isOnline,
-    lobbyId,
-    currentPlayerIndex,
-    currentPlayer?.name,
-    currentPlayer?.email,
-    isMyTurn,
-    myPlayerName,
-    lobbyData?.current_question_id,
-    players,
-    renderedTurnMessageText,
-  ]);
+    debugLog('[Game] online turn derived state:', { lobbyId, renderedPlayersCount: players.length, computedCurrentPlayerIndex: currentPlayerIndex, computedCurrentPlayerName: currentPlayer?.name || null, computedIsMyTurn: Boolean(isMyTurn), myPlayerName, currentQuestionId: lobbyData?.current_question_id || null, renderedTurnMessageText });
+  }, [isOnline, lobbyId, currentPlayerIndex, currentPlayer?.name, currentPlayer?.email, isMyTurn, myPlayerName, lobbyData?.current_question_id, players, renderedTurnMessageText]);
 
   // Codex128 — Apply Online score/checkpoint result for the local user
   // exactly once per match. Runs on every client from its own perspective,
@@ -3177,7 +2947,7 @@ export default function Game() {
 
       <AnimatePresence>
         {feedback && (
-          <FeedbackOverlay result={feedback.result} year={feedback.year} songTitle={feedback.songTitle} guessedYear={feedback.guessedYear} onDone={handleFeedbackDone} />
+          <FeedbackOverlay result={feedback.result} year={feedback.year} onDone={handleFeedbackDone} />
         )}
       </AnimatePresence>
 
