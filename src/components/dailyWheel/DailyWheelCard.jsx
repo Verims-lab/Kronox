@@ -6,11 +6,20 @@ import { sounds } from '@/lib/gameSounds';
 
 const WHEEL_REWARD_SLICES = [30, 40, 50, 60, 75, 100, 150, 250];
 const WHEEL_SLICE_DEGREES = 360 / WHEEL_REWARD_SLICES.length;
+// One coherent landing spin. Single cubic-bezier deceleration — no keyframe
+// speed phases, no overshoot/bounce — so the wheel reads as one controlled
+// motion that smoothly comes to rest under the pointer.
 const WHEEL_SPIN_DURATION_MS = 4600;
 const WHEEL_REDUCED_MOTION_DURATION_MS = 900;
 const WHEEL_SPIN_DURATION_SECONDS = WHEEL_SPIN_DURATION_MS / 1000;
 const WHEEL_REDUCED_MOTION_DURATION_SECONDS = WHEEL_REDUCED_MOTION_DURATION_MS / 1000;
 const WHEEL_SPIN_KEYFRAME_TIMES = [0, 0.14, 0.72, 0.9, 0.96, 1];
+// Pre-spin loop speed while the backend reward is still in-flight. Keeps the
+// wheel turning at a steady fast pace so tapping "Çevir" never shows a dead
+// "loading" wait before the spin.
+const WHEEL_PRESPIN_ROTATION_SECONDS = 0.9;
+// Final deceleration easing — fast start that eases to a long smooth stop.
+const WHEEL_LANDING_EASE = [0.16, 0.62, 0.16, 1];
 const WHEEL_SLICE_COLORS = [
   '#facc15',
   '#2563eb',
@@ -59,7 +68,10 @@ export default function DailyWheelCard({ user, guestProfile, onUserUpdated, onLo
       return;
     }
     if (wheel.status === 'available') {
+      // Open the result modal and start the spin in one motion — the wheel
+      // begins turning immediately, no separate "prepare" wait.
       wheel.openResult();
+      wheel.claim();
       return;
     }
     if (wheel.status === 'claimed') {
@@ -291,43 +303,41 @@ function WheelEmblem({ spinning, muted }) {
 }
 
 function RewardWheel({
-  spinning = false,
-  mode = 'target',
+  // 'idle'    — resting (decorative / pre-tap)
+  // 'loop'    — continuous fast pre-spin while the reward is in-flight
+  // 'landing' — single smooth deceleration to the winning slice
+  phase = 'idle',
   targetRotation = 0,
   highlightAmount = null,
   compact = false,
   reducedMotion = false,
 }) {
-  const effectiveDurationSeconds = reducedMotion
+  const landingDurationSeconds = reducedMotion
     ? WHEEL_REDUCED_MOTION_DURATION_SECONDS
     : WHEEL_SPIN_DURATION_SECONDS;
-  const loopAnimation = spinning && mode === 'loop'
-    ? { rotate: reducedMotion ? [0, 28, 0] : [0, 360] }
-    : {
-      rotate: spinning && !reducedMotion
-        ? [
-          0,
-          targetRotation * 0.1,
-          targetRotation * 0.72,
-          targetRotation - 8,
-          targetRotation + 2,
-          targetRotation,
-        ]
-        : targetRotation,
-    };
-  const loopTransition = spinning && mode === 'loop'
-    ? {
-      duration: reducedMotion ? 0.9 : 0.72,
+
+  let wheelAnimation;
+  let wheelTransition;
+  if (phase === 'loop') {
+    // Continuous full-turn rotation — steady speed, no acceleration phases.
+    // The landing spin picks up smoothly from wherever this stops.
+    wheelAnimation = { rotate: reducedMotion ? [0, 24, 0] : 360 };
+    wheelTransition = {
+      duration: reducedMotion ? 1.1 : WHEEL_PRESPIN_ROTATION_SECONDS,
       repeat: Infinity,
-      ease: reducedMotion ? 'easeInOut' : 'linear',
-    }
-    : {
-      duration: spinning ? effectiveDurationSeconds : 0.18,
-      times: spinning && !reducedMotion ? WHEEL_SPIN_KEYFRAME_TIMES : undefined,
-      ease: spinning && !reducedMotion
-        ? ['easeIn', 'linear', [0.13, 0.84, 0.2, 1], 'easeOut', 'easeOut']
-        : [0.12, 0.72, 0.14, 1],
+      ease: 'linear',
     };
+  } else if (phase === 'landing') {
+    // ONE transform → target. Single deceleration curve, no overshoot/bounce.
+    wheelAnimation = { rotate: targetRotation };
+    wheelTransition = {
+      duration: landingDurationSeconds,
+      ease: reducedMotion ? 'easeOut' : WHEEL_LANDING_EASE,
+    };
+  } else {
+    wheelAnimation = { rotate: targetRotation };
+    wheelTransition = { duration: 0.18, ease: 'easeOut' };
+  }
   const conicStops = WHEEL_REWARD_SLICES.map((amount, index) => {
     const start = index * WHEEL_SLICE_DEGREES;
     const end = (index + 1) * WHEEL_SLICE_DEGREES;
@@ -401,8 +411,8 @@ function RewardWheel({
       ))}
       <motion.div
         className="absolute inset-0 overflow-hidden rounded-full"
-        animate={loopAnimation}
-        transition={loopTransition}
+        animate={wheelAnimation}
+        transition={wheelTransition}
         style={{
           background: `radial-gradient(circle at 50% 50%, transparent 0 31%, rgba(0,0,0,0.08) 32% 100%), conic-gradient(from -${WHEEL_SLICE_DEGREES / 2}deg, ${conicStops})`,
           border: '7px solid rgba(250,204,21,0.96)',
@@ -485,13 +495,13 @@ function DailyWheelPromptModal({ claiming, onSpin, onClose }) {
   const prefersReducedMotion = useReducedMotion();
   return (
     <DailyWheelModalFrame onClose={onClose} disableClose={claiming}>
-      <RewardWheel spinning={claiming} mode="loop" reducedMotion={prefersReducedMotion} />
+      <RewardWheel phase={claiming ? 'loop' : 'idle'} reducedMotion={prefersReducedMotion} />
       <h2 className="text-center font-inter text-2xl font-black text-white">Günlük Çark hazır!</h2>
       <p className="text-center text-sm font-semibold text-slate-200">Bugünkü ödülünü almak için çevir.</p>
       <div className="mt-2 flex w-full gap-2">
         <ModalButton tone="secondary" onClick={onClose}>Sonra</ModalButton>
         <ModalButton onClick={onSpin} disabled={claiming}>
-          {claiming ? 'Ödül hazırlanıyor...' : 'Çevir'}
+          {claiming ? 'Çevriliyor...' : 'Çevir'}
         </ModalButton>
       </div>
     </DailyWheelModalFrame>
@@ -514,6 +524,14 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
   );
   const spinDurationMs = prefersReducedMotion ? WHEEL_REDUCED_MOTION_DURATION_MS : WHEEL_SPIN_DURATION_MS;
 
+  // Spin phase model:
+  //   • reward unknown (claiming, no reward yet) → 'loop' continuous pre-spin.
+  //   • reward arrives → 'landing' single decel; reveal fires when it lands.
+  const isLanding = hasReward && !revealReady;
+  const wheelPhase = isLanding ? 'landing' : (claiming && !hasReward ? 'loop' : 'idle');
+
+  // Start the reveal timer only once the reward is known and the landing
+  // spin begins, so the result text always appears AFTER the wheel stops.
   useEffect(() => {
     setRevealReady(false);
     if (!hasReward) return undefined;
@@ -533,10 +551,10 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
   }, [hasReward, result?.rewardAmount, spinDurationMs]);
 
   return (
-    <DailyWheelModalFrame onClose={onClose} disableClose={hasReward && !revealReady}>
+    <DailyWheelModalFrame onClose={onClose} disableClose={claiming || (hasReward && !revealReady)}>
       {status === 'error' ? (
         <>
-          <RewardWheel spinning={claiming} mode="loop" reducedMotion={prefersReducedMotion} />
+          <RewardWheel phase="idle" reducedMotion={prefersReducedMotion} />
           <h2 className="text-center font-inter text-2xl font-black text-white">Ödül alınamadı</h2>
           <p
             role="alert"
@@ -551,12 +569,12 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
             </ModalButton>
           </div>
         </>
-      ) : hasReward ? (
+      ) : (hasReward || (claiming && !alreadyClaimed)) ? (
         <>
           <RewardWheel
-            spinning={!revealReady}
+            phase={wheelPhase}
             targetRotation={targetRotation}
-            highlightAmount={revealReady ? result.rewardAmount : null}
+            highlightAmount={revealReady ? result?.rewardAmount : null}
             compact={revealReady}
             reducedMotion={prefersReducedMotion}
           />
@@ -632,7 +650,7 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
         </>
       ) : (
         <>
-          <RewardWheel spinning={claiming} mode="loop" reducedMotion={prefersReducedMotion} />
+          <RewardWheel phase={claiming ? 'loop' : 'idle'} reducedMotion={prefersReducedMotion} />
           <h2 className="text-center font-inter text-2xl font-black text-white">Günlük Çark hazır!</h2>
           <p className="text-center text-sm font-semibold text-slate-200">Bugünkü ödülünü almak için çevir.</p>
           {error && (

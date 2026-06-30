@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex497 — Daily Wheel UX/visual/motion redesign (no security/economy change):
+//   • Spin now starts immediately on tap. Opening the wheel (card tap or modal "Çevir") opens the result and calls claim() in one motion — the visible "Ödül hazırlanıyor..." prepare wait is removed; the button locks with "Çevriliyor...".
+//   • RewardWheel motion replaced with one coherent loop→landing model: a steady continuous pre-spin loop while the server reward is in-flight, then a SINGLE cubic-bezier deceleration (WHEEL_LANDING_EASE) to the winning slice. Removes the old 6-keyframe array with linear-then-overshoot-then-bounce that produced the 2–3 perceived speed phases.
+//   • Result reveal still waits for the wheel to visually land (4.6s landing, reduced-motion 0.9s). Transform-only animation for smooth Android/iOS WebView.
+//   • Reward stays 100% server-authoritative + idempotent: client animation only visualizes the already-decided reward; once-per-day guard, Diamond-only, no Kronox Puan, no leaderboard effect all unchanged. Daily Quest / Market untouched.
+//   • Health: added daily_wheel_single_coherent_spin_motion; updated daily_wheel_spin_duration_and_button_lock for the new disableClose contract.
+//
 // Codex496 — Health blocker fix (KRONOX-MQZDODAC): materialized Kronox Puan is the primary visible read path:
 //   • kronoxScore.js getMaterializedKronoxScore now documents the direct visible-score contract (kronoxPuan = kronox_puan_total) so the materialized current-score projection is unambiguously the PRIMARY read path; getKronoxVisibleScore still prefers materialized and only derives Solo+Online for older rows missing the projection. Runtime score logic and values unchanged.
 //   • Unified Solo + Online stays one materialized score (User/GuestProfile.kronox_puan_total, SoloLeaderboardEntry.total_kronox_score legacy projection name includes Online writes). Leaderboard reads sorted materialized projection rows, not historical transaction recomputation.
@@ -136,7 +143,7 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps Home reward panels visible from a short-lived cache while revalidating and memoizes question text fit tokens.
 //
 
-const BUILD_MARKER = 'Codex496';
+const BUILD_MARKER = 'Codex497';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

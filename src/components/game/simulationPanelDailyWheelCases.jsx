@@ -529,9 +529,8 @@ export const EXTRA_TESTS = [
         'WHEEL_SPIN_DURATION_MS = 4600',
         'WHEEL_REDUCED_MOTION_DURATION_MS = 900',
         'WHEEL_SPIN_DURATION_SECONDS',
-        'WHEEL_SPIN_KEYFRAME_TIMES',
         'useReducedMotion',
-        'disableClose={hasReward && !revealReady}',
+        'disableClose={claiming || (hasReward && !revealReady)}',
         '<ModalButton disabled>Çevriliyor...</ModalButton>',
         'setRevealReady(true)',
       ]);
@@ -545,6 +544,37 @@ export const EXTRA_TESTS = [
       return pass('Daily Wheel uses a 4.6s landing spin and keeps result/close controls disabled until reveal.', {
         verification: 'STATIC_CONTRACT',
         actual: { spinDurationMs: 4600 },
+      });
+    }),
+
+  makeCase('daily_wheel_single_coherent_spin_motion',
+    'Daily Wheel spin uses one coherent loop→landing motion with no keyframe speed phases or overshoot',
+    () => {
+      const missing = missingTokens(dailyWheelCardSource, [
+        "phase === 'loop'",
+        "phase === 'landing'",
+        'WHEEL_LANDING_EASE',
+        'WHEEL_PRESPIN_ROTATION_SECONDS',
+        'rotate: targetRotation',
+        // Spin starts immediately on tap — no separate "prepare" wait.
+        'wheel.openResult();\n      wheel.claim();',
+      ]);
+      const forbidden = forbiddenTokens(dailyWheelCardSource, [
+        // Old multi-phase keyframe array + overshoot/bounce-back must be gone.
+        'targetRotation * 0.72',
+        'targetRotation - 8',
+        'targetRotation + 2',
+        'Ödül hazırlanıyor',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Daily Wheel spin can still show multi-phase speed jumps, overshoot, or a separate prepare wait.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'src/components/dailyWheel/DailyWheelCard.jsx',
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('Daily Wheel starts spinning on tap and runs one loop→single-decel landing with no overshoot or prepare wait.', {
+        verification: 'STATIC_CONTRACT',
       });
     }),
 
