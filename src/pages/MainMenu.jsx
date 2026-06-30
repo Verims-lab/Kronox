@@ -85,13 +85,13 @@ export default function MainMenu() {
       }
     };
     if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
-      const id = window.requestIdleCallback(warmMarket, { timeout: 2500 });
+      const id = window.requestIdleCallback(warmMarket, { timeout: 5000 });
       return () => {
         cancelled = true;
         window.cancelIdleCallback?.(id);
       };
     }
-    const id = window.setTimeout(warmMarket, 900);
+    const id = window.setTimeout(warmMarket, 1800);
     return () => {
       cancelled = true;
       window.clearTimeout(id);

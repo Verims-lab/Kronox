@@ -15,6 +15,7 @@
 //     append-only.
 
 import appSource from '../../../App.jsx?raw';
+import authContextSource from '../../../lib/AuthContext.jsx?raw';
 import mainSource from '../../../main.jsx?raw';
 import indexCssSource from '../../../index.css?raw';
 import mainMenuSource from '../../../pages/MainMenu.jsx?raw';
@@ -156,6 +157,7 @@ export const SRC = {
   App: appSource,
   AdminPage: adminPageSource,
   AppDiagnostics: appDiagnosticsSource,
+  AuthContext: authContextSource,
   BuildMarker: buildMarkerSource,
   DebugLog: debugLogSource,
   FindLobbyByCode: findLobbyByCodeSource,
@@ -493,6 +495,37 @@ export const TESTS = [
     return notAutomatable('Web Vitals-like metrics require live observer lifecycle in browser/CI, not a static warning.', { actual: supported, verification: 'NOT_AUTOMATABLE', verificationLabels: ['NOT_AUTOMATABLE', 'MANUAL_REQUIRED'], actionType: ACTION_TYPES.CI_ENVIRONMENT });
   }),
   sourceLacks('performance_ux', 'app_bootstrap_avoids_duplicate_auth_me', 'App shell does not duplicate AuthContext auth bootstrap', 'App.jsx', SRC.App, ['base44.auth.me(']),
+  makeCase('performance_ux', 'startup_home_first_render_fast_path', 'Startup releases Home before non-critical profile/economy/reward work', () => {
+    const required = [
+      'import MainMenu from \'./pages/MainMenu\'',
+      'nonCriticalStartupReady',
+      'usePresenceHeartbeat(\n    nonCriticalModulesEnabled ? user : null',
+      'getCachedGuestProfile',
+      'runAuthenticatedBootstrapMaintenance',
+      'runGuestBootstrapMaintenance',
+      'cleanupOAuthUrlAfterAuth',
+      'scheduleDailyWheelStatusRefresh',
+      'scheduleDailyQuestStatusRefresh',
+      'setTimeout(warmMarket, 1800)',
+    ];
+    const combined = `${SRC.App}\n${SRC.AuthContext}\n${SRC.MainMenu}\n${SRC.UseDailyWheel}\n${SRC.UseDailyQuests}`;
+    const missing = missingTokens(combined, required);
+    const forbidden = [
+      "const MainMenu = lazyWithRetry(() => import('./pages/MainMenu')",
+      'await new Promise(r => setTimeout(r, 600))',
+    ].filter(token => combined.includes(token));
+    if (missing.length || forbidden.length) {
+      return fail('Startup fast-path contract drifted: Home may again wait for non-critical bootstrap work.', {
+        verification: 'STATIC_CONTRACT',
+        files: ['src/App.jsx', 'src/lib/AuthContext.jsx', 'src/pages/MainMenu.jsx', 'src/hooks/useDailyWheel.js', 'src/hooks/useDailyQuests.js'],
+        expected: 'Home is a direct shell import; cached GuestProfile can release first render; profile/Kronox ID/economy/joker/admin/reward/market work is post-paint or background.',
+        actual: { missing, forbidden },
+      });
+    }
+    return pass('Startup fast path keeps Home in the initial shell and defers optional bootstrap, reward, presence, invite, and warm-up work.', {
+      verification: 'STATIC_CONTRACT',
+    });
+  }),
   makeCase('performance_ux', 'game_bootstrap_reuses_auth_context', 'Game first-open user bootstrap reuses AuthContext state', () => {
     const required = ['authChecked', 'isLoadingAuth', 'setCurrentUser(authUser || null)', 'setCurrentUserLoaded(true)'];
     const missing = missingTokens(SRC.Game, required);

@@ -147,6 +147,17 @@ and friend/game invite notifications. Current Base44 production path remains
 active. Base44 migration work is paused while gateway boundaries reduce direct
 provider coupling.
 
+App startup is split into critical identity bootstrap, first Home render, and
+non-critical background refresh. Home is part of the initial app shell instead
+of a lazy route chunk. Repeat guest launches may use cached public
+GuestProfile data to release first render while backend GuestProfile
+verification, Kronox ID ensure, profile hydration, Diamond economy grant,
+starter joker repair, account-link merge, admin status, app-open activity,
+presence, invite checks, reward status, and Market/Liderlik warm-up continue
+after paint/idle. Daily Wheel and Daily Quest remain server-authoritative and
+Diamond-only; loading/cached status is allowed while post-paint refresh
+completes. Low-end Android/WebView startup timing remains a manual proof gate.
+
 Solo Phase 1 starts at src/lib/soloAttemptReducer.js: the reducer is pure,
 effect-free, uses current HAMLE scoring constants, tracks persistence and
 record-context status, and leaves analytics, daily quest, Base44 persistence,
@@ -271,7 +282,10 @@ purchase function while preserving server-authoritative price/idempotency.
 Liderlik performance/score-storage coverage requires idle Leaderboard
 chunk/snapshot warm-up, projection-only fast reads, cached-row rendering while
 refetching, deferred friend enrichment, and materialized kronox_puan_total as
-the primary visible score read path.
+the primary visible score read path. App startup fast-path coverage requires
+direct Home shell import, cached GuestProfile repeat-launch support, post-paint
+AuthContext maintenance, deferred presence/invite/category modules, idle
+Market/Liderlik warm-up, and delayed Daily Wheel/Daily Quest status refresh.
 Security Pass 3 coverage protects accessible
 loading/status semantics, labeled custom modals, profile/onboarding form
 feedback semantics, incremental unused-import lint behavior, the menubar

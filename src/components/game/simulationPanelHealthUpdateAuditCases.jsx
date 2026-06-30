@@ -16,6 +16,7 @@ import {
 } from '@/lib/healthAlignmentDocMirrors';
 
 import appSource from '../../App.jsx?raw';
+import authContextSource from '../../lib/AuthContext.jsx?raw';
 import mainMenuSource from '../../pages/MainMenu.jsx?raw';
 import profilePageSource from '../../pages/ProfilePage.jsx?raw';
 import profileEditPageSource from '../../pages/ProfileEditPage.jsx?raw';
@@ -28,6 +29,8 @@ import questionCardSource from './QuestionCard.jsx?raw';
 import gameLayoutSource from './GameLayout.jsx?raw';
 import timelineSource from './Timeline.jsx?raw';
 import builtInHealthCasesSource from './health/simulationCases.jsx?raw';
+import useDailyQuestsSource from '../../hooks/useDailyQuests.js?raw';
+import useDailyWheelSource from '../../hooks/useDailyWheel.js?raw';
 import registrySource from './simulationPanelCaseRegistry.jsx?raw';
 import adminAuthorizationCasesSource from './simulationPanelAdminAuthorizationCases.jsx?raw';
 import inviteDeliveryCasesSource from './simulationPanelInviteDeliveryCases.jsx?raw';
@@ -334,6 +337,11 @@ export const EXTRA_TESTS = [
     () => {
       const combined = [
         builtInHealthCasesSource,
+        appSource,
+        authContextSource,
+        mainMenuSource,
+        useDailyWheelSource,
+        useDailyQuestsSource,
         questionCardSource,
         gameLayoutSource,
         timelineSource,
@@ -344,8 +352,15 @@ export const EXTRA_TESTS = [
       ].map(text).join('\n');
       const required = [
         'app_bootstrap_avoids_duplicate_auth_me',
+        'startup_home_first_render_fast_path',
         'game_bootstrap_reuses_auth_context',
         'startup_defers_optional_work',
+        'runAuthenticatedBootstrapMaintenance',
+        'runGuestBootstrapMaintenance',
+        'getCachedGuestProfile',
+        "import MainMenu from './pages/MainMenu'",
+        'scheduleDailyWheelStatusRefresh',
+        'scheduleDailyQuestStatusRefresh',
         'home_rewards_preserve_cached_status_during_refresh',
         'question_text_fit_tokens_memoized',
         'active_question_long_word_fit_formula',

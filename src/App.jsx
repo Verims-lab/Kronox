@@ -5,6 +5,7 @@ import { BrowserRouter as Router, Route, Routes, useLocation, Navigate } from 'r
 import React, { Suspense, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import PageNotFound from './lib/PageNotFound';
+import MainMenu from './pages/MainMenu';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 
@@ -19,7 +20,6 @@ import { isGuestOnboardingComplete } from '@/lib/guestProfile';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import usePresenceHeartbeat from '@/hooks/usePresenceHeartbeat';
 
-const MainMenu = lazyWithRetry(() => import('./pages/MainMenu'), 'MainMenu');
 const MarketPage = lazyWithRetry(() => import('./pages/MarketPage'), 'MarketPage');
 const SoloChallenge = lazyWithRetry(() => import('./pages/SoloChallenge'), 'SoloChallenge');
 const Game = lazyWithRetry(() => import('./pages/Game'), 'Game');
@@ -58,7 +58,7 @@ function AdminRoute({ children }) {
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, authError, isAuthenticated, user, guestProfile, checkUserAuth } = useAuth();
-  usePresenceHeartbeat(user, guestProfile);
+  const [nonCriticalStartupReady, setNonCriticalStartupReady] = React.useState(false);
   const location = useLocation();
   const prevPathRef = React.useRef(location.pathname);
   const isGamePage = location.pathname === '/game';
@@ -71,6 +71,8 @@ const AuthenticatedApp = () => {
   const isAccountDeletionPage = location.pathname === '/account-deletion';
   const isPrivacyPage = location.pathname === '/privacy';
   const isPublicStandalonePage = isAccountDeletionPage || isPrivacyPage;
+  const hasBootstrapPlayer = isAuthenticated || Boolean(guestProfile);
+  const nonCriticalModulesEnabled = nonCriticalStartupReady && !isPublicStandalonePage;
   // Codex102 — Only home + game lock viewport. All other screens scroll
   // normally and host their own ScreenHeader.
   const isViewportLockedPage = location.pathname === '/' || isGamePage;
@@ -78,6 +80,37 @@ const AuthenticatedApp = () => {
   const handleCategoryPreferenceOnboardingComplete = () => {
     checkUserAuth?.();
   };
+
+  useEffect(() => {
+    if (!hasBootstrapPlayer || isPublicStandalonePage) {
+      setNonCriticalStartupReady(false);
+      return undefined;
+    }
+
+    let cancelled = false;
+    const enable = () => {
+      if (!cancelled) setNonCriticalStartupReady(true);
+    };
+
+    if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+      const idleId = window.requestIdleCallback(enable, { timeout: 3000 });
+      return () => {
+        cancelled = true;
+        window.cancelIdleCallback?.(idleId);
+      };
+    }
+
+    const timeoutId = window.setTimeout(enable, 1400);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [hasBootstrapPlayer, isPublicStandalonePage]);
+
+  usePresenceHeartbeat(
+    nonCriticalModulesEnabled ? user : null,
+    nonCriticalModulesEnabled ? guestProfile : null,
+  );
 
   // Codex085 — push every route change into the diag bus so the overlay
   // can show pathname AND we can detect "route_not_changed" black screens.
@@ -213,12 +246,12 @@ const AuthenticatedApp = () => {
           </AnimatePresence>
         )}
       </Suspense>
-      {isAuthenticated && !isPublicStandalonePage && (
+      {isAuthenticated && nonCriticalModulesEnabled && (
         <Suspense fallback={null}>
           <GameInviteNotifier />
         </Suspense>
       )}
-      {isAuthenticated && !isPublicStandalonePage && !isOnboardingPage && (
+      {isAuthenticated && nonCriticalModulesEnabled && !isOnboardingPage && (
         <Suspense fallback={null}>
           <CategoryPreferenceOnboardingModal
             user={user}
@@ -235,9 +268,9 @@ const AuthenticatedApp = () => {
 
 
 function App() {
-  // Codex479 — push current build marker into diag bus once at app boot
+  // Codex498 — push current build marker into diag bus once at app boot
   useEffect(() => {
-    appDiagSetBuildMarker('Codex497');
+    appDiagSetBuildMarker('Codex498');
     // Codex176 — App booted successfully, so any prior stale-chunk reload
     // recovered. Clear the one-time reload guards so a future deploy can
     // self-heal again.
