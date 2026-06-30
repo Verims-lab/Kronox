@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex506 — Admin test Diamond grant by Kronox ID:
+//   • Admin Ekranı adds Test Elmas Yükleme for active AdminUser roles only, using immutable kronox_user_id instead of email/provider/raw guest identifiers.
+//   • adminGrantDiamonds resolves User/GuestProfile server-side, validates 100/300/500/1000 amounts, writes admin_adjustment DiamondTransaction rows, and updates only diamonds.
+//   • Per-click request_id idempotency plus the shared EconomyOperationLock protects double taps/retries; Health statically guards no Kronox Puan, leaderboard, Daily Wheel, Daily Quest, Market, or private-ID UI leakage.
+//
 // Codex505 — Health blocker correction:
 //   • The executable BUILD_MARKER constant is bumped in the real source used by Health/buildChecker; comments alone do not count.
 //   • App diagnostics now reads KRONOX_BUILD_MARKER instead of a stale hardcoded Codex500 value.
@@ -192,7 +197,7 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps Home reward panels visible from a short-lived cache while revalidating and memoizes question text fit tokens.
 //
 
-const BUILD_MARKER = 'Codex505';
+const BUILD_MARKER = 'Codex506';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

@@ -28,6 +28,8 @@ import runTestSuiteSource from '../../../base44/functions/runTestSuite/entry.ts?
 import sendQuestionAnalyticsReportEmailSource from '../../../base44/functions/sendQuestionAnalyticsReportEmail/entry.ts?raw';
 import getUserReportSource from '../../../base44/functions/getUserReport/entry.ts?raw';
 import getUserReportConfigSource from '../../../base44/functions/getUserReport/function.jsonc?raw';
+import adminGrantDiamondsSource from '../../../base44/functions/adminGrantDiamonds/entry.ts?raw';
+import adminGrantDiamondsConfigSource from '../../../base44/functions/adminGrantDiamonds/function.jsonc?raw';
 import cleanupInactiveGuestUsernamesSource from '../../../base44/functions/cleanupInactiveGuestUsernames/entry.ts?raw';
 import cleanupInactiveGuestUsernamesConfigSource from '../../../base44/functions/cleanupInactiveGuestUsernames/function.jsonc?raw';
 import recordAppOpenSource from '../../../base44/functions/recordAppOpen/entry.ts?raw';
@@ -51,6 +53,7 @@ import adminPageSource from '../../pages/AdminPage.jsx?raw';
 import testSuitePageSource from '../../pages/TestSuite.jsx?raw';
 import resetUserProgressToolSource from '../../components/admin/ResetUserProgressTool.jsx?raw';
 import userReportToolSource from '../../components/admin/UserReportTool.jsx?raw';
+import adminDiamondGrantToolSource from '../../components/admin/AdminDiamondGrantTool.jsx?raw';
 import inactiveGuestCleanupToolSource from '../../components/admin/InactiveGuestCleanupTool.jsx?raw';
 import authContextSource from '../../lib/AuthContext.jsx?raw';
 import adminSource from '../../lib/admin.js?raw';
@@ -153,6 +156,7 @@ const TARGET_FUNCTIONS = [
   { name: 'generateTechDoc', file: 'base44/functions/generateTechDoc/entry.ts', source: generateTechDocSource },
   { name: 'generateWorkflowDoc', file: 'base44/functions/generateWorkflowDoc/entry.ts', source: generateWorkflowDocSource },
   { name: 'adminResetUserProgress', file: 'base44/functions/adminResetUserProgress/entry.ts', source: adminResetUserProgressSource },
+  { name: 'adminGrantDiamonds', file: 'base44/functions/adminGrantDiamonds/entry.ts', source: adminGrantDiamondsSource },
   { name: 'cleanupAdminMaintenanceLog', file: 'base44/functions/cleanupAdminMaintenanceLog/entry.ts', source: cleanupAdminMaintenanceLogSource },
   { name: 'expireOldGameInvites', file: 'base44/functions/expireOldGameInvites/entry.ts', source: expireOldGameInvitesSource },
   { name: 'expirePushSubscriptions', file: 'base44/functions/expirePushSubscriptions/entry.ts', source: expirePushSubscriptionsSource },
@@ -881,6 +885,91 @@ export const EXTRA_TESTS = [
       return pass('Kullanıcı Raporu is AdminUser-gated, aggregate-only, read-only, score-source aligned, and privacy-safe.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
+      });
+    },
+  ),
+
+  makeCase(
+    'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
+    'admin_test_diamond_grant_contract',
+    'Test Elmas Yükleme is AdminUser-gated, Kronox-ID targeted, Diamond-only, ledgered, idempotent, and privacy-safe',
+    () => {
+      const backend = `${adminGrantDiamondsSource}\n${adminGrantDiamondsConfigSource}`;
+      const ui = `${adminDiamondGrantToolSource}\n${adminPageSource}`;
+      const combined = `${backend}\n${ui}\n${adminMaintenanceLogSchemaSource}`;
+      const required = [
+        '"name": "adminGrantDiamonds"',
+        'requireAdmin',
+        'entities?.AdminUser',
+        'normalizeKronoxUserId',
+        'KRONOX_ID_PATTERN',
+        'ALLOWED_AMOUNTS',
+        'new Set([100, 300, 500, 1000])',
+        'resolveTarget',
+        "'User'",
+        "'GuestProfile'",
+        'linked_guest_canonical_user_missing',
+        'DiamondTransaction',
+        "source: ADMIN_GRANT_SOURCE",
+        "ADMIN_GRANT_SOURCE = 'admin_adjustment'",
+        "direction: 'earn'",
+        'balance_before',
+        'balance_after',
+        'idempotency_key',
+        'buildIdempotencyKey',
+        'missing_request_id',
+        'withEconomyOperationLock',
+        'reconcileTargetBalanceFromTransaction',
+        "operation_scope: 'admin_diamond_grant'",
+        'AdminMaintenanceLog',
+        'grantsDiamondsOnly: true',
+        'noKronoxPuan: true',
+        'noLeaderboardImpact: true',
+        'noDailyWheelImpact: true',
+        'noDailyQuestImpact: true',
+        'noMarketMutation: true',
+        'Test Elmas Yükleme',
+        'Kullanıcı ID',
+        'request_id: buildRequestId()',
+        'base44.functions.fetch(\'/adminGrantDiamonds\'',
+        'checkUserAuth',
+      ].filter((token) => !combined.includes(token));
+      const forbiddenBackend = [
+        'kronox_puan_total:',
+        'solo_progress:',
+        'online_progress:',
+        'daily_wheel_last_spin',
+        'daily_quest_last_claim',
+        'base44.asServiceRole.entities.User.delete',
+        'base44.asServiceRole.entities.GuestProfile.delete',
+      ].filter((token) => backend.includes(token));
+      const forbiddenUi = [
+        'target_email',
+        'guest_id',
+        'owner_key',
+        'provider',
+      ].filter((token) => ui.includes(token));
+      const forbiddenResponseShape = [
+        'transactionId:',
+        'ownerKey:',
+        'guestId:',
+        'targetEmail:',
+        'playerKey:',
+        'adminEmail:',
+      ].filter((token) => backend.includes(token));
+      if (required.length || forbiddenBackend.length || forbiddenUi.length || forbiddenResponseShape.length) {
+        return fail('Admin test Diamond grant does not satisfy the protected economy/admin contract.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'AdminUser-gated Kronox ID lookup, allowed amount enum, DiamondTransaction admin_adjustment ledger, request idempotency, economy lock, no score/quest/wheel/market mutation, no private IDs in UI/API response.',
+          actual: { missing: required, forbiddenBackend, forbiddenUi, forbiddenResponseShape },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Test Elmas Yükleme is server-gated, Kronox-ID targeted, Diamond-only, ledgered, idempotent, and privacy-safe.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
       });
     },
   ),
