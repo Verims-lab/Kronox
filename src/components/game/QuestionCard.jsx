@@ -60,6 +60,9 @@ const categoryNeon = {
 
 const defaultNeon = { border: '#facc15', glow: 'rgba(250,204,21,0.5)' };
 const SOLO_READABLE_QUESTION_LETTER_SPACING = '0.01em';
+const KRONOKALKAN_ACTIVE_CARD_BORDER = 'rgba(85,216,255,0.95)';
+const KRONOKALKAN_ACTIVE_CARD_GLOW = 'rgba(85,216,255,0.42)';
+const KRONOKALKAN_ACTIVE_CARD_CORE_GLOW = 'rgba(85,216,255,0.24)';
 
 /** @type {import('react').CSSProperties} */
 const activeQuestionTextFitStyle = {
@@ -116,6 +119,7 @@ export default function QuestionCard({
   onTouchDragEnd,
   onTouchDragCancel,
   soloReadableCard = false,
+  isKronokalkanActive = false,
   // Online gameplay reuses the same readable card layout (paper surface,
   // larger readable text, icon removed) as Solo. `soloReadableCard` keeps
   // its original meaning (true only for Solo) so the GameLayout render path
@@ -210,6 +214,7 @@ export default function QuestionCard({
   const isMuzik = question?.type === 'muzik';
   const isGorsel = question?.type === 'gorsel';
   const useOldPaperSurface = readableCard && !hasAlbumArt;
+  const kronokalkanGlowActive = Boolean(soloReadableCard && isKronokalkanActive);
 
   // For muzik: show title (song name) + artist from question text
   const lines = (question?.question || '').split('\n');
@@ -258,6 +263,7 @@ export default function QuestionCard({
         ${draggable ? 'kronox-question-card-drag-surface' : ''}
         ${draggable ? 'cursor-grab active:cursor-grabbing' : ''}
       `}
+      data-kronox-kronokalkan-card-glow={kronokalkanGlowActive ? 'true' : undefined}
       style={{
         width: readableCard ? 'var(--solo-active-question-card-width, 160px)' : 160,
         minHeight: readableCard ? 'var(--solo-active-question-card-height, 240px)' : 240,
@@ -266,16 +272,26 @@ export default function QuestionCard({
           : useOldPaperSurface
             ? OLD_PAPER_CARD_BACKGROUND
             : 'linear-gradient(160deg, #0f1428 0%, #0a0f23 100%)',
-        border: useOldPaperSurface ? '2px solid #FFC928' : `2px solid ${neon.border}`,
-        boxShadow: useOldPaperSurface
-          ? (isDraggingNow
-              ? `0 0 28px rgba(255,201,40,0.52), 0 8px 24px rgba(0,0,0,0.22), ${OLD_PAPER_INSET_SHADOW}`
-              : `0 0 16px rgba(255,201,40,0.38), 0 8px 24px rgba(0,0,0,0.22), ${OLD_PAPER_INSET_SHADOW}`)
+        border: useOldPaperSurface
+          ? `2px solid ${kronokalkanGlowActive ? KRONOKALKAN_ACTIVE_CARD_BORDER : '#FFC928'}`
+          : `2px solid ${kronokalkanGlowActive ? KRONOKALKAN_ACTIVE_CARD_BORDER : neon.border}`,
+        boxShadow: kronokalkanGlowActive
+          ? (useOldPaperSurface
+              ? (isDraggingNow
+                  ? `0 0 30px ${KRONOKALKAN_ACTIVE_CARD_GLOW}, 0 0 14px ${KRONOKALKAN_ACTIVE_CARD_CORE_GLOW}, 0 8px 24px rgba(0,0,0,0.22), ${OLD_PAPER_INSET_SHADOW}`
+                  : `0 0 18px ${KRONOKALKAN_ACTIVE_CARD_GLOW}, 0 0 10px ${KRONOKALKAN_ACTIVE_CARD_CORE_GLOW}, 0 8px 24px rgba(0,0,0,0.22), ${OLD_PAPER_INSET_SHADOW}`)
+              : (isDraggingNow
+                  ? `0 0 38px ${KRONOKALKAN_ACTIVE_CARD_GLOW}, 0 0 18px ${KRONOKALKAN_ACTIVE_CARD_CORE_GLOW}, 0 12px 32px rgba(0,0,0,0.6)`
+                  : `0 0 22px ${KRONOKALKAN_ACTIVE_CARD_GLOW}, 0 0 10px ${KRONOKALKAN_ACTIVE_CARD_CORE_GLOW}`))
+          : useOldPaperSurface
+            ? (isDraggingNow
+                ? `0 0 28px rgba(255,201,40,0.52), 0 8px 24px rgba(0,0,0,0.22), ${OLD_PAPER_INSET_SHADOW}`
+                : `0 0 16px rgba(255,201,40,0.38), 0 8px 24px rgba(0,0,0,0.22), ${OLD_PAPER_INSET_SHADOW}`)
           : (isDraggingNow
               ? `0 0 36px ${neon.glow}, 0 0 16px ${neon.glow}, 0 12px 32px rgba(0,0,0,0.6)`
               : `0 0 20px ${neon.glow}, 0 0 8px ${neon.glow}`),
         touchAction: draggable ? 'none' : 'auto',
-        transition: 'box-shadow 0.15s ease',
+        transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
       }}
     >
       {readOnly && (

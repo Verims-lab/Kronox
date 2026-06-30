@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex504 — Solo Kronokalkan active visual state:
+//   • The real Solo mistakeShieldActive state now drives a blue/cyan active glow on the Kronokalkan button while the shield is armed.
+//   • The active Solo question card switches its yellow/gold border and glow to Kronokalkan blue while the shield is active, without changing layout or hit-testing.
+//   • Online remains isolated from the Solo shield card glow, and Health now guards the button/card visual-state wiring plus removed text overlays.
+//
 // Codex503 — Solo joker inventory audit:
 //   • Solo spend responses now merge partial backend balance payloads into the current real inventory object, so untouched joker counts are never zeroed as a disabled-state shortcut.
 //   • Normal Solo selected-joker count still uses server balanceAfter as authoritative; other joker badges preserve their real counts after Kronokalkan, Kart Değiştir, and Zaman Dondur.

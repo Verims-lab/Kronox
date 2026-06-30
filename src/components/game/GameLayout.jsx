@@ -306,6 +306,12 @@ export default function GameLayout({
     currentQuestion &&
     !winner
   );
+  const isSoloKronokalkanActive = Boolean(
+    !isOnline &&
+    soloJokers?.mistakeShieldActive &&
+    currentQuestion &&
+    !winner
+  );
 
   return (
     <div
@@ -565,6 +571,7 @@ export default function GameLayout({
                 onTouchDragEnd={isMyTurn && !interactionPaused ? onTouchDragEnd : undefined}
                 onTouchDragCancel={isMyTurn && !interactionPaused ? onTouchDragCancel : undefined}
                 soloReadableCard={!isOnline}
+                isKronokalkanActive={isSoloKronokalkanActive}
                 onlineReadableCard={isOnline}
               />
               <GuidedDragFingerHint
