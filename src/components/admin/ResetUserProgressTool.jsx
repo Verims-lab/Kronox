@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
 import KronoxSelectSheet from '@/components/mobile/KronoxSelectSheet';
 import { AdminRefreshContext } from '@/lib/AdminRefreshContext';
+import AdminCollapsibleSection from '@/components/admin/AdminCollapsibleSection';
 
 const MODE_HARD_ZERO = 'hard_zero';
 const MODE_NEW_PLAYER = 'new_player';
@@ -131,20 +132,15 @@ export default function ResetUserProgressTool() {
   }, [registerAdminRefresh, refreshOpenPreview]);
 
   return (
-    <div className="rounded-2xl border border-amber-300/25 bg-amber-300/5 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-      <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-amber-300/30 bg-amber-300/10 text-amber-200">
-          <RotateCcw className="h-4 w-4" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="font-cinzel text-sm font-black tracking-wide text-amber-100">Reset User Progress</p>
-          <p className="mt-1 font-inter text-xs leading-relaxed text-blue-100/65">
-            Admin-only bakım aracı. Kullanıcı hesabını silmez; görünür Puan, Elmas, Solo/Online ilerleme ve liderlik projeksiyonunu sıfırlar.
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-4 space-y-3">
+    <AdminCollapsibleSection
+      title="Reset User Progress"
+      description="Kullanıcı hesabını silmeden görünür Puan, Elmas, Solo/Online ilerleme ve liderlik projeksiyonunu sıfırlar."
+      icon={loading ? <Loader2 className="animate-spin" aria-hidden="true" /> : <RotateCcw aria-hidden="true" />}
+      summary={preview ? 'Önizleme hazır' : 'Kapalı'}
+      tone="warning"
+      defaultOpen={false}
+    >
+      <div className="space-y-3">
         <label className="block">
           <span className="font-inter text-[10px] font-black uppercase tracking-[0.18em] text-blue-100/55">Target email</span>
           <input
@@ -254,7 +250,7 @@ export default function ResetUserProgressTool() {
           </div>
         )}
       </div>
-    </div>
+    </AdminCollapsibleSection>
   );
 }
 

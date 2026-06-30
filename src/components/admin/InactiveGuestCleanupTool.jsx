@@ -12,6 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { base44 } from '@/api/base44Client';
+import AdminCollapsibleSection from '@/components/admin/AdminCollapsibleSection';
 
 const CONFIRM_TEXT = 'SİL';
 
@@ -115,20 +116,15 @@ export default function InactiveGuestCleanupTool() {
   };
 
   return (
-    <div className="rounded-2xl border border-red-300/25 bg-red-300/5 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-      <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-red-300/30 bg-red-300/10 text-red-100">
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <UsersRound className="h-4 w-4" aria-hidden="true" />}
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="font-cinzel text-sm font-black tracking-wide text-red-50">Pasif Guest Kullanıcı Adlarını Temizle</p>
-          <p className="mt-1 font-inter text-xs leading-relaxed text-blue-100/65">
-            10 günden fazla açılmamış, 0 puanlı, login olmamış ve arkadaşı olmayan kullanıcı adlarını temizler. İşlem manuel onay gerektirir ve kullanıcı adlarını yeniden kullanılabilir hale getirir.
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-4 space-y-3">
+    <AdminCollapsibleSection
+      title="Pasif Guest Kullanıcı Adlarını Temizle"
+      description="10+ gün açılmamış, 0 puanlı ve arkadaşı olmayan kullanıcı adlarını manuel onayla temizler."
+      icon={loading ? <Loader2 className="animate-spin" aria-hidden="true" /> : <UsersRound aria-hidden="true" />}
+      summary={preview ? `${formatNumber(candidateCount)} aday` : 'Kapalı'}
+      tone="danger"
+      defaultOpen={false}
+    >
+      <div className="space-y-3">
         <Button
           type="button"
           variant="outline"
@@ -264,6 +260,6 @@ export default function InactiveGuestCleanupTool() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </AdminCollapsibleSection>
   );
 }

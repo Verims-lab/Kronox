@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import { getKronoxUserId, normalizeKronoxUserId } from '@/lib/kronoxUserId';
+import AdminCollapsibleSection from '@/components/admin/AdminCollapsibleSection';
 
 const AMOUNT_OPTIONS = [100, 300, 500, 1000];
 
@@ -78,20 +79,15 @@ export default function AdminDiamondGrantTool() {
   };
 
   return (
-    <div className="rounded-2xl border border-cyan-300/25 bg-cyan-300/5 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-      <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-cyan-300/30 bg-cyan-300/10 text-cyan-100">
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Diamond className="h-4 w-4" aria-hidden="true" />}
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="font-cinzel text-sm font-black tracking-wide text-cyan-50">Test Elmas Yükleme</p>
-          <p className="mt-1 font-inter text-xs leading-relaxed text-blue-100/65">
-            Kullanıcı ID ile hedef oyuncuya yalnızca test Elmas bakiyesi ekler. Puan, liderlik, günlük ödül ve mağazaya dokunmaz.
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-4 space-y-3">
+    <AdminCollapsibleSection
+      title="Test Elmas Yükleme"
+      description="Kullanıcı ID ile yalnızca test Elmas bakiyesi ekler; Puan ve liderlik etkilenmez."
+      icon={loading ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Diamond aria-hidden="true" />}
+      summary="Kapalı"
+      tone="info"
+      defaultOpen={false}
+    >
+      <div className="space-y-3">
         <label className="block">
           <span className="font-inter text-[10px] font-black uppercase tracking-[0.18em] text-blue-100/55">Kullanıcı ID</span>
           <input
@@ -173,6 +169,6 @@ export default function AdminDiamondGrantTool() {
           </div>
         )}
       </div>
-    </div>
+    </AdminCollapsibleSection>
   );
 }

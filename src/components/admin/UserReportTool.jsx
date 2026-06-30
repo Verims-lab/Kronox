@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Clock3, Loader2, RefreshCw, ShieldCheck, Smartphone, Trophy, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
+import AdminCollapsibleSection from '@/components/admin/AdminCollapsibleSection';
 
 function unwrapFunctionResponse(response) {
   if (response?.data?.data && typeof response.data.data === 'object') return response.data.data;
@@ -100,42 +101,41 @@ export default function UserReportTool() {
     }
   };
 
-  useEffect(() => {
-    loadReport();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const counts = report?.counts || {};
   const platformBreakdown = report?.platformBreakdown || {};
   const active30PlatformBreakdown = report?.active30DayPlatformBreakdown || {};
   const generatedAt = formatDateTime(report?.generatedAt);
+  const totalUsers = Number(counts.totalUsersByDistinctValidUsername || 0);
+  const handleSectionOpenChange = (nextOpen) => {
+    if (nextOpen && !report && !loading) loadReport();
+  };
 
   return (
-    <div className="rounded-2xl border border-border/40 bg-secondary/20 p-4">
-      <div className="flex items-start gap-3">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Users className="h-4 w-4" aria-hidden="true" />}
+    <AdminCollapsibleSection
+      title="Kullanıcı Raporu"
+      description="Kullanıcı, giriş, puan ve son aktiflik özetleri. Silme işlemi yapmaz."
+      icon={loading ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Users aria-hidden="true" />}
+      summary={report ? `${formatNumber(totalUsers)} kullanıcı` : 'Açınca yüklenir'}
+      defaultOpen={false}
+      onOpenChange={handleSectionOpenChange}
+      bodyClassName="space-y-3"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="font-inter text-[11px] leading-4 text-muted-foreground">
+          {generatedAt ? `Oluşturma: ${generatedAt}` : 'Rapor ilk açılışta yüklenir.'}
         </div>
-        <div className="min-w-0 flex-1 space-y-3">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="font-inter text-sm font-semibold text-foreground">Kullanıcı Raporu</p>
-              <p className="font-inter text-xs leading-5 text-muted-foreground">
-                Bu rapor kullanıcı, giriş, puan ve son aktiflik özetlerini gösterir. Silme işlemi yapmaz.
-              </p>
-            </div>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={loading}
-              onClick={loadReport}
-              className="shrink-0 border-primary/25 bg-primary/10 px-2 text-primary hover:bg-primary/15"
-              aria-label="Kullanıcı raporunu yenile"
-            >
-              {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-            </Button>
-          </div>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={loading}
+          onClick={loadReport}
+          className="shrink-0 border-primary/25 bg-primary/10 px-2 text-primary hover:bg-primary/15"
+          aria-label="Kullanıcı raporunu yenile"
+        >
+          {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+        </Button>
+      </div>
 
           {error && (
             <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 font-inter text-xs font-semibold text-red-100">
@@ -155,25 +155,31 @@ export default function UserReportTool() {
 
           {report && (
             <>
-              <div className="grid grid-cols-2 gap-2">
-                <Metric icon={<Users />} label="Toplam kullanıcı" value={formatNumber(counts.totalUsersByDistinctValidUsername)} />
+              <ReportGroup title="Kullanıcı toplamları">
+                <Metric icon={<Users />} label="Toplam kullanıcı" value={formatNumber(totalUsers)} />
                 <Metric icon={<ShieldCheck />} label="Login olmuş kullanıcı" value={formatNumber(counts.loggedInUsers)} helper={formatPercent(counts.loginRatioPercent)} />
-                <Metric icon={<Trophy />} label="0’dan fazla puan" value={formatNumber(counts.usersWithKronoxPuanGreaterThanZero)} />
-                <Metric icon={<Clock3 />} label="10+ gündür açmamış" value={formatNumber(counts.inactive10DaysUsers)} />
                 <Metric icon={<Users />} label="Guest kullanıcı" value={formatNumber(counts.guestUsers)} />
-                <Metric icon={<Trophy />} label="0 puanlı kullanıcı" value={formatNumber(counts.usersWithZeroKronoxPuan)} />
-                <Metric icon={<Clock3 />} label="0 puan + 10+ gün pasif" value={formatNumber(counts.zeroScoreAndInactive10DaysUsers)} />
-                <Metric icon={<Clock3 />} label="Son açılış bilinmiyor" value={formatNumber(counts.noLastOpenUsers)} />
-              </div>
+                <MiniRatioBar label="Login oranı" value={counts.loggedInUsers} total={totalUsers} />
+              </ReportGroup>
 
-              <div className="grid grid-cols-2 gap-2">
+              <ReportGroup title="Aktivite">
                 <SmallStat label="Son 7 günde yeni" value={counts.newUsers7Days} />
                 <SmallStat label="Aktif 1 gün" value={counts.activeUsers1Day} />
                 <SmallStat label="Aktif 7 gün" value={counts.activeUsers7Days} />
                 <SmallStat label="Aktif 30 gün" value={counts.activeUsers30Days} />
+                <Metric icon={<Clock3 />} label="10+ gündür açmamış" value={formatNumber(counts.inactive10DaysUsers)} />
+                <Metric icon={<Clock3 />} label="Son açılış bilinmiyor" value={formatNumber(counts.noLastOpenUsers)} />
+                <MiniRatioBar label="30 gün aktiflik" value={counts.activeUsers30Days} total={totalUsers} />
+              </ReportGroup>
+
+              <ReportGroup title="Skor ve destek kimliği">
+                <Metric icon={<Trophy />} label="0’dan fazla puan" value={formatNumber(counts.usersWithKronoxPuanGreaterThanZero)} />
+                <Metric icon={<Trophy />} label="0 puanlı kullanıcı" value={formatNumber(counts.usersWithZeroKronoxPuan)} />
+                <Metric icon={<Clock3 />} label="0 puan + 10+ gün pasif" value={formatNumber(counts.zeroScoreAndInactive10DaysUsers)} />
                 <SmallStat label="Kronox ID hazır" value={counts.rowsWithKronoxUserId} />
                 <SmallStat label="Kronox ID eksik" value={counts.rowsMissingKronoxUserId} />
-              </div>
+                <MiniRatioBar label="Kronox ID kapsama" value={counts.rowsWithKronoxUserId} total={(Number(counts.rowsWithKronoxUserId) || 0) + (Number(counts.rowsMissingKronoxUserId) || 0)} />
+              </ReportGroup>
 
               <div className="rounded-xl border border-border/30 bg-background/20 p-3">
                 <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-foreground">
@@ -195,14 +201,20 @@ export default function UserReportTool() {
               </div>
 
               <div className="font-inter text-[11px] leading-4 text-muted-foreground">
-                {generatedAt && <p>Oluşturma: {generatedAt}</p>}
                 <p>Kaynak: username bazlı User + GuestProfile; skor için SoloLeaderboardEntry total_kronox_score, Kronox ID için aggregate kapsam sayımı ve güvenli kronox_puan_total onarımı.</p>
                 <p>Okunan satırlar: User {formatNumber(report?.sourceRows?.userRowsRead)}, GuestProfile {formatNumber(report?.sourceRows?.guestProfileRowsRead)}, Liderlik {formatNumber(report?.sourceRows?.soloLeaderboardRowsRead)}.</p>
               </div>
             </>
           )}
-        </div>
-      </div>
+    </AdminCollapsibleSection>
+  );
+}
+
+function ReportGroup({ title, children }) {
+  return (
+    <div className="rounded-xl border border-border/30 bg-background/20 p-3">
+      <p className="mb-2 font-inter text-[10px] font-black uppercase tracking-[0.18em] text-blue-100/45">{title}</p>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{children}</div>
     </div>
   );
 }
@@ -227,6 +239,23 @@ function SmallStat({ label, value = 0 }) {
     <div className="rounded-lg border border-white/10 bg-black/10 px-2.5 py-2">
       <p className="font-inter text-[10px] font-semibold leading-4 text-muted-foreground">{label}</p>
       <p className="kronox-number text-base font-black leading-none text-foreground">{formatNumber(value)}</p>
+    </div>
+  );
+}
+
+function MiniRatioBar({ label, value = 0, total = 0 }) {
+  const safeValue = Math.max(0, Math.floor(Number(value) || 0));
+  const safeTotal = Math.max(0, Math.floor(Number(total) || 0));
+  const percent = safeTotal > 0 ? Math.min(100, Math.round((safeValue / safeTotal) * 100)) : 0;
+  return (
+    <div className="col-span-2 rounded-lg border border-white/10 bg-black/10 px-2.5 py-2 sm:col-span-3">
+      <div className="flex items-center justify-between gap-2 font-inter text-[10px] font-semibold text-muted-foreground">
+        <span>{label}</span>
+        <span className="kronox-number text-primary">%{percent}</span>
+      </div>
+      <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-950/70">
+        <div className="h-full rounded-full bg-primary" style={{ width: `${percent}%` }} />
+      </div>
     </div>
   );
 }

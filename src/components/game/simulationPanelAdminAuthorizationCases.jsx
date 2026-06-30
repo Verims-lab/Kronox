@@ -53,8 +53,10 @@ import adminPageSource from '../../pages/AdminPage.jsx?raw';
 import testSuitePageSource from '../../pages/TestSuite.jsx?raw';
 import resetUserProgressToolSource from '../../components/admin/ResetUserProgressTool.jsx?raw';
 import userReportToolSource from '../../components/admin/UserReportTool.jsx?raw';
+import questionAnalyticsReportToolSource from '../../components/admin/QuestionAnalyticsReportTool.jsx?raw';
 import adminDiamondGrantToolSource from '../../components/admin/AdminDiamondGrantTool.jsx?raw';
 import inactiveGuestCleanupToolSource from '../../components/admin/InactiveGuestCleanupTool.jsx?raw';
+import adminCollapsibleSectionSource from '../../components/admin/AdminCollapsibleSection.jsx?raw';
 import authContextSource from '../../lib/AuthContext.jsx?raw';
 import adminSource from '../../lib/admin.js?raw';
 import appParamsSource from '../../lib/app-params.js?raw';
@@ -865,7 +867,7 @@ export const EXTRA_TESTS = [
         'exposesRawGuestId: false',
         'exposesInternalPlayerKey: false',
         'Kullanıcı Raporu',
-        'Bu rapor kullanıcı, giriş, puan ve son aktiflik özetlerini gösterir. Silme işlemi yapmaz.',
+        'Kullanıcı, giriş, puan ve son aktiflik özetleri. Silme işlemi yapmaz.',
       ].filter((token) => !combined.includes(token));
       const forbidden = [
         'entities.User.delete',
@@ -1050,6 +1052,78 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Inactive guest username cleanup is server-gated, dry-run first, confirmed, audit-logged, username-release oriented, and privacy-safe.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+  ),
+
+  makeCase(
+    'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
+    'admin_operations_collapsed_by_default_contract',
+    'Heavy Admin operations are collapsed by default, analytics reset is separately nested, and user report loads only when opened',
+    () => {
+      const shared = safeStr(adminCollapsibleSectionSource);
+      const questionAnalytics = safeStr(questionAnalyticsReportToolSource);
+      const userReport = safeStr(userReportToolSource);
+      const inactiveCleanup = safeStr(inactiveGuestCleanupToolSource);
+      const resetProgress = safeStr(resetUserProgressToolSource);
+      const diamondGrant = safeStr(adminDiamondGrantToolSource);
+      const combined = [
+        shared,
+        questionAnalytics,
+        userReport,
+        inactiveCleanup,
+        resetProgress,
+        diamondGrant,
+        adminPageSource,
+      ].join('\n');
+      const topLevelTools = [
+        { label: 'Soru Analiz Raporu Gönder', source: questionAnalytics },
+        { label: 'Kullanıcı Raporu', source: userReport },
+        { label: 'Pasif Guest Kullanıcı Adlarını Temizle', source: inactiveCleanup },
+        { label: 'Reset User Progress', source: resetProgress },
+        { label: 'Test Elmas Yükleme', source: diamondGrant },
+      ];
+      const required = [
+        'data-admin-collapsible-section',
+        'data-default-open',
+        '...sectionProps',
+        'title="Soru Analiz Raporu Gönder"',
+        'title="Rapor Hazırla ve Gönder"',
+        'title="Soru Analitik Verilerini Sıfırla"',
+        'data-admin-question-analytics-nested-groups',
+        'defaultOpen',
+        'title="Kullanıcı Raporu"',
+        'onOpenChange={handleSectionOpenChange}',
+        'if (nextOpen && !report && !loading) loadReport();',
+        'ReportGroup',
+        'MiniRatioBar',
+        'title="Pasif Guest Kullanıcı Adlarını Temizle"',
+        'title="Reset User Progress"',
+        'title="Test Elmas Yükleme"',
+      ].filter((token) => !combined.includes(token));
+      const missingClosedDefaults = topLevelTools
+        .filter(({ source }) => !source.includes('defaultOpen={false}'))
+        .map(({ label }) => label);
+      const forbidden = [
+        userReport.includes('useEffect(() =>') ? 'user_report_mount_fetch_useEffect' : '',
+        userReport.includes('loadReport();\n    // eslint-disable-next-line react-hooks/exhaustive-deps') ? 'user_report_mount_fetch_loadReport' : '',
+      ].filter(Boolean);
+      const splitResetIsClosed = questionAnalytics.includes('title="Soru Analitik Verilerini Sıfırla"')
+        && questionAnalytics.includes('defaultOpen={false}')
+        && questionAnalytics.includes('data-admin-question-analytics-reset-group');
+      if (required.length || missingClosedDefaults.length || forbidden.length || !splitResetIsClosed) {
+        return fail('Admin operations UI does not satisfy the collapsed-by-default maintenance layout contract.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'UX_HEALTH_REGRESSION',
+          expected: 'Shared collapsed section wrapper; five heavy Admin tools closed by default; analytics report group open only after parent expansion; analytics reset separately closed; User Report lazy-loads on open with compact grouped metrics.',
+          actual: { missing: required, missingClosedDefaults, forbidden, splitResetIsClosed },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Admin operations use the shared collapsed-by-default pattern, nested analytics groups, and lazy User Report loading.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
