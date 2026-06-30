@@ -24,8 +24,8 @@ const TIMELINE_YEAR_CARD_SHADOW = [
 ].join(', ');
 const TIMELINE_YEAR_TEXT_COLOR = '#123A63';
 
-const TIMELINE_CARD_WIDTH = 80;
-const TIMELINE_CARD_HEIGHT = 120;
+const TIMELINE_CARD_WIDTH = 'var(--solo-timeline-card-width, 80px)';
+const TIMELINE_CARD_HEIGHT = 'var(--solo-timeline-card-height, 120px)';
 const TIMELINE_CARD_ASPECT_RATIO = '2 / 3';
 
 export default function TimelineCard({ card, index, distanceFromCenter = 0, yearOnly = false }) {

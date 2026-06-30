@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RefreshCw, Shield, Snowflake } from 'lucide-react';
 import { JOKER_TYPES, normalizeJokerQuantity } from '@/lib/jokerInventory';
@@ -74,6 +74,8 @@ export default function SoloJokerBar({
   tutorialDemoType = null,
   tutorialDemoHintActive = false,
   tutorialFocusActive = false,
+  layout = 'bottom',
+  dragLocked = false,
   onUseJoker,
 }) {
   // Tutorial joker screens must never show completion/status copy
@@ -84,6 +86,8 @@ export default function SoloJokerBar({
   // are the active tutorial-mode signals already passed by Game.jsx.
   const tutorialMode = Boolean(tutorialDemoType || tutorialFocusActive);
   const [recentlyUsedType, setRecentlyUsedType] = useState(null);
+  const [pressedType, setPressedType] = useState(null);
+  const pressedTimerRef = useRef(null);
 
   useEffect(() => {
     if (!usedJokerType) {
@@ -96,12 +100,34 @@ export default function SoloJokerBar({
     return () => window.clearTimeout(timeout);
   }, [usedJokerType]);
 
+  useEffect(() => () => {
+    if (pressedTimerRef.current) window.clearTimeout(pressedTimerRef.current);
+  }, []);
+
   if (!enabled) return null;
 
   const jokerUsedOnCurrentCard = Boolean(usedJokerType);
+  const isQuestionRail = layout === 'questionRail';
+  const rootClassName = isQuestionRail
+    ? 'relative flex w-[var(--solo-joker-rail-width,64px)] shrink-0 items-center justify-center px-0 py-0'
+    : 'relative flex-shrink-0 px-4 pt-0.5';
+  const listClassName = isQuestionRail
+    ? `relative mx-auto flex w-full flex-col items-center justify-center gap-[clamp(7px,1.15vh,11px)] ${tutorialFocusActive ? 'z-[50]' : ''}`
+    : `relative mx-auto grid grid-cols-3 w-full max-w-[280px] gap-0 ${tutorialFocusActive ? 'z-[50]' : ''}`;
+  const buttonClassName = isQuestionRail
+    ? 'group flex min-h-[clamp(56px,8vh,70px)] w-full flex-col items-center justify-start gap-0.5 bg-transparent px-0 py-0 font-inter transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300/70'
+    : 'group flex min-h-[62px] w-full flex-col items-center justify-start gap-1 bg-transparent px-0 py-0.5 font-inter transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300/70';
+  const circleSize = isQuestionRail ? 'clamp(40px, 11vw, 48px)' : 'clamp(38px, 10.8vw, 44px)';
+  const labelStyleBase = isQuestionRail
+    ? { fontSize: 'clamp(8px, 2.15vw, 10px)', maxWidth: 'calc(var(--solo-joker-rail-width,64px) + 18px)' }
+    : { fontSize: '10px', maxWidth: '100%' };
 
   return (
-    <div className="relative flex-shrink-0 px-4 pt-0.5">
+    <div
+      className={rootClassName}
+      data-kronox-solo-joker-right-rail={isQuestionRail ? 'true' : undefined}
+      data-kronox-solo-joker-drag-locked={dragLocked ? 'true' : undefined}
+    >
       <AnimatePresence>
         {tutorialFocusActive && (
           <motion.div
@@ -115,36 +141,45 @@ export default function SoloJokerBar({
           />
         )}
       </AnimatePresence>
-      <div className={`relative mx-auto grid grid-cols-3 w-full max-w-[280px] gap-0 ${tutorialFocusActive ? 'z-[50]' : ''}`}>
+      <div className={listClassName}>
         {JOKERS.map(({ type, inventoryType, label, icon: Icon, accent, glow }) => {
           const isRecentlyUsed = recentlyUsedType === type;
           const balance = normalizeJokerQuantity(balances?.[inventoryType]);
           const isPending = pendingType === type;
-          const isLocked = disabled || loading || jokerUsedOnCurrentCard || isPending || balance <= 0;
+          const isLocked = disabled || dragLocked || loading || jokerUsedOnCurrentCard || isPending || balance <= 0;
           const active = !isLocked;
           const dimmed = isLocked && !isRecentlyUsed;
           const isTutorialDemoTarget = tutorialDemoType === type;
-          const circleSize = 'clamp(38px, 10.8vw, 44px)';
+          const shouldPlayTap = pressedType === type;
           return (
             <div key={type} className="relative flex justify-center">
               <motion.button
               key={type}
               type="button"
               disabled={isLocked}
+              aria-disabled={isLocked}
               aria-pressed={isRecentlyUsed}
               aria-busy={isPending}
               aria-label={`${label}, kalan ${balance}`}
               data-kronox-guided-joker-demo-target={isTutorialDemoTarget ? 'true' : undefined}
               onClick={() => {
                 if (!active || !onUseJoker) return;
+                if (pressedTimerRef.current) window.clearTimeout(pressedTimerRef.current);
+                setPressedType(type);
+                pressedTimerRef.current = window.setTimeout(() => {
+                  setPressedType(null);
+                  pressedTimerRef.current = null;
+                }, 260);
                 onUseJoker(type);
               }}
-              whileTap={active ? { scale: 0.96 } : undefined}
-              className="group flex min-h-[62px] w-full flex-col items-center justify-start gap-1 bg-transparent px-0 py-0.5 font-inter transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300/70"
+              animate={shouldPlayTap ? { scale: [1, 0.90, 1.08, 1] } : { scale: 1 }}
+              transition={shouldPlayTap ? { duration: 0.26, times: [0, 0.31, 0.66, 1], ease: 'easeOut' } : { duration: 0.12 }}
+              className={buttonClassName}
               style={{
                 color: dimmed ? 'rgba(203,213,225,0.44)' : '#f8fafc',
                 cursor: active ? 'pointer' : 'default',
                 opacity: dimmed ? 0.62 : 1,
+                pointerEvents: dragLocked ? 'none' : 'auto',
               }}
             >
               <span
@@ -163,6 +198,24 @@ export default function SoloJokerBar({
                       : `0 0 12px ${glow}, inset 0 0 12px rgba(255,255,255,0.06), inset 0 -5px 10px rgba(0,0,0,0.30)`,
                 }}
               >
+                <AnimatePresence>
+                  {isRecentlyUsed && (
+                    <motion.span
+                      key={`${type}-${usedJokerType || 'used'}`}
+                      aria-hidden="true"
+                      className="pointer-events-none absolute"
+                      initial={{ scale: 0.75, opacity: 0.75 }}
+                      animate={{ scale: [0.75, 1.35], opacity: [0.75, 0] }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.42, ease: 'easeOut' }}
+                      style={{
+                        inset: '-5px',
+                        borderRadius: '50%',
+                        border: `2px solid ${accent}`,
+                      }}
+                    />
+                  )}
+                </AnimatePresence>
                 <Icon
                   className="h-5 w-5"
                   style={{ color: dimmed ? 'rgba(203,213,225,0.48)' : accent }}
@@ -185,8 +238,9 @@ export default function SoloJokerBar({
                 </span>
               </span>
               <span
-                className="max-w-full text-center text-[10px] font-black leading-tight"
+                className="max-w-full text-center font-black leading-tight"
                 style={{
+                  ...labelStyleBase,
                   color: dimmed ? 'rgba(203,213,225,0.52)' : (isRecentlyUsed ? '#fde68a' : accent),
                   textShadow: dimmed ? 'none' : `0 0 8px ${glow}`,
                 }}
@@ -211,7 +265,17 @@ export default function SoloJokerBar({
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.16 }}
             className="mt-1.5 text-center font-inter text-[10px] font-semibold"
-            style={{ color: error ? '#fca5a5' : '#fde68a' }}
+            style={{
+              color: error ? '#fca5a5' : '#fde68a',
+              ...(isQuestionRail ? {
+                position: 'absolute',
+                right: 0,
+                top: '100%',
+                width: 128,
+                marginTop: 2,
+                textAlign: 'right',
+              } : null),
+            }}
           >
             {error || message || (mistakeShieldActive
               ? 'Kronokalkan aktif.'

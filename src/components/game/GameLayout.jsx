@@ -300,14 +300,29 @@ export default function GameLayout({
     !isTimeUp &&
     (!isDragging || !guidedTimelineSwipeHintMinimumElapsed)
   );
+  const showSoloQuestionJokerRail = Boolean(
+    !isOnline &&
+    soloJokers?.enabled &&
+    currentQuestion &&
+    !winner
+  );
 
   return (
     <div
       ref={gameplayRootRef}
-      className={`kx-viewport-lock kronox-gameplay-root flex flex-col ${isDragging ? 'kronox-game-drag-lock' : ''}`}
+      className={`kx-viewport-lock kronox-gameplay-root flex flex-col ${isDragging ? 'kronox-game-drag-lock' : ''} ${showSoloQuestionJokerRail ? 'kronox-solo-joker-right-layout' : ''}`}
       data-kronox-gameplay-root="true"
+      data-kronox-solo-joker-right-layout={showSoloQuestionJokerRail ? 'true' : undefined}
       style={{
         minHeight: '100dvh',
+        '--solo-game-scale': showSoloQuestionJokerRail ? '1' : undefined,
+        '--solo-joker-rail-width': showSoloQuestionJokerRail ? 'clamp(58px, 16vw, 76px)' : undefined,
+        '--solo-active-question-card-width': showSoloQuestionJokerRail ? 'clamp(156px, 40vw, 184px)' : undefined,
+        '--solo-active-question-card-height': showSoloQuestionJokerRail ? 'clamp(252px, 33vh, 292px)' : undefined,
+        '--solo-timeline-card-width': showSoloQuestionJokerRail ? 'clamp(80px, 21vw, 94px)' : undefined,
+        '--solo-timeline-card-height': showSoloQuestionJokerRail ? 'clamp(112px, 14.25vh, 126px)' : undefined,
+        '--solo-timeline-card-line-offset': showSoloQuestionJokerRail ? 'clamp(56px, 7.125vh, 63px)' : undefined,
+        '--solo-timeline-panel-padding-y': showSoloQuestionJokerRail ? 'clamp(0.55rem, 1.2vh, 0.85rem)' : undefined,
         backgroundColor: '#061225',
         backgroundImage: `
           radial-gradient(
@@ -475,7 +490,10 @@ export default function GameLayout({
       )}
 
       {/* CENTER: Instruction + Question card */}
-      <div className="flex-shrink-0 flex flex-col items-center px-4 py-1 gap-1">
+      <div
+        className="flex-shrink-0 flex flex-col items-center px-3 py-1 gap-1"
+        data-kronox-solo-question-joker-row={showSoloQuestionJokerRail ? 'true' : undefined}
+      >
         {/* Instruction text — online uses OnlineTurnIndicator above instead */}
         {!isOnline && isMyTurn && !winner && currentQuestion && !feedback ? (
           <div className="text-center">
@@ -489,74 +507,108 @@ export default function GameLayout({
         ) : null}
 
         {currentQuestion && !winner ? (
-          <motion.div
-            className="relative rounded-2xl"
-            data-kx-active-turn={isOnline && isMyTurn && !feedback ? 'true' : 'false'}
-            animate={isOnline && isMyTurn && !feedback ? {
-              boxShadow: [
-                '0 0 0 1px rgba(16,185,129,0.45), 0 0 22px rgba(16,185,129,0.30), 0 0 38px rgba(5,150,105,0.18)',
-                '0 0 0 1px rgba(250,204,21,0.50), 0 0 26px rgba(16,185,129,0.42), 0 0 44px rgba(5,150,105,0.26)',
-                '0 0 0 1px rgba(16,185,129,0.45), 0 0 22px rgba(16,185,129,0.30), 0 0 38px rgba(5,150,105,0.18)',
-              ],
-            } : { boxShadow: '0 0 0 rgba(0,0,0,0)' }}
-            transition={isOnline && isMyTurn && !feedback ? {
-              duration: 2.2, repeat: Infinity, ease: 'easeInOut',
-            } : { duration: 0.25 }}
-            style={{ willChange: 'box-shadow' }}
+          <div
+            className={showSoloQuestionJokerRail ? 'grid w-full items-center' : 'flex w-full items-center justify-center'}
+            data-kronox-solo-question-card-and-jokers={showSoloQuestionJokerRail ? 'true' : undefined}
+            style={showSoloQuestionJokerRail ? {
+              gridTemplateColumns: 'minmax(var(--solo-joker-rail-width,64px), 1fr) auto minmax(var(--solo-joker-rail-width,64px), 1fr)',
+              columnGap: 'clamp(8px,2.4vw,14px)',
+            } : undefined}
           >
-            {/* Active-turn green aura — behind card, never above it. Codex095 */}
-            {isOnline && isMyTurn && !feedback && (
-              <motion.div
-                aria-hidden="true"
-                className="absolute rounded-3xl pointer-events-none"
-                style={{
-                  inset: '-14px',
-                  zIndex: -1,
-                  background:
-                    'radial-gradient(120% 80% at 50% 50%, rgba(16,185,129,0.32) 0%, rgba(5,95,70,0.22) 38%, rgba(6,78,59,0.10) 65%, rgba(6,78,59,0) 100%)',
-                  border: '1px solid rgba(52,211,153,0.35)',
-                  boxShadow: 'inset 0 0 24px rgba(16,185,129,0.18), inset 0 0 0 1px rgba(250,204,21,0.10)',
-                  willChange: 'opacity',
-                }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: [0.85, 1, 0.85] }}
-                transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+            <motion.div
+              className="relative rounded-2xl"
+              data-kx-active-turn={isOnline && isMyTurn && !feedback ? 'true' : 'false'}
+              animate={isOnline && isMyTurn && !feedback ? {
+                boxShadow: [
+                  '0 0 0 1px rgba(16,185,129,0.45), 0 0 22px rgba(16,185,129,0.30), 0 0 38px rgba(5,150,105,0.18)',
+                  '0 0 0 1px rgba(250,204,21,0.50), 0 0 26px rgba(16,185,129,0.42), 0 0 44px rgba(5,150,105,0.26)',
+                  '0 0 0 1px rgba(16,185,129,0.45), 0 0 22px rgba(16,185,129,0.30), 0 0 38px rgba(5,150,105,0.18)',
+                ],
+              } : { boxShadow: '0 0 0 rgba(0,0,0,0)' }}
+              transition={isOnline && isMyTurn && !feedback ? {
+                duration: 2.2, repeat: Infinity, ease: 'easeInOut',
+              } : { duration: 0.25 }}
+              style={{
+                willChange: 'box-shadow',
+                ...(showSoloQuestionJokerRail ? { gridColumn: 2, justifySelf: 'center' } : null),
+              }}
+            >
+              {/* Active-turn green aura — behind card, never above it. Codex095 */}
+              {isOnline && isMyTurn && !feedback && (
+                <motion.div
+                  aria-hidden="true"
+                  className="absolute rounded-3xl pointer-events-none"
+                  style={{
+                    inset: '-14px',
+                    zIndex: -1,
+                    background:
+                      'radial-gradient(120% 80% at 50% 50%, rgba(16,185,129,0.32) 0%, rgba(5,95,70,0.22) 38%, rgba(6,78,59,0.10) 65%, rgba(6,78,59,0) 100%)',
+                    border: '1px solid rgba(52,211,153,0.35)',
+                    boxShadow: 'inset 0 0 24px rgba(16,185,129,0.18), inset 0 0 0 1px rgba(250,204,21,0.10)',
+                    willChange: 'opacity',
+                  }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: [0.85, 1, 0.85] }}
+                  transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+                />
+              )}
+              <QuestionCard
+                question={currentQuestion}
+                onImageError={onImageError}
+                onAudioError={onAudioError}
+                draggable={isMyTurn && !feedback && !interactionPaused}
+                readOnly={!isMyTurn || interactionPaused}
+                readOnlyLabel={isSpectatingQuestion ? 'İZLEME MODU' : 'KİLİTLİ'}
+                onDragStart={isMyTurn && !interactionPaused ? onDragStart : undefined}
+                onDragEnd={isMyTurn && !interactionPaused ? onDragEnd : undefined}
+                onTouchDragMove={isMyTurn && !interactionPaused ? onTouchDragMove : undefined}
+                onTouchDragEnd={isMyTurn && !interactionPaused ? onTouchDragEnd : undefined}
+                onTouchDragCancel={isMyTurn && !interactionPaused ? onTouchDragCancel : undefined}
+                soloReadableCard={!isOnline}
+                onlineReadableCard={isOnline}
               />
-            )}
-            <QuestionCard
-              question={currentQuestion}
-              onImageError={onImageError}
-              onAudioError={onAudioError}
-              draggable={isMyTurn && !feedback && !interactionPaused}
-              readOnly={!isMyTurn || interactionPaused}
-              readOnlyLabel={isSpectatingQuestion ? 'İZLEME MODU' : 'KİLİTLİ'}
-              onDragStart={isMyTurn && !interactionPaused ? onDragStart : undefined}
-              onDragEnd={isMyTurn && !interactionPaused ? onDragEnd : undefined}
-              onTouchDragMove={isMyTurn && !interactionPaused ? onTouchDragMove : undefined}
-              onTouchDragEnd={isMyTurn && !interactionPaused ? onTouchDragEnd : undefined}
-              onTouchDragCancel={isMyTurn && !interactionPaused ? onTouchDragCancel : undefined}
-              soloReadableCard={!isOnline}
-              onlineReadableCard={isOnline}
-            />
-            <GuidedDragFingerHint
-              active={Boolean(guidedDragHintActive && isMyTurn && !isDragging && !feedback && !winner && !interactionPaused)}
-              reducedMotion={prefersReducedMotion}
-              targetSlotPosition={guidedTargetSlotPosition}
-              containerRef={gameplayRootRef}
-            />
-            {isSpectatingQuestion && (
-              <div
-                className="absolute inset-x-2 bottom-2 rounded-xl px-2 py-1.5 text-center font-inter text-[10px] font-semibold text-white/78"
-                style={{
-                  background: 'rgba(7,10,31,0.78)',
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  pointerEvents: 'none',
-                }}
-              >
-                Kartı yalnızca {currentPlayer?.name || 'aktif oyuncu'} yerleştirebilir.
+              <GuidedDragFingerHint
+                active={Boolean(guidedDragHintActive && isMyTurn && !isDragging && !feedback && !winner && !interactionPaused)}
+                reducedMotion={prefersReducedMotion}
+                targetSlotPosition={guidedTargetSlotPosition}
+                containerRef={gameplayRootRef}
+              />
+              {isSpectatingQuestion && (
+                <div
+                  className="absolute inset-x-2 bottom-2 rounded-xl px-2 py-1.5 text-center font-inter text-[10px] font-semibold text-white/78"
+                  style={{
+                    background: 'rgba(7,10,31,0.78)',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    pointerEvents: 'none',
+                  }}
+                >
+                  Kartı yalnızca {currentPlayer?.name || 'aktif oyuncu'} yerleştirebilir.
+                </div>
+              )}
+            </motion.div>
+            {showSoloQuestionJokerRail && (
+              <div style={{ gridColumn: 3, justifySelf: 'start' }}>
+                <SoloJokerBar
+                  enabled={Boolean(soloJokers?.enabled) && !winner && !isOnline && Boolean(currentQuestion)}
+                  usedJokerType={soloJokers?.usedJokerType}
+                  balances={soloJokers?.balances}
+                  loading={soloJokers?.loading}
+                  pendingType={soloJokers?.pendingType}
+                  mistakeShieldActive={soloJokers?.mistakeShieldActive}
+                  timerFrozen={soloJokers?.timerFrozen}
+                  message={soloJokers?.message}
+                  error={soloJokers?.error}
+                  disabled={Boolean(soloJokers?.disabled) || !isMyTurn || Boolean(feedback) || interactionPaused || isDragging}
+                  dragLocked={Boolean(soloJokers?.dragLocked || isDragging)}
+                  tutorialDemoType={soloJokers?.tutorialDemoType}
+                  tutorialDemoHintActive={soloJokers?.tutorialDemoHintActive}
+                  tutorialFocusActive={soloJokers?.tutorialFocusActive}
+                  layout="questionRail"
+                  onUseJoker={soloJokers?.onUseJoker}
+                />
               </div>
             )}
-          </motion.div>
+          </div>
         ) : null}
       </div>
 
@@ -565,6 +617,8 @@ export default function GameLayout({
         <div
           className="relative rounded-2xl overflow-hidden py-2 transition-all duration-300"
           style={{
+            paddingTop: 'var(--solo-timeline-panel-padding-y, 0.5rem)',
+            paddingBottom: 'var(--solo-timeline-panel-padding-y, 0.5rem)',
             background: isTimeUp
               ? 'linear-gradient(180deg, rgba(88,32,45,0.78), rgba(52,25,40,0.82))'
               : 'linear-gradient(180deg, #193D70 0%, #173763 100%)',
@@ -623,25 +677,6 @@ export default function GameLayout({
           </div>
         )}
       </div>
-
-      <SoloJokerBar
-        enabled={Boolean(soloJokers?.enabled) && !winner && !isOnline && Boolean(currentQuestion)}
-        usedJokerType={soloJokers?.usedJokerType || null}
-        balances={soloJokers?.balances || null}
-        loading={Boolean(soloJokers?.loading)}
-        pendingType={soloJokers?.pendingType || null}
-        mistakeShieldActive={Boolean(soloJokers?.mistakeShieldActive)}
-        timerFrozen={Boolean(soloJokers?.timerFrozen)}
-        message={soloJokers?.message || ''}
-        error={soloJokers?.error || ''}
-        disabled={Boolean(soloJokers?.disabled) || !isMyTurn || Boolean(feedback) || interactionPaused}
-        tutorialDemoType={soloJokers?.tutorialDemoType || null}
-        tutorialDemoHintActive={Boolean(soloJokers?.tutorialDemoHintActive)}
-        tutorialFocusActive={Boolean(soloJokers?.tutorialFocusActive)}
-        onUseJoker={soloJokers?.onUseJoker}
-      />
-
-
 
       {/* BOTTOM BUTTONS */}
       {isSpectatingQuestion ? (

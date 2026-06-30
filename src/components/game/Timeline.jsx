@@ -6,6 +6,9 @@ import { sounds } from '@/lib/gameSounds';
 // focused sibling component so Timeline's own logic stays untouched.
 import PlacementFeedbackOverlay from './PlacementFeedbackOverlay.jsx';
 
+const SOLO_TIMELINE_CARD_WIDTH_VAR = 'var(--solo-timeline-card-width, 80px)';
+const SOLO_TIMELINE_CARD_HEIGHT_VAR = 'var(--solo-timeline-card-height, 108px)';
+
 function DropZone({ index, isActive, isDragMode, isMagnetic, isBeginnerHint, isGuidedTarget, onSelect, isTimeUp, isEdgePeek }) {
   const showBeginnerHint = Boolean(isBeginnerHint && isDragMode && !isActive && !isTimeUp);
   const showGuidedTarget = Boolean(isGuidedTarget && !isActive && !isTimeUp);
@@ -22,8 +25,10 @@ function DropZone({ index, isActive, isDragMode, isMagnetic, isBeginnerHint, isG
   // 'left' edge slot (before first card) reveals its right portion; 'right'
   // edge slot (after last card) reveals its left portion.
   const peekSide = isEdgePeek === 'right' ? 'right' : 'left';
-  const restingWrapperWidth = showEdgePeek ? 40 : 80;
-  const restingBoxWidth = 72;
+  const restingWrapperWidth = showEdgePeek
+    ? `calc(${SOLO_TIMELINE_CARD_WIDTH_VAR} * 0.5)`
+    : SOLO_TIMELINE_CARD_WIDTH_VAR;
+  const restingBoxWidth = `calc(${SOLO_TIMELINE_CARD_WIDTH_VAR} * 0.9)`;
   // Cyan timeline slot visual contract. Idle/drag-available/hovered states use
   // the unified cyan palette; active-selection (yellow), guided, beginner, and
   // time-up states keep their existing tokens (Health/tutorial depend on them).
@@ -59,7 +64,21 @@ function DropZone({ index, isActive, isDragMode, isMagnetic, isBeginnerHint, isG
     <div
       onClick={() => { if (onSelect) { sounds.tap(); onSelect(index); } }}
       className={`flex-shrink-0 flex flex-col cursor-pointer ${showEdgePeek ? (peekSide === 'right' ? 'items-start' : 'items-end') : 'items-center'} justify-center`}
-      style={{ width: isActive ? 88 : isMagnetic ? 70 : isDragMode ? 56 : showPlusSlot ? restingWrapperWidth : 32, height: 108, position: 'relative', transition: 'width 0.15s ease', overflow: showEdgePeek ? 'hidden' : 'visible' }}
+      style={{
+        width: isActive
+          ? `calc(${SOLO_TIMELINE_CARD_WIDTH_VAR} * 1.1)`
+          : isMagnetic
+            ? `calc(${SOLO_TIMELINE_CARD_WIDTH_VAR} * 0.875)`
+            : isDragMode
+              ? `calc(${SOLO_TIMELINE_CARD_WIDTH_VAR} * 0.7)`
+              : showPlusSlot
+                ? restingWrapperWidth
+                : `calc(${SOLO_TIMELINE_CARD_WIDTH_VAR} * 0.4)`,
+        height: SOLO_TIMELINE_CARD_HEIGHT_VAR,
+        position: 'relative',
+        transition: 'width 0.15s ease',
+        overflow: showEdgePeek ? 'hidden' : 'visible',
+      }}
     >
       <AnimatePresence>
         {isActive && !isTimeUp && (
@@ -83,8 +102,18 @@ function DropZone({ index, isActive, isDragMode, isMagnetic, isBeginnerHint, isG
         transition={(isMagnetic || showBeginnerHint || showGuidedTarget) && !isActive ? { duration: showGuidedTarget ? 1.2 : showBeginnerHint ? 1.15 : 0.7, repeat: Infinity, ease: 'easeInOut' } : {}}
         className="rounded-2xl flex items-center justify-center"
         style={{
-          width: isActive ? 80 : isMagnetic ? 62 : isDragMode ? 48 : showPlusSlot ? restingBoxWidth : 26,
-          height: showPlusSlot && !isActive && !isMagnetic && !isDragMode ? 108 : 100,
+          width: isActive
+            ? SOLO_TIMELINE_CARD_WIDTH_VAR
+            : isMagnetic
+              ? `calc(${SOLO_TIMELINE_CARD_WIDTH_VAR} * 0.775)`
+              : isDragMode
+                ? `calc(${SOLO_TIMELINE_CARD_WIDTH_VAR} * 0.6)`
+                : showPlusSlot
+                  ? restingBoxWidth
+                  : `calc(${SOLO_TIMELINE_CARD_WIDTH_VAR} * 0.325)`,
+          height: showPlusSlot && !isActive && !isMagnetic && !isDragMode
+            ? SOLO_TIMELINE_CARD_HEIGHT_VAR
+            : `calc(${SOLO_TIMELINE_CARD_HEIGHT_VAR} * 0.925)`,
           position: 'relative',
           borderRadius: 16,
           border: isHovered ? `2px solid ${borderColor}` : `2px dashed ${borderColor}`,
@@ -172,7 +201,8 @@ function GhostCard() {
       animate={{ scale: 1, opacity: 1 }}
       className="flex-shrink-0 flex flex-col items-center justify-center rounded-2xl"
       style={{
-        width: 80, height: 108,
+        width: SOLO_TIMELINE_CARD_WIDTH_VAR,
+        height: SOLO_TIMELINE_CARD_HEIGHT_VAR,
         border: '2px dashed #facc15',
         background: 'rgba(250,204,21,0.06)',
         boxShadow: '0 0 20px rgba(250,204,21,0.25)',
@@ -630,7 +660,7 @@ export default function Timeline({
               <div
                 className="absolute left-0 right-0 pointer-events-none"
                 style={{
-                  top: 20 + 54,
+                  top: 'calc(20px + var(--solo-timeline-card-line-offset, 54px))',
                   height: 2,
                   background: isTimeUp
                     ? 'linear-gradient(to right, rgba(239,68,68,0.15), rgba(239,68,68,0.6), rgba(239,68,68,0.15))'

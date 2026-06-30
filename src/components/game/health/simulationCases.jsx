@@ -32,6 +32,7 @@ import appDiagnosticsSource from '../../dev/AppDiagnostics.jsx?raw';
 import gameDebugLogSource from '../GameDebugLog.jsx?raw';
 import gameLayoutSource from '../GameLayout.jsx?raw';
 import questionCardSource from '../QuestionCard.jsx?raw';
+import soloJokerBarSource from '../SoloJokerBar.jsx?raw';
 import timelineSource from '../Timeline.jsx?raw';
 import timelineCardSource from '../TimelineCard.jsx?raw';
 import useGameActionsSource from '../../../hooks/useGameActions.js?raw';
@@ -177,6 +178,7 @@ export const SRC = {
   QuestionCache: questionCacheSource,
   QuestionCard: questionCardSource,
   SettingsPage: settingsPageSource,
+  SoloJokerBar: soloJokerBarSource,
   SoloChallenge: soloChallengeSource,
   StartLobbyGame: startLobbyGameSource,
   TestSuite: testSuiteSource,
@@ -614,6 +616,47 @@ export const TESTS = [
       })
       : pass('Shared QuestionCard applies per-word long-word fitting to both Solo and Online active question cards.', {
         verification: 'STATIC_CONTRACT',
+      });
+  }),
+  makeCase('visual_guardrails', 'solo_joker_right_rail_drag_safe_layout', 'Solo jokers render beside the question card with proportional card/timeline scaling and drag-safe guards', () => {
+    const source = `${SRC.Game}\n${SRC.GameLayout}\n${SRC.SoloJokerBar}\n${SRC.QuestionCard}\n${SRC.Timeline}\n${SRC.TimelineCard}`;
+    const required = [
+      'data-kronox-solo-joker-right-layout',
+      'data-kronox-solo-joker-right-rail',
+      'layout="questionRail"',
+      'gridTemplateColumns',
+      '--solo-active-question-card-width',
+      '--solo-active-question-card-height',
+      '--solo-timeline-card-width',
+      '--solo-timeline-card-height',
+      '--solo-timeline-card-line-offset',
+      'SOLO_JOKER_POST_DRAG_GUARD_MS = 160',
+      'soloJokerDragLocked',
+      'dragLocked',
+      'pointerEvents: dragLocked ? \'none\' : \'auto\'',
+      'scale: [1, 0.90, 1.08, 1]',
+      'duration: 0.26',
+      'scale: [0.75, 1.35]',
+      'opacity: [0.75, 0]',
+      'duration: 0.42',
+      'borderRadius: \'50%\'',
+      'inset: \'-5px\'',
+    ];
+    const forbidden = [
+      '<SoloJokerBar\n        enabled={Boolean(soloJokers?.enabled) && !winner && !isOnline && Boolean(currentQuestion)}\n        usedJokerType={soloJokers?.usedJokerType || null}',
+    ];
+    const missing = missingTokens(source, required);
+    const presentForbidden = forbidden.filter((token) => source.includes(token));
+    return missing.length || presentForbidden.length
+      ? fail('Solo joker right-rail layout/drag-safety contract is incomplete.', {
+        expected: { required, forbidden },
+        actual: { missing, presentForbidden },
+        verification: 'STATIC_CONTRACT',
+        classification: 'REAL_PRODUCT_RISK',
+      })
+      : pass('Solo joker rail, proportional scaling, drag guard, and tap/ring animation contracts are protected.', {
+        verification: 'STATIC_CONTRACT',
+        file: 'GameLayout.jsx / SoloJokerBar.jsx / Game.jsx',
       });
   }),
   sourceLacks('visual_guardrails', 'no_plain_default_buttons_gameplay', 'no plain default button styling in gameplay critical controls', 'GameLayout/QuestionCard/Timeline', `${SRC.GameLayout}\n${SRC.QuestionCard}\n${SRC.Timeline}`, ['<button>Confirm', '<button>Submit']),
