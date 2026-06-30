@@ -231,6 +231,18 @@ export function normalizeJokerBalances(input) {
   return balances;
 }
 
+function normalizeJokerSpendBalances(body, jokerType, fallbackBalances = null) {
+  const hasBalancePayload = Boolean(body?.balances || body?.items);
+  const balances = hasBalancePayload
+    ? normalizeJokerBalances(body?.balances || body?.items)
+    : normalizeJokerBalances(fallbackBalances);
+  const balanceAfter = body?.balanceAfter ?? body?.balance_after ?? body?.inventory?.quantity;
+  if (isKnownJokerType(jokerType) && balanceAfter !== undefined && balanceAfter !== null) {
+    balances[jokerType] = normalizeJokerQuantity(balanceAfter);
+  }
+  return balances;
+}
+
 function unwrapFunctionResponse(response) {
   if (response?.data?.data && typeof response.data.data === 'object') return response.data.data;
   if (response?.data && typeof response.data === 'object') return response.data;
@@ -581,23 +593,25 @@ export async function spendUserJoker(user, options = {}) {
     });
   } catch (error) {
     const body = unwrapInvokeError(error);
+    const cachedBalances = getCachedJokerInventory(email)?.balances;
     invalidateJokerInventoryCache(email);
     return {
       ok: false,
       code: body?.code || 'joker_spend_request_failed',
       error: safeJokerSpendError(error),
       jokerType,
-      balances: normalizeJokerBalances(body?.balances),
+      balances: normalizeJokerSpendBalances(body, jokerType, cachedBalances),
       balanceAfter: normalizeJokerQuantity(body?.balanceAfter),
     };
   }
   const body = unwrapFunctionResponse(response);
+  const cachedBalances = getCachedJokerInventory(email)?.balances;
   const result = {
     ...body,
     ok: body?.ok !== false,
     error: body?.ok === false ? safeJokerSpendError(body) : body?.error,
     jokerType,
-    balances: normalizeJokerBalances(body?.balances),
+    balances: normalizeJokerSpendBalances(body, jokerType, cachedBalances),
     balanceAfter: normalizeJokerQuantity(body?.balanceAfter ?? body?.inventory?.quantity),
   };
   if (result.ok) {

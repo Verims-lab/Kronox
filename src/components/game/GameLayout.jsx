@@ -587,7 +587,10 @@ export default function GameLayout({
               )}
             </motion.div>
             {showSoloQuestionJokerRail && (
-              <div style={{ gridColumn: 3, justifySelf: 'start' }}>
+              <div
+                data-kronox-solo-joker-gutter-center="true"
+                style={{ gridColumn: 3, justifySelf: 'center' }}
+              >
                 <SoloJokerBar
                   enabled={Boolean(soloJokers?.enabled) && !winner && !isOnline && Boolean(currentQuestion)}
                   usedJokerType={soloJokers?.usedJokerType}

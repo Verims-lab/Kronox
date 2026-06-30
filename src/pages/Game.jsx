@@ -11,7 +11,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Clock3, Loader2, Sparkles, WifiOff } from 'lucide-react';
+import { Loader2, WifiOff } from 'lucide-react';
 import { QUESTION_LOAD_ERROR_KIND, useOfflineQuestions } from '@/hooks/useOfflineQuestions';
 import { loadRecentHistory, loadRecentQuestionExposureStats, appendToHistory } from '@/lib/questionHistory';
 import { getTimelineCardCount, getTimelineYears, isCorrectPlacement } from '@/lib/gameRules';
@@ -1749,7 +1749,7 @@ export default function Game() {
     if (timerFreezeTimeoutRef.current) window.clearTimeout(timerFreezeTimeoutRef.current);
     timerFreezeTimeoutRef.current = window.setTimeout(() => {
       clearSoloTimerFreeze(true);
-      setJokerMessage('Zaman Dondur tamamlandı.');
+      setJokerMessage('');
     }, 10000);
   }, [clearSoloTimerFreeze]);
 
@@ -1785,6 +1785,18 @@ export default function Game() {
       return false;
     }
 
+    const setSoloJokerBalancesFromSpendResponse = (response) => {
+      const hasBalancesPayload = Boolean(response && Object.prototype.hasOwnProperty.call(response, 'balances'));
+      const nextBalances = hasBalancesPayload
+        ? normalizeJokerBalances(response?.balances)
+        : normalizeJokerBalances(jokerBalances);
+      const balanceAfter = response?.balanceAfter ?? response?.inventory?.quantity;
+      if (balanceAfter !== undefined && balanceAfter !== null) {
+        nextBalances[inventoryType] = normalizeJokerQuantity(balanceAfter);
+      }
+      setJokerBalances(nextBalances);
+    };
+
     jokerSpendPendingRef.current = true;
     setJokerSpendPendingType(jokerType);
     try {
@@ -1803,11 +1815,11 @@ export default function Game() {
         },
       });
       if (response?.ok === false) {
-        setJokerBalances(normalizeJokerBalances(response?.balances));
+        setSoloJokerBalancesFromSpendResponse(response);
         setJokerError(response?.error || 'Joker kullanılamadı.');
         return false;
       }
-      setJokerBalances(normalizeJokerBalances(response?.balances));
+      setSoloJokerBalancesFromSpendResponse(response);
       setJokerError('');
       return true;
     } catch {
@@ -1868,13 +1880,13 @@ export default function Game() {
       setJokerError('');
       if (jokerType === SOLO_UI_JOKER_TYPES.TIME_FREEZE) {
         markGuidedTutorialJokerDemoUsed();
-        setJokerMessage('Süre 10 saniye durdu.');
+        setJokerMessage('');
         startSoloTimerFreeze();
         return;
       }
       if (jokerType === SOLO_UI_JOKER_TYPES.MISTAKE_SHIELD) {
         markGuidedTutorialJokerDemoUsed();
-        setJokerMessage('Kronokalkan aktif.');
+        setJokerMessage('');
         setMistakeShieldActive(true);
         return;
       }
@@ -1911,7 +1923,7 @@ export default function Game() {
 
         soloJokerDecisionKeyByQuestionIdRef.current.set(String(replacement.id), decisionKey);
         markGuidedTutorialJokerDemoUsed();
-        setJokerMessage('Kart değiştirildi.');
+        setJokerMessage('');
         setSelectedZone(null);
         soloSkippedQuestionIdsRef.current = skippedIds;
         soloReplacementQuestionIdsRef.current.add(String(replacement.id));
@@ -1959,7 +1971,7 @@ export default function Game() {
       if (!spent) return;
       markSoloJokerUsedForDecision(decisionKey, jokerType);
       setMistakeShieldActive(true);
-      setJokerMessage('Kronokalkan aktif: Bir sonraki yanlış yerleştirmede hamle hakkın korunacak.');
+      setJokerMessage('');
       return;
     }
 
@@ -1971,7 +1983,7 @@ export default function Game() {
       const spent = await spendSoloJokerForCurrentCard(jokerType, decisionKey, currentQuestion.id);
       if (!spent) return;
       markSoloJokerUsedForDecision(decisionKey, jokerType);
-      setJokerMessage('Zaman Dondur aktif: Süre 10 sn durduruldu.');
+      setJokerMessage('');
       startSoloTimerFreeze();
       return;
     }
@@ -2008,7 +2020,7 @@ export default function Game() {
       if (!spent) return;
       soloJokerDecisionKeyByQuestionIdRef.current.set(String(replacement.id), decisionKey);
       markSoloJokerUsedForDecision(decisionKey, jokerType);
-      setJokerMessage('Kart Değiştir aktif: Kart değiştirildi.');
+      setJokerMessage('');
       setSelectedZone(null);
       soloSkippedQuestionIdsRef.current = skippedIds;
       soloReplacementQuestionIdsRef.current.add(String(replacement.id));
@@ -2085,7 +2097,7 @@ export default function Game() {
       setSoloCorrectStreak(0);
       if (mistakeShieldActive) {
         setMistakeShieldActive(false);
-        setJokerMessage('Kronokalkan hamle hakkını korudu!');
+        setJokerMessage('');
         setJokerError('');
         return;
       }

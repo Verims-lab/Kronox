@@ -831,6 +831,28 @@ export const EXTRA_TESTS = [
       return pass('Solo spend uses idempotency and positive-balance checks before writing balanceAfter.', { verification: 'STATIC_CONTRACT' });
     }),
 
+  makeCase('solo_spend_reconciles_duplicate_rows_and_badge_balance',
+    'Solo spend repairs duplicate inventory rows and badge balance uses balanceAfter',
+    () => {
+      const combined = `${spendUserJokerSource}\n${jokerInventorySource}\n${gameSource}`;
+      const missing = missingTokens(combined, [
+        'repairDuplicateInventoryRowsAfterSpend',
+        'duplicateSpendBalanceReconciled',
+        'duplicateRowsRepaired',
+        'normalizeJokerSpendBalances',
+        'body?.balanceAfter ?? body?.balance_after ?? body?.inventory?.quantity',
+        'setSoloJokerBalancesFromSpendResponse',
+        'nextBalances[inventoryType] = normalizeJokerQuantity(balanceAfter)',
+        "setCachedJokerBalances(email, result.balances",
+      ]);
+      if (missing.length) return fail('Solo joker spend can still show stale counts from duplicate inventory rows or partial balance payloads.', {
+        verification: 'STATIC_CONTRACT',
+        files: ['base44/functions/spendUserJoker/entry.ts', 'src/lib/jokerInventory.js', 'src/pages/Game.jsx'],
+        missing,
+      });
+      return pass('Post-spend balanceAfter is authoritative for the used joker, cache/UI badge updates immediately, and duplicate inventory rows are reconciled.', { verification: 'STATIC_CONTRACT' });
+    }),
+
   makeCase('joker_inventory_rls_runtime_proof_manual',
     'Two-account joker inventory RLS proof remains manual',
     () => notAutomatable('Runtime proof that users cannot read/mutate other users’ joker balances or ledger rows requires a real two-account Base44 probe.', {

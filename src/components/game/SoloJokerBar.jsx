@@ -66,9 +66,6 @@ export default function SoloJokerBar({
   balances = null,
   loading = false,
   pendingType = null,
-  mistakeShieldActive = false,
-  timerFrozen = false,
-  message = '',
   error = '',
   disabled = false,
   tutorialDemoType = null,
@@ -78,13 +75,6 @@ export default function SoloJokerBar({
   dragLocked = false,
   onUseJoker,
 }) {
-  // Tutorial joker screens must never show completion/status copy
-  // ("Zaman Dondur tamamlandı.", "Kronokalkan aktif.", "Süre donduruldu.",
-  // "Bu kartta joker kullandın.") under the joker buttons. The guided
-  // instruction overlay above the timeline teaches joker use instead. Only
-  // a real error is still surfaced. tutorialDemoType / tutorialFocusActive
-  // are the active tutorial-mode signals already passed by Game.jsx.
-  const tutorialMode = Boolean(tutorialDemoType || tutorialFocusActive);
   const [recentlyUsedType, setRecentlyUsedType] = useState(null);
   const [pressedType, setPressedType] = useState(null);
   const pressedTimerRef = useRef(null);
@@ -255,18 +245,16 @@ export default function SoloJokerBar({
       </div>
 
       <AnimatePresence mode="wait">
-        {(tutorialMode
-          ? Boolean(error)
-          : (message || error || loading || jokerUsedOnCurrentCard || mistakeShieldActive || timerFrozen)) && (
+        {Boolean(error) && (
           <motion.div
-            key={error || message || usedJokerType || String(mistakeShieldActive) || String(timerFrozen)}
+            key={error}
             initial={{ opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.16 }}
             className="mt-1.5 text-center font-inter text-[10px] font-semibold"
             style={{
-              color: error ? '#fca5a5' : '#fde68a',
+              color: '#fca5a5',
               ...(isQuestionRail ? {
                 position: 'absolute',
                 right: 0,
@@ -277,13 +265,7 @@ export default function SoloJokerBar({
               } : null),
             }}
           >
-            {error || message || (mistakeShieldActive
-              ? 'Kronokalkan aktif.'
-              : timerFrozen
-                ? 'Süre donduruldu.'
-                : loading
-                  ? 'Joker Çantası hazırlanıyor.'
-                  : 'Bu kartta joker kullandın.')}
+            {error}
           </motion.div>
         )}
       </AnimatePresence>
