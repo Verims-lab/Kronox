@@ -60,13 +60,15 @@ function safePublicUsername(value: unknown, fallbackSeed: unknown) {
 
 // Trusted base domain for app deep links. The client may NOT redirect this
 // to an arbitrary host: appUrl is only honored when it resolves to the
-// official Kronox domain (or an allowed *.base44.app host). Anything else
-// is rejected so notification emails can never carry a phishing link.
+// official Kronox domain. Anything else — including any other *.base44.app
+// subdomain — is rejected so notification emails can never carry a
+// phishing link (CWE-601 open redirect).
 const KRONOX_DEFAULT_APP_URL = 'https://kronox.base44.app';
+const KRONOX_TRUSTED_APP_HOSTS = ['kronox.base44.app'];
 
 function isTrustedAppHost(hostname: string) {
   const host = String(hostname || '').trim().toLowerCase();
-  return host === 'kronox.base44.app' || host.endsWith('.base44.app');
+  return KRONOX_TRUSTED_APP_HOSTS.includes(host);
 }
 
 function sanitizeAppUrl(raw: unknown) {
