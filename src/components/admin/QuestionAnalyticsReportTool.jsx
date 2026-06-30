@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { BarChart3, Loader2 } from 'lucide-react';
+import { AlertTriangle, BarChart3, Loader2, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
 import KronoxSelectSheet from '@/components/mobile/KronoxSelectSheet';
+import AdminCollapsibleSection from '@/components/admin/AdminCollapsibleSection';
 
 const PERIOD_OPTIONS = [
   { value: 7, label: 'Son 7 gün' },
@@ -153,16 +154,23 @@ export default function QuestionAnalyticsReportTool() {
   };
 
   return (
-    <div className="rounded-2xl border border-border/40 bg-secondary/20 p-4">
-      <div className="flex items-start gap-3">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <BarChart3 className="h-4 w-4" />}
-        </div>
-        <div className="min-w-0 flex-1 space-y-3">
-          <div>
-            <p className="font-inter text-sm font-semibold text-foreground">Soru Analiz Raporu Gönder</p>
-            <p className="font-inter text-xs text-muted-foreground">Admin e-postana soru gösterim/başarı özetini gönderir.</p>
-          </div>
+    <AdminCollapsibleSection
+      title="Soru Analiz Raporu Gönder"
+      description="Rapor gönderimi ve soru analitiği bakım kapsamı."
+      icon={loading ? <Loader2 className="animate-spin" /> : <BarChart3 />}
+      summary="Kapalı"
+      defaultOpen={false}
+      data-admin-question-analytics-top-level
+    >
+      <div className="space-y-3" data-admin-question-analytics-nested-groups>
+        <AdminCollapsibleSection
+          title="Rapor Hazırla ve Gönder"
+          description="Dönemi seç, admin e-postana raporu gönder."
+          icon={<Send />}
+          summary="Açık"
+          defaultOpen
+          bodyClassName="space-y-3"
+        >
           <div className="flex items-center gap-2">
             <KronoxSelectSheet
               label="Rapor dönemi"
@@ -183,9 +191,28 @@ export default function QuestionAnalyticsReportTool() {
               {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Gönder'}
             </Button>
           </div>
-          <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 p-3">
-            <p className="mb-2 font-inter text-xs font-semibold text-amber-100">Soru Analitik Verilerini Sıfırla</p>
-            <div className="space-y-3 font-inter text-xs leading-5 text-amber-100/85">
+          {message && (
+            <p className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 font-inter text-xs font-semibold text-emerald-100">
+              {message}
+            </p>
+          )}
+          {error && (
+            <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 font-inter text-xs font-semibold text-red-100">
+              {error}
+            </p>
+          )}
+        </AdminCollapsibleSection>
+
+        <AdminCollapsibleSection
+          title="Soru Analitik Verilerini Sıfırla"
+          description="Manuel DB bakım kapsamını gösterir; açmak işlem çalıştırmaz."
+          icon={<AlertTriangle />}
+          summary="Bakım"
+          tone="warning"
+          defaultOpen={false}
+          bodyClassName="space-y-3 font-inter text-xs leading-5 text-amber-100/85"
+          data-admin-question-analytics-reset-group
+        >
               <p>
                 Bu işlem yalnızca soru analitiği raporlarını sıfırlar. Function reset yolu devre dışıdır; reset şu anda manuel DB bakımıdır. Oyun ilerlemesi, ekonomi kayıtları, kullanıcı profilleri ve soru havuzu silinmez.
               </p>
@@ -222,20 +249,8 @@ export default function QuestionAnalyticsReportTool() {
                   ))}
                 </ul>
               </div>
-            </div>
-          </div>
-          {message && (
-            <p className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 font-inter text-xs font-semibold text-emerald-100">
-              {message}
-            </p>
-          )}
-          {error && (
-            <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 font-inter text-xs font-semibold text-red-100">
-              {error}
-            </p>
-          )}
-        </div>
+        </AdminCollapsibleSection>
       </div>
-    </div>
+    </AdminCollapsibleSection>
   );
 }

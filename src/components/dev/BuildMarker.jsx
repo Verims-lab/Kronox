@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex507 — Admin screen collapsible operations cleanup:
+//   • Major Admin Ekranı operations now use a shared collapsed-by-default section pattern so reports, cleanup, reset, and test Diamond grant do not fill the first viewport.
+//   • Soru Analiz Raporu keeps report sending separate from the destructive/manual analytics reset details: report group opens when the section opens, reset group stays closed.
+//   • Kullanıcı Raporu now lazy-loads on expansion and shows compact grouped stats with lightweight CSS bars; admin server-side gates and destructive confirmations stay unchanged.
+//
 // Codex506 — Admin test Diamond grant by Kronox ID:
 //   • Admin Ekranı adds Test Elmas Yükleme for active AdminUser roles only, using immutable kronox_user_id instead of email/provider/raw guest identifiers.
 //   • adminGrantDiamonds resolves User/GuestProfile server-side, validates 100/300/500/1000 amounts, writes admin_adjustment DiamondTransaction rows, and updates only diamonds.
@@ -197,7 +202,7 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps Home reward panels visible from a short-lived cache while revalidating and memoizes question text fit tokens.
 //
 
-const BUILD_MARKER = 'Codex506';
+const BUILD_MARKER = 'Codex507';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
