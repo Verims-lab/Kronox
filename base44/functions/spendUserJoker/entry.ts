@@ -343,6 +343,14 @@ Deno.serve(async (req: Request) => {
 
     const existingTransaction = await findTransaction(base44, email, jokerType, idempotencyKey);
     if (existingTransaction) {
+      const balanceAfter = normalizeQuantity(existingTransaction.balance_after);
+      const duplicateRowsRepaired = await repairDuplicateInventoryRowsAfterSpend(
+        base44,
+        email,
+        jokerType,
+        balanceAfter,
+        rowId(existingTransaction),
+      );
       return json({
         ok: true,
         alreadyApplied: true,
@@ -353,8 +361,9 @@ Deno.serve(async (req: Request) => {
         source: SOLO_SOURCE,
         idempotencyKey,
         transactionId: rowId(existingTransaction),
-        balanceAfter: normalizeQuantity(existingTransaction.balance_after),
+        balanceAfter,
         balances: await readBalances(base44, email),
+        duplicateRowsRepaired,
       });
     }
 
@@ -385,6 +394,14 @@ Deno.serve(async (req: Request) => {
 
     const secondExistingTransaction = await findTransaction(base44, email, jokerType, idempotencyKey);
     if (secondExistingTransaction) {
+      const balanceAfter = normalizeQuantity(secondExistingTransaction.balance_after);
+      const duplicateRowsRepaired = await repairDuplicateInventoryRowsAfterSpend(
+        base44,
+        email,
+        jokerType,
+        balanceAfter,
+        rowId(secondExistingTransaction),
+      );
       return json({
         ok: true,
         alreadyApplied: true,
@@ -395,8 +412,9 @@ Deno.serve(async (req: Request) => {
         source: SOLO_SOURCE,
         idempotencyKey,
         transactionId: rowId(secondExistingTransaction),
-        balanceAfter: normalizeQuantity(secondExistingTransaction.balance_after),
+        balanceAfter,
         balances: await readBalances(base44, email),
+        duplicateRowsRepaired,
       });
     }
 

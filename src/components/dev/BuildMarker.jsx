@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex503 — Solo joker inventory audit:
+//   • Solo spend responses now merge partial backend balance payloads into the current real inventory object, so untouched joker counts are never zeroed as a disabled-state shortcut.
+//   • Normal Solo selected-joker count still uses server balanceAfter as authoritative; other joker badges preserve their real counts after Kronokalkan, Kart Değiştir, and Zaman Dondur.
+//   • Failed spend responses no longer synthesize a missing backend balanceAfter into zero, avoiding false badge drops after transient request errors.
+//   • spendUserJoker also reconciles duplicate inventory rows on already-applied/idempotent retry responses, keeping refresh/reopen counts aligned.
+//   • Health now guards partial-payload merge behavior, duplicate-row repair, and UI badge preservation.
+//
 // Codex502 — Health blocker fixes (KRONOX-MR0KZQBY):
 //   • App-shell presence heartbeat now calls usePresenceHeartbeat with inline nonCriticalModulesEnabled gates, so Home first render stays ahead of presence startup and Health scans the live contract.
 //   • Solo move Health now protects Kronokalkan move preservation without requiring the removed visible joker success/status overlay text.

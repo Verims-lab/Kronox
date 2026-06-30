@@ -99,6 +99,11 @@ export function normalizeJokerQuantity(value) {
   return Math.max(JOKER_NON_NEGATIVE_BALANCE_CONTRACT["minimum"], Math.floor(numeric));
 }
 
+function normalizeOptionalJokerQuantity(value) {
+  if (value === undefined || value === null) return undefined;
+  return normalizeJokerQuantity(value);
+}
+
 export function emptyJokerBalances(fill = 0) {
   return JOKER_DEFINITIONS.reduce((acc, joker) => {
     acc[joker.type] = normalizeJokerQuantity(fill);
@@ -231,16 +236,50 @@ export function normalizeJokerBalances(input) {
   return balances;
 }
 
+function jokerTypesInBalanceInput(input) {
+  if (Array.isArray(input)) {
+    return Array.from(new Set(input
+      .map((row) => row?.joker_type || row?.jokerType || row?.type)
+      .filter((type) => isKnownJokerType(type))));
+  }
+  if (input && typeof input === 'object') {
+    return JOKER_DEFINITIONS
+      .map((joker) => joker.type)
+      .filter((type) => Object.prototype.hasOwnProperty.call(input, type));
+  }
+  return [];
+}
+
+export function mergeJokerBalances(baseBalances, incomingBalances) {
+  const balances = normalizeJokerBalances(baseBalances);
+  const nextBalances = normalizeJokerBalances(incomingBalances);
+  jokerTypesInBalanceInput(incomingBalances).forEach((type) => {
+    balances[type] = nextBalances[type];
+  });
+  return balances;
+}
+
 function normalizeJokerSpendBalances(body, jokerType, fallbackBalances = null) {
-  const hasBalancePayload = Boolean(body?.balances || body?.items);
-  const balances = hasBalancePayload
-    ? normalizeJokerBalances(body?.balances || body?.items)
-    : normalizeJokerBalances(fallbackBalances);
+  let balances = normalizeJokerBalances(fallbackBalances);
+  balances = mergeJokerBalances(balances, body?.balances);
+  balances = mergeJokerBalances(balances, body?.items);
   const balanceAfter = body?.balanceAfter ?? body?.balance_after ?? body?.inventory?.quantity;
   if (isKnownJokerType(jokerType) && balanceAfter !== undefined && balanceAfter !== null) {
     balances[jokerType] = normalizeJokerQuantity(balanceAfter);
   }
   return balances;
+}
+
+function jokerSpendBalancePayloadTypes(body, jokerType) {
+  const types = new Set([
+    ...jokerTypesInBalanceInput(body?.balances),
+    ...jokerTypesInBalanceInput(body?.items),
+  ]);
+  const balanceAfter = body?.balanceAfter ?? body?.balance_after ?? body?.inventory?.quantity;
+  if (isKnownJokerType(jokerType) && balanceAfter !== undefined && balanceAfter !== null) {
+    types.add(jokerType);
+  }
+  return Array.from(types);
 }
 
 function unwrapFunctionResponse(response) {
@@ -594,6 +633,8 @@ export async function spendUserJoker(user, options = {}) {
   } catch (error) {
     const body = unwrapInvokeError(error);
     const cachedBalances = getCachedJokerInventory(email)?.balances;
+    const balancePayloadTypes = jokerSpendBalancePayloadTypes(body, jokerType);
+    const balanceAfter = body?.balanceAfter ?? body?.balance_after ?? body?.inventory?.quantity;
     invalidateJokerInventoryCache(email);
     return {
       ok: false,
@@ -601,24 +642,32 @@ export async function spendUserJoker(user, options = {}) {
       error: safeJokerSpendError(error),
       jokerType,
       balances: normalizeJokerSpendBalances(body, jokerType, cachedBalances),
-      balanceAfter: normalizeJokerQuantity(body?.balanceAfter),
+      balancePayloadTypes,
+      balanceAfter: normalizeOptionalJokerQuantity(balanceAfter),
     };
   }
   const body = unwrapFunctionResponse(response);
   const cachedBalances = getCachedJokerInventory(email)?.balances;
+  const balancePayloadTypes = jokerSpendBalancePayloadTypes(body, jokerType);
+  const balanceAfter = body?.balanceAfter ?? body?.balance_after ?? body?.inventory?.quantity;
   const result = {
     ...body,
     ok: body?.ok !== false,
     error: body?.ok === false ? safeJokerSpendError(body) : body?.error,
     jokerType,
     balances: normalizeJokerSpendBalances(body, jokerType, cachedBalances),
-    balanceAfter: normalizeJokerQuantity(body?.balanceAfter ?? body?.inventory?.quantity),
+    balancePayloadTypes,
+    balanceAfter: normalizeOptionalJokerQuantity(balanceAfter),
   };
   if (result.ok) {
-    setCachedJokerBalances(email, result.balances, {
-      queryPath: 'spendUserJoker.mutation_result',
-      invalidatedBy: 'solo_spend',
-    });
+    if (cachedBalances || balancePayloadTypes.length === JOKER_DEFINITIONS.length) {
+      setCachedJokerBalances(email, result.balances, {
+        queryPath: 'spendUserJoker.mutation_result',
+        invalidatedBy: 'solo_spend',
+      });
+    } else {
+      invalidateJokerInventoryCache(email);
+    }
   } else {
     invalidateJokerInventoryCache(email);
   }

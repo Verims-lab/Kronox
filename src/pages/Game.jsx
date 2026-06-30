@@ -75,6 +75,8 @@ import {
   buildSoloJokerUseIdempotencyKey,
   emptyJokerBalances,
   getUserJokerBalances,
+  isKnownJokerType,
+  mergeJokerBalances,
   normalizeJokerBalances,
   normalizeJokerQuantity,
   soloUiJokerTypeToInventoryType,
@@ -1786,10 +1788,19 @@ export default function Game() {
     }
 
     const setSoloJokerBalancesFromSpendResponse = (response) => {
-      const hasBalancesPayload = Boolean(response && Object.prototype.hasOwnProperty.call(response, 'balances'));
-      const nextBalances = hasBalancesPayload
-        ? normalizeJokerBalances(response?.balances)
-        : normalizeJokerBalances(jokerBalances);
+      let nextBalances = normalizeJokerBalances(jokerBalances);
+      const balancePayloadTypes = Array.isArray(response?.balancePayloadTypes)
+        ? Array.from(new Set(response.balancePayloadTypes.filter((type) => isKnownJokerType(type))))
+        : null;
+      if (balancePayloadTypes) {
+        const responseBalances = normalizeJokerBalances(response?.balances);
+        balancePayloadTypes.forEach((type) => {
+          nextBalances[type] = responseBalances[type];
+        });
+      } else {
+        nextBalances = mergeJokerBalances(nextBalances, response?.balances);
+      }
+      nextBalances = mergeJokerBalances(nextBalances, response?.items);
       const balanceAfter = response?.balanceAfter ?? response?.inventory?.quantity;
       if (balanceAfter !== undefined && balanceAfter !== null) {
         nextBalances[inventoryType] = normalizeJokerQuantity(balanceAfter);
