@@ -12,7 +12,7 @@ import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import BottomNav from '@/components/layout/BottomNav';
 import SplashScreen from '@/components/SplashScreen';
 import { NavigationStackProvider } from '@/lib/NavigationStackContext';
-import BuildMarker from '@/components/dev/BuildMarker';
+import BuildMarker, { KRONOX_BUILD_MARKER } from '@/components/dev/BuildMarker';
 import AppDiagnostics from '@/components/dev/AppDiagnostics';
 import AppErrorBoundary from '@/components/dev/AppErrorBoundary';
 import { appDiagSetBuildMarker, pushAppDiag } from '@/lib/appDiagBus';
@@ -274,7 +274,7 @@ const AuthenticatedApp = () => {
 function App() {
   // Codex498 — push current build marker into diag bus once at app boot
   useEffect(() => {
-    appDiagSetBuildMarker('Codex500');
+    appDiagSetBuildMarker(KRONOX_BUILD_MARKER);
     // Codex176 — App booted successfully, so any prior stale-chunk reload
     // recovered. Clear the one-time reload guards so a future deploy can
     // self-heal again.

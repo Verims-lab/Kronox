@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex505 — Health blocker correction:
+//   • The executable BUILD_MARKER constant is bumped in the real source used by Health/buildChecker; comments alone do not count.
+//   • App diagnostics now reads KRONOX_BUILD_MARKER instead of a stale hardcoded Codex500 value.
+//   • Current startup, Solo move, and Base44 SDK Health blockers are verified against live source contracts after syncing origin/main into Codex.
+//
 // Codex504 — Solo Kronokalkan active visual state:
 //   • The real Solo mistakeShieldActive state now drives a blue/cyan active glow on the Kronokalkan button while the shield is armed.
 //   • The active Solo question card switches its yellow/gold border and glow to Kronokalkan blue while the shield is active, without changing layout or hit-testing.
@@ -187,7 +192,7 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps Home reward panels visible from a short-lived cache while revalidating and memoizes question text fit tokens.
 //
 
-const BUILD_MARKER = 'Codex500';
+const BUILD_MARKER = 'Codex505';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
