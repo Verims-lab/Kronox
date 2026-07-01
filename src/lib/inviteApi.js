@@ -231,23 +231,19 @@ export async function createGameInvites({ host, lobby, toEmails, inviteTargets, 
   if (!fromEmail) throw new Error('Önce giriş yapmalısın.');
   if (!lobby?.id) throw new Error('Lobi eksik.');
 
-  const targetRefs = normalizeInviteTargets(inviteTargets);
-  if (targetRefs.length) {
+  const unique = normalizeInviteTargets(inviteTargets);
+  if (unique.length) {
     const response = await base44.functions.invoke('createGameInvitesForTargets', {
       lobby_id: lobby.id,
-      target_refs: targetRefs,
+      target_refs: unique,
       player_count: typeof playerCount === 'number' ? playerCount : undefined,
     });
     const data = response?.data || {};
     if (data?.error) throw new Error(data.error);
     const push = await pushCreatedInvites(data.invites || []);
-    return {
-      created: Number(data.created || 0),
-      failed: Array.isArray(data.failed) ? data.failed : [],
-      attempted: Number(data.attempted || targetRefs.length),
-      push,
-      privacy: data.privacy || { targetEmailReturned: false },
-    };
+    const created = Number(data.created || 0);
+    const failed = Array.isArray(data.failed) ? data.failed : [];
+    return { created, failed, attempted: unique.length, push };
   }
 
   const legacyEmailTargets = Array.from(new Set(

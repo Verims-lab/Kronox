@@ -372,6 +372,7 @@ export const getOnlinePlayerSelectionFnSource = `
 `;
 
 export const createGameInvitesForTargetsFnSource = `
+  const GAME_INVITE_TTL_MS = 10 * 60 * 1000;
   const user = await base44.auth.me();
   if (!user?.email) return json({ ok: false, error: 'Unauthorized' }, 401);
   const targetRefs = normalizeTargetRefs(body?.target_refs || body?.invite_targets || body?.targets);
@@ -381,9 +382,14 @@ export const createGameInvitesForTargetsFnSource = `
   const freshPresence = (presenceRows || []).find((row) => isOnlinePresence(row, nowMs));
   const email = normalizeEmail(freshPresence.user_email || freshPresence.backend_recipient_email);
   if (!email || email === myEmail) return { ok: false, targetRef, code: 'target_not_routable' };
+  const createdAt = new Date();
+  const expiresAt = new Date(createdAt.getTime() + GAME_INVITE_TTL_MS);
   const invite = existing?.[0] || await base44.asServiceRole.entities.GameInvite.create({
     to_email: target.email,
     to_name: target.username,
+    status: 'pending',
+    created_at: createdAt.toISOString(),
+    expires_at: expiresAt.toISOString(),
     invite_target_ref: target.targetRef,
     recipient_relation: target.relation,
     created_source: 'online_player_selection',

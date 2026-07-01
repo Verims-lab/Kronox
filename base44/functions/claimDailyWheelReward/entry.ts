@@ -406,12 +406,12 @@ async function createDiamondTransaction(base44: any, payload: Record<string, unk
 }
 
 async function createDailyWheelSpin(base44: any, payload: Record<string, unknown>) {
-  const entity = base44.asServiceRole.entities.DailyWheelSpin;
-  if (!entity?.create) {
+  const DailyWheelSpin = base44.asServiceRole.entities.DailyWheelSpin;
+  if (!DailyWheelSpin?.create) {
     return { row: null, error: 'daily_wheel_spin_entity_unavailable', recoveredExisting: false };
   }
   try {
-    const row = await entity.create(payload);
+    const row = await DailyWheelSpin.create(payload);
     const postCreateCanonicalSpin = await findSpin(
       base44,
       String(payload.user_email || ''),

@@ -827,12 +827,12 @@ function buildPublicLinkedUserProjection(user: any, patch: Record<string, unknow
 }
 
 async function mergeDailyWheelHistoryRows(base44: any, email: string, guestId: string) {
-  const entity = base44?.asServiceRole?.entities?.DailyWheelSpin;
-  if (!entity?.filter || !entity?.create) return { merged: 0, skipped: 0 };
+  const DailyWheelSpin = base44?.asServiceRole?.entities?.DailyWheelSpin;
+  if (!DailyWheelSpin?.filter || !DailyWheelSpin?.create) return { merged: 0, skipped: 0 };
   const guestOwnerKey = getGuestOwnerKey(guestId);
   const authOwnerKey = getAuthOwnerKey(email);
   const guestPlayerKey = guestPlayerKeyFromGuestId(guestId);
-  const rows = await findRows(entity, { user_email: guestPlayerKey }, '-claimed_at', 120);
+  const rows = await findRows(DailyWheelSpin, { user_email: guestPlayerKey }, '-claimed_at', 120);
   let merged = 0;
   let skipped = 0;
   for (const row of rows) {
@@ -842,14 +842,14 @@ async function mergeDailyWheelHistoryRows(base44: any, email: string, guestId: s
       continue;
     }
     const idempotencyKey = `daily_wheel:${email}:${spinDate}`;
-    const existing = (await findRows(entity, { user_email: email, idempotency_key: idempotencyKey }, '-claimed_at', 1))[0] ||
-      (await findRows(entity, { user_email: email, spin_date: spinDate }, '-claimed_at', 1))[0] ||
+    const existing = (await findRows(DailyWheelSpin, { user_email: email, idempotency_key: idempotencyKey }, '-claimed_at', 1))[0] ||
+      (await findRows(DailyWheelSpin, { user_email: email, spin_date: spinDate }, '-claimed_at', 1))[0] ||
       null;
     if (rowId(existing)) {
       skipped += 1;
       continue;
     }
-    await entity.create({
+    await DailyWheelSpin.create({
       user_email: email,
       owner_key: authOwnerKey,
       player_type: 'registered',

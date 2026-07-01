@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex513 — Health blocker fixes:
+//   • GameInvite creation Health now scans the backend-owned createGameInvitesForTargets contract for the 10-minute pending/expires_at runtime path.
+//   • createGameInvites returns the exact best-effort push summary shape after invoking sendGameInvitePush without blocking invite creation.
+//   • DailyWheelSpin backend create paths now call DailyWheelSpin.create through explicit service-role handles so the auth-scoped create contract is visible.
+//
 // Codex512 — Security hardening:
 //   • VAPID push diagnostics now expose only safe configured/valid booleans plus counts; private key material remains backend-env-only and never logged/returned.
 //   • DailyWheelSpin, GameInvite, and FriendRequest RLS create rules are admin/service-role only; invite/friend/wheel creation is backend-function owned.
@@ -71,7 +76,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex512';
+const BUILD_MARKER = 'Codex513';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
