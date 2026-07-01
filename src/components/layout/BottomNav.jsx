@@ -128,7 +128,7 @@ export default function BottomNav() {
               }}
             />
             <span
-              className="font-inter text-[11px] transition-colors"
+              className="font-inter text-[12px] transition-colors"
               style={{ color: isActive ? '#FFC928' : '#9BAEC2', fontWeight: isActive ? 700 : 500 }}
             >
               {label}

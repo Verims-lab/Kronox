@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, Clock3, ScrollText, Swords, TimerReset, X } from 'lucide-react';
+import { ChevronRight, Crosshair, ScrollText, Swords, TimerReset, X } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
 import { useAuth } from '@/lib/AuthContext';
@@ -205,13 +205,12 @@ export default function MainMenu() {
             </div>
           </div>
 
-          <div className="flex w-full flex-col gap-3">
+          <div className="flex w-full flex-col" style={{ gap: 14, marginBottom: 4 }}>
             <HomeCTA
-              icon={Clock3}
+              icon={Crosshair}
               label="SOLO MEYDAN OKUMA"
               onClick={handleSolo}
               ariaLabel="Solo Meydan Okuma"
-              primary
             />
             <HomeCTA
               icon={Swords}
@@ -337,38 +336,40 @@ function HomeTimeArtifact() {
   );
 }
 
-function HomeCTA({ icon: Icon, label, onClick, ariaLabel, primary = false }) {
+function HomeCTA({ icon: Icon, label, onClick, ariaLabel }) {
+  // Both CTAs share one identical premium-gold family (Screenshot 2 target):
+  // fixed 74px height, 22px radius, strong yellow gradient, deep tactile
+  // shadow, left icon zone → vertical divider → bold condensed italic text →
+  // right chevron near the edge.
   return (
     <motion.button
       type="button"
       onClick={onClick}
       whileTap={{ y: 2, scale: 0.985 }}
       transition={{ type: 'spring', stiffness: 620, damping: 26, mass: 0.7 }}
-      className="relative flex w-full items-center text-amber-950"
+      className="relative flex w-full items-center"
       style={{
         appearance: 'none',
-        height: 'clamp(56px, 9dvh, 70px)',
-        padding: '0 1rem 0 1.05rem',
-        borderRadius: 18,
-        border: primary ? '1px solid rgba(255, 227, 109, 0.78)' : '1px solid rgba(255, 201, 40, 0.52)',
-        background: primary
-          ? 'linear-gradient(180deg, #FFE36D 0%, #FFC928 52%, #E4A600 100%)'
-          : 'linear-gradient(180deg, #FFD955 0%, #F4BD12 56%, #C98C05 100%)',
-        boxShadow: primary
-          ? '0 7px 0 #A97400, 0 12px 24px rgba(0, 0, 0, 0.26), 0 0 16px rgba(255, 201, 40, 0.20), inset 0 1px 0 rgba(255,255,255,0.62)'
-          : '0 5px 0 #8D6200, 0 10px 20px rgba(0, 0, 0, 0.24), 0 0 10px rgba(255, 201, 40, 0.12), inset 0 1px 0 rgba(255,255,255,0.48)',
+        height: 74,
+        padding: '0 1.1rem 0 1.15rem',
+        borderRadius: 22,
+        border: '1px solid rgba(255, 227, 109, 0.78)',
+        background: 'linear-gradient(180deg, #FFE36D 0%, #FFC928 52%, #E4A600 100%)',
+        boxShadow: '0 7px 0 #A97400, 0 12px 24px rgba(0, 0, 0, 0.26), 0 0 16px rgba(255, 201, 40, 0.20), inset 0 1px 0 rgba(255,255,255,0.62)',
         color: '#101827',
         touchAction: 'manipulation',
       }}
       aria-label={ariaLabel}
     >
-      <Icon className="h-6 w-6 shrink-0" strokeWidth={2.5} />
+      <span className="grid shrink-0 place-items-center" style={{ width: 40 }}>
+        <Icon className="h-7 w-7" strokeWidth={2.5} style={{ color: '#101827' }} />
+      </span>
       <span
         aria-hidden="true"
-        className="mx-3 shrink-0"
+        className="mr-3.5 shrink-0"
         style={{
           width: 1.5,
-          height: '54%',
+          height: 34,
           background: 'rgba(16, 24, 39, 0.42)',
           borderRadius: 1,
         }}
@@ -377,16 +378,17 @@ function HomeCTA({ icon: Icon, label, onClick, ariaLabel, primary = false }) {
         className="min-w-0 flex-1 truncate text-left"
         style={{
           fontFamily: "'Barlow Condensed', var(--font-inter)",
-          fontSize: 22,
+          fontSize: 26,
           lineHeight: 1,
           fontStyle: 'italic',
           fontWeight: 800,
-          letterSpacing: '0',
+          letterSpacing: '0.02em',
+          color: '#101827',
         }}
       >
         {label}
       </span>
-      <ChevronRight className="h-6 w-6 shrink-0" strokeWidth={2.7} />
+      <ChevronRight className="h-7 w-7 shrink-0" strokeWidth={2.7} style={{ color: '#101827' }} />
     </motion.button>
   );
 }

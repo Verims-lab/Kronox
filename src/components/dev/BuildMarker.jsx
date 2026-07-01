@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex519 — Home CTA buttons + global BottomNav visual polish:
+//   • Home Solo/Online CTAs rebuilt to the Screenshot 2 target as one identical premium-gold family: fixed 74px height, 22px radius, gradient linear-gradient(180deg,#FFE36D,#FFC928 52%,#E4A600), deep tactile shadow (0 7px 0 #A97400 + drop + gold glow), left 40px icon zone → 1.5px vertical divider → Barlow Condensed italic 800 / 26px / #101827 left-aligned text → right chevron. Solo icon is now a crosshair/target, Online stays crossed swords. Gap 14px. Solo→/solo and Online→/lobby (guest redirect) navigation unchanged; Online stays Home CTA-owned, not a BottomNav tab.
+//   • Global BottomNav inactive label bumped 11px→12px to match the spec; surface (rgba(10,26,53,0.76)+blur14, gold #FFC928 active with top indicator/glow, muted #9BAEC2 inactive, 3 tabs Ana Sayfa/Liderlik/Profil) already matched Screenshot 3 and is unchanged.
+//   • Top header, logo, hourglass, Görevler/Çark, routing, and all backend logic unchanged.
+//
 // Codex518 — Home middle-section redesign to match target (Image B):
 //   • Görevler (left) / Hourglass (center) / Çark (right) kept as a 3-part row; side columns widened to 5rem for balanced symmetry around the dominant transparent hourglass. The hourglass stays fully transparent over the Home background (no card/panel/plate) — unchanged behavior.
 //   • Shortcut shells now use the exact spec: 44px circle, linear-gradient(160deg,#102A4A,#071A33), 1px rgba(85,216,255,0.42) border; Görevler icon #55D8FF, Çark icon #FFC928. Labels uppercase GÖREVLER/ÇARK in Inter 600 / 11px / #F4F7FB.
@@ -102,7 +107,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex518';
+const BUILD_MARKER = 'Codex519';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
