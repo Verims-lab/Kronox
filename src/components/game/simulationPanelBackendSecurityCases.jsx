@@ -9,8 +9,16 @@ import purchaseJokerWithDiamondsSource from '../../../base44/functions/purchaseJ
 import recordDailyQuestProgressSource from '../../../base44/functions/recordDailyQuestProgress/entry.ts?raw';
 import claimDailyQuestRewardSource from '../../../base44/functions/claimDailyQuestReward/entry.ts?raw';
 import sendGameInvitePushSource from '../../../base44/functions/sendGameInvitePush/entry.ts?raw';
+import claimDailyWheelRewardSource from '../../../base44/functions/claimDailyWheelReward/entry.ts?raw';
+import createGameInvitesForTargetsSource from '../../../base44/functions/createGameInvitesForTargets/entry.ts?raw';
+import linkGuestAccountSource from '../../../base44/functions/linkGuestAccount/entry.ts?raw';
+import sendFriendRequestSource from '../../../base44/functions/sendFriendRequest/entry.ts?raw';
 import questionEntitySource from '../../../base44/entities/Question.jsonc?raw';
+import dailyWheelSpinEntitySource from '../../../base44/entities/DailyWheelSpin.jsonc?raw';
+import gameInviteEntitySource from '../../../base44/entities/GameInvite.jsonc?raw';
+import friendRequestEntitySource from '../../../base44/entities/FriendRequest.jsonc?raw';
 import useOfflineQuestionsSource from '../../hooks/useOfflineQuestions.js?raw';
+import inviteApiSource from '../../lib/inviteApi.js?raw';
 import notificationApiSource from '../../lib/notificationApi.js?raw';
 import adminPageSource from '../../pages/AdminPage.jsx?raw';
 
@@ -53,6 +61,38 @@ function missingTokens(source, tokens) {
 
 function presentTokens(source, tokens) {
   return tokens.filter((token) => String(source || '').includes(token));
+}
+
+function extractJsonObjectAfterKey(source, key) {
+  const text = String(source || '');
+  const keyIndex = text.indexOf(`"${key}"`);
+  if (keyIndex < 0) return '';
+  const start = text.indexOf('{', keyIndex);
+  if (start < 0) return '';
+  let depth = 0;
+  for (let i = start; i < text.length; i += 1) {
+    const char = text[i];
+    if (char === '{') depth += 1;
+    if (char === '}') {
+      depth -= 1;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  return '';
+}
+
+function auditAdminOnlyCreateRule(source, entityName, forbiddenTokens) {
+  const createBlock = extractJsonObjectAfterKey(source, 'create');
+  const missing = [];
+  const forbidden = [];
+  if (!String(source || '').includes(`"name": "${entityName}"`)) missing.push(`name=${entityName}`);
+  if (!createBlock.includes('"user_condition"') || !createBlock.includes('"role": "admin"')) {
+    missing.push('create.user_condition.role=admin');
+  }
+  for (const token of forbiddenTokens) {
+    if (createBlock.includes(token)) forbidden.push(token);
+  }
+  return { ok: missing.length === 0 && forbidden.length === 0, missing, forbidden };
 }
 
 export const EXTRA_SUITES = [
@@ -216,6 +256,8 @@ export const EXTRA_TESTS = [
         'pushSent: false',
         'pushSkipped: true',
         'missingConfig: true',
+        'vapidConfigured',
+        'vapidConfigValid',
         'isValidVapidSubject',
         'isLikelyVapidKey',
         'summarizeVapidConfigState',
@@ -257,6 +299,84 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('sendGameInvitePush uses backend-only VAPID private-key config and preserves in-app invites when push is skipped. VAPID_PRIVATE_KEY is server-side env/secret sourced. Production secret manager verification is MANUAL_REQUIRED.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('service_role_create_paths_require_auth_and_admin_create_rls',
+    'DailyWheelSpin, GameInvite, and FriendRequest creates are backend-owned and auth-scoped',
+    () => {
+      const rlsAudits = [
+        auditAdminOnlyCreateRule(dailyWheelSpinEntitySource, 'DailyWheelSpin', ['"data.user_email"', '"created_by_id"']),
+        auditAdminOnlyCreateRule(gameInviteEntitySource, 'GameInvite', ['"data.from_email"', '"created_by_id"']),
+        auditAdminOnlyCreateRule(friendRequestEntitySource, 'FriendRequest', ['"data.from_email"', '"created_by_id"']),
+      ];
+      const required = [
+        ...missingTokens(claimDailyWheelRewardSource, [
+          'resolveDailyWheelPlayer',
+          'base44.auth.me()',
+          'guest_token',
+          'base44.asServiceRole.entities.DailyWheelSpin',
+          'DailyWheelSpin.create',
+          'publicResult',
+        ]),
+        ...missingTokens(createGameInvitesForTargetsSource, [
+          'base44.auth.me()',
+          'lobby.host_email',
+          'normalizeTargetRefs',
+          'base44.asServiceRole.entities.GameInvite.create',
+          'targetEmailReturned: false',
+        ]),
+        ...missingTokens(sendFriendRequestSource, [
+          'base44.auth.me()',
+          'findTargetByUsername',
+          'FriendRequestOperationLock',
+          'base44.asServiceRole.entities.FriendRequest.create',
+          'targetEmailReturned: false',
+        ]),
+        ...missingTokens(linkGuestAccountSource, [
+          'base44.auth.me()',
+          'verifyGuestProfile',
+          'guest_token',
+          'base44?.asServiceRole?.entities?.DailyWheelSpin',
+          'buildPublicLinkedUserProjection',
+          'idempotencyKeyReturned: false',
+          'fullPrivateProfileReturned: false',
+        ]),
+      ];
+      const forbidden = [
+        ...presentTokens(inviteApiSource, [
+          'base44.entities.GameInvite.create',
+        ]),
+        ...presentTokens(linkGuestAccountSource, [
+          'user: updatedUser || { ...user, ...userPatch }',
+        ]),
+      ];
+      const rlsFailures = rlsAudits
+        .map((audit, index) => ({ entity: ['DailyWheelSpin', 'GameInvite', 'FriendRequest'][index], ...audit }))
+        .filter((audit) => !audit.ok);
+      if (required.length || forbidden.length || rlsFailures.length) {
+        return fail('Service-role create hardening drifted for DailyWheelSpin, GameInvite, or FriendRequest.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          files: [
+            'base44/entities/DailyWheelSpin.jsonc',
+            'base44/entities/GameInvite.jsonc',
+            'base44/entities/FriendRequest.jsonc',
+            'base44/functions/claimDailyWheelReward/entry.ts',
+            'base44/functions/createGameInvitesForTargets/entry.ts',
+            'base44/functions/linkGuestAccount/entry.ts',
+            'base44/functions/sendFriendRequest/entry.ts',
+            'src/lib/inviteApi.js',
+          ],
+          expected: 'admin/service-role-only entity create rules plus authenticated/token-proven backend functions; no client GameInvite.create; no full private profile response',
+          actual: { missing: required, forbidden, rlsFailures },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('The flagged create paths are function-owned, authenticated/token-proven, RLS-create admin-only, and response shapes stay privacy-safe.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,

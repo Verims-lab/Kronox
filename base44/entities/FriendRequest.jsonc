@@ -1,7 +1,7 @@
 {
   "name": "FriendRequest",
   "type": "object",
-  "description": "Friend request and accepted friendship source. Base44/platform lookup contract: from_email + status and to_email + status support friend list and leaderboard badge reads; from_email + to_email + status is the logical duplicate guard. sendFriendRequest uses FriendRequestOperationLock as a function-level duplicate-send guard because DB unique/index syntax is not repo-proven. RLS remains sender, recipient, or admin/owner only.",
+  "description": "Friend request and accepted friendship source. Base44/platform lookup contract: from_email + status and to_email + status support friend list and leaderboard badge reads; from_email + to_email + status is the logical duplicate guard. sendFriendRequest uses FriendRequestOperationLock as a function-level duplicate-send guard because DB unique/index syntax is not repo-proven. Create is backend service/admin owned; read/update/delete remain sender, recipient, or admin/owner only.",
   "properties": {
     "from_email": {
       "type": "string",
@@ -74,8 +74,9 @@
   ],
   "rls": {
     "create": {
-      "created_by_id": "{{user.id}}",
-      "data.from_email": "{{user.email}}"
+      "user_condition": {
+        "role": "admin"
+      }
     },
     "read": {
       "$or": [

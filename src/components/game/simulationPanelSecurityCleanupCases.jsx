@@ -234,6 +234,8 @@ export const EXTRA_TESTS = [
         'pushSent: false',
         'pushSkipped: true',
         'missingConfig: true',
+        'vapidConfigured',
+        'vapidConfigValid',
         'missingCount',
         'invalidCount',
         'sanitizePushErrorReason',
@@ -287,6 +289,8 @@ export const EXTRA_TESTS = [
         'pushSent: false',
         'pushSkipped: true',
         'missingConfig: true',
+        'vapidConfigured',
+        'vapidConfigValid',
         'missingCount',
         'invalidCount',
         'getVapidSecretHealthClassification',
@@ -341,6 +345,8 @@ export const EXTRA_TESTS = [
         'summarizeVapidConfigState',
         'missingCount',
         'invalidCount',
+        'vapidConfigured',
+        'vapidConfigValid',
         'console.warn',
       ]);
       if (missing.length) {

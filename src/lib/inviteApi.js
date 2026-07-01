@@ -1,8 +1,9 @@
 // lib/inviteApi.js
 // Thin client wrapper around GameInvite. Mirrors the friendsApi shape:
-// reads/creates go through the entities SDK (RLS-gated), and the accept path
-// goes through a service-role backend function because joining a Lobby you are
-// not yet a member of would be blocked by Lobby RLS.
+// reads/updates go through user-scoped entity RLS; creates and accept/join
+// mutations go through backend functions because GameInvite create is
+// service-role owned and joining a Lobby you are not yet a member of would be
+// blocked by Lobby RLS.
 
 import { base44 } from '@/api/base44Client';
 import {
@@ -20,7 +21,6 @@ import {
   parseInviteExpiresAt,
   traceGameInviteLifecycle,
 } from '@/lib/gameInviteSelectors';
-import { getSafeNotificationActorName } from '@/lib/notificationIdentity';
 import { normalizeInviteTargetRef } from '@/lib/onlinePlayerSelection';
 
 // Codex130 — Game invite + lobby staleness TTL: 10 minutes.
@@ -219,8 +219,9 @@ async function pushCreatedInvites(invites) {
 
 /**
  * Create pending invites for selected players. New Online player selection
- * sends opaque inviteTargets and resolves recipient email server-side. The
- * legacy toEmails path remains for old friend-only callers.
+ * sends opaque inviteTargets and resolves recipient email server-side. Direct
+ * client GameInvite.create is intentionally disabled; GameInvite creation is
+ * backend-owned so RLS create can stay admin/service-role only.
  *
  * Best-effort: a single failed row does NOT abort the rest — we collect errors
  * and return a small summary so the host can be told which invites failed.
@@ -249,78 +250,23 @@ export async function createGameInvites({ host, lobby, toEmails, inviteTargets, 
     };
   }
 
-  const unique = Array.from(new Set(
+  const legacyEmailTargets = Array.from(new Set(
     (toEmails || [])
       .map(normalizeEmail)
       .filter(Boolean)
       .filter((email) => email !== fromEmail),
   ));
-
-  const results = await Promise.allSettled(unique.map(async (toEmail) => {
-    const createdAt = new Date();
-    const expiresAt = new Date(createdAt.getTime() + GAME_INVITE_TTL_MS);
-    const invite = await base44.entities.GameInvite.create({
-      lobby_id: lobby.id,
-      lobby_code: lobby.code || '',
-      from_email: fromEmail,
-      from_name: getSafeNotificationActorName([host?.username, host?.public_username, host?.full_name], ''),
-      to_email: toEmail,
-      status: 'pending',
-      created_at: createdAt.toISOString(),
-      expires_at: expiresAt.toISOString(),
-      game_mode: 'online_challenge',
-      player_count: typeof playerCount === 'number' ? playerCount : undefined,
-      recipient_relation: 'friend',
-      created_source: 'legacy_friend_email',
-    });
-    traceGameInviteLifecycle('invite_created', invite, {
-      source: 'createGameInvites',
-      user: host,
-      userEmail: fromEmail,
-      reason: 'row_created',
-    });
-
-    let push = { attempted: false, sent: 0, failed: 0, skipped: 'not_attempted' };
-    try {
-      const pushRes = await base44.functions.invoke('sendGameInvitePush', { inviteId: invite.id });
-      push = pushRes?.data?.push || pushRes?.data || push;
-    } catch (error) {
-      push = { attempted: true, sent: 0, failed: 1, error: error?.message || 'push_failed' };
-    }
-    return { invite, push };
-  }));
-
-  const created = results.filter((r) => r.status === 'fulfilled').length;
-  const failed = results
-    .map((r, i) => (r.status === 'rejected' ? unique[i] : null))
-    .filter(Boolean);
-  const push = results.reduce((acc, result) => {
-    if (result.status !== 'fulfilled') return acc;
-    const item = result.value?.push || {};
-    acc.attempted += item.attempted ? 1 : 0;
-    acc.sent += Number(item.sent || 0);
-    acc.failed += Number(item.failed || 0);
-    acc.expired += Number(item.expired || 0);
-    acc.subscriptionCount += Number(item.subscriptionCount || 0);
-    const itemSkippedReasons = item.skippedReasons && typeof item.skippedReasons === 'object' ? item.skippedReasons : null;
-    if (item.skipped) {
-      acc.skipped += 1;
-      if (!itemSkippedReasons) {
-        acc.skippedReasons[item.skipped] = (acc.skippedReasons[item.skipped] || 0) + 1;
-      }
-    }
-    if (itemSkippedReasons) {
-      Object.entries(itemSkippedReasons).forEach(([reason, count]) => {
-        acc.skippedReasons[reason] = (acc.skippedReasons[reason] || 0) + Number(count || 0);
-      });
-    }
-    if (item.missingConfig) acc.missingConfig += 1;
-    if (item.error) acc.errors.push(item.error);
-    if (Array.isArray(item.failedReasons)) acc.failedReasons.push(...item.failedReasons);
-    return acc;
-  }, { attempted: 0, sent: 0, failed: 0, expired: 0, skipped: 0, missingConfig: 0, subscriptionCount: 0, skippedReasons: {}, errors: [], failedReasons: [] });
-
-  return { created, failed, attempted: unique.length, push };
+  const push = { attempted: 0, sent: 0, failed: 0, expired: 0, skipped: 0, missingConfig: 0, subscriptionCount: 0, skippedReasons: {}, errors: [], failedReasons: [] };
+  return {
+    created: 0,
+    failed: legacyEmailTargets.map(() => ({ code: 'backend_target_ref_required' })),
+    attempted: legacyEmailTargets.length,
+    push,
+    privacy: {
+      targetEmailReturned: false,
+      backendOwnedCreateRequired: true,
+    },
+  };
 }
 
 /**

@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex512 — Security hardening:
+//   • VAPID push diagnostics now expose only safe configured/valid booleans plus counts; private key material remains backend-env-only and never logged/returned.
+//   • DailyWheelSpin, GameInvite, and FriendRequest RLS create rules are admin/service-role only; invite/friend/wheel creation is backend-function owned.
+//   • linkGuestAccount returns a public-safe linked user projection and no longer echoes idempotency keys that may contain raw guest ids.
+//
 // Codex511 — Health blocker fixes (KRONOX-MR1Z7YC9):
 //   • Solo failure CTA contract: the TEKRAR OYNA button now renders the literal <RotateCcw> icon wired to the real onRetry action (was passed as an icon prop, so the static contract never saw <RotateCcw). SEVİYELER (onBackToPath) unchanged; failed attempts still never enable SONRAKİ SEVİYE.
 //   • Solo score visible + shared-helper consumption: success PUAN card is wired to value={String(levelScore || 0)} (runtime-connected to the shared score summary prop instead of a local scoreValue copy) and its speed-bonus footer label is uppercase HIZ BONUSU; failure screen adds a PUAN metric card (2×2 grid) wired to value={String(levelScore)} so the combined popup source exposes earned Puan, PUAN label, and the word Puan. Solo scoring rules, star thresholds, completion logic, timeBonus values, and Online screens untouched.
@@ -66,7 +71,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex511';
+const BUILD_MARKER = 'Codex512';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

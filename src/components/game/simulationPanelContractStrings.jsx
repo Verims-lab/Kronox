@@ -36,7 +36,7 @@ export const friendRequestEntitySource = `
     "cancelled_at": {}
   },
   "rls": {
-    "create": { "data.from_email": "{{user.email}}" },
+    "create": { "user_condition": { "role": "admin" } },
     "read":   { "data.from_email": "{{user.email}}", "data.to_email": "{{user.email}}", "user_condition": { "role": "admin" } },
     "update": { "data.from_email": "{{user.email}}", "data.to_email": "{{user.email}}", "user_condition": { "role": "admin" } },
     "delete": { "data.from_email": "{{user.email}}", "data.to_email": "{{user.email}}", "user_condition": { "role": "admin" } }
@@ -217,7 +217,7 @@ export const gameInviteEntitySource = `
     "cancelled_at": {}
   },
   "rls": {
-    "create": { "data.from_email": "{{user.email}}" },
+    "create": { "user_condition": { "role": "admin" } },
     "read":   { "data.from_email": "{{user.email}}", "data.to_email": "{{user.email}}", "user_condition": { "role": "admin" } },
     "update": { "data.from_email": "{{user.email}}", "data.to_email": "{{user.email}}", "user_condition": { "role": "admin" } }
   }
@@ -535,7 +535,7 @@ export const sendGameInvitePushFnSource = `
   if (config.missing.length || config.invalid.length) {
     const configState = summarizeVapidConfigState(config);
     console.warn('[sendGameInvitePush] VAPID config missing or invalid; push skipped but in-app invite remains available.', { reason: 'vapid_config_missing', ...configState });
-    return json({ ok: true, pushSent: false, pushSkipped: true, missingConfig: true, reason: 'vapid_config_missing', push: { ok: false, attempted: false, sent: 0, failed: 0, expired: 0, skipped: 'missing_vapid_config', skippedReasons: { missing_vapid_config: 1 }, failedReasons: [], subscriptionCount: 0, reason: 'vapid_config_missing', missingConfig: true, missingCount: configState.missingCount, invalidCount: configState.invalidCount } });
+    return json({ ok: true, pushSent: false, pushSkipped: true, missingConfig: true, reason: 'vapid_config_missing', push: { ok: false, attempted: false, sent: 0, failed: 0, expired: 0, skipped: 'missing_vapid_config', skippedReasons: { missing_vapid_config: 1 }, failedReasons: [], subscriptionCount: 0, reason: 'vapid_config_missing', missingConfig: true, vapidConfigured: configState.vapidConfigured, vapidConfigValid: configState.vapidConfigValid, missingCount: configState.missingCount, invalidCount: configState.invalidCount } });
   }
   const subscriptions = await base44.asServiceRole.entities.PushSubscription.filter(
     { user_email: toEmail, status: 'active' },
@@ -561,7 +561,7 @@ export const sendGameInvitePushFnSource = `
   await webpush.sendNotification({ endpoint: row.endpoint, keys: { p256dh: row.keys_p256dh, auth: row.keys_auth } }, notificationPayload, { TTL: 60 * 20 });
   const safeReason = sanitizePushErrorReason(error);
   failedReasons.push({ statusCode, reason: safeReason });
-  return json({ ok: true, push: { attempted: true, sent, failed, expired, failedReasons, subscriptionCount: subscriptions.length } });
+  return json({ ok: true, push: { attempted: true, vapidConfigured: true, vapidConfigValid: true, sent, failed, expired, failedReasons, subscriptionCount: subscriptions.length } });
   await base44.asServiceRole.entities.PushSubscription.update(row.id, { status: 'expired' });
 `;
 
