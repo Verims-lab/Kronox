@@ -88,6 +88,7 @@ import {
   sendFriendRequestFnSource,
   sendFriendRequestEmailFnSource,
   sendGameInvitePushFnSource,
+  createGameInvitesForTargetsFnSource,
   kronoxServiceWorkerSource,
 } from './simulationPanelContractStrings.jsx';
 
@@ -905,13 +906,13 @@ export const EXTRA_TESTS = [
    * ============================================================ */
   sourceHas('invite_expiration_health', 'invite_rows_have_expiry_fields',
     'GameInvite rows store created_at/expires_at for 10-minute validity',
-    'entities/GameInvite.json + lib/inviteApi.js + lib/gameInviteSelectors.js',
-    `${gameInviteEntitySource}\n${inviteApiSource}\n${gameInviteSelectorsSource}`,
+    'entities/GameInvite.json + functions/createGameInvitesForTargets + lib/gameInviteSelectors.js',
+    `${gameInviteEntitySource}\n${createGameInvitesForTargetsFnSource}\n${gameInviteSelectorsSource}`,
     ['created_at', 'expires_at', 'GAME_INVITE_TTL_MS = 10 * 60 * 1000']),
   sourceHas('invite_expiration_health', 'invite_creation_sets_ten_minute_expiry',
     'Creating a game invite sets status pending and expires_at = created_at + 10 minutes',
-    'lib/inviteApi.js',
-    inviteApiSource,
+    'functions/createGameInvitesForTargets',
+    createGameInvitesForTargetsFnSource,
     ["status: 'pending'", 'createdAt.getTime() + GAME_INVITE_TTL_MS', 'expires_at: expiresAt.toISOString()']),
   sourceHas('invite_expiration_health', 'incoming_loader_expires_old_pending_invites',
     'Incoming invite loader expires old pending invites before rendering',

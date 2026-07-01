@@ -59,7 +59,10 @@ import onlineChallengeScreenSource from '../lobby/OnlineChallengeScreen.jsx?raw'
 import onlineCategoryCarouselSource from '../lobby/OnlineCategoryCarousel.jsx?raw';
 // Codex132 follow-up — new override sources for the three re-targeted cases.
 import mainMenuSource from '../../pages/MainMenu.jsx?raw';
-import { gameInviteEntitySource } from './simulationPanelContractStrings.jsx';
+import {
+  createGameInvitesForTargetsFnSource,
+  gameInviteEntitySource,
+} from './simulationPanelContractStrings.jsx';
 // Codex153 — Solo path mimarisi tamamen yeni yapıya geçti (bottom CTA
 // yok, "SIRADAKİ X. SEVİYE" hero node, helper-tabanlı focus). Stale Solo
 // Health sözleşmelerini buradan override ediyoruz.
@@ -564,16 +567,16 @@ export const EXTRA_TESTS = [
     'invite_expiration_health', 'Invite Expiration Health Suite',
     'invite_rows_have_expiry_fields',
     'GameInvite rows store created_at/expires_at for 10-minute validity',
-    'entities/GameInvite.json + lib/inviteApi.js + lib/gameInviteSelectors.js',
-    `${gameInviteEntitySource}\n${inviteApiSource}\n${gameInviteSelectorsSource}`,
+    'entities/GameInvite.json + functions/createGameInvitesForTargets + lib/gameInviteSelectors.js',
+    `${gameInviteEntitySource}\n${createGameInvitesForTargetsFnSource}\n${gameInviteSelectorsSource}`,
     ['created_at', 'expires_at', 'GAME_INVITE_TTL_MS = 10 * 60 * 1000'],
   ),
   sourceHasReplacement(
     'invite_expiration_health', 'Invite Expiration Health Suite',
     'invite_creation_sets_five_minute_expiry',
     'Creating a game invite sets status pending and expires_at = created_at + 10 minutes (TTL bumped from 5 → 10 in Codex130)',
-    'lib/inviteApi.js',
-    inviteApiSource,
+    'functions/createGameInvitesForTargets',
+    createGameInvitesForTargetsFnSource,
     ["status: 'pending'", 'createdAt.getTime() + GAME_INVITE_TTL_MS', 'expires_at: expiresAt.toISOString()'],
   ),
 

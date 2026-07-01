@@ -78,7 +78,7 @@
     "created_at": {
       "type": "string",
       "format": "date-time",
-      "description": "ISO timestamp of when the invite was created (set client-side at create time; mirrors Base44 created_date for explicit TTL math)."
+      "description": "ISO timestamp of when the invite was created by the backend-owned invite function; mirrors Base44 created_date for explicit TTL math."
     },
     "expires_at": {
       "type": "string",
