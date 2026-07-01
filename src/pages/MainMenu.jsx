@@ -23,6 +23,7 @@ import { getCompletedGuestCredentialsPayload, isGuestOnboardingComplete } from '
 import { getUserJokerBalances } from '@/lib/jokerInventory';
 
 const HOME_LOGO_SRC = '/assets/ui/kronox-logo-home.png';
+const HOME_HOURGLASS_SRC = 'https://base44.app/api/apps/6a05b47e401bb23c2f21a522/files/mp/public/6a05b47e401bb23c2f21a522/b19153430_kronox-hourglass-home-v2.png';
 
 export default function MainMenu() {
   const navigate = useNavigate();
@@ -168,20 +169,24 @@ export default function MainMenu() {
             }}
           />
 
-          <div className="grid w-full items-center gap-2" style={{ gridTemplateColumns: '4rem minmax(0, 1fr) 4rem' }}>
-            <HomeShortcut
-              label="Görevler"
-              icon={ScrollText}
-              tone="cyan"
-              onClick={() => handleShortcut('quests')}
-            />
+          <div className="grid w-full items-center gap-1" style={{ gridTemplateColumns: '4.75rem minmax(0, 1fr) 4.75rem' }}>
+            <div className="relative z-10">
+              <HomeShortcut
+                label="Görevler"
+                icon={ScrollText}
+                tone="cyan"
+                onClick={() => handleShortcut('quests')}
+              />
+            </div>
             <HomeTimeArtifact />
-            <HomeShortcut
-              label="Çark"
-              icon={TimerReset}
-              tone="gold"
-              onClick={() => handleShortcut('wheel')}
-            />
+            <div className="relative z-10">
+              <HomeShortcut
+                label="Çark"
+                icon={TimerReset}
+                tone="gold"
+                onClick={() => handleShortcut('wheel')}
+              />
+            </div>
           </div>
 
           <div className="flex w-full flex-col gap-3">
@@ -242,82 +247,44 @@ function HomeShortcut({ label, icon: Icon, tone, onClick }) {
 }
 
 function HomeTimeArtifact() {
+  // Static, single-file illustrated centerpiece per the Home spec:
+  // an ornate gold + navy hourglass resting on a glowing zodiac clock-ring.
+  // Kept intentionally static (no coded animation) with only a controlled
+  // radial glow behind it so it anchors the page without competing with the
+  // logo or the main CTA buttons.
   return (
-    <div className="relative mx-auto grid place-items-center" aria-hidden="true"
-      style={{ width: 'min(46vw, 214px)', height: 'min(30dvh, 214px)', minHeight: 150 }}>
+    <div
+      className="relative mx-auto grid place-items-center"
+      aria-hidden="true"
+      style={{ width: 'min(72vw, 300px)', height: 'min(40dvh, 300px)', minHeight: 180 }}
+    >
       <div
-        className="absolute rounded-full"
+        className="pointer-events-none absolute rounded-full"
         style={{
-          width: '92%',
-          height: '28%',
-          bottom: '2%',
-          border: '1px solid rgba(255, 201, 40, 0.34)',
-          boxShadow: '0 0 22px rgba(255, 201, 40, 0.20), inset 0 0 18px rgba(85, 216, 255, 0.08)',
-          transform: 'rotateX(62deg)',
+          width: '86%',
+          height: '86%',
+          background:
+            'radial-gradient(circle at 50% 46%, rgba(255,201,40,0.22) 0%, rgba(85,216,255,0.10) 40%, transparent 68%)',
+          filter: 'blur(2px)',
         }}
       />
-      <div
-        className="absolute rounded-full"
+      <img
+        src={HOME_HOURGLASS_SRC}
+        alt=""
+        draggable="false"
+        loading="eager"
+        className="relative block h-full w-full select-none object-contain"
         style={{
-          width: '66%',
-          height: '20%',
-          bottom: '9%',
-          background: 'radial-gradient(circle, rgba(255, 201, 40, 0.30), rgba(255, 201, 40, 0.06) 46%, transparent 72%)',
-          filter: 'blur(1px)',
+          // Radial alpha mask feathers the solid-navy image edges into the
+          // Home gradient so there is no visible rectangular seam.
+          WebkitMaskImage:
+            'radial-gradient(ellipse 68% 72% at 50% 50%, #000 58%, transparent 82%)',
+          maskImage:
+            'radial-gradient(ellipse 68% 72% at 50% 50%, #000 58%, transparent 82%)',
+          filter:
+            'drop-shadow(0 12px 24px rgba(0, 0, 0, 0.34)) drop-shadow(0 0 18px rgba(255, 201, 40, 0.14))',
         }}
       />
-      <div
-        className="relative h-full"
-        style={{
-          width: '45%',
-          filter: 'drop-shadow(0 12px 24px rgba(0, 0, 0, 0.30)) drop-shadow(0 0 18px rgba(255, 201, 40, 0.14))',
-        }}
-      >
-        <div
-          className="absolute left-1/2 top-[3%] h-[10%] w-[118%] -translate-x-1/2 rounded-full"
-          style={{
-            background: 'linear-gradient(180deg, #FFE36D 0%, #B47A05 100%)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.55), 0 0 12px rgba(255, 201, 40, 0.28)',
-          }}
-        />
-        <div
-          className="absolute bottom-[9%] left-1/2 h-[10%] w-[118%] -translate-x-1/2 rounded-full"
-          style={{
-            background: 'linear-gradient(180deg, #D89508 0%, #4F2B02 100%)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.24), 0 0 10px rgba(255, 201, 40, 0.16)',
-          }}
-        />
-        <div
-          className="absolute left-[4%] top-[11%] h-[78%] w-[10%] rounded-full"
-          style={{ background: 'linear-gradient(180deg, #A7ECFF 0%, #174A86 52%, #071A33 100%)' }}
-        />
-        <div
-          className="absolute right-[4%] top-[11%] h-[78%] w-[10%] rounded-full"
-          style={{ background: 'linear-gradient(180deg, #A7ECFF 0%, #174A86 52%, #071A33 100%)' }}
-        />
-        <div
-          className="absolute left-1/2 top-[14%] h-[70%] w-[72%] -translate-x-1/2 overflow-hidden rounded-[42%]"
-          style={{
-            border: '1px solid rgba(167, 236, 255, 0.46)',
-            background: 'linear-gradient(180deg, rgba(167,236,255,0.12), rgba(6,18,37,0.16) 48%, rgba(167,236,255,0.10))',
-            clipPath: 'polygon(8% 0, 92% 0, 59% 48%, 92% 100%, 8% 100%, 41% 48%)',
-            boxShadow: 'inset 0 0 22px rgba(85,216,255,0.18)',
-          }}
-        >
-          <div
-            className="absolute left-1/2 top-[14%] h-[25%] w-[58%] -translate-x-1/2 rounded-b-full"
-            style={{ background: 'linear-gradient(180deg, rgba(255,227,109,0.88), rgba(255,201,40,0.18))' }}
-          />
-          <div
-            className="absolute left-1/2 top-[39%] h-[25%] w-[5px] -translate-x-1/2 rounded-full"
-            style={{ background: 'linear-gradient(180deg, rgba(255,227,109,0.90), rgba(255,201,40,0.20))' }}
-          />
-          <div
-            className="absolute bottom-[10%] left-1/2 h-[30%] w-[64%] -translate-x-1/2 rounded-t-full"
-            style={{ background: 'linear-gradient(180deg, rgba(255,201,40,0.18), rgba(255,227,109,0.92))' }}
-          />
-        </div>
-      </div>
     </div>
   );
 }

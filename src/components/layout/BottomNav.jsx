@@ -82,15 +82,20 @@ export default function BottomNav() {
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-[60] bg-card/90 backdrop-blur-md border-t border-white/10 flex items-center justify-around"
+      className="fixed bottom-0 left-0 right-0 z-[60] flex items-center justify-around"
       style={{
         paddingBottom: 'env(safe-area-inset-bottom)',
-        height: 'calc(3.5rem + env(safe-area-inset-bottom))',
+        height: 'calc(3.6rem + env(safe-area-inset-bottom))',
         userSelect: 'none',
         left: 0,
         right: 0,
         width: '100%',
         maxWidth: '100vw',
+        background: 'rgba(10, 26, 53, 0.76)',
+        backdropFilter: 'blur(14px)',
+        WebkitBackdropFilter: 'blur(14px)',
+        borderTop: '1px solid rgba(167, 196, 229, 0.16)',
+        boxShadow: '0 -8px 24px rgba(0, 0, 0, 0.20)',
       }}
     >
       {TABS.map(({ label, icon: Icon, path }) => {
@@ -99,16 +104,32 @@ export default function BottomNav() {
           <button
             key={path}
             onClick={() => handleTabClick(path)}
-            className="flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors"
+            className="relative flex flex-col items-center justify-center gap-0.5 flex-1 h-full"
             style={{ touchAction: 'manipulation', minHeight: '56px' }}
             aria-label={`${label} sekmesi`}
             aria-current={isActive ? 'page' : undefined}
           >
+            {isActive && (
+              <span
+                aria-hidden="true"
+                className="absolute top-0 h-[3px] w-8 rounded-full"
+                style={{
+                  background: '#FFC928',
+                  boxShadow: '0 0 10px rgba(255, 201, 40, 0.65)',
+                }}
+              />
+            )}
             <Icon
-              className={`w-5 h-5 transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground'}`}
+              className="w-5 h-5 transition-colors"
+              strokeWidth={isActive ? 2.6 : 2.2}
+              style={{
+                color: isActive ? '#FFC928' : '#9BAEC2',
+                filter: isActive ? 'drop-shadow(0 0 6px rgba(255,201,40,0.45))' : undefined,
+              }}
             />
             <span
-              className={`font-inter text-[10px] transition-colors ${isActive ? 'text-primary font-semibold' : 'text-muted-foreground'}`}
+              className="font-inter text-[11px] transition-colors"
+              style={{ color: isActive ? '#FFC928' : '#9BAEC2', fontWeight: isActive ? 700 : 500 }}
             >
               {label}
             </span>

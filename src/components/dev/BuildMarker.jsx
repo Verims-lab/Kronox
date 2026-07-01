@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex515 — Home screen visual rebuild to match target design:
+//   • Central time visual replaced: the weak pure-CSS hourglass is now a single static illustrated centerpiece (ornate gold + navy hourglass resting on a glowing zodiac/roman-numeral clock ring), sized larger (min(72vw,300px)) to anchor the page. The image uses a solid-navy background feathered into the Home gradient via a radial alpha mask so there is no rectangular seam. No coded animation; controlled radial glow only.
+//   • Görevler/Çark shortcuts widened (4.75rem columns, z-10 wrappers) so labels never clip behind the larger centerpiece; icon/circle/label styling unchanged.
+//   • BottomNav restyled to the Home spec: blurred navy surface (rgba(10,26,53,0.76) + blur14), gold active tab (#FFC928) with a top indicator line + glow and bold label, muted #9BAEC2 inactive tabs. Tabs/routes/behavior unchanged.
+//   • Centered transparent Kronox logo, StandardTopBar (Mağaza / Elmas / Bildirim), CTA buttons, and all navigation left functionally unchanged.
+//
 // Codex514 — Home main menu redesign:
 //   • Home now uses the transparent local Kronox logo asset as a centered, unboxed top visual over the dark blue background.
 //   • First-render Home is compact: Mağaza/Diamonds/Bildirimler top row, static time visual, Görevler/Çark shortcuts, and large Solo/Online CTAs.
@@ -81,7 +87,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex514';
+const BUILD_MARKER = 'Codex515';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
