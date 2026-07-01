@@ -30,6 +30,9 @@ Static UI images for Kronox may live here. Adding a file here does not automatic
   transparent hourglass, and right `Çark`. The local hourglass PNG has no alpha
   channel, so runtime code uses screen blending and must not add image filters
   that create a rectangular shadow block.
+- The Home CTA stack keeps its button sizes and internal gap; only its stack
+  position is balanced so the hourglass-to-Solo and Online-to-BottomNav gaps
+  read as equivalent.
 - `Görevler` and `Çark` open centered popups from Home; they must not behave as
   bottom sheets or page-like first-render panels.
 - Home press feedback is CSS/Framer Motion based, not a pressed-image swap.

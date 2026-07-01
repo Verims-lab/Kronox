@@ -728,8 +728,9 @@ Kart Değiştir 50, Kronokalkan 60.
 Home uses a larger centered transparent local Kronox logo, a larger centered
 transparent hourglass visual balanced between left Görevler and right Çark,
 compact shortcuts with ready badges, centered Görevler/Çark popups, and large
-Solo/Online CTAs lifted above BottomNav; the expanded Günlük Ödüller panel is
-not rendered on first Home paint.
+Solo/Online CTAs whose stack position balances the hourglass-to-Solo gap with
+the Online-to-BottomNav gap; the expanded Günlük Ödüller panel is not rendered
+on first Home paint.
 Client is not trusted for price; purchase validation is server-authoritative.
 Market open should be fast: Home may idle-prefetch the Market chunk and fast
 UserJokerInventory cache, the static Phase 1 catalog renders immediately, and
