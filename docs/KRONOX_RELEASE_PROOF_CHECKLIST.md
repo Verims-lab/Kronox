@@ -404,8 +404,8 @@ Checklist:
 * Home logo and hourglass visuals use local `/assets/ui/` PNG assets on the
   dark blue background; neither is wrapped in a visible card/panel/container or
   hotlinked from a remote URL. The middle section stays balanced as left
-  `Görevler` / centered transparent hourglass / right `Çark`, with the CTA
-  stack lifted safely above BottomNav.
+  `Görevler` / centered transparent hourglass / right `Çark`, with equal
+  visual spacing from hourglass-to-Solo and Online-to-BottomNav.
 * Daily Wheel claim requires authenticated user context or token-proven
   completed GuestProfile.
 * Daily Wheel grants Diamonds only and never Kronox Puan.
@@ -494,7 +494,7 @@ Checklist:
 * Home shows the larger centered transparent Kronox logo, larger centered local
   hourglass visual with no visible wrapper/background block, compact `Görevler`
   / `Çark` shortcuts with ready badges, centered shortcut popups, and large
-  `SOLO MEYDAN OKUMA` / `ONLINE KAPIŞMA` CTAs lifted above BottomNav.
+  `SOLO MEYDAN OKUMA` / `ONLINE KAPIŞMA` CTAs balanced above BottomNav.
 * Mağaza Phase 1 sells only three Solo jokers:
   `Zaman Dondur = 40` Diamonds, `Kart Değiştir = 50` Diamonds,
   `Kronokalkan = 60` Diamonds.

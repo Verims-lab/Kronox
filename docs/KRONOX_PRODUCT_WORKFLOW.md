@@ -244,7 +244,8 @@ Home can show:
 Home's middle section is a three-part composition: left `Görevler`, centered
 transparent hourglass artwork, and right `Çark`. The logo and hourglass remain
 unboxed local assets over the dark blue Home background, and the Solo/Online CTA
-stack stays clear of the BottomNav.
+stack keeps balanced vertical spacing between the hourglass and the fixed
+BottomNav.
 
 Home must not show:
 

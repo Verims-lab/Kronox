@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex524 — Home geometry balance fix:
+//   • Home middle section now uses a real centered stage: equal left/right shortcut anchors and an absolute 50% hourglass anchor, so the hourglass sits between Görevler and Çark instead of overflowing from a narrow grid column.
+//   • Solo/Online CTA stack keeps the same button sizes and 14px internal gap, but uses one shared balance gap above and below the stack so hourglass-to-Solo and Online-to-BottomNav spacing read evenly.
+//   • Home docs/mirrors/Health now describe the balanced geometry contract without changing shortcut behavior, rewards, BottomNav, logo, or hourglass asset.
+//
 // Codex523 — Home video-based visual fixes:
 //   • Home logo and hourglass scale increased by 20%; the hourglass remains centered between Görevler and Çark, with image filters removed so the non-alpha PNG cannot cast a rectangular shadow block.
 //   • Görevler/Çark now open centered reward popups instead of bottom-aligned sheets, and the Solo/Online CTA stack is lifted about 2dvh above BottomNav.
@@ -130,7 +135,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex523';
+const BUILD_MARKER = 'Codex524';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

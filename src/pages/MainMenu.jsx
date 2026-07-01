@@ -29,6 +29,9 @@ import { getUserJokerBalances } from '@/lib/jokerInventory';
 // file and forbids new remote image references on approved visual surfaces.
 const HOME_LOGO_SRC = '/assets/ui/kronox-logo-home.png';
 const HOME_HOURGLASS_SRC = '/assets/ui/kronox-hourglass-home.png';
+const HOME_BOTTOM_NAV_HEIGHT = '3.6rem';
+const HOME_CTA_BALANCE_GAP = 'clamp(1rem, 3dvh, 2rem)';
+const HOME_MIDDLE_STAGE_HEIGHT = 'clamp(14rem, 38dvh, 20rem)';
 
 export default function MainMenu() {
   const navigate = useNavigate();
@@ -173,13 +176,13 @@ export default function MainMenu() {
         className="absolute left-0 right-0 mx-auto flex w-full max-w-[28rem] flex-col items-center"
         style={{
           top: 'calc(env(safe-area-inset-top) + 4.1rem)',
-          bottom: 'calc(env(safe-area-inset-bottom) + 4.15rem)',
           paddingLeft: 'calc(env(safe-area-inset-left) + 1.15rem)',
           paddingRight: 'calc(env(safe-area-inset-right) + 1.15rem)',
+          bottom: `calc(env(safe-area-inset-bottom) + ${HOME_BOTTOM_NAV_HEIGHT})`,
         }}
         aria-label="Kronox Ana Sayfa"
       >
-        <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-between gap-3">
+        <div className="flex min-h-0 w-full flex-1 flex-col items-center">
           <img
             src={HOME_LOGO_SRC}
             alt="Kronox"
@@ -194,13 +197,15 @@ export default function MainMenu() {
           />
 
           <div
-            className="grid w-full items-center"
+            className="relative mt-auto w-full"
             style={{
-              gridTemplateColumns: 'minmax(4.75rem, 1fr) minmax(0, 1.18fr) minmax(4.75rem, 1fr)',
-              columnGap: 0,
+              height: HOME_MIDDLE_STAGE_HEIGHT,
+              minHeight: 216,
             }}
           >
-            <div className="relative z-10">
+            <div
+              className="absolute left-0 top-1/2 z-10 flex w-20 -translate-y-1/2 justify-center"
+            >
               <HomeShortcut
                 label="Görevler"
                 icon={ScrollText}
@@ -210,7 +215,9 @@ export default function MainMenu() {
               />
             </div>
             <HomeTimeArtifact />
-            <div className="relative z-10">
+            <div
+              className="absolute right-0 top-1/2 z-10 flex w-20 -translate-y-1/2 justify-center"
+            >
               <HomeShortcut
                 label="Çark"
                 icon={TimerReset}
@@ -221,7 +228,10 @@ export default function MainMenu() {
             </div>
           </div>
 
-          <div className="flex w-full flex-col" style={{ gap: 14, marginBottom: 'calc(2dvh + 4px)' }}>
+          <div
+            className="flex w-full flex-col"
+            style={{ gap: 14, marginTop: HOME_CTA_BALANCE_GAP, marginBottom: HOME_CTA_BALANCE_GAP }}
+          >
             <HomeCTA
               icon={Crosshair}
               label="SOLO MEYDAN OKUMA"
@@ -322,9 +332,9 @@ function HomeTimeArtifact() {
   // shadow block around the art.
   return (
     <div
-      className="relative mx-auto grid place-items-center"
+      className="absolute left-1/2 top-1/2 grid -translate-x-1/2 -translate-y-1/2 place-items-center"
       aria-hidden="true"
-      style={{ width: 'min(86.4vw, 360px)', height: 'min(48dvh, 360px)', minHeight: 216 }}
+      style={{ width: 'min(86.4vw, 360px)', height: '100%' }}
     >
       <img
         src={HOME_HOURGLASS_SRC}
