@@ -1,29 +1,29 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { RotateCcw, ListChecks, TimerReset, Star, X, Zap, MoveHorizontal } from 'lucide-react';
-// Codex164 — Solo failure popup now uses the same compact MM:SS time
-// format and the same SoloStatCard layout as the success popup so the
-// two screens stay visually identical. We deliberately keep
-// GameOverTimer.formatDuration around for its other callers.
-import SoloStatCard from './SoloStatCard';
+import React, { useEffect } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
+import {
+  RotateCcw, ListChecks, TimerReset, MoveHorizontal, Layers, Gem, Play, Star,
+} from 'lucide-react';
+import SoloResultMetricCard from './SoloResultMetricCard';
 import { formatCompactDuration } from '@/lib/soloTimeFormat';
+import { SOLO_FAILURE_MESSAGE } from '@/lib/soloResultMessages';
+import { sounds } from '@/lib/gameSounds';
 
 /**
- * Solo FAILURE result popup.
+ * Solo FAILURE level-end screen — redesigned per the reference:
  *
- * Pixel-faithful to the provided reference:
- *   • Red headline: "N. SEVİYE GEÇİLEMEDİ!"
- *   • Three stone stars (left + right intact, center cracked with red glow)
- *   • Two-line subline: "Üzgünüm, süre bitti." / "Tekrar deneyebilirsin!"
- *     (or "hamle hakkın bitti." for the moves branch)
- *   • Red diamond divider
- *   • 2x2 stat grid:
- *       TL: SÜRE (blue clock)   • TR: PUAN (yellow star)
- *       BL: HAMLE (blue arrows) • BR: HIZ BONUSU (red ✕)
- *   • Two CTAs: yellow "TEKRAR OYNA", outline "SEVİYELER"
- *
- * Props are unchanged so SoloLevelResult keeps delegating without
- * touching its public contract.
+ *   • Dark-blue full-screen panel with a controlled red accent frame.
+ *   • Title:  "N. SEVİYE GEÇİLEMEDİ!"  (Bangers, red)
+ *   • Star area: two passive side stars + a broken/cracked center star.
+ *   • Message: "Yeniden denemeye ne dersin?"
+ *   • Three vertical metric cards: SÜRE, TAMAMLANAN (e.g. 4/7), HAMLE.
+ *   • "OYNAMAYA DEVAM ET" section with two continuation cards:
+ *       - "60 ELMAS" (diamond continuation)
+ *       - "ÜCRETSİZ" (rewarded-ad continuation)
+ *     Neither continuation flow is implemented in the project, so both
+ *     cards render DISABLED with safe "Yakında" copy. No client-only
+ *     grants, no fake rewarded-ad SDK. Current failure behavior (retry /
+ *     levels) is preserved.
+ *   • Two CTAs: "TEKRAR OYNA", "SEVİYELER".
  */
 export default function SoloFailureCard({
   levelNumber,
@@ -33,20 +33,28 @@ export default function SoloFailureCard({
   maxMoves,
   timeSeconds,
   levelScore = 0,
+  cardsCompleted,
+  cardTarget,
   failReason,
   onRetry,
   onBackToPath,
 }) {
+  const reduceMotion = useReducedMotion();
   const formattedTime = formatCompactDuration(timeSeconds);
   const moveValue = Math.max(0, Math.floor(Number(usedMoves) || 0));
-  void mistakes;
-  void remainingMoves;
-  void maxMoves;
+  const completed = Math.max(0, Math.floor(Number(cardsCompleted) || 0));
+  const target = Math.max(0, Math.floor(Number(cardTarget) || 0));
+  const completedLabel = target > 0 ? `${completed}/${target}` : String(completed);
+  const scoreValue = Math.max(0, Math.floor(Number(levelScore) || 0));
+  void mistakes; void remainingMoves; void maxMoves; void failReason;
 
-  const sublinePrimary = failReason === 'timeout'
-    ? 'Üzgünüm, süre bitti.'
-    : 'Üzgünüm, hamle hakkın bitti.';
-  const sublineSecondary = 'Tekrar deneyebilirsin!';
+  // Soft failure feedback on mount (no harsh alarm).
+  useEffect(() => {
+    try { sounds.wrong(); } catch { /* audio unavailable — ignore */ }
+  }, []);
+
+  const panelInitial = reduceMotion ? { opacity: 0 } : { scale: 0.9, opacity: 0, y: 24 };
+  const panelAnimate = reduceMotion ? { opacity: 1 } : { scale: 1, opacity: 1, y: 0 };
 
   return (
     <motion.div
@@ -54,143 +62,139 @@ export default function SoloFailureCard({
       animate={{ opacity: 1 }}
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{
-        background:
-          'radial-gradient(ellipse at 50% 40%, rgba(120,20,40,0.35) 0%, rgba(5,8,22,0.96) 60%)',
+        background: 'radial-gradient(ellipse at 50% 35%, rgba(120,20,40,0.3) 0%, rgba(4,7,20,0.96) 62%)',
         backdropFilter: 'blur(8px)',
       }}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${levelNumber}. seviye geçilemedi`}
     >
       <motion.div
-        initial={{ scale: 0.82, opacity: 0, y: 30 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        transition={{ type: 'spring', stiffness: 280, damping: 24 }}
+        initial={panelInitial}
+        animate={panelAnimate}
+        transition={reduceMotion ? { duration: 0.2 } : { type: 'spring', stiffness: 280, damping: 24 }}
         className="w-full max-w-sm rounded-[28px] overflow-hidden relative"
         style={{
           background: 'linear-gradient(165deg, #0d1430 0%, #060a1e 100%)',
-          border: '1px solid rgba(248,113,113,0.28)',
           boxShadow:
-            '0 30px 60px rgba(0,0,0,0.6), 0 0 40px rgba(248,113,113,0.18), inset 0 1px 0 rgba(255,255,255,0.05)',
+            'inset 0 0 0 1.5px rgba(248,113,113,0.3), 0 30px 60px rgba(0,0,0,0.6), 0 0 40px rgba(248,113,113,0.15)',
         }}
       >
-        <div className="px-5 pt-7 pb-5">
-          {/* Headline — red, glowing */}
+        <div className="px-5 pt-6 pb-5">
           <motion.h1
-            initial={{ opacity: 0, y: -6 }}
+            initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1, duration: 0.35 }}
-            className="font-bangers text-center tracking-[0.05em]"
+            className="font-bangers text-center tracking-[0.04em]"
             style={{
               color: '#ff4d6d',
               fontSize: 'clamp(20px, 6vw, 26px)',
-              textShadow:
-                '0 0 14px rgba(255,77,109,0.55), 0 0 28px rgba(255,77,109,0.35), 0 2px 4px rgba(0,0,0,0.6)',
+              textShadow: '0 0 14px rgba(255,77,109,0.5), 0 2px 4px rgba(0,0,0,0.6)',
               lineHeight: 1.1,
             }}
           >
             {levelNumber}. SEVİYE GEÇİLEMEDİ!
           </motion.h1>
 
-          {/* Three stone stars — center one cracked w/ red glow */}
-          <FailedStarsRow />
+          <FailedStarsRow reduceMotion={reduceMotion} />
 
-          {/* Subline */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.45, duration: 0.3 }}
-            className="text-center px-3"
-            style={{ marginTop: 4 }}
+          <p
+            className="mt-1 text-center font-inter text-white/85"
+            style={{ fontSize: 'clamp(14px, 4vw, 16px)', fontWeight: 500 }}
           >
-            <p
-              className="font-inter text-white/85"
-              style={{ fontSize: 'clamp(13px, 3.8vw, 15px)', fontWeight: 400 }}
-            >
-              {sublinePrimary}
-            </p>
-            <p
-              className="font-inter text-white/85"
-              style={{ fontSize: 'clamp(13px, 3.8vw, 15px)', fontWeight: 400 }}
-            >
-              {sublineSecondary}
-            </p>
-          </motion.div>
+            {SOLO_FAILURE_MESSAGE}
+          </p>
 
-          {/* Red diamond divider */}
-          <div className="mt-3 mb-4 flex items-center justify-center gap-2" aria-hidden="true">
-            <span
-              style={{
-                display: 'block',
-                height: 1,
-                width: 64,
-                background: 'linear-gradient(90deg, transparent, rgba(255,77,109,0.55), transparent)',
-              }}
-            />
-            <span
-              style={{
-                display: 'block',
-                width: 7,
-                height: 7,
-                background: '#ff4d6d',
-                transform: 'rotate(45deg)',
-                boxShadow: '0 0 8px rgba(255,77,109,0.7)',
-              }}
-            />
-            <span
-              style={{
-                display: 'block',
-                height: 1,
-                width: 64,
-                background: 'linear-gradient(90deg, transparent, rgba(255,77,109,0.55), transparent)',
-              }}
-            />
-          </div>
-
-          {/* 2x2 stat grid */}
-          <div className="grid grid-cols-2 gap-2.5">
-            <SoloStatCard
+          {/* Vertical metric cards: SÜRE · TAMAMLANAN · HAMLE · PUAN.
+              A failed attempt scores 0 Puan, so PUAN reflects the shared
+              score summary (levelScore) rather than any local guess. */}
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <SoloResultMetricCard
               icon={TimerReset}
               iconColor="#5aa9ff"
-              iconRingColor="rgba(90,169,255,0.55)"
+              ringColor="rgba(90,169,255,0.55)"
               label="SÜRE"
               value={formattedTime}
               valueColor="#ffffff"
             />
-            <SoloStatCard
-              icon={Star}
-              iconColor="#facc15"
-              iconFill="#facc15"
-              iconRingColor="rgba(250,204,21,0.55)"
-              label="PUAN"
-              value={String(levelScore)}
-              valueColor="#facc15"
+            <SoloResultMetricCard
+              icon={Layers}
+              iconColor="#ff4d6d"
+              ringColor="rgba(255,77,109,0.55)"
+              label="TAMAMLANAN"
+              labelColor="rgba(252,165,165,0.85)"
+              value={completedLabel}
+              valueColor="#ff4d6d"
             />
-            <SoloStatCard
+            <SoloResultMetricCard
               icon={MoveHorizontal}
               iconColor="#38bdf8"
-              iconRingColor="rgba(56,189,248,0.55)"
+              ringColor="rgba(56,189,248,0.55)"
               label="HAMLE"
               value={String(moveValue)}
               valueColor="#38bdf8"
             />
-            <SoloStatCard
-              icon={Zap}
-              iconColor="#ff4d6d"
-              iconRingColor="rgba(255,77,109,0.55)"
-              label="HIZ BONUSU"
-              valueNode={<X className="w-7 h-7" strokeWidth={3.4} style={{ color: '#ff4d6d' }} />}
-              valueColor="#ff4d6d"
+            <SoloResultMetricCard
+              icon={Star}
+              iconColor="#94a3b8"
+              ringColor="rgba(148,163,184,0.5)"
+              label="PUAN"
+              ariaLabel={`Puan: ${scoreValue}`}
+              value={String(levelScore)}
+              valueColor="#cbd5e1"
             />
           </div>
 
-          {/* CTAs */}
-          <div className="mt-5 flex flex-col gap-2.5">
-            <PrimaryButton onClick={onRetry}>
-              <RotateCcw className="w-5 h-5" strokeWidth={2.6} />
+          {/* OYNAMAYA DEVAM ET section header */}
+          <div className="mt-5 mb-3 flex items-center justify-center gap-2" aria-hidden="true">
+            <span style={{ display: 'block', height: 2, width: 18, background: 'linear-gradient(90deg, transparent, #38bdf8)' }} />
+            <span
+              className="font-bangers"
+              style={{ color: '#e2e8f0', fontSize: 'clamp(13px, 3.8vw, 15px)', letterSpacing: '0.08em' }}
+            >
+              OYNAMAYA DEVAM ET
+            </span>
+            <span style={{ display: 'block', height: 2, width: 18, background: 'linear-gradient(90deg, #38bdf8, transparent)' }} />
+          </div>
+
+          {/* Continuation cards — DISABLED: no diamond/ad continuation flow
+              exists in the project, so we never grant free continuation. */}
+          <div className="grid grid-cols-2 gap-2.5">
+            <ContinuationCard
+              icon={Gem}
+              iconColor="#fbbf24"
+              iconFill="#fbbf24"
+              title="60"
+              titleColor="#ffffff"
+            />
+            <ContinuationCard
+              icon={Play}
+              iconColor="#38bdf8"
+              iconFill="#38bdf8"
+              title="ÜCRETSİZ"
+              titleColor="#ffffff"
+            />
+          </div>
+
+          {/* CTAs — replay uses the RotateCcw icon wired to the real onRetry
+              action; levels uses ListChecks wired to onBackToPath. */}
+          <div className="mt-3.5 grid grid-cols-2 gap-2.5">
+            <motion.button
+              type="button"
+              onClick={onRetry}
+              whileTap={{ scale: 0.97 }}
+              className="w-full flex items-center justify-center gap-2 font-bangers text-white"
+              style={{
+                height: 48, borderRadius: 14,
+                background: 'rgba(15,22,46,0.85)',
+                fontSize: 'clamp(13px, 3.6vw, 15px)', letterSpacing: '0.06em',
+                boxShadow: 'inset 0 0 0 1.5px rgba(96,165,250,0.4)',
+              }}
+            >
+              <RotateCcw className="w-4 h-4" strokeWidth={2.6} style={{ color: '#60a5fa' }} />
               <span>TEKRAR OYNA</span>
-            </PrimaryButton>
-            <OutlineButton onClick={onBackToPath}>
-              <ListChecks className="w-5 h-5" strokeWidth={2.4} />
-              <span>SEVİYELER</span>
-            </OutlineButton>
+            </motion.button>
+            <SecondaryButton onClick={onBackToPath} icon={ListChecks}>SEVİYELER</SecondaryButton>
           </div>
         </div>
       </motion.div>
@@ -201,123 +205,133 @@ export default function SoloFailureCard({
 /* ─────────── Pieces ─────────── */
 
 /**
- * Three stone-grey stars. Left and right are whole; the center one is
- * fractured with a red inner glow + small shard splinters around it,
- * matching the reference artwork.
+ * Continuation card. Disabled until a safe server-backed diamond flow and a
+ * real rewarded-ad flow exist. Shows a small "Yakında" badge so players
+ * understand it is coming rather than broken.
  */
-function FailedStarsRow() {
+function ContinuationCard({ icon: Icon, iconColor, iconFill, title, titleColor }) {
   return (
     <div
-      className="relative mt-5 mb-3 flex items-end justify-center"
-      style={{ gap: 'clamp(10px, 4vw, 18px)', height: 'clamp(110px, 30vw, 140px)' }}
+      className="relative flex flex-col items-center justify-center rounded-2xl px-3 py-4"
+      style={{
+        background: 'linear-gradient(180deg, rgba(20,32,66,0.6), rgba(8,16,40,0.75))',
+        boxShadow: 'inset 0 0 0 1.5px rgba(96,165,250,0.22)',
+        opacity: 0.55,
+        minHeight: 104,
+      }}
+      aria-disabled="true"
     >
-      <StoneStar size="clamp(60px, 18vw, 78px)" dim />
-      <CrackedCenterStar size="clamp(82px, 24vw, 104px)" />
-      <StoneStar size="clamp(60px, 18vw, 78px)" dim />
+      <span
+        className="absolute top-2 right-2 rounded-full px-1.5 py-0.5 font-inter"
+        style={{
+          color: '#cbd5e1', background: 'rgba(15,23,42,0.85)',
+          fontSize: '8.5px', fontWeight: 800, letterSpacing: '0.05em',
+          boxShadow: 'inset 0 0 0 1px rgba(148,163,184,0.35)',
+        }}
+      >
+        YAKINDA
+      </span>
+      <Icon
+        className="w-9 h-9"
+        strokeWidth={2}
+        style={{ color: iconColor, fill: iconFill || 'transparent' }}
+      />
+      <span
+        className="kronox-number mt-2 leading-none"
+        style={{ color: titleColor, fontSize: 'clamp(18px, 5vw, 22px)', letterSpacing: '0.04em' }}
+      >
+        {title}
+      </span>
     </div>
   );
 }
 
-function StoneStar({ size, dim = false }) {
+/**
+ * Two passive stone side stars + a broken/cracked red center star. The
+ * broken star appears without shaking the whole screen.
+ */
+function FailedStarsRow({ reduceMotion }) {
   return (
-    <motion.div
-      initial={{ scale: 0, rotate: -25, opacity: 0 }}
-      animate={{ scale: 1, rotate: 0, opacity: 1 }}
-      transition={{ type: 'spring', stiffness: 280, damping: 18, delay: 0.2 }}
-      style={{ width: size, height: size, filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.6))' }}
+    <div
+      className="relative mt-4 mb-2 flex items-center justify-center"
+      style={{ gap: 'clamp(10px, 4vw, 18px)', height: 'clamp(96px, 26vw, 120px)' }}
+      aria-hidden="true"
     >
-      <Star
-        className="w-full h-full"
-        strokeWidth={1.6}
-        style={{
-          color: 'rgba(120,135,165,0.55)',
-          fill: dim ? '#3a4566' : '#475070',
-          opacity: 0.92,
-        }}
-      />
-    </motion.div>
+      <StoneStar size="clamp(56px, 17vw, 72px)" reduceMotion={reduceMotion} />
+      <CrackedCenterStar size="clamp(78px, 22vw, 98px)" reduceMotion={reduceMotion} />
+      <StoneStar size="clamp(56px, 17vw, 72px)" reduceMotion={reduceMotion} />
+    </div>
   );
 }
 
-function CrackedCenterStar({ size }) {
+function StoneStar({ size, reduceMotion }) {
+  return (
+    <motion.svg
+      viewBox="0 0 24 24"
+      initial={reduceMotion ? { opacity: 0 } : { scale: 0, opacity: 0 }}
+      animate={reduceMotion ? { opacity: 1 } : { scale: 1, opacity: 1 }}
+      transition={reduceMotion ? { duration: 0.2 } : { type: 'spring', stiffness: 280, damping: 18, delay: 0.2 }}
+      style={{ width: size, height: size, filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.6))' }}
+    >
+      <path
+        d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 21.4 6.1 20.5l1.2-6.5L2.5 9.4l6.6-.9z"
+        fill="#3a4566"
+        stroke="rgba(120,135,165,0.5)"
+        strokeWidth="1"
+      />
+    </motion.svg>
+  );
+}
+
+function CrackedCenterStar({ size, reduceMotion }) {
   return (
     <motion.div
-      initial={{ scale: 0, rotate: -10, opacity: 0 }}
-      animate={{ scale: 1, rotate: 0, opacity: 1 }}
-      transition={{ type: 'spring', stiffness: 240, damping: 16, delay: 0.32 }}
+      initial={reduceMotion ? { opacity: 0 } : { scale: 0, opacity: 0 }}
+      animate={reduceMotion ? { opacity: 1 } : { scale: 1, opacity: 1 }}
+      transition={reduceMotion ? { duration: 0.25 } : { type: 'spring', stiffness: 240, damping: 16, delay: 0.32 }}
       className="relative"
       style={{ width: size, height: size }}
     >
-      {/* Red inner glow behind the star */}
+      {/* Red glow behind the star */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background:
-            'radial-gradient(circle at 50% 55%, rgba(255,77,109,0.55) 0%, rgba(255,77,109,0.18) 40%, transparent 70%)',
+          background: 'radial-gradient(circle at 50% 55%, rgba(255,77,109,0.55) 0%, rgba(255,77,109,0.18) 42%, transparent 72%)',
           filter: 'blur(2px)',
         }}
       />
-      {/* Small red shard splinters around the star */}
-      <Shard top="14%" left="6%" rotate={-25} />
-      <Shard top="22%" right="4%" rotate={35} />
-      <Shard bottom="14%" left="-2%" rotate={20} />
-      <Shard bottom="6%" right="10%" rotate={-15} />
-
-      {/* Stone star body */}
-      <Star
-        className="relative w-full h-full"
-        strokeWidth={1.6}
-        style={{
-          color: 'rgba(140,155,185,0.7)',
-          fill: '#3f4a6b',
-          filter: 'drop-shadow(0 6px 10px rgba(0,0,0,0.65))',
-        }}
-      />
-
-      {/* Crack overlay — thin red lightning-like lines down the middle */}
-      <svg
-        className="absolute inset-0 pointer-events-none"
-        viewBox="0 0 100 100"
-        preserveAspectRatio="none"
-        style={{ overflow: 'visible' }}
-      >
+      {/* Split star halves separated by a jagged gap */}
+      <svg viewBox="0 0 100 100" className="relative w-full h-full" style={{ overflow: 'visible' }}>
         <defs>
-          <linearGradient id="crackGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#ff4d6d" stopOpacity="0.95" />
-            <stop offset="100%" stopColor="#ff8fa3" stopOpacity="0.6" />
+          <linearGradient id="brokenStarGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#ff6b85" />
+            <stop offset="100%" stopColor="#c81e3c" />
           </linearGradient>
         </defs>
-        {/* Main jagged crack */}
-        <polyline
-          points="48,22 52,38 44,50 56,62 46,76"
-          fill="none"
-          stroke="url(#crackGrad)"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          style={{ filter: 'drop-shadow(0 0 3px rgba(255,77,109,0.85))' }}
+        {/* Left half of the star */}
+        <path
+          d="M50 8 L61 38 L50 40 L44 62 L50 78 L26 92 L31 66 L8 46 L38 42 L50 8 Z"
+          fill="url(#brokenStarGrad)"
+          stroke="#ff8fa3"
+          strokeWidth="1.5"
+          transform="translate(-3,0) rotate(-6 50 50)"
+          style={{ filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.55))' }}
         />
-        {/* Secondary branch */}
-        <polyline
-          points="52,38 60,44 62,52"
-          fill="none"
-          stroke="url(#crackGrad)"
-          strokeWidth="1.4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity="0.85"
-          style={{ filter: 'drop-shadow(0 0 2px rgba(255,77,109,0.7))' }}
-        />
-        {/* Tertiary branch */}
-        <polyline
-          points="44,50 36,56"
-          fill="none"
-          stroke="url(#crackGrad)"
-          strokeWidth="1.2"
-          strokeLinecap="round"
-          opacity="0.7"
+        {/* Right half of the star */}
+        <path
+          d="M50 8 L62 42 L92 46 L69 66 L74 92 L50 78 L56 62 L50 40 L61 38 L50 8 Z"
+          fill="url(#brokenStarGrad)"
+          stroke="#ff8fa3"
+          strokeWidth="1.5"
+          transform="translate(3,0) rotate(6 50 50)"
+          style={{ filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.55))' }}
         />
       </svg>
+      {/* Red shard splinters */}
+      <Shard top="16%" left="4%" rotate={-25} />
+      <Shard top="24%" right="2%" rotate={35} />
+      <Shard bottom="16%" left="0%" rotate={20} />
+      <Shard bottom="8%" right="8%" rotate={-15} />
     </motion.div>
   );
 }
@@ -327,13 +341,7 @@ function Shard({ top, bottom, left, right, rotate = 0 }) {
     <span
       aria-hidden="true"
       style={{
-        position: 'absolute',
-        top,
-        bottom,
-        left,
-        right,
-        width: 6,
-        height: 10,
+        position: 'absolute', top, bottom, left, right, width: 6, height: 10,
         background: 'linear-gradient(180deg, #ff4d6d, #b91d3d)',
         clipPath: 'polygon(50% 0%, 100% 100%, 0% 100%)',
         transform: `rotate(${rotate}deg)`,
@@ -344,30 +352,7 @@ function Shard({ top, bottom, left, right, rotate = 0 }) {
   );
 }
 
-function PrimaryButton({ children, onClick }) {
-  return (
-    <motion.button
-      type="button"
-      onClick={onClick}
-      whileTap={{ scale: 0.97 }}
-      className="w-full flex items-center justify-center gap-2 font-bangers"
-      style={{
-        height: 52,
-        borderRadius: 14,
-        background: 'linear-gradient(180deg, #ffd84a 0%, #f5c400 55%, #e0ad00 100%)',
-        color: '#1a1003',
-        fontSize: 'clamp(15px, 4.2vw, 18px)',
-        letterSpacing: '0.06em',
-        boxShadow:
-          'inset 0 1px 0 rgba(255,255,255,0.55), inset 0 -3px 0 rgba(120,75,0,0.35), 0 8px 22px rgba(250,204,21,0.28)',
-      }}
-    >
-      {children}
-    </motion.button>
-  );
-}
-
-function OutlineButton({ children, onClick }) {
+function SecondaryButton({ children, onClick, icon: Icon }) {
   return (
     <motion.button
       type="button"
@@ -375,15 +360,14 @@ function OutlineButton({ children, onClick }) {
       whileTap={{ scale: 0.97 }}
       className="w-full flex items-center justify-center gap-2 font-bangers text-white"
       style={{
-        height: 48,
-        borderRadius: 14,
+        height: 48, borderRadius: 14,
         background: 'rgba(15,22,46,0.85)',
-        fontSize: 'clamp(14px, 3.8vw, 16px)',
-        letterSpacing: '0.06em',
-        boxShadow: 'inset 0 0 0 1.5px rgba(120,140,190,0.45)',
+        fontSize: 'clamp(13px, 3.6vw, 15px)', letterSpacing: '0.06em',
+        boxShadow: 'inset 0 0 0 1.5px rgba(96,165,250,0.4)',
       }}
     >
-      {children}
+      <Icon className="w-4 h-4" strokeWidth={2.6} style={{ color: '#60a5fa' }} />
+      <span>{children}</span>
     </motion.button>
   );
 }

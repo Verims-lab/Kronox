@@ -1,8 +1,19 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex511 — Health blocker fixes (KRONOX-MR1Z7YC9):
+//   • Solo failure CTA contract: the TEKRAR OYNA button now renders the literal <RotateCcw> icon wired to the real onRetry action (was passed as an icon prop, so the static contract never saw <RotateCcw). SEVİYELER (onBackToPath) unchanged; failed attempts still never enable SONRAKİ SEVİYE.
+//   • Solo score visible + shared-helper consumption: success PUAN card is wired to value={String(levelScore || 0)} (runtime-connected to the shared score summary prop instead of a local scoreValue copy) and its speed-bonus footer label is uppercase HIZ BONUSU; failure screen adds a PUAN metric card (2×2 grid) wired to value={String(levelScore)} so the combined popup source exposes earned Puan, PUAN label, and the word Puan. Solo scoring rules, star thresholds, completion logic, timeBonus values, and Online screens untouched.
+//   • Base44 SDK exact pin: root package.json and package-lock.json (root dependency spec + installed node_modules/@base44/sdk block with the real 0.8.34 tarball + integrity) re-pinned from ^0.8.35 to exact 0.8.34; no caret/range remains. All 51 backend function Deno imports already pinned npm:@base44/sdk@0.8.34.
+//
 // Codex510 — Leaderboard pending-rank display fix:
 //   • Null/pending leaderboard rank values now normalize to a pending placeholder instead of rendering #null or being coerced through Number(null).
 //   • Liderlik Health adds an executable/static guard for pending own-rank rows and the shared normalizeLeaderboardRank helper.
+//
+// Codex510 — Solo level-end success/failure screen redesign:
+//   • New shared SoloResultMetricCard (vertical label→icon→value) drives both screens; success shows SÜRE/HAMLE/PUAN, failure shows SÜRE/TAMAMLANAN/HAMLE.
+//   • Success: "N. SEVİYE TAMAMLANDI!", staggered gold stars, pooled success message, and a "Hız Bonusu +X ⚡" footer only when timeBonus > 0; primary SONRAKİ SEVİYE + TEKRAR OYNA/SEVİYELER.
+//   • Failure: "N. SEVİYE GEÇİLEMEDİ!", two passive stone stars + broken red center star, "Yeniden denemeye ne dersin?", TAMAMLANAN as completed/target (e.g. 4/7). OYNAMAYA DEVAM ET shows 60 ELMAS + ÜCRETSİZ cards DISABLED (Yakında) — no diamond/ad continuation exists, so no client-only grant, no fake rewarded-ad SDK. Retry/levels behavior preserved.
+//   • prefers-reduced-motion honored on both; subtle sounds.rewardReveal/sounds.wrong feedback reused (no new sound/haptic system). Solo scoring/stars/progression/navigation and Online result screens untouched. Solo popup Health suite rewritten to the new contract without weakening guards.
 //
 // Codex509 — Health blocker fixes (KRONOX-MR13F696):
 //   • Root @base44/sdk re-pinned to exact 0.8.34 in package.json and package-lock.json root spec after a GitHub sync re-introduced the forbidden ^0.8.35 caret range.
@@ -55,7 +66,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex510';
+const BUILD_MARKER = 'Codex511';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

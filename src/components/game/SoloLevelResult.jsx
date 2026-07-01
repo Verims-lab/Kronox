@@ -34,6 +34,8 @@ export default function SoloLevelResult({
   // Game.jsx, even though the new success popup doesn't render them.
   scoreDelta,
   didImproveScore,
+  cardsCompleted,
+  cardTarget,
   failReason,
   nextLevelNumber,
   hasNextLevel,
@@ -92,6 +94,8 @@ export default function SoloLevelResult({
       maxMoves={maxMoves}
       timeSeconds={timeSeconds}
       levelScore={levelScore}
+      cardsCompleted={cardsCompleted}
+      cardTarget={cardTarget}
       failReason={failReason}
       onRetry={onRetry}
       onBackToPath={onBackToPath}

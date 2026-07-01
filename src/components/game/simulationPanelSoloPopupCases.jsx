@@ -1,21 +1,26 @@
-// Codex164 — Solo Result Popup UI contracts.
+// Solo level-end result screen UI contracts (redesign pass).
 //
 // SCOPE
-//   These cases lock the visual/typography fixes from the UI correction
-//   pass:
-//     • Success + Failure popups share the same SoloStatCard component.
-//     • Both popups use the shared compact MM:SS time formatter.
-//     • The verbose "2 DAK 0 SANİYE" format is gone from the failure
-//       popup (no formatDuration import).
-//     • The shared SoloStatCard label allows two-line wrapping (no
-//       truncate / no force one-line) for labeled cards.
-//     • Both popups use TimerReset (not Clock) for the time icon.
-//     • Game logic / scoring / stars / props are NOT changed — the
-//       cases below only inspect import + JSX/label/value strings.
+//   These cases lock the redesigned Solo level-end success/failure screens:
+//     • Success title uses "SEVİYE TAMAMLANDI!" and failure uses
+//       "SEVİYE GEÇİLEMEDİ!".
+//     • Success metrics are SÜRE / HAMLE / PUAN; failure metrics are
+//       SÜRE / TAMAMLANAN / HAMLE.
+//     • Success shows "Hız Bonusu +X" ONLY when a speed bonus was earned
+//       (timeBonus > 0 guard) — never unconditionally.
+//     • Success screen does NOT render failure-only continuation
+//       ("OYNAMAYA DEVAM ET" / "ÜCRETSİZ").
+//     • Failure continuation cards do NOT grant client-only continuation:
+//       no real rewarded-ad SDK, no diamond mutation from the screen.
+//     • Both screens honor prefers-reduced-motion.
+//     • Both screens keep the shared MM:SS time formatter.
+//     • Public popup prop contracts the parent depends on are intact.
+//   Game logic / scoring / stars are NOT changed — the cases below only
+//   inspect import + JSX/label/value strings.
 
 import successSource from './SoloSuccessPopup.jsx?raw';
 import failureSource from './SoloFailureCard.jsx?raw';
-import statCardSource from './SoloStatCard.jsx?raw';
+import metricCardSource from './SoloResultMetricCard.jsx?raw';
 import timeFormatSource from '../../lib/soloTimeFormat.js?raw';
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL' };
@@ -51,7 +56,7 @@ function makeCase(id, name, run, options = {}) {
     name,
     critical: options.critical ?? true,
     actionType: options.actionType || ACTION_TYPES.CODE_FIX,
-    nextStep: options.nextStep || 'Keep Solo popup typography/layout aligned with the UI correction pass.',
+    nextStep: options.nextStep || 'Keep the Solo level-end screens aligned with the redesign contract.',
     ...options,
     run,
   };
@@ -62,29 +67,121 @@ export const EXTRA_SUITES = [
 ];
 
 export const EXTRA_TESTS = [
-  makeCase('shared_solo_stat_card_used',
-    'Both popups use the shared SoloStatCard component',
+  makeCase('success_screen_completed_structure',
+    'Success screen uses SEVİYE TAMAMLANDI title with SÜRE/HAMLE/PUAN metrics',
     () => {
-      const successMissing = missingTokens(successSource, [
-        "import SoloStatCard from './SoloStatCard'",
-        '<SoloStatCard',
+      const missing = missingTokens(successSource, [
+        '. SEVİYE TAMAMLANDI!',
+        'label="SÜRE"',
+        'label="HAMLE"',
+        'label="PUAN"',
       ]);
-      const failureMissing = missingTokens(failureSource, [
-        "import SoloStatCard from './SoloStatCard'",
-        '<SoloStatCard',
+      if (missing.length) {
+        return fail('Success level-end screen structure drifted from the redesign.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'components/game/SoloSuccessPopup.jsx',
+          actual: { missing },
+        });
+      }
+      return pass('Success screen shows the completed title and SÜRE/HAMLE/PUAN metrics.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('failure_screen_failed_structure',
+    'Failure screen uses SEVİYE GEÇİLEMEDİ title with SÜRE/TAMAMLANAN/HAMLE metrics',
+    () => {
+      const missing = missingTokens(failureSource, [
+        '. SEVİYE GEÇİLEMEDİ!',
+        'label="SÜRE"',
+        'label="TAMAMLANAN"',
+        'label="HAMLE"',
+        'Yeniden denemeye ne dersin?',
       ]);
+      if (missing.length) {
+        return fail('Failure level-end screen structure drifted from the redesign.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'components/game/SoloFailureCard.jsx',
+          actual: { missing },
+        });
+      }
+      return pass('Failure screen shows the failed title, message and SÜRE/TAMAMLANAN/HAMLE metrics.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('success_speed_bonus_conditional',
+    'Success speed bonus row is guarded by timeBonus > 0',
+    () => {
+      const src = safeStr(successSource);
+      const hasGuard = /speedBonusEarned\s*=\s*Number\(timeBonus\)\s*>\s*0/.test(src)
+        && /speedBonusEarned\s*\?/.test(src)
+        && src.includes('Hız Bonusu');
+      if (!hasGuard) {
+        return fail('Success screen does not gate the "Hız Bonusu" row behind an earned speed bonus.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'components/game/SoloSuccessPopup.jsx',
+          actual: { hasGuard },
+        });
+      }
+      return pass('Speed bonus row only renders when timeBonus > 0.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('success_screen_no_failure_continuation',
+    'Success screen does not render failure-only continuation options',
+    () => {
+      const forbidden = forbiddenTokensFound(successSource, [
+        'OYNAMAYA DEVAM ET',
+        'ÜCRETSİZ',
+        'ContinuationCard',
+      ]);
+      if (forbidden.length) {
+        return fail('Success screen leaked failure-only continuation UI.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'components/game/SoloSuccessPopup.jsx',
+          actual: { forbidden },
+        });
+      }
+      return pass('Success screen has no continuation UI.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('failure_continuation_is_safe_disabled',
+    'Failure continuation grants nothing: no rewarded-ad SDK, no diamond mutation',
+    () => {
+      const src = safeStr(failureSource);
+      // The continuation cards must be visually present but must not wire
+      // any real grant/mutation flow while none exists in the project.
+      const showsCards = src.includes('OYNAMAYA DEVAM ET')
+        && src.includes('ÜCRETSİZ')
+        && src.includes('aria-disabled="true"');
+      const forbidden = forbiddenTokensFound(src, [
+        'AdMob', 'rewardedAd', 'RewardedAd', 'loadAd',
+        'DiamondTransaction', 'purchaseJoker', 'updateMe(', 'entities.User.update',
+        'grantContinuation', 'onContinue',
+      ]);
+      if (!showsCards || forbidden.length) {
+        return fail('Failure continuation cards are missing or wire an unsafe/fake continuation flow.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'components/game/SoloFailureCard.jsx',
+          actual: { showsCards, forbidden },
+        });
+      }
+      return pass('Continuation cards are shown disabled with no ad SDK and no economy mutation.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('level_end_respects_reduced_motion',
+    'Both level-end screens honor prefers-reduced-motion',
+    () => {
+      const successMissing = missingTokens(successSource, ['useReducedMotion', 'reduceMotion']);
+      const failureMissing = missingTokens(failureSource, ['useReducedMotion', 'reduceMotion']);
       if (successMissing.length || failureMissing.length) {
-        return fail('A Solo result popup is no longer using the shared SoloStatCard.', {
+        return fail('A level-end screen no longer branches on reduced motion.', {
           verification: 'STATIC_CONTRACT',
           files: ['components/game/SoloSuccessPopup.jsx', 'components/game/SoloFailureCard.jsx'],
           actual: { successMissing, failureMissing },
         });
       }
-      return pass('Both Solo result popups use the shared SoloStatCard.', { verification: 'STATIC_CONTRACT' });
+      return pass('Both screens read useReducedMotion and adjust their animation.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('shared_compact_duration_used',
-    'Both popups use the shared compact MM:SS time formatter',
+    'Both screens use the shared compact MM:SS time formatter',
     () => {
       const formatterMissing = missingTokens(timeFormatSource, [
         'export function formatCompactDuration',
@@ -99,141 +196,51 @@ export const EXTRA_TESTS = [
         'formatCompactDuration(timeSeconds)',
       ]);
       if (formatterMissing.length || successMissing.length || failureMissing.length) {
-        return fail('Compact MM:SS time formatter is not wired into both popups.', {
+        return fail('Compact MM:SS time formatter is not wired into both screens.', {
           verification: 'STATIC_CONTRACT',
           files: ['lib/soloTimeFormat.js', 'components/game/SoloSuccessPopup.jsx', 'components/game/SoloFailureCard.jsx'],
           actual: { formatterMissing, successMissing, failureMissing },
         });
       }
-      return pass('Both popups format time as MM:SS via the shared helper.', { verification: 'STATIC_CONTRACT' });
+      return pass('Both screens format time as MM:SS via the shared helper.', { verification: 'STATIC_CONTRACT' });
     }),
 
-  makeCase('failure_popup_timeout_has_no_maximum_footer',
-    'Failure timeout state does not show a non-record Maksimum footer',
+  makeCase('shared_metric_card_used',
+    'Both screens use the shared SoloResultMetricCard component',
     () => {
-      const forbidden = forbiddenTokensFound(failureSource, [
-        'Maksimum',
-        'maxTimeSeconds',
-        'formatCompactDuration(maxTimeSeconds)',
+      const cardMissing = missingTokens(metricCardSource, ['export default function SoloResultMetricCard']);
+      const successMissing = missingTokens(successSource, [
+        "import SoloResultMetricCard from './SoloResultMetricCard'",
+        '<SoloResultMetricCard',
       ]);
-      if (forbidden.length) {
-        return fail('Failure popup still shows or computes the old non-record maximum-time footer.', {
+      const failureMissing = missingTokens(failureSource, [
+        "import SoloResultMetricCard from './SoloResultMetricCard'",
+        '<SoloResultMetricCard',
+      ]);
+      if (cardMissing.length || successMissing.length || failureMissing.length) {
+        return fail('A level-end screen is not using the shared SoloResultMetricCard.', {
           verification: 'STATIC_CONTRACT',
-          file: 'components/game/SoloFailureCard.jsx',
-          actual: { forbidden },
+          files: ['components/game/SoloResultMetricCard.jsx', 'components/game/SoloSuccessPopup.jsx', 'components/game/SoloFailureCard.jsx'],
+          actual: { cardMissing, successMissing, failureMissing },
         });
       }
-      return pass('Failure popup keeps the time card clean; record-style footer copy remains success-only.', { verification: 'STATIC_CONTRACT' });
-    }),
-
-  makeCase('failure_popup_no_longer_uses_verbose_duration',
-    'Failure popup no longer imports GameOverTimer.formatDuration',
-    () => {
-      const src = safeStr(failureSource);
-      // Verbose formatter would surface as either the import or the
-      // call site. The compact formatter call must be the only one.
-      const stillImports = /from\s+'\.\/GameOverTimer'/.test(src) && /\bformatDuration\b/.test(src);
-      const stillCallsVerbose = /\bformatDuration\(/.test(src);
-      if (stillImports || stillCallsVerbose) {
-        return fail('Failure popup still references the verbose "2 DAK 0 SANİYE" formatter.', {
-          verification: 'STATIC_CONTRACT',
-          file: 'components/game/SoloFailureCard.jsx',
-          actual: { stillImports, stillCallsVerbose },
-        });
-      }
-      return pass('Failure popup uses only the shared compact MM:SS formatter.', { verification: 'STATIC_CONTRACT' });
-    }),
-
-  makeCase('shared_stat_card_label_wraps_not_truncates',
-    'SoloStatCard label wraps to a second line instead of truncating',
-    () => {
-      // The label span must NOT use `truncate` (single-line ellipsis)
-      // and must allow normal whitespace + overflow-wrap so
-      // short labels like "HIZ BONUSU" can still break when needed.
-      const src = safeStr(statCardSource);
-      const usesTruncate = /className="[^"]*\btruncate\b[^"]*"/.test(src);
-      const allowsWrap = src.includes("whiteSpace: 'normal'")
-        && src.includes("overflowWrap: 'anywhere'");
-      if (usesTruncate || !allowsWrap) {
-        return fail('SoloStatCard label cannot wrap onto a second line.', {
-          verification: 'STATIC_CONTRACT',
-          file: 'components/game/SoloStatCard.jsx',
-          actual: { usesTruncate, allowsWrap },
-        });
-      }
-      return pass('SoloStatCard label allows two-line wrapping (no truncate).', { verification: 'STATIC_CONTRACT' });
-    }),
-
-  makeCase('solo_result_short_stat_labels',
-    'Solo result popups use short SÜRE/PUAN/HAMLE stat labels without repeated unit footers',
-    () => {
-      const combined = `${successSource}\n${failureSource}`;
-      const oldLabels = [
-        'KAZANILAN<br />PUAN',
-        'KAZANILAN PUAN',
-        'TOPLAM SÜRE',
-        'HATA SAYISI',
-        'label="HATA"',
-        '<UnitLabel color="#facc15">Puan</UnitLabel>',
-        '<UnitLabel color="#fca5a5">Hata</UnitLabel>',
-        '<FailureFooter tone="gold">Puan</FailureFooter>',
-        '<FailureFooter tone="red">Hata</FailureFooter>',
-        'function UnitLabel',
-        'function FailureFooter',
-      ];
-      const forbidden = forbiddenTokensFound(combined, oldLabels);
-      const required = [
-        ...missingTokens(successSource, ['label="SÜRE"', 'label="PUAN"', 'label="HAMLE"', 'usedMoves']),
-        ...missingTokens(failureSource, ['label="SÜRE"', 'label="PUAN"', 'label="HAMLE"', 'usedMoves']),
-      ];
-      if (forbidden.length || required.length) {
-        return fail('Solo result popup stat labels drifted from the clean short-label product decision.', {
-          verification: 'STATIC_CONTRACT',
-          files: ['components/game/SoloSuccessPopup.jsx', 'components/game/SoloFailureCard.jsx'],
-          actual: { forbidden, required },
-        });
-      }
-      return pass('Success and failure popups use SÜRE/PUAN/HAMLE without repeated Puan/Hata footer copy.', { verification: 'STATIC_CONTRACT' });
-    }),
-
-  makeCase('time_icon_is_timer_reset_not_clock',
-    'Both popups use the TimerReset icon for the time card',
-    () => {
-      // The brief asked for a different, clock/time-themed icon. We
-      // switched from Clock to TimerReset in both popups. Health locks
-      // that swap so a future revert is caught.
-      const successUsesTimer = /\bTimerReset\b/.test(successSource)
-        && /icon=\{TimerReset\}/.test(successSource);
-      const successDroppedClock = !/\bClock\b/.test(successSource);
-      const failureUsesTimer = /\bTimerReset\b/.test(failureSource)
-        && /icon=\{TimerReset\}/.test(failureSource);
-      const failureDroppedClock = !/\bClock\b/.test(failureSource);
-      if (!successUsesTimer || !successDroppedClock || !failureUsesTimer || !failureDroppedClock) {
-        return fail('A Solo popup still uses the Clock icon for the time card.', {
-          verification: 'STATIC_CONTRACT',
-          files: ['components/game/SoloSuccessPopup.jsx', 'components/game/SoloFailureCard.jsx'],
-          actual: { successUsesTimer, successDroppedClock, failureUsesTimer, failureDroppedClock },
-        });
-      }
-      return pass('Both popups use TimerReset (not Clock) for the time card.', { verification: 'STATIC_CONTRACT' });
+      return pass('Both level-end screens use the shared SoloResultMetricCard.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('popup_prop_contracts_unchanged',
-    'Popup public prop contracts are unchanged by the UI correction',
+    'Level-end screen public prop contracts are intact',
     () => {
-      // The brief explicitly says: do not change game logic / popup
-      // flow / props. Lock the prop names the parent depends on.
       const successProps = ['levelNumber', 'stars', 'usedMoves', 'timeSeconds', 'levelScore', 'timeBonus', 'hasNextLevel', 'onNextLevel', 'onRetry', 'onBackToPath'];
-      const failureProps = ['levelNumber', 'usedMoves', 'timeSeconds', 'levelScore', 'failReason', 'onRetry', 'onBackToPath'];
+      const failureProps = ['levelNumber', 'usedMoves', 'timeSeconds', 'cardsCompleted', 'cardTarget', 'failReason', 'onRetry', 'onBackToPath'];
       const successMissing = successProps.filter((p) => !successSource.includes(p));
       const failureMissing = failureProps.filter((p) => !failureSource.includes(p));
       if (successMissing.length || failureMissing.length) {
-        return fail('A popup public prop contract changed during the UI correction.', {
+        return fail('A level-end screen public prop contract changed.', {
           verification: 'STATIC_CONTRACT',
           files: ['components/game/SoloSuccessPopup.jsx', 'components/game/SoloFailureCard.jsx'],
           actual: { successMissing, failureMissing },
         });
       }
-      return pass('Public popup props (levelNumber/stars/usedMoves/score/...) are intact.', { verification: 'STATIC_CONTRACT' });
+      return pass('Public props (levelNumber/stars/usedMoves/score/cardsCompleted/...) are intact.', { verification: 'STATIC_CONTRACT' });
     }),
 ];
