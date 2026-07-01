@@ -23,6 +23,7 @@ import {
   LEADERBOARD_TOP_LIMIT,
   buildSoloLeaderboardPayload,
   loadSoloLeaderboardSnapshot,
+  normalizeLeaderboardRank,
   publishSoloLeaderboardEntry,
   rankSoloLeaderboardEntries,
   selectLeaderboardSections,
@@ -58,12 +59,10 @@ function publishOwnLeaderboardProjectionInBackground(user, currentProgress) {
 
 function hydrateLeaderboardRow(publicRow, friendKeys, currentOwnerKey) {
   const entry = toSoloLeaderboardEntry(publicRow, friendKeys, currentOwnerKey);
-  const rank = Number.isFinite(Number(publicRow?.rank))
-    ? Math.max(1, Math.floor(Number(publicRow.rank)))
-    : entry.rank;
+  const rank = normalizeLeaderboardRank(publicRow?.rank) ?? normalizeLeaderboardRank(entry.rank);
   return {
     ...entry,
-    rank: Number.isFinite(Number(rank)) ? rank : null,
+    rank,
     isCurrentUser: publicRow?.isCurrentUser === true || entry.isCurrentUser,
     isFriend: publicRow?.isFriend === true || entry.isFriend,
   };

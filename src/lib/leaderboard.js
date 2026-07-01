@@ -96,6 +96,14 @@ export function setCachedSoloLeaderboardSnapshot(cacheKey, snapshot, now = Date.
   return snapshot;
 }
 
+export function normalizeLeaderboardRank(value) {
+  if (value === null || value === undefined) return null;
+  const raw = typeof value === 'string' ? value.trim() : value;
+  if (raw === '') return null;
+  const rank = Number(raw);
+  return Number.isFinite(rank) && rank >= 1 ? Math.floor(rank) : null;
+}
+
 function getLeaderboardOnlineScore(userOrEntry) {
   const score = Number(
     userOrEntry?.online_score ??
@@ -259,9 +267,7 @@ export async function loadSoloLeaderboardSnapshot(options = {}) {
         topRows,
         rows,
         currentUserRow: payload.currentUserRow || null,
-        currentUserRank: Number.isFinite(Number(payload.currentUserRank))
-          ? Math.max(1, Math.floor(Number(payload.currentUserRank)))
-          : null,
+        currentUserRank: normalizeLeaderboardRank(payload.currentUserRank),
         currentUserInTop: Boolean(payload.currentUserInTop),
         friendUserKeys: Array.isArray(payload.friendUserKeys) ? payload.friendUserKeys : [],
         friendsOutsideTop: Array.isArray(payload.friendsOutsideTop) ? payload.friendsOutsideTop : [],

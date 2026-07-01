@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex510 — Leaderboard pending-rank display fix:
+//   • Null/pending leaderboard rank values now normalize to a pending placeholder instead of rendering #null or being coerced through Number(null).
+//   • Liderlik Health adds an executable/static guard for pending own-rank rows and the shared normalizeLeaderboardRank helper.
+//
 // Codex509 — Health blocker fixes (KRONOX-MR13F696):
 //   • Root @base44/sdk re-pinned to exact 0.8.34 in package.json and package-lock.json root spec after a GitHub sync re-introduced the forbidden ^0.8.35 caret range.
 //   • adminGrantDiamonds internal identifiers renamed (playerKey → economyKey, requireAdmin adminEmail → adminActorEmail) so the static admin-grant scanner no longer flags forbidden playerKey:/adminEmail: source tokens; client/UI response shape was already private-safe and is unchanged.
@@ -51,7 +55,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex509';
+const BUILD_MARKER = 'Codex510';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
