@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex510 — Solo level-end success/failure screen redesign:
+//   • New shared SoloResultMetricCard (vertical label→icon→value) drives both screens; success shows SÜRE/HAMLE/PUAN, failure shows SÜRE/TAMAMLANAN/HAMLE.
+//   • Success: "N. SEVİYE TAMAMLANDI!", staggered gold stars, pooled success message, and a "Hız Bonusu +X ⚡" footer only when timeBonus > 0; primary SONRAKİ SEVİYE + TEKRAR OYNA/SEVİYELER.
+//   • Failure: "N. SEVİYE GEÇİLEMEDİ!", two passive stone stars + broken red center star, "Yeniden denemeye ne dersin?", TAMAMLANAN as completed/target (e.g. 4/7). OYNAMAYA DEVAM ET shows 60 ELMAS + ÜCRETSİZ cards DISABLED (Yakında) — no diamond/ad continuation exists, so no client-only grant, no fake rewarded-ad SDK. Retry/levels behavior preserved.
+//   • prefers-reduced-motion honored on both; subtle sounds.rewardReveal/sounds.wrong feedback reused (no new sound/haptic system). Solo scoring/stars/progression/navigation and Online result screens untouched. Solo popup Health suite rewritten to the new contract without weakening guards.
+//
 // Codex509 — Health blocker fixes (KRONOX-MR13F696):
 //   • Root @base44/sdk re-pinned to exact 0.8.34 in package.json and package-lock.json root spec after a GitHub sync re-introduced the forbidden ^0.8.35 caret range.
 //   • adminGrantDiamonds internal identifiers renamed (playerKey → economyKey, requireAdmin adminEmail → adminActorEmail) so the static admin-grant scanner no longer flags forbidden playerKey:/adminEmail: source tokens; client/UI response shape was already private-safe and is unchanged.
@@ -51,7 +57,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex509';
+const BUILD_MARKER = 'Codex510';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
