@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex520 — Home middle-section hourglass container/centering cleanup:
+//   • The central hourglass no longer reads as sitting inside a card/box/dark plate. Removed the radial glow plate div entirely and replaced the tight high-contrast alpha mask with a wide, very soft radial feather (ellipse 60%/66%, #000 30% → rgba 0.55 58% → transparent 82%) that dissolves the artwork's baked-in solid dark-navy background smoothly into the Home gradient — no visible box, oval halo, tinted backdrop, or hard mask edge. The hourglass now floats directly on the Home background; only a soft drop shadow grounds it.
+//   • Centering preserved: the middle row stays a symmetric 3-part grid (5rem Görevler / 1fr hourglass / 5rem Çark) with items-center, so the hourglass sits horizontally centered and Görevler/Çark stay balanced around it.
+//   • Görevler/Çark icons, labels, ready-badge, routing, Daily Wheel/Quest logic, top header, logo, CTAs, and BottomNav all unchanged.
+//
 // Codex519 — Home CTA buttons + global BottomNav visual polish:
 //   • Home Solo/Online CTAs rebuilt to the Screenshot 2 target as one identical premium-gold family: fixed 74px height, 22px radius, gradient linear-gradient(180deg,#FFE36D,#FFC928 52%,#E4A600), deep tactile shadow (0 7px 0 #A97400 + drop + gold glow), left 40px icon zone → 1.5px vertical divider → Barlow Condensed italic 800 / 26px / #101827 left-aligned text → right chevron. Solo icon is now a crosshair/target, Online stays crossed swords. Gap 14px. Solo→/solo and Online→/lobby (guest redirect) navigation unchanged; Online stays Home CTA-owned, not a BottomNav tab.
 //   • Global BottomNav inactive label bumped 11px→12px to match the spec; surface (rgba(10,26,53,0.76)+blur14, gold #FFC928 active with top indicator/glow, muted #9BAEC2 inactive, 3 tabs Ana Sayfa/Liderlik/Profil) already matched Screenshot 3 and is unchanged.
@@ -107,7 +112,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex519';
+const BUILD_MARKER = 'Codex520';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

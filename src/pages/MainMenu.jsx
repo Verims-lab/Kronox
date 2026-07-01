@@ -295,26 +295,17 @@ function HomeShortcut({ label, icon: Icon, tone, ready = false, onClick }) {
 
 function HomeTimeArtifact() {
   // Static, single-file illustrated centerpiece per the Home spec:
-  // an ornate gold + navy hourglass resting on a glowing zodiac clock-ring.
-  // Kept intentionally static (no coded animation) with only a controlled
-  // radial glow behind it so it anchors the page without competing with the
-  // logo or the main CTA buttons.
+  // an ornate gold + navy hourglass. It must float directly on the Home
+  // background — NO container, panel, dark block, glow plate, or tinted
+  // backdrop behind it. A tight radial alpha mask trims the image's own
+  // solid-navy edges so only the artwork itself remains visible; the Home
+  // gradient shows through everywhere else.
   return (
     <div
       className="relative mx-auto grid place-items-center"
       aria-hidden="true"
       style={{ width: 'min(72vw, 300px)', height: 'min(40dvh, 300px)', minHeight: 180 }}
     >
-      <div
-        className="pointer-events-none absolute rounded-full"
-        style={{
-          width: '86%',
-          height: '86%',
-          background:
-            'radial-gradient(circle at 50% 46%, rgba(255,201,40,0.22) 0%, rgba(85,216,255,0.10) 40%, transparent 68%)',
-          filter: 'blur(2px)',
-        }}
-      />
       <img
         src={HOME_HOURGLASS_SRC}
         alt=""
@@ -322,14 +313,15 @@ function HomeTimeArtifact() {
         loading="eager"
         className="relative block h-full w-full select-none object-contain"
         style={{
-          // Radial alpha mask feathers the solid-navy image edges into the
-          // Home gradient so there is no visible rectangular seam.
+          // The source artwork carries a solid dark-navy background. A wide,
+          // very soft radial alpha feather dissolves that navy smoothly into
+          // the Home gradient so there is no perceptible box/oval edge — the
+          // hourglass reads as floating directly on the Home background.
           WebkitMaskImage:
-            'radial-gradient(ellipse 68% 72% at 50% 50%, #000 58%, transparent 82%)',
+            'radial-gradient(ellipse 60% 66% at 50% 50%, #000 30%, rgba(0,0,0,0.55) 58%, transparent 82%)',
           maskImage:
-            'radial-gradient(ellipse 68% 72% at 50% 50%, #000 58%, transparent 82%)',
-          filter:
-            'drop-shadow(0 12px 24px rgba(0, 0, 0, 0.34)) drop-shadow(0 0 18px rgba(255, 201, 40, 0.14))',
+            'radial-gradient(ellipse 60% 66% at 50% 50%, #000 30%, rgba(0,0,0,0.55) 58%, transparent 82%)',
+          filter: 'drop-shadow(0 10px 18px rgba(0, 0, 0, 0.28))',
         }}
       />
     </div>
