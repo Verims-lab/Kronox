@@ -124,7 +124,8 @@ export default function MainMenu() {
     <main
       className="fixed inset-0 w-full overflow-hidden text-white"
       style={{
-        width: '100vw',
+        width: '100%',
+        minHeight: '100dvh',
         height: '100dvh',
         maxHeight: '100dvh',
         overflow: 'hidden',

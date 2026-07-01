@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex517 — Home background container spec alignment:
+//   • MainMenu root now uses width:100% + min-height:100dvh (kept the existing 100dvh viewport lock/overflow behavior) alongside the already-correct target dark-blue radial + linear gradient, so the full Home background is guaranteed visible behind all content. No Home layout element moved; gradient value unchanged.
+//
 // Codex516 — Home top bar visual refinement + global notification button style:
 //   • Home top-left Store button, top-right Notification button, and the shared bell now use one circular gold-accent system: navy surface rgba(7,21,47,0.82), 1px gold border rgba(255,201,40,0.45), pure #FFC928 icon, and a stronger gold+cyan glow ring (home 44px, other screens 40px). The old gold-filled default bell variant was removed so the notification button matches everywhere it appears.
 //   • Home top-center Diamond display enlarged: Inter 700, white #F4F7FB number, gold #FFC928 gem with a slightly larger icon on the home variant. Diamond source/tap behavior unchanged.
@@ -93,7 +96,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex516';
+const BUILD_MARKER = 'Codex517';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
