@@ -67,11 +67,14 @@ export default function HeaderNotificationBell({ user, variant = 'default' }) {
       <button
         type="button"
         onClick={() => sounds.tap()}
-        className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-amber-200 active:scale-95 transition-transform"
+        className={`relative flex shrink-0 items-center justify-center rounded-full active:scale-95 transition-transform ${isHomeVariant ? 'h-11 w-11' : 'h-10 w-10'}`}
         style={{
           background: 'rgba(7, 21, 47, 0.82)',
           border: '1px solid rgba(255, 201, 40, 0.45)',
-          boxShadow: '0 0 16px rgba(85,216,255,0.10), inset 0 0 0 1px rgba(255,255,255,0.04)',
+          color: '#FFC928',
+          boxShadow: isHomeVariant
+            ? '0 0 20px rgba(255,201,40,0.20), 0 0 8px rgba(85,216,255,0.14), inset 0 0 0 1px rgba(255,255,255,0.05)'
+            : '0 0 12px rgba(255,201,40,0.14), inset 0 0 0 1px rgba(255,255,255,0.05)',
         }}
         aria-label="Bildirimler"
       >
@@ -105,15 +108,14 @@ export default function HeaderNotificationBell({ user, variant = 'default' }) {
         onClick={handleToggle}
         whileTap={{ scale: 0.92 }}
         transition={{ type: 'spring', stiffness: 520, damping: 24 }}
-        className={`relative flex shrink-0 items-center justify-center rounded-full ${isHomeVariant ? 'h-11 w-11 text-amber-200' : 'h-10 w-10 text-amber-950'}`}
+        className={`relative flex shrink-0 items-center justify-center rounded-full ${isHomeVariant ? 'h-11 w-11' : 'h-10 w-10'}`}
         style={{
-          background: isHomeVariant
-            ? 'rgba(7, 21, 47, 0.82)'
-            : 'radial-gradient(circle at 35% 28%, #ffe066, #b97a06 70%)',
-          border: isHomeVariant ? '1px solid rgba(255, 201, 40, 0.45)' : undefined,
+          background: 'rgba(7, 21, 47, 0.82)',
+          border: '1px solid rgba(255, 201, 40, 0.45)',
+          color: '#FFC928',
           boxShadow: isHomeVariant
-            ? '0 0 16px rgba(85,216,255,0.10), inset 0 0 0 1px rgba(255,255,255,0.04)'
-            : '0 0 12px rgba(250,204,21,0.40), inset 0 1px 0 rgba(255,255,255,0.45), inset 0 -4px 6px rgba(140,80,8,0.55)',
+            ? '0 0 20px rgba(255,201,40,0.20), 0 0 8px rgba(85,216,255,0.14), inset 0 0 0 1px rgba(255,255,255,0.05)'
+            : '0 0 12px rgba(255,201,40,0.14), inset 0 0 0 1px rgba(255,255,255,0.05)',
         }}
         aria-label={badgeLabel ? `Bildirimler (${badgeLabel})` : 'Bildirimler'}
         aria-haspopup="dialog"
@@ -125,9 +127,9 @@ export default function HeaderNotificationBell({ user, variant = 'default' }) {
             data-kx-header-notification-badge="true"
             className="kronox-number absolute -right-1 -top-1 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full px-1 text-[10px]"
             style={{
-              background: 'linear-gradient(180deg,#ef4444,#b91c1c)',
-              color: '#fff7ed',
-              boxShadow: '0 0 8px rgba(239,68,68,0.55), inset 0 1px 0 rgba(255,255,255,0.35)',
+              background: '#FF5D67',
+              color: '#FFFFFF',
+              boxShadow: '0 0 8px rgba(255,93,103,0.55), inset 0 1px 0 rgba(255,255,255,0.35)',
             }}
           >
             {badgeLabel}

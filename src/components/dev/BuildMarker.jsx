@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex516 — Home top bar visual refinement + global notification button style:
+//   • Home top-left Store button, top-right Notification button, and the shared bell now use one circular gold-accent system: navy surface rgba(7,21,47,0.82), 1px gold border rgba(255,201,40,0.45), pure #FFC928 icon, and a stronger gold+cyan glow ring (home 44px, other screens 40px). The old gold-filled default bell variant was removed so the notification button matches everywhere it appears.
+//   • Home top-center Diamond display enlarged: Inter 700, white #F4F7FB number, gold #FFC928 gem with a slightly larger icon on the home variant. Diamond source/tap behavior unchanged.
+//   • Notification unread badge recolored to #FF5D67 on #FFFFFF; badge still shows ONLY when real unread notifications exist (0/empty renders nothing).
+//   • Store→Market navigation, notification open flow, economy/notification backend logic, the centered transparent Kronox logo, hourglass, shortcuts, CTAs, and BottomNav are all unchanged.
+//
 // Codex515 — Home screen visual rebuild to match target design:
 //   • Central time visual replaced: the weak pure-CSS hourglass is now a single static illustrated centerpiece (ornate gold + navy hourglass resting on a glowing zodiac/roman-numeral clock ring), sized larger (min(72vw,300px)) to anchor the page. The image uses a solid-navy background feathered into the Home gradient via a radial alpha mask so there is no rectangular seam. No coded animation; controlled radial glow only.
 //   • Görevler/Çark shortcuts widened (4.75rem columns, z-10 wrappers) so labels never clip behind the larger centerpiece; icon/circle/label styling unchanged.
@@ -87,7 +93,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex515';
+const BUILD_MARKER = 'Codex516';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

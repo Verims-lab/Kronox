@@ -90,16 +90,17 @@ export default function StandardTopBar({
           type="button"
           onClick={handleMarket}
           aria-label="Mağaza"
-          className="absolute flex h-10 w-10 items-center justify-center rounded-full text-amber-200 active:scale-95 transition-transform"
+          className="absolute flex h-10 w-10 items-center justify-center rounded-full active:scale-95 transition-transform"
           style={{
             left: 'calc(env(safe-area-inset-left) + 0.75rem)',
             top: `calc(env(safe-area-inset-top) + ${isHomeVariant ? '0.62rem' : '0.5rem'})`,
             width: isHomeVariant ? 44 : undefined,
             height: isHomeVariant ? 44 : undefined,
+            color: '#FFC928',
             background: isHomeVariant ? 'rgba(7, 21, 47, 0.82)' : 'rgba(250,204,21,0.10)',
             border: isHomeVariant ? '1px solid rgba(255, 201, 40, 0.45)' : undefined,
             boxShadow: isHomeVariant
-              ? '0 0 16px rgba(85,216,255,0.10), inset 0 0 0 1px rgba(255,255,255,0.04)'
+              ? '0 0 20px rgba(255,201,40,0.20), 0 0 8px rgba(85,216,255,0.14), inset 0 0 0 1px rgba(255,255,255,0.05)'
               : 'inset 0 0 0 1px rgba(250,204,21,0.35), 0 0 18px rgba(250,204,21,0.10)',
           }}
         >
@@ -112,13 +113,15 @@ export default function StandardTopBar({
         type="button"
         onClick={handleDiamondClick}
         disabled={!onDiamondClick}
-        className="kronox-number flex items-center gap-1.5 rounded-full text-white disabled:pointer-events-none"
+        className="kronox-number flex items-center gap-2 rounded-full disabled:pointer-events-none"
         style={{
           minHeight: 40,
-          padding: onDiamondClick ? '0 0.6rem' : 0,
+          padding: onDiamondClick ? '0 0.7rem' : 0,
           background: onDiamondClick ? 'rgba(7, 21, 47, 0.20)' : 'transparent',
-          fontSize: 18,
-          fontWeight: 800,
+          fontFamily: '"Inter", sans-serif',
+          fontSize: isHomeVariant ? 20 : 18,
+          fontWeight: 700,
+          color: '#F4F7FB',
           touchAction: 'manipulation',
         }}
         aria-label={`Elmas: ${diamonds}`}
@@ -126,10 +129,10 @@ export default function StandardTopBar({
         <Gem
           className="shrink-0"
           style={{
-            width: 'clamp(18px, 5vw, 22px)',
-            height: 'clamp(18px, 5vw, 22px)',
-            color: '#facc15',
-            filter: 'drop-shadow(0 0 6px rgba(250,204,21,0.55))',
+            width: isHomeVariant ? 'clamp(20px, 5.5vw, 24px)' : 'clamp(18px, 5vw, 22px)',
+            height: isHomeVariant ? 'clamp(20px, 5.5vw, 24px)' : 'clamp(18px, 5vw, 22px)',
+            color: '#FFC928',
+            filter: 'drop-shadow(0 0 7px rgba(255,201,40,0.6))',
           }}
           strokeWidth={2.4}
         />
