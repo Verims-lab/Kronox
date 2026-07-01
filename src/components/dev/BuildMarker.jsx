@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex518 — Home middle-section redesign to match target (Image B):
+//   • Görevler (left) / Hourglass (center) / Çark (right) kept as a 3-part row; side columns widened to 5rem for balanced symmetry around the dominant transparent hourglass. The hourglass stays fully transparent over the Home background (no card/panel/plate) — unchanged behavior.
+//   • Shortcut shells now use the exact spec: 44px circle, linear-gradient(160deg,#102A4A,#071A33), 1px rgba(85,216,255,0.42) border; Görevler icon #55D8FF, Çark icon #FFC928. Labels uppercase GÖREVLER/ÇARK in Inter 600 / 11px / #F4F7FB.
+//   • Ready-state badge (10px #FFC928 dot, 0 0 8px glow) shows only when real availability exists: Görevler when a daily quest is claimable (status=completed), Çark when the daily wheel isAvailable. Inactive icons stay visible with a subtle non-glowing shell. Availability reuses the existing useDailyWheel/useDailyQuests server-owned status hooks; wheel/quest backend logic unchanged.
+//   • Top row, logo, CTAs, BottomNav, routing, and shortcut modals unchanged.
+//
 // Codex517 — Home background container spec alignment:
 //   • MainMenu root now uses width:100% + min-height:100dvh (kept the existing 100dvh viewport lock/overflow behavior) alongside the already-correct target dark-blue radial + linear gradient, so the full Home background is guaranteed visible behind all content. No Home layout element moved; gradient value unchanged.
 //
@@ -96,7 +102,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex517';
+const BUILD_MARKER = 'Codex518';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

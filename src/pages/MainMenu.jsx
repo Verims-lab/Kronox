@@ -8,6 +8,8 @@ import { useAuth } from '@/lib/AuthContext';
 import StandardTopBar from '@/components/layout/StandardTopBar';
 import DailyWheelCard from '@/components/dailyWheel/DailyWheelCard';
 import { DailyQuestV1Card } from '@/components/dailyWheel/DailyRewardsPanel';
+import { useDailyWheel } from '@/hooks/useDailyWheel';
+import { useDailyQuests } from '@/hooks/useDailyQuests';
 import {
   getGuestLeaderboardOwnerKey,
   getLeaderboardDiamondValue,
@@ -83,6 +85,17 @@ export default function MainMenu() {
   const diamonds = useMemo(
     () => getLeaderboardDiamondValue(user || completedGuestProfile),
     [completedGuestProfile, user],
+  );
+
+  // Lightweight ready-state signals for the Görevler/Çark shortcut badges.
+  // These reuse the existing daily wheel/quest status hooks (server-owned
+  // source of truth) purely to decide whether to render a small badge.
+  const dailyWheel = useDailyWheel({ user, guestProfile: completedGuestProfile });
+  const dailyQuests = useDailyQuests({ user, guestProfile: completedGuestProfile });
+  const wheelReady = dailyWheel?.isAvailable === true;
+  const questReady = useMemo(
+    () => (dailyQuests?.quests || []).some((quest) => quest?.status === 'completed'),
+    [dailyQuests?.quests],
   );
 
   const handleSolo = () => {
@@ -170,21 +183,23 @@ export default function MainMenu() {
             }}
           />
 
-          <div className="grid w-full items-center gap-1" style={{ gridTemplateColumns: '4.75rem minmax(0, 1fr) 4.75rem' }}>
+          <div className="grid w-full items-center gap-1" style={{ gridTemplateColumns: '5rem minmax(0, 1fr) 5rem' }}>
             <div className="relative z-10">
               <HomeShortcut
-                label="Görevler"
+                label="GÖREVLER"
                 icon={ScrollText}
                 tone="cyan"
+                ready={questReady}
                 onClick={() => handleShortcut('quests')}
               />
             </div>
             <HomeTimeArtifact />
             <div className="relative z-10">
               <HomeShortcut
-                label="Çark"
+                label="ÇARK"
                 icon={TimerReset}
                 tone="gold"
+                ready={wheelReady}
                 onClick={() => handleShortcut('wheel')}
               />
             </div>
@@ -219,30 +234,62 @@ export default function MainMenu() {
   );
 }
 
-function HomeShortcut({ label, icon: Icon, tone, onClick }) {
+function HomeShortcut({ label, icon: Icon, tone, ready = false, onClick }) {
   const isGold = tone === 'gold';
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex min-w-0 flex-col items-center justify-center gap-1.5 text-center font-inter active:scale-95"
+      className="flex min-w-0 flex-col items-center justify-center gap-2 text-center active:scale-95"
       style={{ touchAction: 'manipulation' }}
       aria-label={label}
     >
       <span
-        className="relative grid h-11 w-11 place-items-center rounded-full"
+        className="relative grid place-items-center rounded-full"
         style={{
+          width: 44,
+          height: 44,
+          borderRadius: '50%',
           background: 'linear-gradient(160deg, #102A4A 0%, #071A33 100%)',
-          border: `1px solid ${isGold ? 'rgba(255, 201, 40, 0.46)' : 'rgba(85, 216, 255, 0.42)'}`,
+          border: '1px solid rgba(85, 216, 255, 0.42)',
           color: isGold ? '#FFC928' : '#55D8FF',
-          boxShadow: isGold
-            ? '0 0 14px rgba(255, 201, 40, 0.12), inset 0 0 0 1px rgba(255,255,255,0.05)'
-            : '0 0 14px rgba(85, 216, 255, 0.10), inset 0 0 0 1px rgba(255,255,255,0.05)',
+          // Inactive = subtle, non-glowing. Ready = a soft accent glow ring.
+          boxShadow: ready
+            ? (isGold
+              ? '0 0 16px rgba(255, 201, 40, 0.28), inset 0 0 0 1px rgba(255,255,255,0.05)'
+              : '0 0 16px rgba(85, 216, 255, 0.26), inset 0 0 0 1px rgba(255,255,255,0.05)')
+            : 'inset 0 0 0 1px rgba(255,255,255,0.05)',
         }}
       >
         <Icon className="h-5 w-5" strokeWidth={2.35} />
+        {ready && (
+          <span
+            aria-hidden="true"
+            className="absolute"
+            style={{
+              top: -1,
+              right: -1,
+              width: 10,
+              height: 10,
+              borderRadius: '50%',
+              background: '#FFC928',
+              boxShadow: '0 0 8px rgba(255, 201, 40, 0.55)',
+            }}
+          />
+        )}
       </span>
-      <span className="text-[11px] font-bold leading-none text-blue-50">{label}</span>
+      <span
+        className="leading-none"
+        style={{
+          fontFamily: '"Inter", sans-serif',
+          fontWeight: 600,
+          fontSize: 11,
+          color: '#F4F7FB',
+          letterSpacing: '0.02em',
+        }}
+      >
+        {label}
+      </span>
     </button>
   );
 }
