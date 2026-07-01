@@ -108,14 +108,17 @@ Deno.serve(async (req) => {
         findUserByEmail(base44, fromEmail),
         findUserByEmail(base44, toEmail),
       ]);
+      // Security (CWE-285): Kronox IDs written on accept are always derived
+      // from the trusted authenticated User rows looked up by email, never
+      // from the client-influenced stored request payload. This prevents
+      // spoofing/forging friendship relationships via a manipulated
+      // from_kronox_user_id/to_kronox_user_id on the FriendRequest row.
+      const trustedFromKronoxUserId = normalizeKronoxUserId(senderUser?.kronox_user_id);
+      const trustedToKronoxUserId = normalizeKronoxUserId(receiverUser?.kronox_user_id);
       await base44.asServiceRole.entities.FriendRequest.update(requestId, {
         status: 'accepted',
-        ...(normalizeKronoxUserId(fr.from_kronox_user_id) ? {} : {
-          from_kronox_user_id: normalizeKronoxUserId(senderUser?.kronox_user_id),
-        }),
-        ...(normalizeKronoxUserId(fr.to_kronox_user_id) ? {} : {
-          to_kronox_user_id: normalizeKronoxUserId(receiverUser?.kronox_user_id),
-        }),
+        ...(trustedFromKronoxUserId ? { from_kronox_user_id: trustedFromKronoxUserId } : {}),
+        ...(trustedToKronoxUserId ? { to_kronox_user_id: trustedToKronoxUserId } : {}),
       });
     }
 

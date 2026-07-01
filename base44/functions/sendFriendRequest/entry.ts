@@ -58,34 +58,11 @@ function safePublicUsername(value: unknown, fallbackSeed: unknown) {
   return normalizeUsernameInput(value) || makeUsernameFallback(fallbackSeed);
 }
 
-// Trusted base domain for app deep links. The client may NOT redirect this
-// to an arbitrary host: appUrl is only honored when it resolves to the
-// official Kronox domain. Anything else — including any other *.base44.app
-// subdomain — is rejected so notification emails can never carry a
-// phishing link (CWE-601 open redirect).
+// Trusted base domain for app deep links. This is hardcoded server-side and
+// the client-supplied appUrl is intentionally NOT used, so notification
+// emails can never carry an attacker-controlled/phishing host (CWE-601 open
+// redirect).
 const KRONOX_DEFAULT_APP_URL = 'https://kronox.base44.app';
-const KRONOX_TRUSTED_APP_HOSTS = ['kronox.base44.app'];
-
-function isTrustedAppHost(hostname: string) {
-  const host = String(hostname || '').trim().toLowerCase();
-  return KRONOX_TRUSTED_APP_HOSTS.includes(host);
-}
-
-function sanitizeAppUrl(raw: unknown) {
-  const s = String(raw || '').trim();
-  if (!s) return null;
-  try {
-    const u = new URL(s);
-    // Only https and only a trusted Kronox/base44 host — block open redirects.
-    if (u.protocol !== 'https:') return null;
-    if (!isTrustedAppHost(u.hostname)) return null;
-    u.search = '';
-    u.hash = '';
-    return u.toString().replace(/\/$/, '');
-  } catch {
-    return null;
-  }
-}
 
 function escapeText(value: unknown) {
   return String(value || '').replace(/[\u0000-\u001F\u007F]/g, '').slice(0, 200);
@@ -531,7 +508,11 @@ Deno.serve(async (req) => {
         expires_at: expiresAt.toISOString(),
       });
 
-      const appUrl = sanitizeAppUrl(body?.appUrl) || KRONOX_DEFAULT_APP_URL;
+      // Security (CWE-601 open redirect): the notification deep link base is
+      // hardcoded server-side and never taken from the client-supplied
+      // appUrl, so a friend-request email can never carry an attacker
+      // controlled/phishing host.
+      const appUrl = KRONOX_DEFAULT_APP_URL;
       const emailResult = await sendFriendRequestEmail(base44, {
         toEmail: targetEmail,
         senderName,
