@@ -767,17 +767,29 @@ export const EXTRA_TESTS = [
 
   /* ------------------------------------------------------------------
    *  visual_composition_regression.asset_path_drift_warning
-   *  The active Home screen is now CSS/motion-driven: the KRONOX wordmark,
-   *  gold Solo/Online CTAs, and StandardTopBar are rendered directly in
-   *  MainMenu. Legacy PNG pressed-swap paths are intentionally absent.
+   *  The active Home screen uses a transparent local KRONOX logo PNG,
+   *  CSS/motion gold Solo/Online CTAs, compact shortcuts, and StandardTopBar.
+   *  Legacy PNG pressed-swap paths are intentionally absent.
    * ------------------------------------------------------------------ */
   makeCase(
     'visual_composition_regression', 'Visual Composition Regression Suite',
     'asset_path_drift_warning',
-    'MainMenu uses current CSS/motion KRONOX home buttons and no stale PNG pressed asset swap',
+    'MainMenu uses transparent local KRONOX logo, CSS/motion CTAs, and no stale PNG pressed asset swap',
     () => {
       const src = safeStr(mainMenuSource);
-      const required = ['function KronoxWordmark', 'function HomeCTA', 'StandardTopBar', 'whileTap', 'SOLO MEYDAN OKUMA', 'ONLINE KAPIŞMA'];
+      const required = [
+        'HOME_LOGO_SRC',
+        '/assets/ui/kronox-logo-home.png',
+        "objectFit: 'contain'",
+        'function HomeTimeArtifact',
+        'function HomeShortcut',
+        'function HomeCTA',
+        'StandardTopBar',
+        'variant="home"',
+        'whileTap',
+        'SOLO MEYDAN OKUMA',
+        'ONLINE KAPIŞMA',
+      ];
       const forbidden = ['normalSrc', 'pressedSrc', 'Kronox_Home_Button_Solo.png', 'Kronox_Home_Button_Online.png', 'Kronox_Home_Button_Solo_Pressed.png', 'Kronox_Home_Button_Online_Pressed.png'];
       const missing = required.filter((token) => !src.includes(token));
       const presentForbidden = forbidden.filter((token) => src.includes(token));
@@ -791,7 +803,7 @@ export const EXTRA_TESTS = [
           actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW,
         });
       }
-      return pass('MainMenu uses CSS/motion CTAs and does not depend on stale PNG pressed asset swaps.', {
+      return pass('MainMenu uses the transparent local logo asset, CSS/motion CTAs, compact shortcuts, and no stale PNG pressed asset swaps.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         file: 'pages/MainMenu.jsx',

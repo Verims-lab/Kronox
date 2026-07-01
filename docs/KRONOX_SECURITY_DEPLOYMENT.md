@@ -857,9 +857,9 @@ Joker inventory is user-owned data:
   create and confirm by `idempotency_key` after create. Without a DB/entity
   unique constraint this remains function-level guard only / Medium P1
   hardening, not Low risk.
-* Home `Günlük Ödüller` includes Daily Wheel and Daily Quest Runtime v1
-  `Günlük Görev`; Daily Quest claims grant diamonds only through
-  server-backed, player-bound `claimDailyQuestReward`
+* Home exposes compact `Görevler` and `Çark` shortcuts for Daily Quest Runtime
+  v1 `Günlük Görev` and Daily Wheel; Daily Quest claims grant diamonds only
+  through server-backed, player-bound `claimDailyQuestReward`
 * Daily Wheel and Daily Quest rewards use separate guard fields and
   idempotency keys so a quest claim cannot unlock or duplicate a wheel spin:
   `daily_wheel:<playerKey>:<YYYY-MM-DD>` vs

@@ -1,13 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { ChevronRight, Crosshair, Swords } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronRight, Clock3, ScrollText, Swords, TimerReset, X } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
 import { useAuth } from '@/lib/AuthContext';
 import StandardTopBar from '@/components/layout/StandardTopBar';
-import SharedKronoxWordmark from '@/components/ui/KronoxWordmark';
-import DailyRewardsPanel from '@/components/dailyWheel/DailyRewardsPanel';
+import DailyWheelCard from '@/components/dailyWheel/DailyWheelCard';
+import { DailyQuestV1Card } from '@/components/dailyWheel/DailyRewardsPanel';
 import {
   getGuestLeaderboardOwnerKey,
   getLeaderboardDiamondValue,
@@ -22,41 +22,22 @@ import {
 import { getCompletedGuestCredentialsPayload, isGuestOnboardingComplete } from '@/lib/guestProfile';
 import { getUserJokerBalances } from '@/lib/jokerInventory';
 
-/**
- * Kronox Home — fixed full-screen mobile game home.
- *
- * Reference: provided 1080x1920 mock with
- *   • Top bar: centered diamond icon + count (left of center), bell top-right
- *   • Center: large KRONOX wordmark + two-line yellow tagline
- *   • Two stacked yellow CTAs: SOLO MEYDAN OKUMA, ONLINE KAPIŞMA
- *   • BottomNav: Ana Sayfa / Liderlik / Profil (rendered globally by App)
- *
- * Layout strategy (no-scroll, anchored top/bottom, fluid middle):
- *   • <main> is fixed to 100dvh, overflow hidden, contained paint.
- *   • A flex column reserves a top header band and a bottom-nav buffer; the
- *     middle area absorbs the leftover space and centers its content.
- *   • A `clamp()` text + button sizing keeps the composition identical on
- *     small phones, large phones, and desktop browsers — no per-device
- *     breakpoints, no jitter.
- *   • Safe-area insets are added to the header band height and to the
- *     bottom CTA padding so the design respects notches and the iOS home
- *     indicator without drifting between devices.
- *   • The global BottomNav (rendered by App.jsx) sits below this screen; we
- *     reserve space for it via paddingBottom on the CTA stack.
- */
+const HOME_LOGO_SRC = '/assets/ui/kronox-logo-home.png';
+
 export default function MainMenu() {
   const navigate = useNavigate();
   const { user: authUser, guestProfile } = useAuth();
   const [localUser, setLocalUser] = useState(authUser || null);
   const [localGuestProfile, setLocalGuestProfile] = useState(guestProfile || null);
+  const [activeShortcut, setActiveShortcut] = useState(null);
   const user = localUser || authUser || null;
   const completedGuestProfile = !user && isGuestOnboardingComplete(localGuestProfile || guestProfile)
     ? (localGuestProfile || guestProfile)
     : null;
-  const rewardsPlayer = user || completedGuestProfile;
 
   useEffect(() => { setLocalUser(authUser || null); }, [authUser]);
   useEffect(() => { setLocalGuestProfile(guestProfile || null); }, [guestProfile]);
+
   useEffect(() => {
     let cancelled = false;
     const warmMarket = () => {
@@ -118,6 +99,11 @@ export default function MainMenu() {
     navigate('/market');
   };
 
+  const handleShortcut = (shortcut) => {
+    sounds.tap();
+    setActiveShortcut(shortcut);
+  };
+
   const handleDailyWheelUserPatch = useCallback((patch) => {
     if (!patch || typeof patch !== 'object') return;
     if (user) {
@@ -145,78 +131,66 @@ export default function MainMenu() {
         touchAction: 'manipulation',
         userSelect: 'none',
         contain: 'layout paint size',
-        // Reference background: deep navy with a subtle radial vignette so the
-        // KRONOX wordmark reads cleanly. No external image required.
         background:
-          'radial-gradient(ellipse at 50% 40%, #0f2657 0%, #0a1b3f 45%, #060f2b 75%, #03081a 100%)',
+          'radial-gradient(ellipse at 50% 30%, rgba(58, 137, 220, 0.22) 0%, rgba(25, 77, 139, 0.10) 34%, transparent 62%), linear-gradient(180deg, #061225 0%, #0A2346 46%, #0B2852 68%, #061225 100%)',
       }}
     >
-      {/* ───── Top bar (Mağaza • Diamond + count • Bell) — shared StandardTopBar ───── */}
-      <StandardTopBar diamonds={diamonds} user={user} showMarket onMarket={handleMarket} />
+      <StandardTopBar
+        diamonds={diamonds}
+        user={user}
+        showMarket
+        onMarket={handleMarket}
+        onDiamondClick={handleMarket}
+        variant="home"
+      />
 
-      {/* ───── Center stack (logo + tagline + CTAs) ─────
-           Flex column fills between top safe-area and bottom-nav reserved
-           space. The inner block self-centers, so the composition stays
-           vertically balanced on every viewport. */}
-      <div
-        className="absolute left-0 right-0 flex flex-col items-center"
+      <section
+        className="absolute left-0 right-0 mx-auto flex w-full max-w-[28rem] flex-col items-center"
         style={{
-          top: 'calc(env(safe-area-inset-top) + 3.25rem)',
-          bottom: 'calc(env(safe-area-inset-bottom) + 3.5rem)', // BottomNav reserved
-          paddingLeft: 'env(safe-area-inset-left)',
-          paddingRight: 'env(safe-area-inset-right)',
+          top: 'calc(env(safe-area-inset-top) + 4.1rem)',
+          bottom: 'calc(env(safe-area-inset-bottom) + 4.15rem)',
+          paddingLeft: 'calc(env(safe-area-inset-left) + 1.15rem)',
+          paddingRight: 'calc(env(safe-area-inset-right) + 1.15rem)',
         }}
+        aria-label="Kronox Ana Sayfa"
       >
-        {/* Inner container caps the artwork width on tablets / desktop so the
-            mobile composition is preserved. */}
-        <div
-          className="flex h-full w-full flex-col items-center justify-center"
-          style={{
-            maxWidth: '28rem',
-            paddingLeft: '1.25rem',
-            paddingRight: '1.25rem',
-          }}
-        >
-          {/* Logo + tagline */}
-          <div className="flex flex-col items-center text-center" style={{ marginTop: 'auto' }}>
-            <KronoxWordmark />
-            <KronoxDivider />
-            {/* Tagline — first line WHITE, second line GOLD (per reference). */}
-            <p
-              className="font-inter mt-5 leading-snug tracking-[0.22em] text-center"
-              style={{
-                fontWeight: 800,
-                fontSize: 'clamp(11px, 3.4vw, 14px)',
-                textShadow: '0 2px 8px rgba(0,0,0,0.55)',
-              }}
-            >
-              <span style={{ color: '#f3f6ff' }}>KARTI DOĞRU YERE KOY,</span>
-              <br />
-              <span style={{ color: '#f4d24a' }}>ZAMANI SEN YÖNET</span>
-            </p>
+        <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-between gap-3">
+          <img
+            src={HOME_LOGO_SRC}
+            alt="Kronox"
+            draggable="false"
+            className="block select-none"
+            style={{
+              width: 'min(62vw, 280px)',
+              height: 'auto',
+              objectFit: 'contain',
+              filter: 'drop-shadow(0 4px 10px rgba(0, 0, 0, 0.30)) drop-shadow(0 0 8px rgba(25, 130, 255, 0.16))',
+            }}
+          />
+
+          <div className="grid w-full items-center gap-2" style={{ gridTemplateColumns: '4rem minmax(0, 1fr) 4rem' }}>
+            <HomeShortcut
+              label="Görevler"
+              icon={ScrollText}
+              tone="cyan"
+              onClick={() => handleShortcut('quests')}
+            />
+            <HomeTimeArtifact />
+            <HomeShortcut
+              label="Çark"
+              icon={TimerReset}
+              tone="gold"
+              onClick={() => handleShortcut('wheel')}
+            />
           </div>
 
-          {/* CTA stack pinned toward the lower-middle so it always lands in
-              the same visual zone as the reference, no matter the height.
-              `paddingBottom` lifts the buttons slightly upward away from the
-              bottom-nav edge to match the reference framing. */}
-          <div
-            className="mt-auto flex w-full flex-col items-center"
-            style={{ gap: '0.75rem', paddingTop: 'clamp(0.75rem, 3vh, 1.8rem)', paddingBottom: 'clamp(1.35rem, 5.8vh, 3.2rem)' }}
-          >
-            {rewardsPlayer && (
-              <DailyRewardsPanel
-                user={user}
-                guestProfile={completedGuestProfile}
-                onUserUpdated={handleDailyWheelUserPatch}
-                ariaLabel="Günlük Ödüller: Günlük Çark ve Günlük Görev"
-              />
-            )}
+          <div className="flex w-full flex-col gap-3">
             <HomeCTA
-              icon={Crosshair}
+              icon={Clock3}
               label="SOLO MEYDAN OKUMA"
               onClick={handleSolo}
               ariaLabel="Solo Meydan Okuma"
+              primary
             />
             <HomeCTA
               icon={Swords}
@@ -226,145 +200,240 @@ export default function MainMenu() {
             />
           </div>
         </div>
-      </div>
+      </section>
+
+      <HomeShortcutModal
+        activeShortcut={activeShortcut}
+        user={user}
+        guestProfile={completedGuestProfile}
+        onClose={() => setActiveShortcut(null)}
+        onUserUpdated={handleDailyWheelUserPatch}
+      />
     </main>
   );
 }
 
-/* ─────────────────────────────────────────────────────────────────── */
-/*  Divider                                                            */
-/* ─────────────────────────────────────────────────────────────────── */
-
-/**
- * Yellow diamond accent below the wordmark, replicating the reference's
- * thin underline + small rotated yellow square divider.
- */
-function KronoxDivider() {
+function HomeShortcut({ label, icon: Icon, tone, onClick }) {
+  const isGold = tone === 'gold';
   return (
-    <div
-      className="mt-3 flex items-center justify-center"
-      style={{ gap: 'clamp(6px, 2vw, 10px)' }}
-      aria-hidden="true"
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex min-w-0 flex-col items-center justify-center gap-1.5 text-center font-inter active:scale-95"
+      style={{ touchAction: 'manipulation' }}
+      aria-label={label}
     >
       <span
+        className="relative grid h-11 w-11 place-items-center rounded-full"
         style={{
-          display: 'block',
-          height: 1.5,
-          width: 'clamp(28px, 9vw, 48px)',
-          background: 'linear-gradient(90deg, transparent, #facc15 60%, transparent)',
-          opacity: 0.85,
+          background: 'linear-gradient(160deg, #102A4A 0%, #071A33 100%)',
+          border: `1px solid ${isGold ? 'rgba(255, 201, 40, 0.46)' : 'rgba(85, 216, 255, 0.42)'}`,
+          color: isGold ? '#FFC928' : '#55D8FF',
+          boxShadow: isGold
+            ? '0 0 14px rgba(255, 201, 40, 0.12), inset 0 0 0 1px rgba(255,255,255,0.05)'
+            : '0 0 14px rgba(85, 216, 255, 0.10), inset 0 0 0 1px rgba(255,255,255,0.05)',
+        }}
+      >
+        <Icon className="h-5 w-5" strokeWidth={2.35} />
+      </span>
+      <span className="text-[11px] font-bold leading-none text-blue-50">{label}</span>
+    </button>
+  );
+}
+
+function HomeTimeArtifact() {
+  return (
+    <div className="relative mx-auto grid place-items-center" aria-hidden="true"
+      style={{ width: 'min(46vw, 214px)', height: 'min(30dvh, 214px)', minHeight: 150 }}>
+      <div
+        className="absolute rounded-full"
+        style={{
+          width: '92%',
+          height: '28%',
+          bottom: '2%',
+          border: '1px solid rgba(255, 201, 40, 0.34)',
+          boxShadow: '0 0 22px rgba(255, 201, 40, 0.20), inset 0 0 18px rgba(85, 216, 255, 0.08)',
+          transform: 'rotateX(62deg)',
         }}
       />
-      <span
+      <div
+        className="absolute rounded-full"
         style={{
-          display: 'block',
-          width: 'clamp(7px, 2vw, 10px)',
-          height: 'clamp(7px, 2vw, 10px)',
-          background: '#facc15',
-          transform: 'rotate(45deg)',
-          boxShadow: '0 0 8px rgba(250,204,21,0.65)',
+          width: '66%',
+          height: '20%',
+          bottom: '9%',
+          background: 'radial-gradient(circle, rgba(255, 201, 40, 0.30), rgba(255, 201, 40, 0.06) 46%, transparent 72%)',
+          filter: 'blur(1px)',
         }}
       />
-      <span
+      <div
+        className="relative h-full"
         style={{
-          display: 'block',
-          height: 1.5,
-          width: 'clamp(28px, 9vw, 48px)',
-          background: 'linear-gradient(90deg, transparent, #facc15 60%, transparent)',
-          opacity: 0.85,
+          width: '45%',
+          filter: 'drop-shadow(0 12px 24px rgba(0, 0, 0, 0.30)) drop-shadow(0 0 18px rgba(255, 201, 40, 0.14))',
         }}
-      />
+      >
+        <div
+          className="absolute left-1/2 top-[3%] h-[10%] w-[118%] -translate-x-1/2 rounded-full"
+          style={{
+            background: 'linear-gradient(180deg, #FFE36D 0%, #B47A05 100%)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.55), 0 0 12px rgba(255, 201, 40, 0.28)',
+          }}
+        />
+        <div
+          className="absolute bottom-[9%] left-1/2 h-[10%] w-[118%] -translate-x-1/2 rounded-full"
+          style={{
+            background: 'linear-gradient(180deg, #D89508 0%, #4F2B02 100%)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.24), 0 0 10px rgba(255, 201, 40, 0.16)',
+          }}
+        />
+        <div
+          className="absolute left-[4%] top-[11%] h-[78%] w-[10%] rounded-full"
+          style={{ background: 'linear-gradient(180deg, #A7ECFF 0%, #174A86 52%, #071A33 100%)' }}
+        />
+        <div
+          className="absolute right-[4%] top-[11%] h-[78%] w-[10%] rounded-full"
+          style={{ background: 'linear-gradient(180deg, #A7ECFF 0%, #174A86 52%, #071A33 100%)' }}
+        />
+        <div
+          className="absolute left-1/2 top-[14%] h-[70%] w-[72%] -translate-x-1/2 overflow-hidden rounded-[42%]"
+          style={{
+            border: '1px solid rgba(167, 236, 255, 0.46)',
+            background: 'linear-gradient(180deg, rgba(167,236,255,0.12), rgba(6,18,37,0.16) 48%, rgba(167,236,255,0.10))',
+            clipPath: 'polygon(8% 0, 92% 0, 59% 48%, 92% 100%, 8% 100%, 41% 48%)',
+            boxShadow: 'inset 0 0 22px rgba(85,216,255,0.18)',
+          }}
+        >
+          <div
+            className="absolute left-1/2 top-[14%] h-[25%] w-[58%] -translate-x-1/2 rounded-b-full"
+            style={{ background: 'linear-gradient(180deg, rgba(255,227,109,0.88), rgba(255,201,40,0.18))' }}
+          />
+          <div
+            className="absolute left-1/2 top-[39%] h-[25%] w-[5px] -translate-x-1/2 rounded-full"
+            style={{ background: 'linear-gradient(180deg, rgba(255,227,109,0.90), rgba(255,201,40,0.20))' }}
+          />
+          <div
+            className="absolute bottom-[10%] left-1/2 h-[30%] w-[64%] -translate-x-1/2 rounded-t-full"
+            style={{ background: 'linear-gradient(180deg, rgba(255,201,40,0.18), rgba(255,227,109,0.92))' }}
+          />
+        </div>
+      </div>
     </div>
   );
 }
 
-function KronoxWordmark() {
-  return <SharedKronoxWordmark />;
-}
-
-/* ─────────────────────────────────────────────────────────────────── */
-/*  CTA button                                                         */
-/* ─────────────────────────────────────────────────────────────────── */
-
-/**
- * Yellow main CTA matching the reference:
- *   [icon] ───  [label]                                            >
- *
- * - Solid yellow gradient fill, deep-navy text/icon for contrast.
- * - Internal vertical divider after the icon (as in the mock).
- * - Right chevron arrow.
- * - Whole row is one tap target; whileTap delivers a tactile press.
- * - clamp() sizing keeps the same look on small phones and on desktop.
- */
-function HomeCTA({ icon: Icon, label, onClick, ariaLabel }) {
+function HomeCTA({ icon: Icon, label, onClick, ariaLabel, primary = false }) {
   return (
     <motion.button
       type="button"
       onClick={onClick}
       whileTap={{ y: 2, scale: 0.985 }}
       transition={{ type: 'spring', stiffness: 620, damping: 26, mass: 0.7 }}
-      className="relative flex w-full items-center font-inter text-amber-950"
+      className="relative flex w-full items-center text-amber-950"
       style={{
         appearance: 'none',
-        height: 'clamp(56px, 14.5vw, 70px)',
-        padding: '0 1rem 0 1.1rem',
-        borderRadius: '14px',
-        background: 'linear-gradient(180deg, #ffd84a 0%, #f5c400 55%, #e0ad00 100%)',
-        boxShadow:
-          'inset 0 1px 0 rgba(255,255,255,0.55), inset 0 -3px 0 rgba(120,75,0,0.35), 0 8px 22px rgba(0,0,0,0.45)',
-        color: '#1a1003',
-        // Lighter weight + tighter tracking per reference (cleaner, less heavy).
-        fontWeight: 600,
-        letterSpacing: '0.04em',
+        height: 'clamp(56px, 9dvh, 70px)',
+        padding: '0 1rem 0 1.05rem',
+        borderRadius: 18,
+        border: primary ? '1px solid rgba(255, 227, 109, 0.78)' : '1px solid rgba(255, 201, 40, 0.52)',
+        background: primary
+          ? 'linear-gradient(180deg, #FFE36D 0%, #FFC928 52%, #E4A600 100%)'
+          : 'linear-gradient(180deg, #FFD955 0%, #F4BD12 56%, #C98C05 100%)',
+        boxShadow: primary
+          ? '0 7px 0 #A97400, 0 12px 24px rgba(0, 0, 0, 0.26), 0 0 16px rgba(255, 201, 40, 0.20), inset 0 1px 0 rgba(255,255,255,0.62)'
+          : '0 5px 0 #8D6200, 0 10px 20px rgba(0, 0, 0, 0.24), 0 0 10px rgba(255, 201, 40, 0.12), inset 0 1px 0 rgba(255,255,255,0.48)',
+        color: '#101827',
         touchAction: 'manipulation',
       }}
       aria-label={ariaLabel}
     >
-      {/* Left icon */}
-      <Icon
-        className="shrink-0"
-        style={{
-          width: 'clamp(22px, 6vw, 26px)',
-          height: 'clamp(22px, 6vw, 26px)',
-          color: '#1a1003',
-        }}
-        strokeWidth={2.4}
-      />
-
-      {/* Vertical divider */}
+      <Icon className="h-6 w-6 shrink-0" strokeWidth={2.5} />
       <span
         aria-hidden="true"
         className="mx-3 shrink-0"
         style={{
           width: 1.5,
-          height: '55%',
-          background: 'rgba(26,16,3,0.45)',
+          height: '54%',
+          background: 'rgba(16, 24, 39, 0.42)',
           borderRadius: 1,
         }}
       />
-
-      {/* Label — Inter semibold + slight tracking to match the reference. */}
       <span
-        className="flex-1 text-left truncate"
+        className="min-w-0 flex-1 truncate text-left"
         style={{
-          fontSize: 'clamp(13px, 3.8vw, 15px)',
-          letterSpacing: '0.03em',
-          fontWeight: 600,
+          fontFamily: "'Barlow Condensed', var(--font-inter)",
+          fontSize: 22,
+          lineHeight: 1,
+          fontStyle: 'italic',
+          fontWeight: 800,
+          letterSpacing: '0',
         }}
       >
         {label}
       </span>
-
-      {/* Right chevron */}
-      <ChevronRight
-        className="shrink-0"
-        style={{
-          width: 'clamp(20px, 5vw, 24px)',
-          height: 'clamp(20px, 5vw, 24px)',
-          color: '#1a1003',
-        }}
-        strokeWidth={2.6}
-      />
+      <ChevronRight className="h-6 w-6 shrink-0" strokeWidth={2.7} />
     </motion.button>
+  );
+}
+
+function HomeShortcutModal({ activeShortcut, user, guestProfile, onClose, onUserUpdated }) {
+  const isWheel = activeShortcut === 'wheel';
+  const isQuests = activeShortcut === 'quests';
+  return (
+    <AnimatePresence>
+      {(isWheel || isQuests) && (
+        <motion.div
+          className="fixed inset-0 z-[140] flex items-end justify-center bg-slate-950/58 px-4 pb-4 pt-20 backdrop-blur-sm"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          role="dialog"
+          aria-modal="true"
+          aria-label={isWheel ? 'Çark' : 'Görevler'}
+          onClick={onClose}
+        >
+          <motion.div
+            className="w-full max-w-[24rem] rounded-[22px] p-3"
+            initial={{ y: 24, opacity: 0, scale: 0.98 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 18, opacity: 0, scale: 0.98 }}
+            transition={{ duration: 0.18 }}
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              border: '1px solid rgba(85, 216, 255, 0.26)',
+              background: 'linear-gradient(180deg, rgba(16,38,75,0.98), rgba(6,18,37,0.98))',
+              boxShadow: '0 24px 52px rgba(0,0,0,0.50), inset 0 0 0 1px rgba(255,255,255,0.05)',
+            }}
+          >
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="font-inter text-sm font-black text-white">{isWheel ? 'Çark' : 'Görevler'}</h2>
+              <button
+                type="button"
+                onClick={onClose}
+                className="grid h-9 w-9 place-items-center rounded-full text-blue-100/80 active:scale-95"
+                style={{ background: 'rgba(255,255,255,0.06)', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.12)' }}
+                aria-label="Kapat"
+              >
+                <X className="h-4 w-4" strokeWidth={2.4} />
+              </button>
+            </div>
+            {isWheel ? (
+              <DailyWheelCard
+                user={user}
+                guestProfile={guestProfile}
+                onUserUpdated={onUserUpdated}
+                compact
+              />
+            ) : (
+              <DailyQuestV1Card
+                user={user}
+                guestProfile={guestProfile}
+                onUserUpdated={onUserUpdated}
+              />
+            )}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex514 — Home main menu redesign:
+//   • Home now uses the transparent local Kronox logo asset as a centered, unboxed top visual over the dark blue background.
+//   • First-render Home is compact: Mağaza/Diamonds/Bildirimler top row, static time visual, Görevler/Çark shortcuts, and large Solo/Online CTAs.
+//   • Daily Wheel and Daily Quest remain available through shortcut modals, preserving reward patching without mounting the expanded Günlük Ödüller panel on first paint.
+//
 // Codex513 — Health blocker fixes:
 //   • GameInvite creation Health now scans the backend-owned createGameInvitesForTargets contract for the 10-minute pending/expires_at runtime path.
 //   • createGameInvites returns the exact best-effort push summary shape after invoking sendGameInvitePush without blocking invite creation.
@@ -76,7 +81,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex513';
+const BUILD_MARKER = 'Codex514';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

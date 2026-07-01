@@ -223,8 +223,9 @@ service-role/auth entity fallback for `UserJokerInventory` and
 remains a live backend manual gate.
 
 Daily Reward Wheel uses active `daily_wheel_*` User/GuestProfile guard fields
-plus `daily_wheel:<playerKey>:<YYYY-MM-DD>`. The Home `Günlük Ödüller` panel
-also shows Daily Quest Runtime v1. Daily Wheel and Daily Quest are separate
+plus `daily_wheel:<playerKey>:<YYYY-MM-DD>`. Home exposes Daily Wheel through
+the `Çark` shortcut and Daily Quest Runtime v1 through the `Görevler` shortcut.
+Daily Wheel and Daily Quest are separate
 reward systems: Daily Wheel uses `daily_wheel`, while Daily Quest claims use
 `daily_quest_reward` and
 `daily_quest_reward:<playerKey>:<YYYY-MM-DD>:<quest_key>` idempotency.

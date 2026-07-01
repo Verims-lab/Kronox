@@ -51,7 +51,7 @@ export default function DailyRewardsPanel({ user, guestProfile, onUserUpdated, o
   );
 }
 
-function DailyQuestV1Card({ user, guestProfile, onUserUpdated, onLogin }) {
+export function DailyQuestV1Card({ user, guestProfile, onUserUpdated, onLogin }) {
   const dailyQuests = useDailyQuests({ user, guestProfile, onUserUpdated });
   const emptyCopy = dailyQuests.emptyStateReason === 'progress_rows_missing_after_ensure'
     ? 'Görevler yenilenemedi. Tekrar dene.'

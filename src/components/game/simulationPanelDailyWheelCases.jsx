@@ -71,39 +71,44 @@ export const EXTRA_SUITES = [
 
 export const EXTRA_TESTS = [
   makeCase('daily_rewards_panel_above_solo_cta',
-    'Günlük Ödüller panel exists for signed-in or completed-guest Home above Solo CTA',
+    'Home exposes compact Görevler/Çark shortcuts above Solo CTA without expanded rewards on first render',
     () => {
       const src = safeStr(mainMenuSource);
-      const panelIndex = src.indexOf('<DailyRewardsPanel');
+      const shortcutIndex = src.indexOf('label="Görevler"');
       const soloIndex = src.indexOf('label="SOLO MEYDAN OKUMA"');
       const missing = missingTokens(`${src}\n${dailyRewardsPanelSource}`, [
-        'DailyRewardsPanel',
-        '{rewardsPlayer && (',
+        'HomeShortcut',
+        'HomeShortcutModal',
+        'label="Görevler"',
+        'label="Çark"',
+        "'quests'",
+        "'wheel'",
+        'activeShortcut',
         'completedGuestProfile',
-        'guestProfile={completedGuestProfile}',
-        'Günlük Ödüller',
+        'guestProfile={guestProfile}',
         'DailyWheelCard',
         'DailyQuestV1Card',
         'Günlük Görev',
         'getLeaderboardDiamondValue(user || completedGuestProfile)',
         'onUserUpdated={handleDailyWheelUserPatch}',
-        "paddingBottom: 'clamp(1.35rem, 5.8vh, 3.2rem)'",
         'label="SOLO MEYDAN OKUMA"',
         'label="ONLINE KAPIŞMA"',
       ]);
       const forbidden = forbiddenTokens(src, [
+        '<DailyRewardsPanel',
+        'Günlük Ödüller',
         'onLogin={handleLogin}',
         'function handleLogin',
         'const handleLogin',
       ]);
-      if (missing.length || forbidden.length || panelIndex < 0 || soloIndex < 0 || panelIndex > soloIndex) {
-        return fail('Home does not place eligible-player Günlük Ödüller before the Solo CTA while avoiding guest login prompts.', {
+      if (missing.length || forbidden.length || shortcutIndex < 0 || soloIndex < 0 || shortcutIndex > soloIndex) {
+        return fail('Home does not place compact reward shortcuts before the Solo CTA while avoiding expanded reward panels and login prompts on first render.', {
           verification: 'STATIC_CONTRACT',
           file: 'src/pages/MainMenu.jsx',
-          actual: { missing, forbidden, panelIndex, soloIndex },
+          actual: { missing, forbidden, shortcutIndex, soloIndex },
         });
       }
-      return pass('Signed-in and completed-guest Günlük Ödüller is wired above Solo CTA, guest Home avoids reward login prompts, and Solo/Online CTAs remain present.', { verification: 'STATIC_CONTRACT' });
+      return pass('Compact Görevler/Çark shortcuts sit above Solo CTA, open existing reward flows in a modal, and keep first-render Home free of expanded reward panels.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('daily_wheel_icon_polished_not_asset_dependent',
