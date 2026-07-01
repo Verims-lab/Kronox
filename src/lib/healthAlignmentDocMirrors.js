@@ -722,11 +722,14 @@ Better replay adds only the positive score delta. Old completed Solo results
 are not retroactively recalculated.
 
 ## Mağaza Phase 1
-Home shows Mağaza top-left, Diamonds center, notifications right. Mağaza title
-is Mağaza and prices are Zaman Dondur 40, Kart Değiştir 50, Kronokalkan 60.
-Home uses centered transparent local Kronox logo and hourglass assets, compact
-Görevler and Çark shortcuts with ready badges, and large Solo/Online CTAs; the
-expanded Günlük Ödüller panel is not rendered on first Home paint.
+Home shows Mağaza top-left with a gold storefront icon, Diamonds center,
+notifications right. Mağaza title is Mağaza and prices are Zaman Dondur 40,
+Kart Değiştir 50, Kronokalkan 60.
+Home uses a larger centered transparent local Kronox logo, a larger centered
+transparent hourglass visual balanced between left Görevler and right Çark,
+compact shortcuts with ready badges, centered Görevler/Çark popups, and large
+Solo/Online CTAs lifted above BottomNav; the expanded Günlük Ödüller panel is
+not rendered on first Home paint.
 Client is not trusted for price; purchase validation is server-authoritative.
 Market open should be fast: Home may idle-prefetch the Market chunk and fast
 UserJokerInventory cache, the static Phase 1 catalog renders immediately, and

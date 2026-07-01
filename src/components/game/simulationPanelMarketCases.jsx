@@ -76,7 +76,7 @@ export const EXTRA_TESTS = [
         'onMarket={handleMarket}',
         "navigate('/market')",
         'aria-label="Mağaza"',
-        'ShoppingBag',
+        'Store',
         'justify-center',
         'HeaderNotificationBell',
         'right: \'calc(env(safe-area-inset-right) + 0.75rem)\'',

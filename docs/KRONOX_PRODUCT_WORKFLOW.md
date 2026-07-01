@@ -235,11 +235,16 @@ Home can show:
 
 * Solo entry
 * Online Kapışma entry
-* Mağaza entry
-* `Görevler` shortcut for Daily Quest
-* `Çark` shortcut for Daily Wheel
+* Mağaza entry with the gold storefront icon style
+* `Görevler` shortcut for Daily Quest in a centered popup
+* `Çark` shortcut for Daily Wheel in a centered popup
 * notification/invite access
 * Diamond balance
+
+Home's middle section is a three-part composition: left `Görevler`, centered
+transparent hourglass artwork, and right `Çark`. The logo and hourglass remain
+unboxed local assets over the dark blue Home background, and the Solo/Online CTA
+stack stays clear of the BottomNav.
 
 Home must not show:
 

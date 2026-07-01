@@ -186,14 +186,20 @@ export default function MainMenu() {
             draggable="false"
             className="block select-none"
             style={{
-              width: 'min(62vw, 280px)',
+              width: 'min(74.4vw, 336px)',
               height: 'auto',
               objectFit: 'contain',
               filter: 'drop-shadow(0 4px 10px rgba(0, 0, 0, 0.30)) drop-shadow(0 0 8px rgba(25, 130, 255, 0.16))',
             }}
           />
 
-          <div className="grid w-full items-center gap-1" style={{ gridTemplateColumns: '5rem minmax(0, 1fr) 5rem' }}>
+          <div
+            className="grid w-full items-center"
+            style={{
+              gridTemplateColumns: 'minmax(4.75rem, 1fr) minmax(0, 1.18fr) minmax(4.75rem, 1fr)',
+              columnGap: 0,
+            }}
+          >
             <div className="relative z-10">
               <HomeShortcut
                 label="Görevler"
@@ -215,7 +221,7 @@ export default function MainMenu() {
             </div>
           </div>
 
-          <div className="flex w-full flex-col" style={{ gap: 14, marginBottom: 4 }}>
+          <div className="flex w-full flex-col" style={{ gap: 14, marginBottom: 'calc(2dvh + 4px)' }}>
             <HomeCTA
               icon={Crosshair}
               label="SOLO MEYDAN OKUMA"
@@ -311,12 +317,14 @@ function HomeTimeArtifact() {
   // The local asset is rendered on flat black; `mix-blend-mode: screen` drops
   // those black pixels out against the dark Home gradient (black → transparent
   // under screen) while the bright hourglass artwork stays fully visible, so
-  // there is no box, halo, or hard edge.
+  // there is no box, halo, or hard edge. Do not add drop-shadow/filter here:
+  // the PNG has no alpha channel, so image filters can create a rectangular
+  // shadow block around the art.
   return (
     <div
       className="relative mx-auto grid place-items-center"
       aria-hidden="true"
-      style={{ width: 'min(72vw, 300px)', height: 'min(40dvh, 300px)', minHeight: 180 }}
+      style={{ width: 'min(86.4vw, 360px)', height: 'min(48dvh, 360px)', minHeight: 216 }}
     >
       <img
         src={HOME_HOURGLASS_SRC}
@@ -326,7 +334,7 @@ function HomeTimeArtifact() {
         className="relative block h-full w-full select-none object-contain"
         style={{
           mixBlendMode: 'screen',
-          filter: 'drop-shadow(0 10px 18px rgba(0, 0, 0, 0.30))',
+          filter: 'none',
         }}
       />
     </div>
@@ -397,7 +405,7 @@ function HomeShortcutModal({ activeShortcut, user, guestProfile, onClose, onUser
     <AnimatePresence>
       {(isWheel || isQuests) && (
         <motion.div
-          className="fixed inset-0 z-[140] flex items-end justify-center bg-slate-950/58 px-4 pb-4 pt-20 backdrop-blur-sm"
+          className="fixed inset-0 z-[140] flex items-center justify-center bg-slate-950/58 px-4 py-6 backdrop-blur-sm"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -408,12 +416,14 @@ function HomeShortcutModal({ activeShortcut, user, guestProfile, onClose, onUser
         >
           <motion.div
             className="w-full max-w-[24rem] rounded-[22px] p-3"
-            initial={{ y: 24, opacity: 0, scale: 0.98 }}
+            initial={{ y: 10, opacity: 0, scale: 0.98 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
-            exit={{ y: 18, opacity: 0, scale: 0.98 }}
+            exit={{ y: 8, opacity: 0, scale: 0.98 }}
             transition={{ duration: 0.18 }}
             onClick={(event) => event.stopPropagation()}
             style={{
+              maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 3rem)',
+              overflowY: 'auto',
               border: '1px solid rgba(85, 216, 255, 0.26)',
               background: 'linear-gradient(180deg, rgba(16,38,75,0.98), rgba(6,18,37,0.98))',
               boxShadow: '0 24px 52px rgba(0,0,0,0.50), inset 0 0 0 1px rgba(255,255,255,0.05)',
