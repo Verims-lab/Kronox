@@ -24,8 +24,11 @@ import {
 import { getCompletedGuestCredentialsPayload, isGuestOnboardingComplete } from '@/lib/guestProfile';
 import { getUserJokerBalances } from '@/lib/jokerInventory';
 
+// Local/project-approved visual assets only. No remote (https/http) asset URLs
+// are used on Home — the no-remote-visual-assets Health contract scans this
+// file and forbids new remote image references on approved visual surfaces.
 const HOME_LOGO_SRC = '/assets/ui/kronox-logo-home.png';
-const HOME_HOURGLASS_SRC = 'https://base44.app/api/apps/6a05b47e401bb23c2f21a522/files/mp/public/6a05b47e401bb23c2f21a522/b19153430_kronox-hourglass-home-v2.png';
+const HOME_HOURGLASS_SRC = '/assets/ui/kronox-hourglass-home.png';
 
 export default function MainMenu() {
   const navigate = useNavigate();
@@ -37,6 +40,11 @@ export default function MainMenu() {
   const completedGuestProfile = !user && isGuestOnboardingComplete(localGuestProfile || guestProfile)
     ? (localGuestProfile || guestProfile)
     : null;
+  // Resolved linked-or-guest rewards player. Completed guests remain valid
+  // reward players (Daily Wheel / Daily Quest) without login; the shortcuts
+  // and wheel status are gated by this resolved player, not by a logged-in
+  // Base44 user only.
+  const rewardsPlayer = user || completedGuestProfile || null;
 
   useEffect(() => { setLocalUser(authUser || null); }, [authUser]);
   useEffect(() => { setLocalGuestProfile(guestProfile || null); }, [guestProfile]);
@@ -92,10 +100,12 @@ export default function MainMenu() {
   // source of truth) purely to decide whether to render a small badge.
   const dailyWheel = useDailyWheel({ user, guestProfile: completedGuestProfile });
   const dailyQuests = useDailyQuests({ user, guestProfile: completedGuestProfile });
-  const wheelReady = dailyWheel?.isAvailable === true;
+  // Ready badges only render for a resolved rewards player (linked-or-guest)
+  // and never block first render on reward status.
+  const wheelReady = Boolean(rewardsPlayer) && dailyWheel?.isAvailable === true;
   const questReady = useMemo(
-    () => (dailyQuests?.quests || []).some((quest) => quest?.status === 'completed'),
-    [dailyQuests?.quests],
+    () => Boolean(rewardsPlayer) && (dailyQuests?.quests || []).some((quest) => quest?.status === 'completed'),
+    [dailyQuests?.quests, rewardsPlayer],
   );
 
   const handleSolo = () => {
@@ -186,20 +196,20 @@ export default function MainMenu() {
           <div className="grid w-full items-center gap-1" style={{ gridTemplateColumns: '5rem minmax(0, 1fr) 5rem' }}>
             <div className="relative z-10">
               <HomeShortcut
-                label="GÖREVLER"
+                label="Görevler"
                 icon={ScrollText}
                 tone="cyan"
-                ready={questReady}
+                ready={Boolean(rewardsPlayer && questReady)}
                 onClick={() => handleShortcut('quests')}
               />
             </div>
             <HomeTimeArtifact />
             <div className="relative z-10">
               <HomeShortcut
-                label="ÇARK"
+                label="Çark"
                 icon={TimerReset}
                 tone="gold"
-                ready={wheelReady}
+                ready={Boolean(rewardsPlayer && wheelReady)}
                 onClick={() => handleShortcut('wheel')}
               />
             </div>
@@ -285,6 +295,7 @@ function HomeShortcut({ label, icon: Icon, tone, ready = false, onClick }) {
           fontSize: 11,
           color: '#F4F7FB',
           letterSpacing: '0.02em',
+          textTransform: 'uppercase',
         }}
       >
         {label}
@@ -294,12 +305,13 @@ function HomeShortcut({ label, icon: Icon, tone, ready = false, onClick }) {
 }
 
 function HomeTimeArtifact() {
-  // Static, single-file illustrated centerpiece per the Home spec:
-  // an ornate gold + navy hourglass. It must float directly on the Home
-  // background — NO container, panel, dark block, glow plate, or tinted
-  // backdrop behind it. A tight radial alpha mask trims the image's own
-  // solid-navy edges so only the artwork itself remains visible; the Home
-  // gradient shows through everywhere else.
+  // Static, single-file illustrated centerpiece per the Home spec: an ornate
+  // gold hourglass. It must float directly on the Home background — NO
+  // container, panel, dark block, glow plate, or tinted backdrop behind it.
+  // The local asset is rendered on flat black; `mix-blend-mode: screen` drops
+  // those black pixels out against the dark Home gradient (black → transparent
+  // under screen) while the bright hourglass artwork stays fully visible, so
+  // there is no box, halo, or hard edge.
   return (
     <div
       className="relative mx-auto grid place-items-center"
@@ -313,15 +325,8 @@ function HomeTimeArtifact() {
         loading="eager"
         className="relative block h-full w-full select-none object-contain"
         style={{
-          // The source artwork carries a solid dark-navy background. A wide,
-          // very soft radial alpha feather dissolves that navy smoothly into
-          // the Home gradient so there is no perceptible box/oval edge — the
-          // hourglass reads as floating directly on the Home background.
-          WebkitMaskImage:
-            'radial-gradient(ellipse 60% 66% at 50% 50%, #000 30%, rgba(0,0,0,0.55) 58%, transparent 82%)',
-          maskImage:
-            'radial-gradient(ellipse 60% 66% at 50% 50%, #000 30%, rgba(0,0,0,0.55) 58%, transparent 82%)',
-          filter: 'drop-shadow(0 10px 18px rgba(0, 0, 0, 0.28))',
+          mixBlendMode: 'screen',
+          filter: 'drop-shadow(0 10px 18px rgba(0, 0, 0, 0.30))',
         }}
       />
     </div>

@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex521 — Health blocker fixes (KRONOX-MR2NDTH7):
+//   • Remote visual asset removed: the Home hourglass no longer uses an https:// remote URL. The artwork was localized to /assets/ui/kronox-hourglass-home.png and composited with mix-blend-mode:screen (black background drops out against the Home gradient — no box/halo). MainMenu/Lobby/CreateInvite now contain no new remote (https/http) visual asset tokens, satisfying the no-remote-visual-assets contract.
+//   • Compact Görevler/Çark shortcut contract restored: the shortcut label props are the exact Health-scanned literals label="Görevler" and label="Çark" (uppercased visually via CSS text-transform), placed above the Solo CTA, opening the existing Daily Quest/Daily Wheel modal flows. No expanded reward panels or login prompts on first render.
+//   • Completed guest Daily Wheel player contract: MainMenu resolves a linked-or-guest rewardsPlayer (user || completedGuestProfile) and gates the shortcut ready-badges with rewardsPlayer && so completed guests keep Daily Wheel access + persisted GuestProfile Diamonds without login. Wheel status/claim stay server-backed, Diamond-only, one-spin-per-server-day.
+//   • StandardTopBar notification bell: the top bar now renders the exact shared <HeaderNotificationBell user={user} /> for non-home screens (home keeps the larger variant), restoring the Health-expected top-bar contract without duplicate bells.
+//   • Profile-only guest CTA: Home has no provider buttons; the rewardsPlayer && guest-continuation runtime path is present in MainMenu. Profile remains the only account-linking surface.
+//   • Base44 SDK exact pin: package.json and package-lock.json (root spec + installed package block version/resolved/integrity) re-pinned from ^0.8.35 to exactly 0.8.34 with the real 0.8.34 tarball + integrity; no caret/range remains. All critical backend functions already import npm:@base44/sdk@0.8.34.
+//
 // Codex520 — Home middle-section hourglass container/centering cleanup:
 //   • The central hourglass no longer reads as sitting inside a card/box/dark plate. Removed the radial glow plate div entirely and replaced the tight high-contrast alpha mask with a wide, very soft radial feather (ellipse 60%/66%, #000 30% → rgba 0.55 58% → transparent 82%) that dissolves the artwork's baked-in solid dark-navy background smoothly into the Home gradient — no visible box, oval halo, tinted backdrop, or hard mask edge. The hourglass now floats directly on the Home background; only a soft drop shadow grounds it.
 //   • Centering preserved: the middle row stays a symmetric 3-part grid (5rem Görevler / 1fr hourglass / 5rem Çark) with items-center, so the hourglass sits horizontally centered and Görevler/Çark stay balanced around it.
@@ -112,7 +120,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex520';
+const BUILD_MARKER = 'Codex521';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

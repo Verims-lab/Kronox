@@ -139,7 +139,9 @@ export default function StandardTopBar({
         <span>{formatDiamondCount(diamonds)}</span>
       </button>
 
-      {/* Right-anchored bell */}
+      {/* Right-anchored bell. StandardTopBar owns the shared notification bell:
+          the home variant renders a larger styled bell; every other screen
+          renders the default shared <HeaderNotificationBell user={user} />. */}
       <div
         className="absolute flex items-center"
         style={{
@@ -148,7 +150,9 @@ export default function StandardTopBar({
           height: isHomeVariant ? '2.75rem' : '2.25rem',
         }}
       >
-        <HeaderNotificationBell user={user} variant={isHomeVariant ? 'home' : 'default'} />
+        {isHomeVariant
+          ? <HeaderNotificationBell user={user} variant="home" />
+          : <HeaderNotificationBell user={user} />}
       </div>
     </header>
   );
