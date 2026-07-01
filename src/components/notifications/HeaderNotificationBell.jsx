@@ -9,8 +9,8 @@
 //    B) Game Invites     →  tap item accepts (lobby-first) via the
 //                            existing acceptGameInvite flow.
 //
-// This component renders nothing useful when no user is signed in
-// (matches the avatar's user-aware behavior).
+// When no user is signed in, Home still renders a visual bell affordance while
+// keeping notification data/hooks inert through the null-user hook path.
 //
 // Health note: this is purely additive UI. It does NOT replace the
 // existing foreground GameInviteNotifier toast — both work side by
@@ -28,9 +28,10 @@ import {
 import { getSafeNotificationActorName } from '@/lib/notificationIdentity';
 import { sounds } from '@/lib/gameSounds';
 
-export default function HeaderNotificationBell({ user }) {
+export default function HeaderNotificationBell({ user, variant = 'default' }) {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef(null);
+  const isHomeVariant = variant === 'home';
   const {
     friendRequests,
     gameInvites,
@@ -61,7 +62,23 @@ export default function HeaderNotificationBell({ user }) {
     };
   }, [open]);
 
-  if (!user) return null;
+  if (!user) {
+    return (
+      <button
+        type="button"
+        onClick={() => sounds.tap()}
+        className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-amber-200 active:scale-95 transition-transform"
+        style={{
+          background: 'rgba(7, 21, 47, 0.82)',
+          border: '1px solid rgba(255, 201, 40, 0.45)',
+          boxShadow: '0 0 16px rgba(85,216,255,0.10), inset 0 0 0 1px rgba(255,255,255,0.04)',
+        }}
+        aria-label="Bildirimler"
+      >
+        <Bell className="h-5 w-5" strokeWidth={2.6} />
+      </button>
+    );
+  }
 
   const badgeLabel = formatBadgeCount(totalCount);
 
@@ -88,10 +105,15 @@ export default function HeaderNotificationBell({ user }) {
         onClick={handleToggle}
         whileTap={{ scale: 0.92 }}
         transition={{ type: 'spring', stiffness: 520, damping: 24 }}
-        className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-amber-950"
+        className={`relative flex shrink-0 items-center justify-center rounded-full ${isHomeVariant ? 'h-11 w-11 text-amber-200' : 'h-10 w-10 text-amber-950'}`}
         style={{
-          background: 'radial-gradient(circle at 35% 28%, #ffe066, #b97a06 70%)',
-          boxShadow: '0 0 12px rgba(250,204,21,0.40), inset 0 1px 0 rgba(255,255,255,0.45), inset 0 -4px 6px rgba(140,80,8,0.55)',
+          background: isHomeVariant
+            ? 'rgba(7, 21, 47, 0.82)'
+            : 'radial-gradient(circle at 35% 28%, #ffe066, #b97a06 70%)',
+          border: isHomeVariant ? '1px solid rgba(255, 201, 40, 0.45)' : undefined,
+          boxShadow: isHomeVariant
+            ? '0 0 16px rgba(85,216,255,0.10), inset 0 0 0 1px rgba(255,255,255,0.04)'
+            : '0 0 12px rgba(250,204,21,0.40), inset 0 1px 0 rgba(255,255,255,0.45), inset 0 -4px 6px rgba(140,80,8,0.55)',
         }}
         aria-label={badgeLabel ? `Bildirimler (${badgeLabel})` : 'Bildirimler'}
         aria-haspopup="dialog"

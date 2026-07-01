@@ -724,6 +724,9 @@ are not retroactively recalculated.
 ## Mağaza Phase 1
 Home shows Mağaza top-left, Diamonds center, notifications right. Mağaza title
 is Mağaza and prices are Zaman Dondur 40, Kart Değiştir 50, Kronokalkan 60.
+Home uses a centered transparent Kronox logo asset, a static local time visual,
+compact Görevler and Çark shortcuts, and large Solo/Online CTAs; the expanded
+Günlük Ödüller panel is not rendered on first Home paint.
 Client is not trusted for price; purchase validation is server-authoritative.
 Market open should be fast: Home may idle-prefetch the Market chunk and fast
 UserJokerInventory cache, the static Phase 1 catalog renders immediately, and
@@ -754,7 +757,7 @@ unclaimed quests expose an Al claim action. Successful claimDailyQuestReward
 updates visible User.diamonds or GuestProfile.diamonds, returns diamondBalanceAfter and questStatus:
 claimed, and only then marks the progress row claimed. Daily Quest does not
 grant Kronox Puan and has no leaderboard impact. Daily Quest does not affect
-leaderboard. Home Daily Quest copy is
+leaderboard. Home Görevler Daily Quest copy is
 "Günlük Görevleri Yap, Elmasları Kazan!" and the runtime backend functions
 explicitly bind UserDailyQuestProgress for status, progress, and claim
 deployability.
@@ -764,8 +767,8 @@ stale or duplicate DailyQuestDefinition rows and stops duplicate/empty DB defini
 Profile / Admin Ekranı does not mount
 Günlük Görev Yönetimi. getDailyQuestStatus is authenticated-or-completed-guest but not
 admin-only and preserves newly created rows if immediate Base44 refresh is stale. Older
-same-day rows from the previous model are retained but Home displays only the canonical
-solo_level_complete quest. Loading or ensuring today’s quests does not grant Diamonds;
+same-day rows from the previous model are retained but the Home Görevler flow displays
+only the canonical solo_level_complete quest. Loading or ensuring today’s quests does not grant Diamonds;
 claimDailyQuestReward remains the only reward path. \`claimDailyQuestReward\` remains the only reward path.
 One claim per quest per UTC day is enforced by UserDailyQuestProgress and
 daily_quest_reward idempotency keys. User/GuestProfile fields daily_quest_last_claim_date

@@ -397,8 +397,10 @@ Checklist:
   `idempotency_key` after create; this is function-level guard only.
 * DiamondTransaction risk classification is Low only with DB/entity unique plus
   code guard; Medium/P1 hardening with code guard only; High if neither exists.
-* `Günlük Ödüller` panel appears on Home above `SOLO MEYDAN OKUMA` and includes
-  Daily Wheel plus one compact `Günlük Görev`.
+* Home shows compact `Görevler` and `Çark` shortcuts above
+  `SOLO MEYDAN OKUMA`; tapping them opens the Daily Quest and Daily Wheel
+  flows without rendering an expanded `Günlük Ödüller` panel on first Home
+  render.
 * Daily Wheel claim requires authenticated user context or token-proven
   completed GuestProfile.
 * Daily Wheel grants Diamonds only and never Kronox Puan.
@@ -562,12 +564,13 @@ Checklist:
   cleanup only. Manual cleanup should keep backups and deactivate/delete stale
   duplicate definition rows only after explicit operator confirmation.
 * Older same-day rows from the prior multi-event/definition-backed model are
-  retained but Home displays only the canonical `solo_level_complete` quest.
+  retained but the Home `Görevler` flow displays only the canonical
+  `solo_level_complete` quest.
 * Loading or ensuring today’s quests does not grant Diamonds;
   `claimDailyQuestReward` remains the only reward path.
 * Completing progress alone does not grant Diamonds; completed and unclaimed
   quests must show an `Al` claim action.
-* The Home Daily Quest copy is
+* The Home `Görevler` Daily Quest copy is
   `Günlük Görevleri Yap, Elmasları Kazan!`.
 * `recordDailyQuestProgress` updates only `solo_level_complete`, emitted after a
   passed Solo level completion. Solo start/open, failed, abandoned, correct-card,
@@ -589,9 +592,10 @@ Checklist:
 * Daily Wheel remains separate from Daily Quest definitions, and Mağaza /
   Joker Inventory / Solo joker spending remain unaffected.
 * Daily Wheel and Daily Quest are separate.
-* Manual proof: open Home, see `Günlük Ödüller`, confirm Daily Wheel and one
-  `Günlük Görev` with `Solo’da Seviye Geç`, complete a Solo level successfully,
-  claim the completed quest, confirm
+* Manual proof: open Home, see compact `Görevler` and `Çark` shortcuts, open
+  `Görevler`, confirm one `Günlük Görev` with `Solo’da Seviye Geç`, open
+  `Çark`, confirm Daily Wheel, complete a Solo level successfully, claim the
+  completed quest, confirm
   Diamonds increase, confirm one `daily_quest_reward` DiamondTransaction exists,
   retry duplicate claim, confirm no Kronox Puan/leaderboard change, and confirm
   Online mode does not progress quests.

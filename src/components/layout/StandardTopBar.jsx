@@ -28,8 +28,11 @@ export default function StandardTopBar({
   onBack,
   showMarket = false,
   onMarket,
+  onDiamondClick,
+  variant = 'default',
 }) {
   const navigate = useNavigate();
+  const isHomeVariant = variant === 'home';
 
   const handleBack = () => {
     sounds.tap();
@@ -44,6 +47,12 @@ export default function StandardTopBar({
     navigate('/market');
   };
 
+  const handleDiamondClick = () => {
+    if (!onDiamondClick) return;
+    sounds.tap();
+    onDiamondClick();
+  };
+
   return (
     <header
       className="fixed left-0 right-0 top-0 z-[110] flex items-center justify-center"
@@ -51,9 +60,10 @@ export default function StandardTopBar({
         paddingTop: 'env(safe-area-inset-top)',
         paddingLeft: 'calc(env(safe-area-inset-left) + 0.75rem)',
         paddingRight: 'calc(env(safe-area-inset-right) + 0.75rem)',
-        height: 'calc(3.25rem + env(safe-area-inset-top))',
-        background:
-          'linear-gradient(180deg, rgba(8,15,38,0.92) 0%, rgba(8,15,38,0.55) 70%, rgba(8,15,38,0) 100%)',
+        height: `calc(${isHomeVariant ? '3.75rem' : '3.25rem'} + env(safe-area-inset-top))`,
+        background: isHomeVariant
+          ? 'linear-gradient(180deg, rgba(6,18,37,0.74) 0%, rgba(6,18,37,0.28) 72%, rgba(6,18,37,0) 100%)'
+          : 'linear-gradient(180deg, rgba(8,15,38,0.92) 0%, rgba(8,15,38,0.55) 70%, rgba(8,15,38,0) 100%)',
         userSelect: 'none',
       }}
     >
@@ -83,9 +93,14 @@ export default function StandardTopBar({
           className="absolute flex h-10 w-10 items-center justify-center rounded-full text-amber-200 active:scale-95 transition-transform"
           style={{
             left: 'calc(env(safe-area-inset-left) + 0.75rem)',
-            top: 'calc(env(safe-area-inset-top) + 0.5rem)',
-            background: 'rgba(250,204,21,0.10)',
-            boxShadow: 'inset 0 0 0 1px rgba(250,204,21,0.35), 0 0 18px rgba(250,204,21,0.10)',
+            top: `calc(env(safe-area-inset-top) + ${isHomeVariant ? '0.62rem' : '0.5rem'})`,
+            width: isHomeVariant ? 44 : undefined,
+            height: isHomeVariant ? 44 : undefined,
+            background: isHomeVariant ? 'rgba(7, 21, 47, 0.82)' : 'rgba(250,204,21,0.10)',
+            border: isHomeVariant ? '1px solid rgba(255, 201, 40, 0.45)' : undefined,
+            boxShadow: isHomeVariant
+              ? '0 0 16px rgba(85,216,255,0.10), inset 0 0 0 1px rgba(255,255,255,0.04)'
+              : 'inset 0 0 0 1px rgba(250,204,21,0.35), 0 0 18px rgba(250,204,21,0.10)',
           }}
         >
           <ShoppingBag className="h-5 w-5" strokeWidth={2.5} />
@@ -93,9 +108,19 @@ export default function StandardTopBar({
       )}
 
       {/* Centered diamond chip */}
-      <div
-        className="kronox-number flex items-center gap-1.5 text-white"
-        style={{ fontSize: 'clamp(13px, 3.8vw, 16px)' }}
+      <button
+        type="button"
+        onClick={handleDiamondClick}
+        disabled={!onDiamondClick}
+        className="kronox-number flex items-center gap-1.5 rounded-full text-white disabled:pointer-events-none"
+        style={{
+          minHeight: 40,
+          padding: onDiamondClick ? '0 0.6rem' : 0,
+          background: onDiamondClick ? 'rgba(7, 21, 47, 0.20)' : 'transparent',
+          fontSize: 18,
+          fontWeight: 800,
+          touchAction: 'manipulation',
+        }}
         aria-label={`Elmas: ${diamonds}`}
       >
         <Gem
@@ -109,18 +134,18 @@ export default function StandardTopBar({
           strokeWidth={2.4}
         />
         <span>{formatDiamondCount(diamonds)}</span>
-      </div>
+      </button>
 
       {/* Right-anchored bell */}
       <div
         className="absolute flex items-center"
         style={{
           right: 'calc(env(safe-area-inset-right) + 0.75rem)',
-          top: 'calc(env(safe-area-inset-top) + 0.5rem)',
-          height: '2.25rem',
+          top: `calc(env(safe-area-inset-top) + ${isHomeVariant ? '0.62rem' : '0.5rem'})`,
+          height: isHomeVariant ? '2.75rem' : '2.25rem',
         }}
       >
-        <HeaderNotificationBell user={user} />
+        <HeaderNotificationBell user={user} variant={isHomeVariant ? 'home' : 'default'} />
       </div>
     </header>
   );
