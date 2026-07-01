@@ -172,7 +172,11 @@ function getVapidConfig() {
 }
 
 function summarizeVapidConfigState(config: ReturnType<typeof getVapidConfig>) {
+  const vapidConfigured = config.missing.length === 0;
+  const vapidConfigValid = vapidConfigured && config.invalid.length === 0;
   return {
+    vapidConfigured,
+    vapidConfigValid,
     missingCount: config.missing.length,
     invalidCount: config.invalid.length,
   };
@@ -372,6 +376,8 @@ Deno.serve(async (req) => {
       ok: true,
       push: {
         attempted: true,
+        vapidConfigured: true,
+        vapidConfigValid: true,
         sent,
         failed,
         expired,

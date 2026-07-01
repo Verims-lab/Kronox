@@ -172,7 +172,8 @@ Rules:
   printed in Health reports, or exposed through frontend `VITE_` variables
 * safe push-skip diagnostics may return `vapid_config_missing`,
   `missing_vapid_config`, `pushSent: false`, `pushSkipped: true`,
-  `missingConfig: true`, `skippedReasons`, `failedReasons`,
+  `missingConfig: true`, `vapidConfigured`, `vapidConfigValid`,
+  `skippedReasons`, `failedReasons`,
   `subscriptionCount`, and counts, but never VAPID values or private-key
   material
 * missing VAPID config must not break in-app invite flow
@@ -494,11 +495,11 @@ Configured function auth/public matrix:
 | `recordPlayerQuestionExposure` | Guest-token or authenticated user | Same player proof model as exposure stats; no request-body identity trust. |
 | `updateProfileSettings` | Guest-token or authenticated user | Guest path verifies token; auth path derives current user. |
 | `linkGuestAccount` | Authenticated user + guest-token | Auth user from `base44.auth.me()` and guest ownership from token hash. |
-| `sendFriendRequest` | Authenticated user | Current user from `base44.auth.me()`; email or username target is resolved server-side, self/open-pending/expired-outgoing guards run under `FriendRequestOperationLock`, new rows get 72-hour `expires_at`, and username add responses return username-safe labels without target email. |
+| `sendFriendRequest` | Authenticated user | Current user from `base44.auth.me()`; email or username target is resolved server-side, self/open-pending/expired-outgoing guards run under `FriendRequestOperationLock`, new rows get 72-hour `expires_at`, creates `FriendRequest` only through the backend service/admin path, and username add responses return username-safe labels without target email. |
 | `updatePlayerPresence` | Authenticated user | Current user from `base44.auth.me()`; request body cannot mark another actor online; rows store anonymized owner_key_hash plus backend-private user_email for invite routing, never returned by public presence/selection responses. |
 | `getFriendPresence` | Authenticated accepted-friend lookup | Current user from `base44.auth.me()`; response is restricted to accepted FriendRequest relationships and returns username-safe presence rows plus safe avatar fields only. |
 | `getOnlinePlayerSelection` | Authenticated player selection lookup | Current user from `base44.auth.me()`; returns online friends, fresh online non-friends, and offline friends as username + opaque target_ref plus safe avatar fields only; excludes current user and unroutable rows. |
-| `createGameInvitesForTargets` | Authenticated lobby host | Current user from `base44.auth.me()` and `Lobby.host_email`; opaque target refs resolve backend-side only when accepted friend or fresh online presence; response returns invite ids, not recipient email. |
+| `createGameInvitesForTargets` | Authenticated lobby host | Current user from `base44.auth.me()` and `Lobby.host_email`; opaque target refs resolve backend-side only when accepted friend or fresh online presence; creates `GameInvite` only through the backend service/admin path; response returns invite ids for push/open operations, not recipient email. |
 | `getSoloLeaderboard` | Authenticated user or completed guest-token | Public-safe rows only; guest path verifies token and strips owner_key/raw guest_id/display_name while allowing safe avatar fields. |
 | `getAdminStatus` | Authenticated status check | Uses current authenticated email and AdminUser row; normal users receive non-admin status. |
 | `ensureUserJokerInventory` | Authenticated user | Current user from `base44.auth.me()`. |
@@ -544,6 +545,13 @@ re-check the User/GuestProfile guard, and re-check
 `DiamondTransaction.idempotency_key`. This is a function-level guard, not a DB
 atomic upsert; parallel two-device proof remains manual unless Base44 unique
 constraints are configured.
+
+`DailyWheelSpin`, `GameInvite`, and `FriendRequest` direct client create is not
+part of the secure product contract. Their RLS `create` rules must allow only
+admin/service-role writes; callers must use `claimDailyWheelReward`,
+`linkGuestAccount`, `createGameInvitesForTargets`, or `sendFriendRequest` so
+the backend derives the actor, validates guest-token proof where applicable,
+and returns only privacy-safe response shapes.
 
 ---
 
@@ -608,6 +616,8 @@ Required release probes:
 
 * wrong user cannot accept/mutate another user’s GameInvite
 * wrong user cannot see/mutate another user’s FriendRequest
+* normal client cannot directly create DailyWheelSpin, GameInvite, or
+  FriendRequest rows; backend service/admin functions own these creates
 * non-player cannot mutate Lobby game state
 * user cannot update another user’s PushSubscription
 * user cannot read or update another user's `UserCategoryPreference` rows

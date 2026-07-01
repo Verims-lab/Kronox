@@ -12,6 +12,7 @@ import leaderboardLibSource from '../../lib/leaderboard.js?raw';
 import kronoxScoreSource from '../../lib/kronoxScore.js?raw';
 import navigationStackSource from '../../lib/NavigationStackContext.jsx?raw';
 import soloLevelsSource from '../../lib/soloLevels.js?raw';
+import { normalizeLeaderboardRank } from '@/lib/leaderboard';
 // Codex169 — The backend function (functions/) and entity schema
 // (entities/) live OUTSIDE src/, so `?raw` (and the old GitHub-mirror
 // `base44/...` paths) return empty here → false FAILs. Read the real
@@ -202,6 +203,37 @@ export const EXTRA_TESTS = [
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('leaderboard_health', 'leaderboard_null_rank_does_not_render_hash_null',
+    'Pending own rank never renders #null or coerces null to rank 1',
+    () => {
+      const nullishResults = [null, undefined, '', ' ', 0, -1].map((value) => normalizeLeaderboardRank(value));
+      const validResults = [1, '2', 3.8].map((value) => normalizeLeaderboardRank(value));
+      const required = missingTokens(`${leaderboardLibSource}\n${leaderboardPageSource}\n${kronoxRankingSectionSource}`, [
+        'export function normalizeLeaderboardRank',
+        'if (value === null || value === undefined) return null;',
+        "const raw = typeof value === 'string' ? value.trim() : value;",
+        'normalizeLeaderboardRank(publicRow?.rank)',
+        'normalizeLeaderboardRank(payload.currentUserRank)',
+        'const displayRank = normalizeLeaderboardRank(row.rank)',
+        "const rankText = displayRank !== null ? `#${displayRank}` : '—';",
+      ]);
+      const forbidden = forbiddenTokensFound(kronoxRankingSectionSource, [
+        '`#${row.rank}`',
+      ]);
+      if (required.length || forbidden.length || nullishResults.some((value) => value !== null) || validResults.join(',') !== '1,2,3') {
+        return fail('Leaderboard can still render pending/null rank as #null or a fake numeric rank.', {
+          verification: 'EXECUTABLE_HELPER_AND_STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'null/undefined/empty/0/negative ranks stay pending; positive ranks render only after normalization',
+          actual: { required, forbidden, nullishResults, validResults },
+        });
+      }
+      return pass('Null/pending leaderboard ranks stay pending in data and render as a neutral placeholder instead of #null.', {
+        verification: 'EXECUTABLE_HELPER_AND_STATIC_CONTRACT',
       });
     }),
 

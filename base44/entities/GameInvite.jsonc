@@ -123,7 +123,9 @@
   ],
   "rls": {
     "create": {
-      "data.from_email": "{{user.email}}"
+      "user_condition": {
+        "role": "admin"
+      }
     },
     "read": {
       "$or": [

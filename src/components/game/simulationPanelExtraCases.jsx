@@ -317,8 +317,9 @@ function auditFriendRequestRls(source) {
   const missing = [];
   const rls = entity.rls || {};
   if (entity.name !== 'FriendRequest') missing.push('name=FriendRequest');
-  if (rls.create?.created_by_id !== '{{user.id}}') missing.push('create.created_by_id={{user.id}}');
-  if (rls.create?.['data.from_email'] !== '{{user.email}}') missing.push('create.data.from_email={{user.email}}');
+  if (rls.create?.user_condition?.role !== 'admin') missing.push('create.user_condition.role=admin');
+  if (rls.create?.created_by_id) missing.push('create.created_by_id must not allow direct client create');
+  if (rls.create?.['data.from_email']) missing.push('create.data.from_email must not allow direct client create');
 
   for (const action of ['read', 'update', 'delete']) {
     const branches = rls[action]?.$or;
@@ -578,19 +579,19 @@ export const EXTRA_TESTS = [
     ['from_email', 'to_email', 'status'],
     ['rls', 'data.from_email', 'data.to_email', '{{user.email}}']),
   makeCase('friends_security', 'friend_request_manage_delete_rls_sender_recipient_admin',
-    'FriendRequest read/update/delete RLS includes sender, recipient, and admin branches',
+    'FriendRequest create is service-owned and read/update/delete stays sender, recipient, or admin',
     () => {
       const audit = auditFriendRequestRls(friendRequestEntityRawSource);
       if (!audit.ok) {
-        return fail('FriendRequest RLS is missing a sender/recipient/admin branch or the delete rule drifted.', {
+        return fail('FriendRequest RLS is missing service-owned create or a sender/recipient/admin branch.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'base44/entities/FriendRequest.jsonc',
-          expected: 'create by sender; read/update/delete by data.from_email, data.to_email, or admin role',
+          expected: 'create by admin/service-role only; read/update/delete by data.from_email, data.to_email, or admin role',
           actual: { missing: audit.missing },
         });
       }
-      return pass('FriendRequest RLS keeps sender/recipient/admin read/update/delete coverage, including delete.', {
+      return pass('FriendRequest RLS keeps admin/service-role create and sender/recipient/admin read/update/delete coverage.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         file: 'base44/entities/FriendRequest.jsonc',
@@ -605,10 +606,10 @@ export const EXTRA_TESTS = [
       'from_email + status',
       'to_email + status',
       'from_email + to_email + status',
-      'RLS remains sender, recipient, or admin/owner only',
+      'Create is backend service/admin owned',
     ],
     {
-      expected: 'FriendRequest documents hot lookup keys without loosening sender/recipient/admin RLS',
+      expected: 'FriendRequest documents hot lookup keys and backend-owned create without loosening sender/recipient/admin RLS',
     }),
   sourceHas('friends_security', 'accept_is_receiver_only_server',
     'Server-side acceptFriendRequest is receiver-only',
@@ -1671,14 +1672,14 @@ export const EXTRA_TESTS = [
   makeCase('invite_contract_drift', 'stale_comment_invite_delivery_drift',
     'Stale comment says invite delivery not wired while GameInvite rows are actually created', () => {
       const stale = createLobbyInvitePanelSource.includes('Invite delivery is NOT wired yet');
-      const wired = lobbyRoomSource.includes('createGameInvites') && inviteApiSource.includes('base44.entities.GameInvite.create');
+      const wired = lobbyRoomSource.includes('createGameInvites') && inviteApiSource.includes("functions.invoke('createGameInvitesForTargets'");
       return stale && wired
-        ? warning('Contract drift detected: comment says invite delivery is not wired, but GameInvite rows are created.', {
+        ? warning('Contract drift detected: comment says invite delivery is not wired, but backend-owned GameInvite creation is wired.', {
             verification: 'STATIC_CONTRACT',
             classification: 'STALE_CONTRACT_DRIFT',
             actionType: ACTION_TYPES.CODE_FIX,
             expected: 'comments match implemented invite behavior',
-            actual: 'stale comment present while GameInvite creation exists',
+            actual: 'stale comment present while backend-owned GameInvite creation exists',
           })
         : pass('Invite delivery comments and implementation are not obviously contradictory.', {
             verification: 'STATIC_CONTRACT',

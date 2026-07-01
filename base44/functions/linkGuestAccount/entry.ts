@@ -790,8 +790,44 @@ function buildDailyRewardLinkPatch(user: any, guest: any) {
   return patch;
 }
 
+function buildPublicLinkedUserProjection(user: any, patch: Record<string, unknown>) {
+  const merged = { ...(user || {}), ...(patch || {}) };
+  const safeKeys = [
+    'kronox_user_id',
+    'username',
+    'display_name',
+    'public_username',
+    'solo_progress',
+    'online_progress',
+    'kronox_puan_total',
+    'diamonds',
+    'age',
+    'age_group',
+    'gender',
+    'profile_settings_updated_at',
+    'category_preferences_onboarding_completed',
+    'category_preferences_onboarding_completed_at',
+    'daily_wheel_last_spin_at',
+    'daily_wheel_last_spin_date',
+    'daily_wheel_next_available_at',
+    'daily_wheel_streak',
+    'daily_wheel_spin_count',
+    'daily_quest_last_claim_at',
+    'daily_quest_last_claim_date',
+    'daily_quest_next_available_at',
+    'daily_quest_claim_count',
+    'first_login_reward_granted_at',
+    'first_login_reward_amount',
+  ];
+  const projected: Record<string, unknown> = {};
+  for (const key of safeKeys) {
+    if (merged[key] !== undefined) projected[key] = merged[key];
+  }
+  return projected;
+}
+
 async function mergeDailyWheelHistoryRows(base44: any, email: string, guestId: string) {
-  const entity = entityStore(base44, 'DailyWheelSpin');
+  const entity = base44?.asServiceRole?.entities?.DailyWheelSpin;
   if (!entity?.filter || !entity?.create) return { merged: 0, skipped: 0 };
   const guestOwnerKey = getGuestOwnerKey(guestId);
   const authOwnerKey = getAuthOwnerKey(email);
@@ -957,12 +993,21 @@ Deno.serve(async (req: Request) => {
       return json({
         ok: true,
         alreadyApplied: true,
-        idempotencyKey,
         mergeSummary: existingLink?.merge_summary || {},
+        privacy: {
+          idempotencyKeyReturned: false,
+          fullPrivateProfileReturned: false,
+          emailReturned: false,
+          providerIdReturned: false,
+          ownerKeyReturned: false,
+          rawGuestIdReturned: false,
+          internalPlayerKeyReturned: false,
+        },
         contract: {
           guestAccountLinking: true,
           mergeIdempotent: true,
           guestStatusLinkedOnce: true,
+          idempotencyKeyReturned: false,
         },
       });
     }
@@ -1169,13 +1214,23 @@ Deno.serve(async (req: Request) => {
     return json({
       ok: true,
       alreadyApplied: !additiveAllowed,
-      idempotencyKey,
-      user: updatedUser || { ...user, ...userPatch },
+      user: buildPublicLinkedUserProjection(updatedUser || user, userPatch),
       mergeSummary,
+      privacy: {
+        idempotencyKeyReturned: false,
+        fullPrivateProfileReturned: false,
+        emailReturned: false,
+        providerIdReturned: false,
+        ownerKeyReturned: false,
+        rawGuestIdReturned: false,
+        internalPlayerKeyReturned: false,
+      },
       contract: {
         guestAccountLinking: true,
         mergeIdempotent: true,
         guestStatusLinkedOnce: true,
+        idempotencyKeyReturned: false,
+        publicSafeUserProjection: true,
         usernameFirstLeaderboardIdentity: true,
         usernameMergeRule: 'linked_user_username_wins_else_guest_username',
         providerIdsDisplayedInLeaderboard: false,

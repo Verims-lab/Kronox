@@ -568,6 +568,7 @@ Status: Active product contract.
 - startLobbyGame requires authenticated host, no legacy guest, no client identity override.
 - sendFriendRequest requires authenticated user context, resolves email or username targets server-side, checks self/friend/open-pending guards under FriendRequestOperationLock, requires deletion of expired outgoing invites before resend, sets FriendRequest.expires_at at least 72 hours after creation, keeps open reverse-pending requests actionable through Gelen İstekler, ignores/expires stale reverse-pending rows, creates the FriendRequest row before SendEmail, treats email delivery failure as a soft failure that does not roll back the request, stores username-safe labels, and never returns the target email for username-based add. FriendRequestOperationLock is a function-level guard, not DB unique/index proof.
 - Online non-friend game invites use opaque target_ref values in the client. createGameInvitesForTargets resolves target refs backend-side to routable recipients, while public player-selection, lobby, invite, notification, and push payloads use username-safe labels and never expose target email, provider IDs, owner keys, raw guest IDs, or internal player keys.
+- DailyWheelSpin, GameInvite, and FriendRequest direct client create is not part of the secure product contract. Their RLS create rules allow only admin/service-role writes; callers must use claimDailyWheelReward, linkGuestAccount, createGameInvitesForTargets, or sendFriendRequest so the backend derives the actor, validates guest-token proof where applicable, and returns only privacy-safe response shapes.
 - Security Pass 1 pins @base44/sdk exactly at 0.8.34 and aligns Base44 Deno function imports to npm:@base44/sdk@0.8.34. Do not reintroduce frontend ^ SDK ranges, unversioned function SDK imports, or npm:@base44/sdk@0.8.25 without a documented Base44 runtime compatibility split.
 - User/admin/question markdown is not rendered as raw HTML. react-markdown is not a runtime dependency, rehype-raw is forbidden for user/content markdown, and dangerouslySetInnerHTML must not be used for user-generated, backend-provided, or markdown-provided content. Static generated CSS should use guarded text children instead of raw HTML injection.
 - The remaining Base44 access_token URL/localStorage pattern is a known Base44-managed auth pattern; current mitigation keeps access_token removed from the URL immediately, avoids token logging/rendering, and avoids a custom token store.
@@ -583,7 +584,7 @@ Status: Active product contract.
 - VAPID_SUBJECT uses a mailto: or https:// subject and VAPID keys are non-empty base64url-style deployment values.
 - Missing, blank, whitespace-only, placeholder, empty-string, hardcoded, dummy, or VITE_ backend VAPID fallbacks are forbidden.
 - VAPID private key values are never logged, returned, printed in Health, or exposed through frontend VITE_ variables.
-- Missing VAPID config is reported explicitly as vapid_config_missing / missing_vapid_config with pushSent:false, pushSkipped:true, missingConfig:true, skippedReasons, failedReasons, subscriptionCount, and safe counts; it does not return VAPID values and does not break in-app invite flow.
+- Missing VAPID config is reported explicitly as vapid_config_missing / missing_vapid_config with pushSent:false, pushSkipped:true, missingConfig:true, vapidConfigured/vapidConfigValid booleans, skippedReasons, failedReasons, subscriptionCount, and safe counts; it does not return VAPID values and does not break in-app invite flow.
 - Current source of truth for admin authorization is the private AdminUser entity.
 - Inline backend guard: Base44 functions carry the AdminUser-backed guard locally because individual function deploy bundles do not reliably include shared helper modules.
 - Do not import _shared/adminAuth.ts from Base44 functions. Shared local helpers are a deployability risk, not an authorization source.
@@ -797,7 +798,7 @@ Push subscription works on real installed device if supported. (manual)
 sendGameInvitePush requires backend VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, and VAPID_SUBJECT.
 Missing or blank VAPID config returns explicit vapid_config_missing / missing_vapid_config diagnostics.
 No empty-string, dummy, hardcoded, or VITE_ private-key fallback is allowed.
-Safe VAPID-missing diagnostics use pushSent:false, pushSkipped:true, missingConfig:true, reason:vapid_config_missing, skippedReasons, failedReasons, subscriptionCount, and counts only.
+Safe VAPID-missing diagnostics use pushSent:false, pushSkipped:true, missingConfig:true, reason:vapid_config_missing, vapidConfigured/vapidConfigValid booleans, skippedReasons, failedReasons, subscriptionCount, and counts only.
 VAPID_PRIVATE_KEY remains backend-env-only and is never logged or returned; env-var-name scanner findings are deployment-secret management notes unless real key material is exposed.
 VAPID_PRIVATE_KEY is server-side env/secret sourced. Production secret manager verification is MANUAL_REQUIRED.
 VAPID_PUBLIC_KEY is public-by-design/config-managed, and VAPID_SUBJECT is contact/config metadata that must not be logged or returned unnecessarily.

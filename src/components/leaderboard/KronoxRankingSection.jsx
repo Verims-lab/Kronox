@@ -3,6 +3,7 @@ import { Loader2, Medal, RefreshCw, Trophy, UserRound, Users } from 'lucide-reac
 import useLongPress from '@/hooks/useLongPress';
 import LeaderboardRowActionMenu from '@/components/leaderboard/LeaderboardRowActionMenu';
 import KronoxAvatar from '@/components/profile/KronoxAvatar';
+import { normalizeLeaderboardRank } from '@/lib/leaderboard';
 
 /**
  * Codex119 — "Kronox Sıralaması" section.
@@ -360,8 +361,9 @@ function LeaderboardRow({ row, compact = false, emphasis = false, onOpenSettings
   const canOpenSettings = row.isCurrentUser && typeof onOpenSettings === 'function';
   const canLongPress = !row.isCurrentUser && typeof onLongPress === 'function';
   const longPressProps = useLongPress(canLongPress ? () => onLongPress(row) : null);
-  const rankColor = row.rank <= 3 ? '#facc15' : '#93c5fd';
-  const rankText = Number.isFinite(Number(row.rank)) ? `#${row.rank}` : '—';
+  const displayRank = normalizeLeaderboardRank(row.rank);
+  const rankColor = displayRank !== null && displayRank <= 3 ? '#facc15' : '#93c5fd';
+  const rankText = displayRank !== null ? `#${displayRank}` : '—';
   const className = [
     'flex items-center gap-2 rounded-xl',
     compact ? 'px-2.5 py-2' : 'px-3 py-2.5',
