@@ -65,8 +65,8 @@ also shows 7 günlük seri bonusu: +150 elmas and Toplam: +Y elmas. The Home
 claimed-state countdown uses Yarın hazır or compact time text such as 11 sa
 24 dk without a Diamond icon.
 
-Günlük Ödüller panel contains Daily Wheel and Daily Quest Runtime v1 Günlük
-Görev. Runtime owns one canonical code-backed quest: solo_level_complete /
+Home exposes Daily Wheel through the Çark shortcut and Daily Quest Runtime v1
+Günlük Görev through the Görevler shortcut/modal. Runtime owns one canonical code-backed quest: solo_level_complete /
 Solo’da Seviye Geç / Bugün 1 Solo seviyesini tamamla., target 1, reward 20
 Diamonds. UserDailyQuestProgress stores 1 selected UTC-day player quest.
 Runtime ignores stale or duplicate DailyQuestDefinition rows and does not seed

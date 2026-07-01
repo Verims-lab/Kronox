@@ -294,7 +294,7 @@ function HomeShortcut({ label, icon: Icon, tone, ready = false, onClick }) {
           fontWeight: 600,
           fontSize: 11,
           color: '#F4F7FB',
-          letterSpacing: '0.02em',
+          letterSpacing: '0',
           textTransform: 'uppercase',
         }}
       >
@@ -379,7 +379,7 @@ function HomeCTA({ icon: Icon, label, onClick, ariaLabel }) {
           lineHeight: 1,
           fontStyle: 'italic',
           fontWeight: 800,
-          letterSpacing: '0.02em',
+          letterSpacing: '0',
           color: '#101827',
         }}
       >
