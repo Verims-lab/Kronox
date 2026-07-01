@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import {
-  RotateCcw, ListChecks, TimerReset, MoveHorizontal, Layers, Gem, Play,
+  RotateCcw, ListChecks, TimerReset, MoveHorizontal, Layers, Gem, Play, Star,
 } from 'lucide-react';
 import SoloResultMetricCard from './SoloResultMetricCard';
 import { formatCompactDuration } from '@/lib/soloTimeFormat';
@@ -45,7 +45,8 @@ export default function SoloFailureCard({
   const completed = Math.max(0, Math.floor(Number(cardsCompleted) || 0));
   const target = Math.max(0, Math.floor(Number(cardTarget) || 0));
   const completedLabel = target > 0 ? `${completed}/${target}` : String(completed);
-  void mistakes; void remainingMoves; void maxMoves; void levelScore; void failReason;
+  const scoreValue = Math.max(0, Math.floor(Number(levelScore) || 0));
+  void mistakes; void remainingMoves; void maxMoves; void failReason;
 
   // Soft failure feedback on mount (no harsh alarm).
   useEffect(() => {
@@ -104,8 +105,10 @@ export default function SoloFailureCard({
             {SOLO_FAILURE_MESSAGE}
           </p>
 
-          {/* Three vertical metric cards: SÜRE · TAMAMLANAN · HAMLE */}
-          <div className="mt-4 grid grid-cols-3 gap-2">
+          {/* Vertical metric cards: SÜRE · TAMAMLANAN · HAMLE · PUAN.
+              A failed attempt scores 0 Puan, so PUAN reflects the shared
+              score summary (levelScore) rather than any local guess. */}
+          <div className="mt-4 grid grid-cols-2 gap-2">
             <SoloResultMetricCard
               icon={TimerReset}
               iconColor="#5aa9ff"
@@ -130,6 +133,15 @@ export default function SoloFailureCard({
               label="HAMLE"
               value={String(moveValue)}
               valueColor="#38bdf8"
+            />
+            <SoloResultMetricCard
+              icon={Star}
+              iconColor="#94a3b8"
+              ringColor="rgba(148,163,184,0.5)"
+              label="PUAN"
+              ariaLabel={`Puan: ${scoreValue}`}
+              value={String(levelScore)}
+              valueColor="#cbd5e1"
             />
           </div>
 
@@ -164,9 +176,24 @@ export default function SoloFailureCard({
             />
           </div>
 
-          {/* CTAs */}
+          {/* CTAs — replay uses the RotateCcw icon wired to the real onRetry
+              action; levels uses ListChecks wired to onBackToPath. */}
           <div className="mt-3.5 grid grid-cols-2 gap-2.5">
-            <SecondaryButton onClick={onRetry} icon={RotateCcw}>TEKRAR OYNA</SecondaryButton>
+            <motion.button
+              type="button"
+              onClick={onRetry}
+              whileTap={{ scale: 0.97 }}
+              className="w-full flex items-center justify-center gap-2 font-bangers text-white"
+              style={{
+                height: 48, borderRadius: 14,
+                background: 'rgba(15,22,46,0.85)',
+                fontSize: 'clamp(13px, 3.6vw, 15px)', letterSpacing: '0.06em',
+                boxShadow: 'inset 0 0 0 1.5px rgba(96,165,250,0.4)',
+              }}
+            >
+              <RotateCcw className="w-4 h-4" strokeWidth={2.6} style={{ color: '#60a5fa' }} />
+              <span>TEKRAR OYNA</span>
+            </motion.button>
             <SecondaryButton onClick={onBackToPath} icon={ListChecks}>SEVİYELER</SecondaryButton>
           </div>
         </div>

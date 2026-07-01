@@ -163,14 +163,15 @@ export default function SoloSuccessPopup({
               iconFill="#facc15"
               ringColor="rgba(250,204,21,0.55)"
               label="PUAN"
-              value={String(scoreValue)}
+              ariaLabel={`Puan: ${scoreValue}`}
+              value={String(levelScore || 0)}
               valueColor="#facc15"
               footer={speedBonusEarned ? (
                 <span
                   className="flex items-center gap-0.5 font-inter"
                   style={{ color: '#4ade80', fontSize: '10px', fontWeight: 800, whiteSpace: 'nowrap' }}
                 >
-                  <span style={{ color: 'rgba(203,213,225,0.85)' }}>Hız Bonusu</span>
+                  <span style={{ color: 'rgba(203,213,225,0.85)' }}>HIZ BONUSU</span>
                   <span>+{speedBonusValue}</span>
                   <Zap className="w-3 h-3" strokeWidth={2.6} style={{ fill: '#4ade80' }} />
                 </span>

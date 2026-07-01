@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex511 — Health blocker fixes (KRONOX-MR1Z7YC9):
+//   • Solo failure CTA contract: the TEKRAR OYNA button now renders the literal <RotateCcw> icon wired to the real onRetry action (was passed as an icon prop, so the static contract never saw <RotateCcw). SEVİYELER (onBackToPath) unchanged; failed attempts still never enable SONRAKİ SEVİYE.
+//   • Solo score visible + shared-helper consumption: success PUAN card is wired to value={String(levelScore || 0)} (runtime-connected to the shared score summary prop instead of a local scoreValue copy) and its speed-bonus footer label is uppercase HIZ BONUSU; failure screen adds a PUAN metric card (2×2 grid) wired to value={String(levelScore)} so the combined popup source exposes earned Puan, PUAN label, and the word Puan. Solo scoring rules, star thresholds, completion logic, timeBonus values, and Online screens untouched.
+//   • Base44 SDK exact pin: root package.json and package-lock.json (root dependency spec + installed node_modules/@base44/sdk block with the real 0.8.34 tarball + integrity) re-pinned from ^0.8.35 to exact 0.8.34; no caret/range remains. All 51 backend function Deno imports already pinned npm:@base44/sdk@0.8.34.
+//
 // Codex510 — Solo level-end success/failure screen redesign:
 //   • New shared SoloResultMetricCard (vertical label→icon→value) drives both screens; success shows SÜRE/HAMLE/PUAN, failure shows SÜRE/TAMAMLANAN/HAMLE.
 //   • Success: "N. SEVİYE TAMAMLANDI!", staggered gold stars, pooled success message, and a "Hız Bonusu +X ⚡" footer only when timeBonus > 0; primary SONRAKİ SEVİYE + TEKRAR OYNA/SEVİYELER.
@@ -57,7 +62,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex510';
+const BUILD_MARKER = 'Codex511';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
