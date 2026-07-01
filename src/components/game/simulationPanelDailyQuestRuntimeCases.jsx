@@ -423,7 +423,7 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('daily_rewards_panel_includes_wheel_and_daily_quest',
-    'Günlük Ödüller panel includes Daily Wheel and one compact Günlük Görev claim UI',
+    'Reusable DailyRewardsPanel still includes Daily Wheel and one compact Günlük Görev claim UI',
     () => {
       const missing = missingTokens(dailyRewardsPanelSource, [
         'Günlük Ödüller',
@@ -441,12 +441,12 @@ export const EXTRA_TESTS = [
         'Devam Et',
         'Günlük görev yakında hazır olacak.',
       ]);
-      if (missing.length) return fail('Günlük Ödüller panel does not include the runtime Daily Quest UI.', {
+      if (missing.length) return fail('Reusable DailyRewardsPanel does not include the runtime Daily Quest UI.', {
         verification: 'STATIC_CONTRACT',
         file: 'src/components/dailyWheel/DailyRewardsPanel.jsx',
         missing,
       });
-      return pass('Günlük Ödüller combines Daily Wheel and one compact Günlük Görev with progress and claim states.', { verification: 'STATIC_CONTRACT' });
+      return pass('Reusable DailyRewardsPanel combines Daily Wheel and one compact Günlük Görev with progress and claim states.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('daily_wheel_separation_contract',

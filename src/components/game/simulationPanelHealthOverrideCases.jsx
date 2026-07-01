@@ -767,20 +767,23 @@ export const EXTRA_TESTS = [
 
   /* ------------------------------------------------------------------
    *  visual_composition_regression.asset_path_drift_warning
-   *  The active Home screen uses a transparent local KRONOX logo PNG,
-   *  CSS/motion gold Solo/Online CTAs, compact shortcuts, and StandardTopBar.
+   *  The active Home screen uses transparent/local KRONOX logo + hourglass PNG
+   *  assets, CSS/motion gold Solo/Online CTAs, compact shortcuts, and StandardTopBar.
    *  Legacy PNG pressed-swap paths are intentionally absent.
    * ------------------------------------------------------------------ */
   makeCase(
     'visual_composition_regression', 'Visual Composition Regression Suite',
     'asset_path_drift_warning',
-    'MainMenu uses transparent local KRONOX logo, CSS/motion CTAs, and no stale PNG pressed asset swap',
+    'MainMenu uses transparent local KRONOX logo/hourglass assets, CSS/motion CTAs, and no stale PNG pressed asset swap',
     () => {
       const src = safeStr(mainMenuSource);
       const required = [
         'HOME_LOGO_SRC',
+        'HOME_HOURGLASS_SRC',
         '/assets/ui/kronox-logo-home.png',
+        '/assets/ui/kronox-hourglass-home.png',
         "objectFit: 'contain'",
+        "mixBlendMode: 'screen'",
         'function HomeTimeArtifact',
         'function HomeShortcut',
         'function HomeCTA',
@@ -803,7 +806,7 @@ export const EXTRA_TESTS = [
           actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW,
         });
       }
-      return pass('MainMenu uses the transparent local logo asset, CSS/motion CTAs, compact shortcuts, and no stale PNG pressed asset swaps.', {
+      return pass('MainMenu uses transparent local logo/hourglass assets, CSS/motion CTAs, compact shortcuts, and no stale PNG pressed asset swaps.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         file: 'pages/MainMenu.jsx',

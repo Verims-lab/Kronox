@@ -236,8 +236,8 @@ Home can show:
 * Solo entry
 * Online Kapışma entry
 * Mağaza entry
-* Daily Wheel / Günlük Ödüller
-* Daily Quest
+* `Görevler` shortcut for Daily Quest
+* `Çark` shortcut for Daily Wheel
 * notification/invite access
 * Diamond balance
 

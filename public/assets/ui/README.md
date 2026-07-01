@@ -20,7 +20,12 @@ Static UI images for Kronox may live here. Adding a file here does not automatic
 
 ## Runtime Notes
 
-- Home is currently CSS/motion-driven in `src/pages/MainMenu.jsx`.
+- Home is currently a local-asset + CSS/motion composition in
+  `src/pages/MainMenu.jsx`: `kronox-logo-home.png` is the centered transparent
+  logo and `kronox-hourglass-home.png` is the centered hourglass visual.
+- Home logo/hourglass assets must sit directly on the dark blue Home
+  background; do not wrap them in visible cards, panels, capsules, or colored
+  containers.
 - Home press feedback is CSS/Framer Motion based, not a pressed-image swap.
 - `kronox_hero_section_v1.webp` is kept because it is referenced by the service
   worker/pre-cache flow.

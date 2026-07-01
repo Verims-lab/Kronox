@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex522 — Post-visual-change docs/Health alignment audit:
+//   • Home docs, mirrors, and Health wording now describe the current local logo/hourglass assets, compact Görevler/Çark shortcuts with ready badges, and no expanded Günlük Ödüller panel on first Home paint.
+//   • Economy/Daily Quest mirrors now name the Home Görevler shortcut/modal surface instead of the old unified reward panel while preserving Diamond-only/backend-owned contracts.
+//   • MainMenu Home labels use zero letter spacing to stay aligned with the visual guardrail.
+//
 // Codex521 — Health blocker fixes (KRONOX-MR2NDTH7):
 //   • Remote visual asset removed: the Home hourglass no longer uses an https:// remote URL. The artwork was localized to /assets/ui/kronox-hourglass-home.png and composited with mix-blend-mode:screen (black background drops out against the Home gradient — no box/halo). MainMenu/Lobby/CreateInvite now contain no new remote (https/http) visual asset tokens, satisfying the no-remote-visual-assets contract.
 //   • Compact Görevler/Çark shortcut contract restored: the shortcut label props are the exact Health-scanned literals label="Görevler" and label="Çark" (uppercased visually via CSS text-transform), placed above the Solo CTA, opening the existing Daily Quest/Daily Wheel modal flows. No expanded reward panels or login prompts on first render.
@@ -120,7 +125,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex521';
+const BUILD_MARKER = 'Codex522';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

@@ -208,7 +208,7 @@ import * as marketCases from './simulationPanelMarketCases';
 // quest logic, display-only copy, and future progress/reward boundaries.
 import * as dailyQuestDefinitionCases from './simulationPanelDailyQuestDefinitionCases';
 // Daily Quest Runtime v1: user-owned UTC daily progress, Solo completion only,
-// Diamond-only claim flow, and unified Günlük Ödüller panel.
+// Diamond-only claim flow, and Home Görevler shortcut/modal surface.
 import * as dailyQuestRuntimeCases from './simulationPanelDailyQuestRuntimeCases';
 // iOS/mobile compatibility: scoped pull-to-refresh, independent tab stacks,
 // and Kronox bottom-sheet selectors for preference/admin selection controls.

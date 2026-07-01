@@ -708,7 +708,8 @@ export const EXTRA_TESTS = [
         'reward_diamonds',
         'no Kronox Puan',
         'no leaderboard impact',
-        'Günlük Ödüller',
+        'Görevler',
+        'Çark',
       ]);
       if (missing.length) {
         return fail('Daily Quest Definition/Runtime Health/docs coverage is incomplete.', {

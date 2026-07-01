@@ -393,7 +393,7 @@ export const EXTRA_TESTS = [
           actual: { accidentalGrant, missing },
         });
       }
-      return pass('Daily Quest Runtime v1 is visible in Günlük Ödüller and claims Diamonds through daily_quest_reward backend source.', { verification: 'STATIC_CONTRACT' });
+      return pass('Daily Quest Runtime v1 is visible through the Home Görevler shortcut and claims Diamonds through daily_quest_reward backend source.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('market_purchase_is_diamond_sink',

@@ -9,6 +9,11 @@ This report is intentionally diagnostic. No gameplay rules, scoring rules,
 database schema, Health cases, assets, or runtime logic were changed in Package
 1.
 
+Historical note: statements that say "current" in this package describe the
+2026-06-03 audit snapshot. Use `docs/KRONOX_RELEASE_PROOF_CHECKLIST.md`,
+`docs/KRONOX_PRODUCT_WORKFLOW.md`, and `public/assets/ui/README.md` for the
+current Home visual contract.
+
 ## 1. Executive Summary
 
 Kronox is substantially healthier than the earlier audit baseline: question
