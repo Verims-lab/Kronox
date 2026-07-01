@@ -79,6 +79,9 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(`${src}\n${dailyRewardsPanelSource}`, [
         'HomeShortcut',
         'HomeShortcutModal',
+        'items-center justify-center',
+        "maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 3rem)'",
+        "overflowY: 'auto'",
         'label="Görevler"',
         'label="Çark"',
         "'quests'",
@@ -97,6 +100,7 @@ export const EXTRA_TESTS = [
       const forbidden = forbiddenTokens(src, [
         '<DailyRewardsPanel',
         'Günlük Ödüller',
+        'items-end justify-center',
         'onLogin={handleLogin}',
         'function handleLogin',
         'const handleLogin',
@@ -108,7 +112,7 @@ export const EXTRA_TESTS = [
           actual: { missing, forbidden, shortcutIndex, soloIndex },
         });
       }
-      return pass('Compact Görevler/Çark shortcuts sit above Solo CTA, open existing reward flows in a modal, and keep first-render Home free of expanded reward panels.', { verification: 'STATIC_CONTRACT' });
+      return pass('Compact Görevler/Çark shortcuts sit above Solo CTA, open existing reward flows in a centered modal, and keep first-render Home free of expanded reward panels.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('daily_wheel_icon_polished_not_asset_dependent',

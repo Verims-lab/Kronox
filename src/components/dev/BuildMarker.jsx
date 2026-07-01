@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex523 — Home video-based visual fixes:
+//   • Home logo and hourglass scale increased by 20%; the hourglass remains centered between Görevler and Çark, with image filters removed so the non-alpha PNG cannot cast a rectangular shadow block.
+//   • Görevler/Çark now open centered reward popups instead of bottom-aligned sheets, and the Solo/Online CTA stack is lifted about 2dvh above BottomNav.
+//   • Home Mağaza top-left icon now uses the storefront glyph style while preserving Market navigation; docs/mirrors/Health updated for the centered visual contract.
+//
 // Codex522 — Post-visual-change docs/Health alignment audit:
 //   • Home docs, mirrors, and Health wording now describe the current local logo/hourglass assets, compact Görevler/Çark shortcuts with ready badges, and no expanded Günlük Ödüller panel on first Home paint.
 //   • Economy/Daily Quest mirrors now name the Home Görevler shortcut/modal surface instead of the old unified reward panel while preserving Diamond-only/backend-owned contracts.
@@ -125,7 +130,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex522';
+const BUILD_MARKER = 'Codex523';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

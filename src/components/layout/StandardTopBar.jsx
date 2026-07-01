@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Gem, ShoppingBag } from 'lucide-react';
+import { ArrowLeft, Gem, Store } from 'lucide-react';
 import { sounds } from '@/lib/gameSounds';
 import HeaderNotificationBell from '@/components/notifications/HeaderNotificationBell';
 
@@ -104,7 +104,7 @@ export default function StandardTopBar({
               : 'inset 0 0 0 1px rgba(250,204,21,0.35), 0 0 18px rgba(250,204,21,0.10)',
           }}
         >
-          <ShoppingBag className="h-5 w-5" strokeWidth={2.5} />
+          <Store className="h-5 w-5" strokeWidth={2.6} />
         </button>
       )}
 

@@ -26,6 +26,12 @@ Static UI images for Kronox may live here. Adding a file here does not automatic
 - Home logo/hourglass assets must sit directly on the dark blue Home
   background; do not wrap them in visible cards, panels, capsules, or colored
   containers.
+- The Home middle section must stay balanced as left `Görevler`, centered
+  transparent hourglass, and right `Çark`. The local hourglass PNG has no alpha
+  channel, so runtime code uses screen blending and must not add image filters
+  that create a rectangular shadow block.
+- `Görevler` and `Çark` open centered popups from Home; they must not behave as
+  bottom sheets or page-like first-render panels.
 - Home press feedback is CSS/Framer Motion based, not a pressed-image swap.
 - `kronox_hero_section_v1.webp` is kept because it is referenced by the service
   worker/pre-cache flow.

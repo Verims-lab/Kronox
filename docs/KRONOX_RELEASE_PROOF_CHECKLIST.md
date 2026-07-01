@@ -398,12 +398,14 @@ Checklist:
 * DiamondTransaction risk classification is Low only with DB/entity unique plus
   code guard; Medium/P1 hardening with code guard only; High if neither exists.
 * Home shows compact `Görevler` and `Çark` shortcuts above
-  `SOLO MEYDAN OKUMA`; tapping them opens the Daily Quest and Daily Wheel
-  flows without rendering an expanded `Günlük Ödüller` panel on first Home
+  `SOLO MEYDAN OKUMA`; tapping them opens centered Daily Quest and Daily Wheel
+  popups without rendering an expanded `Günlük Ödüller` panel on first Home
   render.
 * Home logo and hourglass visuals use local `/assets/ui/` PNG assets on the
   dark blue background; neither is wrapped in a visible card/panel/container or
-  hotlinked from a remote URL.
+  hotlinked from a remote URL. The middle section stays balanced as left
+  `Görevler` / centered transparent hourglass / right `Çark`, with the CTA
+  stack lifted safely above BottomNav.
 * Daily Wheel claim requires authenticated user context or token-proven
   completed GuestProfile.
 * Daily Wheel grants Diamonds only and never Kronox Puan.
@@ -487,11 +489,12 @@ Checklist:
   `JokerTransaction.reason = solo_use`.
 * `spendUserJoker` must reject non-Solo context, avoid service-role-only deploy
   assumptions, and map backend invoke failures to safe UI copy.
-* Home shows the Mağaza entry at top-left, Diamond count top-center, and
-  notifications top-right.
-* Home shows the centered transparent Kronox logo, local hourglass visual,
-  compact `Görevler` / `Çark` shortcuts with ready badges, and large
-  `SOLO MEYDAN OKUMA` / `ONLINE KAPIŞMA` CTAs.
+* Home shows the Mağaza entry at top-left with a gold storefront icon, Diamond
+  count top-center, and notifications top-right.
+* Home shows the larger centered transparent Kronox logo, larger centered local
+  hourglass visual with no visible wrapper/background block, compact `Görevler`
+  / `Çark` shortcuts with ready badges, centered shortcut popups, and large
+  `SOLO MEYDAN OKUMA` / `ONLINE KAPIŞMA` CTAs lifted above BottomNav.
 * Mağaza Phase 1 sells only three Solo jokers:
   `Zaman Dondur = 40` Diamonds, `Kart Değiştir = 50` Diamonds,
   `Kronokalkan = 60` Diamonds.
