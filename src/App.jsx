@@ -19,6 +19,7 @@ import { appDiagSetBuildMarker, pushAppDiag } from '@/lib/appDiagBus';
 import { isGuestOnboardingComplete } from '@/lib/guestProfile';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import usePresenceHeartbeat from '@/hooks/usePresenceHeartbeat';
+import usePreventAppZoom from '@/hooks/usePreventAppZoom';
 
 const MarketPage = lazyWithRetry(() => import('./pages/MarketPage'), 'MarketPage');
 const SoloChallenge = lazyWithRetry(() => import('./pages/SoloChallenge'), 'SoloChallenge');
@@ -275,6 +276,8 @@ const AuthenticatedApp = () => {
 
 
 function App() {
+  usePreventAppZoom();
+
   // Codex498 — push current build marker into diag bus once at app boot
   useEffect(() => {
     appDiagSetBuildMarker(KRONOX_BUILD_MARKER);

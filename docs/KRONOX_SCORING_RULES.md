@@ -85,15 +85,16 @@ src/lib/soloLevels.js
 Each Solo level:
 
 * normal Solo levels require the player to reach 7 correct timeline cards, including seed cards already on the timeline
-* special Solo levels start at level 10 and repeat every 5 levels: 10, 15, 20, 25, ...
+* special Solo levels start at level 5 and repeat every 5 levels: 5, 10, 15, 20, ...
 * special Solo levels require the player to reach 10 correct timeline cards, including seed cards already on the timeline
 * has a total time limit of 180 seconds
 * does not have per-question time limits
 * fails if the timer reaches 180 seconds before completion
 * starts with 2 timeline anchor cards
-* has 10 evaluated placement moves
-* Deck sizing is 2 anchors + 10 playable moves + Kart Değiştir buffer
-* fails when 10 moves are used and the target card count has not been reached
+* normal levels have 10 evaluated placement moves
+* special levels have 13 evaluated placement moves, only as a mistake buffer
+* Deck sizing is anchors + level-specific playable moves + Kart Değiştir/Kronokalkan buffer
+* fails when the level-specific move limit is used and the target card count has not been reached
 
 Constants:
 
@@ -103,6 +104,7 @@ SOLO_NORMAL_CARD_TARGET = 7
 SOLO_SPECIAL_CARD_TARGET = 10
 SOLO_INITIAL_TIMELINE_CARDS = 2
 SOLO_MAX_EVALUATED_MOVES = 10
+SOLO_SPECIAL_MAX_EVALUATED_MOVES = 13
 SOLO_CORRECT_PLACEMENTS_NEEDED = 5
 SOLO_SCORE_TIME_LIMIT_SECONDS = 180
 ```
@@ -119,14 +121,15 @@ getSoloCardsRequiredForLevel(level)
 
 ## 2.2 Solo Star Rules
 
-Stars are based on used evaluated moves, not public error count. The live game UI shows remaining moves as `10 HAMLE`, `9 HAMLE`, and so on. A move is counted only when a valid timeline placement is evaluated as correct or wrong.
+Stars are based on used evaluated moves, not public error count. Normal Solo starts from `10 HAMLE`; special Solo starts from `13 HAMLE`. A move is counted only when a valid timeline placement is evaluated as correct or wrong.
 
 | Used Moves | Result  |
 | ---------: | ------- |
 |        5–6 | 3 stars |
 |        7–8 | 2 stars |
 |       9–10 | 1 star  |
-| 10 without target | Fail |
+| 10 without target | Fail on normal levels; special levels continue if moves remain |
+| 13 without target | Fail on special levels |
 
 Touching a card, drag start, drag movement, cancelled drag, invalid drop, tutorial hand animation, tutorial popup time, or joker activation does not consume a move.
 

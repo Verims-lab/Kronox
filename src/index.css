@@ -129,6 +129,7 @@
     min-height: 100%;
     overflow-x: hidden;
     overscroll-behavior-x: none;
+    touch-action: pan-x pan-y;
     background: #08111f;
   }
 
@@ -153,6 +154,7 @@
       linear-gradient(180deg, #08111f 0%, #0c1a33 50%, #060c1a 100%);
     overscroll-behavior-x: none;
     overscroll-behavior-y: auto;
+    touch-action: pan-x pan-y;
     -webkit-font-smoothing: antialiased;
   }
 
@@ -160,6 +162,7 @@
     min-height: 100vh;
     min-height: 100dvh;
     isolation: isolate;
+    touch-action: pan-x pan-y;
   }
 
   * {

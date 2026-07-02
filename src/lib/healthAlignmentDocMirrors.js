@@ -49,7 +49,7 @@ Status: Active product workflow contract.
 - Authenticated category preference save minimum is 3 active valid categories; guest category selection is advisory and empty guest selections mean all active Solo categories remain eligible.
 - Online category list is sorted by category_id ASC and Online is not a BottomNav item.
 - Current Solo shows HAMLE / remaining moves and Puan / Kronox Puan. HATA is legacy/internal and not current visible Solo result/stat copy.
-- Normal Solo uses 2 anchors, an internal 18-question attempt deck buffer, 10 evaluated moves, a 180-second timer, and a 7-card target including anchors. Special Solo uses an internal 19-question attempt deck buffer and a 10-card target.
+- Normal Solo uses 2 anchors, an internal 18-question attempt deck buffer, 10 evaluated moves, a 180-second timer, and a 7-card target including anchors. Special Solo starts at level 5 and every 5 levels after that, uses an internal 21-question attempt deck buffer, a 13 evaluated move limit, the same 180-second timer, and a 10-card target. The extra special moves are only a mistake buffer and do not change scoring.
 - Online uses Lobby.selected_category_ids and a startLobbyGame shared deck selected 100% from active lobby-selected categories with difficulty 1/2 only; Online does not use Solo preferences.
 - Unified Kronox Puan is Solo best-score component plus Online progress score. Online winner scoring is exactly +15 Kronox Puan, loser scoring is exactly -6 Kronox Puan before checkpoint protection, and Online has no speed bonus.
 - Daily Quest and Daily Wheel grant Diamonds only, no Kronox Puan, and no leaderboard impact. Authenticated users and token-proven completed GuestProfile users can use these daily systems. Guest rewards persist on GuestProfile.diamonds with internal guest:<g_owner_key> ledger keys. DiamondTransaction and DailyWheelSpin have function-level idempotency guards plus EconomyOperationLock balance mutation guards; DB/entity unique constraints are not repo-proven.
@@ -537,17 +537,20 @@ Status: Active manual visual/platform release gate.
 - Use safe-area padding around top bars, bottom CTAs, sheets, and BottomNav.
 - Touch targets stay reachable and readable with system font scaling.
 - Keyboard focus does not hide form actions or trap scroll.
+- In-app pinch/page zoom is disabled globally by the app shell; viewport scale remains 1 across routed Kronox screens.
+- The zoom guard targets scale gestures only and must not block one-finger Solo drag/drop, timeline horizontal scroll/auto-scroll, normal scrollable panels, BottomNav taps, form inputs, or modals.
 - Pull-to-refresh/overscroll guards are scoped to the relevant container or active gameplay drag only.
 - Reduced motion keeps functional feedback without relying on long animations.
 - Loading/error/retry states are local to the affected section when possible.
 - Health Center report actions, case details, copy buttons, clipboard fallback textarea, manual proof details, and raw JSON preview must fit narrow mobile widths without horizontal overflow.
 - Direct URL routes load correctly in installed/standalone and browser modes.
+- Browser/PWA/WebView zoom prevention is web-owned in index.html plus the root app-shell zoom guard; native Android/iOS wrapper files are not edited for this contract.
 - Service worker/cache updates do not leave stale question/runtime bundles after a question-set or function contract change.
 - Push notification UI is feature-detected and remains optional.
 - Offline UI is shown only for real offline or failed fetch plus no usable cache.
 - Final App Store icon proof is the exported IPA / WixOneApp.app, not only source PNGs.
 - npm run check:ios-icons is required before archive upload, but App Store Connect validation remains the final proof.
-- Safari/PWA drag, safe-area, keyboard, home-indicator, and back navigation behavior require real-device proof.
+- Safari/PWA drag, safe-area, keyboard, home-indicator, pinch/double-tap zoom rejection, and back navigation behavior require real-device proof.
 - Privacy URL and App Store privacy answers must match the live app behavior.
 - Android wrapper edge-to-edge behavior, status/navigation bar handling, back button behavior, orientation, tablet/foldable resizability, and Play Console quality warnings require AAB/device/Play proof.
 - Web/PWA source checks do not prove native wrapper behavior.
@@ -701,8 +704,10 @@ npm run check:base44-functions must run before Base44 Save & Deploy to catch fun
 
 ## Solo v3
 Normal levels need 7 correct cards with an internal 18-question deck buffer; special levels
-need 10 correct cards with an internal 19-question deck buffer. All attempts use a 180 seconds
-timer and fail when 10 evaluated moves are used before the target is reached.
+start at level 5/every 5 levels, need 10 correct cards, and use an internal
+21-question deck buffer. Normal attempts use 10 evaluated moves; special
+attempts use 13 evaluated moves. All attempts use a 180 seconds timer and fail
+when the level-specific move limit is used before the target is reached.
 Runtime consumes the deck in order. The visible in-game limit is HAMLE /
 remaining moves, not HATA. The
 first 5 ordered active player question cards keep a minimum 5-year spacing.

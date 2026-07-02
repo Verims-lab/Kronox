@@ -273,6 +273,10 @@ Current normal Solo:
 * live UI shows remaining moves, e.g. `10 HAMLE`
 * used moves = max moves - remaining moves
 
+Special Solo starts at level 5 and every 5 levels after that. It keeps the
+10-card timeline target, uses 13 evaluated placement moves as a mistake buffer,
+shows remaining moves from `13 HAMLE`, and does not change scoring or rewards.
+
 Stars are based on used evaluated moves:
 
 * 5-6 used moves = 3 stars

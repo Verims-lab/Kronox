@@ -140,18 +140,18 @@ Checklist:
 Checklist:
 
 * Normal Solo levels start with an 18-question deck.
-* Special Solo levels start with a 19-question deck.
+* Special Solo levels start with a 21-question deck.
 * The deck has unique question IDs.
 * The deck has unique years.
 * Passive-category questions are excluded.
 * Only active questions are used.
 * Normal Solo levels win after 7 correct timeline cards, including seed cards already on the timeline.
-* Special Solo levels start at level 10 and repeat every 5 levels.
+* Special Solo levels start at level 5 and repeat every 5 levels.
 * Special Solo levels win after 10 correct timeline cards, including seed cards already on the timeline.
-* Live Solo shows remaining moves as `10 HAMLE`, `9 HAMLE`, and so on.
+* Live Solo shows remaining moves as `10 HAMLE`, `9 HAMLE`, and so on for normal levels, and `13 HAMLE`, `12 HAMLE`, and so on for special levels.
 * Touch, slight drag, cancelled drag, invalid drop, tutorial hand animation, and tutorial popup reading do not decrement moves.
 * A valid evaluated timeline placement decrements remaining moves.
-* Fail occurs when 10 evaluated moves are used before the target card count is reached.
+* Fail occurs when the level-specific evaluated move limit is used before the target card count is reached.
 * Timeout at 180 seconds fails the level.
 * Guided first Solo tutorial also starts at 180 seconds and displays `03:00`,
   not `60:00` or a 60-minute timer.
@@ -361,7 +361,7 @@ Checklist:
 * Empty preferences must not produce an empty candidate pool or fake
   offline/no-cache error.
 * Normal 18-card Solo decks target 13 selected-category and 5 global-pool
-  cards; special 19-card Solo decks target 13 selected-category and 6
+  cards; special 21-card Solo decks target 15 selected-category and 6
   global-pool cards.
 * The selected-category 70% lane uses selected user categories with difficulty
   1 and 2 eligible. The global 30% lane first uses all active categories with
@@ -656,6 +656,9 @@ Checklist:
 
 * Home is no-scroll.
 * Home respects safe area.
+* Pinch zoom, double-tap zoom, iOS gesture zoom, and ctrl/meta-wheel page zoom
+  do not change Kronox UI scale on Home, Solo gameplay, Liderlik, Profile,
+  Market, Admin/Health, and reward modal surfaces.
 * Home / Ana Sayfa does not show Google / Apple / email login buttons or a
   secure-progress / `Hesabını bağla` account-link card; guest account linking is
   available from Profile instead. The first-launch welcome may show `Hesabım
@@ -664,6 +667,8 @@ Checklist:
 * Solo map scrolls only the map/path area.
 * Gameplay does not page-scroll during drag.
 * Timeline horizontal scroll still works.
+* Solo card drag/drop, getBoundingClientRect hit-testing, and timeline
+  horizontal auto-scroll still work after the global zoom guard is active.
 * Bottom nav does not collide with home indicator.
 * BottomNav visible tabs are Ana Sayfa, Liderlik, and Profil only. Online is
   launched from Home through Online Kapışma, not from BottomNav. Switching

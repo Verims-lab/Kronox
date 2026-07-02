@@ -319,11 +319,11 @@ function normalizeGuestGameplayLimit(value: unknown) {
 
 function isSoloSpecialLevel(levelNumber: unknown) {
   const level = Math.trunc(Number(levelNumber) || 0);
-  return level >= 10 && (level - 10) % 5 === 0;
+  return level >= 5 && (level - 5) % 5 === 0;
 }
 
 function getSoloAttemptDeckSizeForLevel(levelNumber: unknown) {
-  return (isSoloSpecialLevel(levelNumber) ? 10 : 7) + 9;
+  return isSoloSpecialLevel(levelNumber) ? 21 : 18;
 }
 
 function normalizeSoloAttemptContext(body: any) {

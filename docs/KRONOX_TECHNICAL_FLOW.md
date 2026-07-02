@@ -49,6 +49,14 @@ Primary mobile shell constraints:
 * Gameplay avoids page-level vertical scroll where possible.
 * timeline horizontal scroll is intentional and contained.
 * Settings/Admin/Health/report pages may scroll.
+* The root viewport is locked to scale 1 and the App shell owns a centralized
+  zoom-prevention guard for pinch, double-tap, iOS gesture events, and
+  ctrl/meta-wheel zoom.
+* Zoom prevention must not block one-finger drag, timeline horizontal
+  scroll/auto-scroll, normal scrollable panels, BottomNav taps, modals, or
+  inputs.
+* Native Android/iOS wrapper files remain outside this repo scope for the
+  zoom-prevention contract.
 
 ---
 
@@ -311,17 +319,18 @@ Primary files:
 Current constants:
 
 * `SOLO_LEVEL_TIME_SECONDS = 180`
-* `SOLO_MAX_MOVES = 10`
+* `SOLO_MAX_MOVES = 10` for normal Solo
+* `SOLO_SPECIAL_MAX_MOVES = 13` for special Solo
 * initial anchors = 2
 * normal target = 7 total timeline cards including anchors
 * special target = 10 total timeline cards including anchors
 * normal deck = 18 questions
-* special deck = 19 questions
+* special deck = 21 questions
 
 Deck formula:
 
 * 2 anchors
-* 10 playable placement cards
+* 10 normal playable placement moves; 13 special playable placement moves
 * Kart Değiştir replacement buffer
 * Kronokalkan / Hata Affı buffer
 
@@ -360,7 +369,7 @@ Star rules:
 
 Failure:
 
-* 10 evaluated moves used before target timeline count is reached
+* level-specific evaluated move limit used before target timeline count is reached
 
 ---
 

@@ -34,9 +34,11 @@ import {
   SOLO_CARDS_PER_LEVEL,
   SOLO_SPECIAL_CARDS_PER_LEVEL,
   SOLO_MAX_MOVES,
+  SOLO_SPECIAL_MAX_MOVES,
   SOLO_LEVEL_TIME_SECONDS,
   getSoloDeckSizeForLevel,
   getSoloCardsRequiredForLevel,
+  getSoloMaxMovesForLevel,
   getSoloTimelineWinCardCountForLevel,
   isSoloSpecialLevel,
 } from '@/lib/soloLevels';
@@ -349,29 +351,29 @@ export const EXTRA_TESTS = [
     },
   ),
 
-  /* 2. special_deck_size_is_19 */
+  /* 2. special_deck_size_is_21 */
   makeCase(
-    'special_deck_size_is_19',
-    'Special Solo levels use a 19-question attempt deck',
+    'special_deck_size_is_21',
+    'Special Solo levels use a 21-question attempt deck',
     () => {
       const pool = buildSyntheticPool(60);
       const special = buildSoloAttemptDeck({ pool, levelNumber: 10 });
       if (!special.ok) return fail('Engine failed on a 60-row unique-year pool.', {
         verification: 'RUNTIME_VERIFIED',
         classification: 'REAL_PRODUCT_RISK',
-        expected: 'special ok=true with 19',
+        expected: 'special ok=true with 21',
         actual: special,
         actionType: ACTION_TYPES.CODE_FIX,
       });
       const helperSize = getSoloDeckSizeForLevel(10);
-      if (helperSize !== 19 || special.deck.length !== 19) return fail('Special Solo deck size helper drifted.', {
+      if (helperSize !== 21 || special.deck.length !== 21) return fail('Special Solo deck size helper drifted.', {
         verification: 'RUNTIME_VERIFIED',
         classification: 'REAL_PRODUCT_RISK',
-        expected: 19,
+        expected: 21,
         actual: { helperSize, deckLength: special.deck.length },
         actionType: ACTION_TYPES.CODE_FIX,
       });
-      return pass('Engine produces 19-question decks for special Solo levels.', {
+      return pass('Engine produces 21-question decks for special Solo levels.', {
         verification: 'RUNTIME_VERIFIED', classification: 'RUNTIME_VERIFIED',
         actual: { helperSize, deckLength: special.deck.length },
       });
@@ -380,19 +382,22 @@ export const EXTRA_TESTS = [
 
   makeCase(
     'solo_deck_size_includes_joker_buffers',
-    'Solo deck formula includes anchors, 10 evaluated moves, and joker buffer cards',
+    'Solo deck formula includes anchors, level-specific evaluated moves, and joker buffer cards',
     () => {
       const normalDeckSize = getSoloDeckSizeForLevel(1);
-      const specialDeckSize = getSoloDeckSizeForLevel(10);
+      const specialDeckSize = getSoloDeckSizeForLevel(5);
       const normalTargetCards = getSoloTimelineWinCardCountForLevel(1);
+      const specialTargetCards = getSoloTimelineWinCardCountForLevel(5);
       const initialTimelineCards = 2;
       const correctPlacementsNeeded = normalTargetCards - initialTimelineCards;
       const normalJokerBuffer = normalDeckSize - initialTimelineCards - SOLO_MAX_MOVES;
-      const specialJokerBuffer = specialDeckSize - initialTimelineCards - SOLO_MAX_MOVES;
+      const specialJokerBuffer = specialDeckSize - initialTimelineCards - SOLO_SPECIAL_MAX_MOVES;
       const actual = {
         initialTimelineCards,
-        maxMoves: SOLO_MAX_MOVES,
+        normalMaxMoves: SOLO_MAX_MOVES,
+        specialMaxMoves: SOLO_SPECIAL_MAX_MOVES,
         targetTotalCards: normalTargetCards,
+        specialTargetCards,
         correctPlacementsNeeded,
         normalDeckSize,
         specialDeckSize,
@@ -402,22 +407,24 @@ export const EXTRA_TESTS = [
       if (
         initialTimelineCards !== 2 ||
         SOLO_MAX_MOVES !== 10 ||
+        SOLO_SPECIAL_MAX_MOVES !== 13 ||
         normalTargetCards !== 7 ||
+        specialTargetCards !== 10 ||
         correctPlacementsNeeded !== 5 ||
         normalDeckSize !== 18 ||
-        specialDeckSize !== 19 ||
+        specialDeckSize !== 21 ||
         normalJokerBuffer !== 6 ||
-        specialJokerBuffer !== 7
+        specialJokerBuffer !== 6
       ) {
         return fail('Solo move-based deck formula drifted.', {
           verification: 'RUNTIME_VERIFIED',
           classification: 'REAL_PRODUCT_RISK',
-          expected: '2 anchors + 10 evaluated moves + Kart Değiştir/Kronokalkan buffers; normal 18, special 19',
+          expected: 'normal: 2 anchors + 10 moves + 6 joker buffer = 18; special: 2 anchors + 13 moves + 6 joker buffer = 21',
           actual,
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Solo move-based deck formula includes joker buffers and keeps the current 18/19 deck sizes.', {
+      return pass('Solo move-based deck formula includes joker buffers and keeps the current 18/21 deck sizes.', {
         verification: 'RUNTIME_VERIFIED',
         classification: 'RUNTIME_VERIFIED',
         actual,
@@ -461,52 +468,74 @@ export const EXTRA_TESTS = [
   /* 4. special_level_target_is_10 */
   makeCase(
     'special_level_target_is_10',
-    'Special Solo levels start at 10, repeat every 5 levels, and target 10 correct timeline cards',
+    'Special Solo levels start at 5, repeat every 5 levels, and target 10 correct timeline cards',
     () => {
       const actual = {
         constant: SOLO_SPECIAL_CARDS_PER_LEVEL,
+        level5Cards: getSoloCardsRequiredForLevel(5),
         level10Cards: getSoloCardsRequiredForLevel(10),
         level15Cards: getSoloCardsRequiredForLevel(15),
+        level5TimelineTarget: getSoloTimelineWinCardCountForLevel(5),
         level10TimelineTarget: getSoloTimelineWinCardCountForLevel(10),
         level15TimelineTarget: getSoloTimelineWinCardCountForLevel(15),
-        specialLevels: [9, 10, 11, 15].map((n) => [n, isSoloSpecialLevel(n)]),
+        specialLevels: [4, 5, 9, 10, 11, 15].map((n) => [n, isSoloSpecialLevel(n)]),
       };
       if (
         actual.constant !== 10 ||
+        actual.level5Cards !== 10 ||
         actual.level10Cards !== 10 ||
         actual.level15Cards !== 10 ||
+        actual.level5TimelineTarget !== 10 ||
         actual.level10TimelineTarget !== 10 ||
         actual.level15TimelineTarget !== 10 ||
-        JSON.stringify(actual.specialLevels) !== JSON.stringify([[9, false], [10, true], [11, false], [15, true]])
+        JSON.stringify(actual.specialLevels) !== JSON.stringify([[4, false], [5, true], [9, false], [10, true], [11, false], [15, true]])
       ) {
         return fail('Special Solo target helper drifted.', {
           verification: 'RUNTIME_VERIFIED',
           classification: 'REAL_PRODUCT_RISK',
-          expected: 'levels 10,15,20... complete at 10 visible timeline cards',
+          expected: 'levels 5,10,15,20... complete at 10 visible timeline cards',
           actual,
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Special Solo levels are every fifth level from 10 and complete at 10 timeline cards.', {
+      return pass('Special Solo levels are every fifth level from 5 and complete at 10 timeline cards.', {
         verification: 'RUNTIME_VERIFIED', classification: 'RUNTIME_VERIFIED', actual,
       });
     },
   ),
 
-  /* 5. solo_attempt_fails_on_10th_move */
+  /* 5. solo_attempt_uses_level_specific_move_limits */
   makeCase(
-    'solo_attempt_fails_on_10th_move',
-    'Solo move limit is 10 evaluated placements (SOLO_MAX_MOVES)',
+    'solo_attempt_uses_level_specific_move_limits',
+    'Normal Solo uses 10 moves while special Solo uses 13 moves',
     () => {
-      if (SOLO_MAX_MOVES !== 10 || SOLO_LEVEL_TIME_SECONDS !== 180) return fail('Solo timer/move constants drifted.', {
+      const actual = {
+        SOLO_MAX_MOVES,
+        SOLO_SPECIAL_MAX_MOVES,
+        normalLevel1: getSoloMaxMovesForLevel(1),
+        specialLevel5: getSoloMaxMovesForLevel(5),
+        specialLevel10: getSoloMaxMovesForLevel(10),
+        normalLevel11: getSoloMaxMovesForLevel(11),
+        SOLO_LEVEL_TIME_SECONDS,
+      };
+      if (
+        SOLO_MAX_MOVES !== 10 ||
+        SOLO_SPECIAL_MAX_MOVES !== 13 ||
+        actual.normalLevel1 !== 10 ||
+        actual.specialLevel5 !== 13 ||
+        actual.specialLevel10 !== 13 ||
+        actual.normalLevel11 !== 10 ||
+        SOLO_LEVEL_TIME_SECONDS !== 180
+      ) return fail('Solo timer/move constants drifted.', {
         verification: 'RUNTIME_VERIFIED',
         classification: 'REAL_PRODUCT_RISK',
-        expected: { moves: 10, seconds: 180 },
-        actual: { SOLO_MAX_MOVES, SOLO_LEVEL_TIME_SECONDS },
+        expected: { normalMoves: 10, specialMoves: 13, seconds: 180 },
+        actual,
         actionType: ACTION_TYPES.CODE_FIX,
       });
-      return pass('Solo v3 uses 10 evaluated moves and a 180-second timer.', {
+      return pass('Solo v3 keeps normal levels at 10 moves, special levels at 13 moves, and the 180-second timer unchanged.', {
         verification: 'RUNTIME_VERIFIED', classification: 'RUNTIME_VERIFIED',
+        actual,
       });
     },
   ),
@@ -1205,7 +1234,7 @@ export const EXTRA_TESTS = [
 
   makeCase(
     'special_deck_category_balance_rich_pool',
-    'Special Solo rich pools avoid one active category dominating the 19-question deck',
+    'Special Solo rich pools avoid one active category dominating the 21-question deck',
     () => {
       const pool = buildSyntheticPool(114, (i) => ({
         year: 1700 + i * 5,
@@ -1220,11 +1249,11 @@ export const EXTRA_TESTS = [
         classification: 'REAL_PRODUCT_RISK',
         actionType: ACTION_TYPES.CODE_FIX,
       });
-      if (res.deck.length !== 19 || Number(res.meta.maxCategoryCount) > 5 || Number(res.meta.maxFirstSevenCategoryCount) > 3) {
+      if (res.deck.length !== 21 || Number(res.meta.maxCategoryCount) > 5 || Number(res.meta.maxFirstSevenCategoryCount) > 3) {
         return fail('Special Solo P1 category balance drifted on a rich active pool.', {
           verification: 'RUNTIME_VERIFIED',
           classification: 'REAL_PRODUCT_RISK',
-          expected: 'special rich pool: deck length 19, max category <=5, first-seven category <=3',
+          expected: 'special rich pool: deck length 21, max category <=5, first-seven category <=3',
           actual: {
             deckLength: res.deck.length,
             categoryDistribution: res.meta.categoryDistribution,
@@ -1233,7 +1262,7 @@ export const EXTRA_TESTS = [
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Special Solo 19-card decks stay category-balanced where the pool allows.', {
+      return pass('Special Solo 21-card decks stay category-balanced where the pool allows.', {
         verification: 'RUNTIME_VERIFIED',
         classification: 'RUNTIME_VERIFIED',
       });
@@ -2249,7 +2278,7 @@ export const EXTRA_TESTS = [
       if (
         normalTargets.selectedCategoryTargetCount !== 13 ||
         normalTargets.globalTargetCount !== 5 ||
-        specialTargets.selectedCategoryTargetCount !== 13 ||
+        specialTargets.selectedCategoryTargetCount !== 15 ||
         specialTargets.globalTargetCount !== 6 ||
         normal.deck.length !== normalDeckSize ||
         special.deck.length !== specialDeckSize ||
@@ -3068,10 +3097,11 @@ export const EXTRA_TESTS = [
       const lower = body.toLowerCase();
       const requiredPhrases = [
         '18 questions',
-        '19 questions',
+        '21 questions',
         '7 correct',
         '10 correct',
         '10 evaluated moves',
+        '13 evaluated moves',
         '180 seconds',
         'first 5',
         'minimum 5-year',
