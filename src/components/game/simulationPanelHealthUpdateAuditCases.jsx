@@ -163,6 +163,8 @@ export const EXTRA_TESTS = [
         'onCurrentUserRowOpenSettings',
         'row.isCurrentUser',
         'own_row_opens_profile_settings_only',
+        'Profile is a guest-compatible BottomNav destination',
+        '&& !isProfilePage',
         'Ana Sayfa',
         'Liderlik',
         'Profil',

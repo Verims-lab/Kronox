@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex527 — BottomNav Profile guest-route bounce fix:
+//   • App-level guest onboarding guard now explicitly exempts the normal /profile BottomNav destination so Profile can resolve/repair guest state locally instead of briefly selecting Profil and bouncing back to Home.
+//   • Health/mirror contracts now pin Profile as a guest-compatible BottomNav route while keeping BottomNav limited to Ana Sayfa/Liderlik/Profil and Online Home-CTA-owned.
+//
 // Codex526 — Daily Wheel claim reliability fix:
 //   • claimDailyWheelReward now uses explicit runtime-safe entity handles for player updates, DailyWheelSpin, and DiamondTransaction writes, matching the proven Daily Quest auth/service fallback pattern while keeping rewards server-owned, Diamond-only, guest-valid, and idempotent.
 //   • useDailyWheel now refreshes server status after a claim rejection before showing retry copy, so an already-applied or reconciled same-day claim becomes the claimed/result state instead of a false “Ödül alınamadı” loop.
@@ -144,7 +148,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex526';
+const BUILD_MARKER = 'Codex527';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
