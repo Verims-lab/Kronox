@@ -673,6 +673,63 @@ export const EXTRA_TESTS = [
       });
     }),
 
+  makeCase('daily_wheel_claim_failure_reconciles_server_status',
+    'Daily Wheel claim failure rechecks server state before showing retry error',
+    () => {
+      const missing = missingTokens(dailyWheelHookSource, [
+        'buildClaimResultFromStatus',
+        'const recoveredStatus = await refresh().catch(() => null);',
+        'recoveredStatus?.alreadyClaimedToday',
+        'recoveredStatus?.available === false',
+        'needsBalanceRepair',
+        'recoveryFromClaimFailure: true',
+        'applyClaimSuccessBody(recoveredClaim)',
+        'const recoveredResult = buildClaimResultFromStatus(recoveredStatus);',
+        "setStatus('claimed')",
+        'setLastResult(recoveredResult)',
+        'onUserUpdated(recoveredResult.userPatch)',
+        "setError(userSafeDailyWheelError(err, 'Çark çevrilemedi. Lütfen tekrar dene.'))",
+      ]);
+      if (missing.length) {
+        return fail('Daily Wheel can remain stuck in a false spin-failed state instead of reconciling an already-applied server claim.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          files: ['src/hooks/useDailyWheel.js'],
+          missing,
+        });
+      }
+      return pass('Claim failures perform a server status refresh and convert an already-claimed day into the claimed/result state before showing retry copy.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('daily_wheel_claim_uses_runtime_safe_entity_handles',
+    'Daily Wheel claim binds runtime-safe entity handles for player, spin, and Diamond writes',
+    () => {
+      const missing = missingTokens(DAILY_WHEEL_BACKEND_HEALTH_SOURCE, [
+        'userEntity',
+        'dailyWheelSpinEntity',
+        'diamondTransactionEntity',
+        'authEntity || serviceEntity',
+        'player?.isGuest ? serviceEntity : (authEntity || serviceEntity)',
+        'daily_wheel_user_update_unavailable',
+        'daily_wheel_guest_update_unavailable',
+        'DailyWheelSpin.create',
+        'DiamondTransaction.create',
+      ]);
+      if (missing.length) {
+        return fail('Daily Wheel claim write path can drift back to brittle service/auth entity access and fail after the spin starts.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'base44/functions/claimDailyWheelReward/entry.ts',
+          missing,
+        });
+      }
+      return pass('Daily Wheel claim uses explicit runtime-safe entity handles for profile update, spin ledger, and Diamond ledger writes.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
   makeCase('daily_wheel_pending_blocks_double_tap',
     'Daily Wheel pending state prevents double-tap duplicate claim attempts',
     () => {

@@ -182,6 +182,7 @@ function publicSpinResult(row: any) {
     streakAfter: normalizeNumber(row.streak_after),
     streakBonusAmount: normalizeNumber(row.streak_bonus_amount),
     totalRewardAmount: normalizeNumber(row.total_reward_amount),
+    balanceAfter: normalizeNumber(row.balance_after),
     claimedAt: row.claimed_at || null,
     nextAvailableAt: row.next_available_at || null,
   };
@@ -201,6 +202,7 @@ function publicSpinResultFromTransaction(tx: any, user: any, nextAvailableAt: st
     streakAfter,
     streakBonusAmount,
     totalRewardAmount,
+    balanceAfter: normalizeNumber(tx.balance_after ?? user?.diamonds),
     claimedAt: tx.created_at || user?.daily_wheel_last_spin_at || null,
     nextAvailableAt: user?.daily_wheel_next_available_at || nextAvailableAt,
   };

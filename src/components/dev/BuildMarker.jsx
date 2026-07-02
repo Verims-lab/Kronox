@@ -1,5 +1,14 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex527 — BottomNav Profile guest-route bounce fix:
+//   • App-level guest onboarding guard now explicitly exempts the normal /profile BottomNav destination so Profile can resolve/repair guest state locally instead of briefly selecting Profil and bouncing back to Home.
+//   • Health/mirror contracts now pin Profile as a guest-compatible BottomNav route while keeping BottomNav limited to Ana Sayfa/Liderlik/Profil and Online Home-CTA-owned.
+//
+// Codex526 — Daily Wheel claim reliability fix:
+//   • claimDailyWheelReward now uses explicit runtime-safe entity handles for player updates, DailyWheelSpin, and DiamondTransaction writes, matching the proven Daily Quest auth/service fallback pattern while keeping rewards server-owned, Diamond-only, guest-valid, and idempotent.
+//   • useDailyWheel now refreshes server status after a claim rejection before showing retry copy, so an already-applied or reconciled same-day claim becomes the claimed/result state instead of a false “Ödül alınamadı” loop.
+//   • Daily Wheel Health guards the spin-failure reconciliation path and backend entity-handle contract.
+//
 // Codex525 — Home hourglass alpha asset fix:
 //   • Replaced the Home hourglass PNG in-place with an RGBA alpha version of the same 1024x1024 local artwork, removing the baked black rectangle while preserving current source path, position, and size.
 //   • MainMenu now renders the hourglass normally on a transparent image background (no screen-blend workaround, no filter), and the visual Health/docs contract expects the real transparent asset.
@@ -139,7 +148,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex525';
+const BUILD_MARKER = 'Codex527';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

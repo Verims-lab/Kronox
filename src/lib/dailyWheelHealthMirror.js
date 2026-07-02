@@ -36,6 +36,7 @@ alreadyClaimedToday
 nextAvailableAt
 currentStreak
 lastReward
+balanceAfter
 playerType
 guestProfile
 
@@ -43,6 +44,13 @@ claimDailyWheelReward
 base44.auth.me()
 resolveDailyWheelPlayer
 updateDailyWheelPlayer
+userEntity
+dailyWheelSpinEntity
+diamondTransactionEntity
+authEntity || serviceEntity
+player?.isGuest ? serviceEntity : (authEntity || serviceEntity)
+daily_wheel_user_update_unavailable
+daily_wheel_guest_update_unavailable
 guestPlayerKey
 buildIdempotencyKey
 findSpin

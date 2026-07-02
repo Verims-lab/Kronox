@@ -179,12 +179,15 @@ const AuthenticatedApp = () => {
     // auth_required: uygulama public — login olmadan da devam et
   }
 
+  // Profile is a guest-compatible BottomNav destination; let it resolve or repair
+  // guest state locally instead of bouncing through onboarding.
   const shouldRouteGuestOnboarding = !isAuthenticated
     && Boolean(guestProfile)
     && !isGuestOnboardingComplete(guestProfile)
     && !isPublicStandalonePage
     && !isGamePage
     && !isOnboardingPage
+    && !isProfilePage
     && !isOnboardingAccountLinkEntry;
 
   if (shouldRouteGuestOnboarding) {
