@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Gem, Sparkles, Trophy } from 'lucide-react';
+import { Trophy } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 // Codex167 — Liderlik üst barı Home/Solo standardına hizalandı: ortada
 // gerçek persisted Elmas + sağda notification bell. Profil/avatar üst
-// bardan kaldırıldı (kullanıcı talebi). Title "Liderlik Tablosu" zaten
-// ekran içeriğinde duruyor.
+// bardan kaldırıldı (kullanıcı talebi). Ekran başlığı içerik alanında
+// merkezi Liderlik markası olarak çizilir.
 import StandardTopBar from '@/components/layout/StandardTopBar';
 import { useAuth } from '@/lib/AuthContext';
 import { ensureSoloProgressBackfill, getSoloLevelCount, readSoloProgress } from '@/lib/soloLevels';
@@ -40,10 +40,6 @@ import { useToast } from '@/components/ui/use-toast';
 import { isAdminUser, withAdminStatus } from '@/lib/admin';
 import KronoxRankingSection from '@/components/leaderboard/KronoxRankingSection';
 import PullToRefresh from '@/components/mobile/PullToRefresh';
-// Phase 3 — Codex123 UI consolidation. Profile + Leaderboard now share
-// one StatTile. Compact variant matches the previous lighter look used
-// inside the Liderlik summary hero card. Data sources unchanged.
-import KronoxStatTile from '@/components/ui/KronoxStatTile';
 
 function publishOwnLeaderboardProjectionInBackground(user, currentProgress) {
   if (!user?.email) {
@@ -79,9 +75,9 @@ function hydrateLeaderboardRow(publicRow, friendKeys, currentOwnerKey) {
  * focused KronoxRankingSection component.
  *
  * Fallback rules:
- *   • Stat cards (Puan / Seviye / Elmas) stay visible from the user's own
- *     persisted sources — Puan is visible Kronox Puan, Seviye is Solo.
- *   • The ranking section shows a neutral "hazırlanıyor" placeholder,
+ *   • The ranking section shows the user's persisted public projection when
+ *     remote leaderboard rows are still warming up.
+ *   • Empty or loading states show a neutral "hazırlanıyor" placeholder,
  *     NOT a red error box. End users never see backend permission wording.
  *   • The user's OWN visible Kronox Puan is shown inside the placeholder
  *     so Online score changes are visible even while global ranking loads.
@@ -328,11 +324,10 @@ export default function LeaderboardPage() {
 
   const progress = readSoloProgress(user);
   const summary = summarizeSoloProgress(progress, getSoloLevelCount());
-  // Codex148 — Explicit Solo component score contract. The stat card and
-  // public ranking rows show unified Kronox Puan; Solo summary remains
-  // separate for progression and technical Health contracts.
+  // Codex148 — Explicit Solo component score contract. Public ranking rows
+  // show unified Kronox Puan; Solo summary remains separate for progression
+  // and technical Health contracts.
   const soloLeaderboardScore = summary.totalSoloScore;
-  const visibleKronoxPuan = getKronoxVisibleScore(user, { soloProgress: progress });
   const completedGuestProfile = !user && isGuestOnboardingComplete(localGuestProfile || guestProfile)
     ? (localGuestProfile || guestProfile)
     : null;
@@ -402,36 +397,12 @@ export default function LeaderboardPage() {
 
       <PullToRefresh onRefresh={loadLeaderboard} disabled={!leaderboardPlayer}>
         <div className="mx-auto w-full max-w-md px-4 pt-16 mt-2 space-y-3">
-          <div
-            className="rounded-2xl p-5 text-center"
-            style={{
-              background: 'linear-gradient(180deg, rgba(30,41,75,0.9), rgba(10,16,36,0.95))',
-              boxShadow: 'inset 0 0 0 1.5px rgba(120,170,255,0.30), 0 12px 24px rgba(2,6,23,0.5)',
-            }}
-          >
-            <div
-              className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full"
-              style={{
-                background: 'radial-gradient(circle at 35% 28%, #ffe066, #b97a06 70%)',
-                boxShadow: '0 0 18px rgba(250,204,21,0.55), inset 0 1px 0 rgba(255,255,255,0.45)',
-              }}
-            >
-              <Trophy className="h-7 w-7 text-amber-950" strokeWidth={2.4} />
+          <header className="leaderboard-heading" aria-label="Liderlik">
+            <div className="leaderboard-trophy" aria-hidden="true">
+              <Trophy strokeWidth={2.4} />
             </div>
-            <p className="font-cinzel text-lg tracking-widest text-amber-200">Liderlik Tablosu</p>
-            <p className="mt-2 font-inter text-xs text-blue-100/70 leading-relaxed">
-              Kronox Puanın Solo ve Online sonuçlarınla güncellenir.
-            </p>
-
-            {/* Codex119 — stat cards always show the user's own values from
-                the shared visible Kronox Puan + Solo level sources,
-                regardless of global ranking state. */}
-            <div className="mt-4 grid grid-cols-3 gap-2">
-              <KronoxStatTile icon={Trophy} label="Puan" value={visibleKronoxPuan} tintHex="#facc15" variant="compact" />
-              <KronoxStatTile icon={Sparkles} label="Seviye" value={summary.currentLevel} tintHex="#60a5fa" variant="compact" />
-              <KronoxStatTile icon={Gem} label="Elmas" value={diamondValue} tintHex="#7dd3fc" variant="compact" />
-            </div>
-          </div>
+            <h1 className="leaderboard-title">LİDERLİK</h1>
+          </header>
 
           <KronoxRankingSection
             authChecked={authChecked}
