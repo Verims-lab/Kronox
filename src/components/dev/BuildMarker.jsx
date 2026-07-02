@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex533 — Admin Panel visual standardization:
+//   • AdminPage and AdminCollapsibleSection now share adminVisualStyles for one consistent card shape, border/background, icon container, title font, description font, summary badge, and section/header typography.
+//   • The eight Admin tool entries remain present and keep their existing routes/actions; AdminUser gate, report tools, Health Simulator, Test Elmas, cleanup, and reset behavior are unchanged.
+//   • Admin Authorization Health now guards the shared Admin visual style contract without adding screenshot-only checks.
+//
 // Codex532 — Liderlik header simplification:
 //   • Removed the old top Liderlik summary card, including Puan/Seviye/Elmas tiles and the explanatory "Kronox Puanın Solo ve Online sonuçlarınla güncellenir." sentence.
 //   • Added the centered .leaderboard-heading with the requested gold .leaderboard-trophy badge and exact LİDERLİK title styling while preserving the approved Liderlik background, StandardTopBar, BottomNav, ranking rows, score materialization, and username-only identity.
@@ -174,7 +179,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex532';
+const BUILD_MARKER = 'Codex533';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

@@ -57,6 +57,7 @@ import questionAnalyticsReportToolSource from '../../components/admin/QuestionAn
 import adminDiamondGrantToolSource from '../../components/admin/AdminDiamondGrantTool.jsx?raw';
 import inactiveGuestCleanupToolSource from '../../components/admin/InactiveGuestCleanupTool.jsx?raw';
 import adminCollapsibleSectionSource from '../../components/admin/AdminCollapsibleSection.jsx?raw';
+import adminVisualStylesSource from '../../components/admin/adminVisualStyles.js?raw';
 import authContextSource from '../../lib/AuthContext.jsx?raw';
 import adminSource from '../../lib/admin.js?raw';
 import appParamsSource from '../../lib/app-params.js?raw';
@@ -1124,6 +1125,72 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Admin operations use the shared collapsed-by-default pattern, nested analytics groups, and lazy User Report loading.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+  ),
+
+  makeCase(
+    'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
+    'admin_panel_visual_standardization_contract',
+    'Admin Panel tool rows use one shared Kronox visual system without changing the tool list',
+    () => {
+      const visual = safeStr(adminVisualStylesSource);
+      const collapsible = safeStr(adminCollapsibleSectionSource);
+      const page = safeStr(adminPageSource);
+      const combined = [
+        visual,
+        collapsible,
+        page,
+        questionAnalyticsReportToolSource,
+        userReportToolSource,
+        adminDiamondGrantToolSource,
+        inactiveGuestCleanupToolSource,
+        resetUserProgressToolSource,
+      ].join('\n');
+      const required = [
+        'ADMIN_PAGE_TITLE_CLASS',
+        'ADMIN_PAGE_SUBTITLE_CLASS',
+        'ADMIN_SECTION_LABEL_CLASS',
+        'ADMIN_TOOL_CARD_CLASS',
+        'ADMIN_TOOL_HEADER_BUTTON_CLASS',
+        'ADMIN_TOOL_ICON_CLASS',
+        'ADMIN_TOOL_TITLE_CLASS',
+        'ADMIN_TOOL_DESCRIPTION_CLASS',
+        'ADMIN_TOOL_SUMMARY_CLASS',
+        'ADMIN_TOOL_CHEVRON_CLASS',
+        'data-admin-standard-card',
+        'data-admin-tone={visualTone}',
+        'ADMIN EKRANI',
+        'ARAÇLAR',
+        'title="Teknik Döküman"',
+        'title="İş Akışı Dökümanı"',
+        'title="Kronox Health Simulator"',
+        'title="Soru Analiz Raporu Gönder"',
+        'title="Kullanıcı Raporu"',
+        'title="Test Elmas Yükleme"',
+        'title="Pasif Guest Kullanıcı Adlarını Temizle"',
+        'title="Reset User Progress"',
+      ].filter((token) => !combined.includes(token));
+      const forbidden = [
+        'const TONE_CLASSES',
+        'font-cinzel text-sm font-black tracking-wide',
+        'border-red-300/25 bg-red-300/5 hover:border-red-300/45',
+        'border-amber-300/25 bg-amber-300/5 hover:border-amber-300/45',
+        'border-cyan-300/25 bg-cyan-300/5 hover:border-cyan-300/45',
+      ].filter((token) => collapsible.includes(token) || page.includes(token));
+      if (required.length || forbidden.length) {
+        return fail('Admin Panel visual standardization contract drifted.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'UX_HEALTH_REGRESSION',
+          expected: 'AdminPage and AdminCollapsibleSection use the shared adminVisualStyles tokens; all eight Admin tools remain present; top-level tool cards no longer mix per-card typography/border/icon treatments.',
+          actual: { missing: required, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Admin Panel tool rows use one shared Kronox card, icon, title, description, and summary style while preserving the complete tool list.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
