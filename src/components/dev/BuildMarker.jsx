@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex536 — Health blocker alignment for MR3RATHD:
+//   • AdminPage now uses the canonical "Admin Ekranı" title text while the shared Admin title class keeps the approved uppercase visual treatment and the existing AdminUser gate/tools remain unchanged.
+//   • Leaderboard rows/current-user card now render avatars through shared KronoxAvatar with a leaderboard variant; Health/docs retarget stale checks away from removed top stat cards, removed helper copy, and removed friends empty area while preserving materialized score/privacy contracts.
+//   • Root @base44/sdk is re-pinned to exact 0.8.34 in package.json and package-lock.json with the 0.8.34 lock metadata; Base44 function imports remain npm:@base44/sdk@0.8.34.
+//
 // Codex535 — Liderlik avatar/name/score + sticky current-user card:
 //   • KronoxRankingSection now uses scoped leaderboard-avatar/name/score classes, a fixed my-rank-sticky current-user card above BottomNav, and extra leaderboard-list bottom padding so rows remain reachable.
 //   • The Leaderboard-only Friends area is removed from Liderlik UI; friends/invites backend, badges, and features elsewhere remain untouched.
@@ -189,7 +194,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex535';
+const BUILD_MARKER = 'Codex536';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

@@ -2,14 +2,15 @@
 //
 // SCOPE
 //   Locks the Phase 3 UI/UX standardization landing:
-//     1. Profile and Leaderboard render Puan / Seviye / Elmas through the
-//        shared <KronoxStatTile /> component, NOT two local copies.
+//     1. Profile renders Puan / Seviye / Elmas through the shared
+//        <KronoxStatTile /> component, NOT a local copy.
 //     2. Profile stat row contains exactly Puan + Seviye + Elmas — no
 //        Yıldız tile, no other accidental stat.
-//     3. Leaderboard stat row contains exactly Puan + Seviye + Elmas.
+//     3. Leaderboard no longer renders top stat tiles by approved design;
+//        it keeps rows and the fixed current-user card on unified Puan.
 //     4. Elmas value continues to source from getLeaderboardDiamondValue
-//        on both surfaces (never derived from stars / score / completed
-//        levels).
+//        where it is still displayed (never derived from stars / score /
+//        completed levels).
 //     5. The shared style-token module (lib/kronoxStyleTokens.js)
 //        exposes the documented exports — accidental deletion is caught.
 //
@@ -80,15 +81,11 @@ export const EXTRA_SUITES = [
 ];
 
 export const EXTRA_TESTS = [
-  /* 1. Shared StatTile contract — both screens import and use it. */
+  /* 1. Shared StatTile contract — Profile imports and uses it; Leaderboard top tiles stay removed. */
   makeCase('ui_shared_components', 'ui_shared_stat_tile_contract',
-    'Profile and Leaderboard render Puan / Seviye / Elmas through the shared KronoxStatTile component',
+    'Profile renders Puan / Seviye / Elmas through shared KronoxStatTile while Leaderboard top stat tiles stay removed',
     () => {
       const profileRequired = missingTokens(profilePageSource, [
-        "from '@/components/ui/KronoxStatTile'",
-        '<KronoxStatTile',
-      ]);
-      const leaderboardRequired = missingTokens(leaderboardPageSource, [
         "from '@/components/ui/KronoxStatTile'",
         '<KronoxStatTile',
       ]);
@@ -99,19 +96,21 @@ export const EXTRA_TESTS = [
       ]);
       const leaderboardForbidden = presentTokens(leaderboardPageSource, [
         'function StatTile(',
+        "from '@/components/ui/KronoxStatTile'",
+        '<KronoxStatTile',
       ]);
-      if (profileRequired.length || leaderboardRequired.length || profileForbidden.length || leaderboardForbidden.length) {
-        return fail('Profile/Leaderboard are not fully migrated to the shared KronoxStatTile.', {
+      if (profileRequired.length || profileForbidden.length || leaderboardForbidden.length) {
+        return fail('Profile shared StatTile or approved Leaderboard tile-removal contract drifted.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'pages/ProfilePage.jsx + pages/LeaderboardPage.jsx',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'Both pages import KronoxStatTile and render it in the stat row; no local StatTile() function remains',
-          actual: { profileRequired, leaderboardRequired, profileForbidden, leaderboardForbidden },
-          nextStep: 'Replace local StatTile() with <KronoxStatTile … /> on both pages and delete the local definition.',
+          expected: 'Profile imports/renders KronoxStatTile; Leaderboard does not restore removed top stat tiles; no local StatTile() function remains',
+          actual: { profileRequired, profileForbidden, leaderboardForbidden },
+          nextStep: 'Keep Profile on shared KronoxStatTile and keep Leaderboard on rows/current-user card instead of top stat tiles.',
         });
       }
-      return pass('Both pages render the shared KronoxStatTile and no local duplicates remain.', {
+      return pass('Profile renders the shared KronoxStatTile and Leaderboard keeps the approved no-top-stat-tile design.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
@@ -121,14 +120,17 @@ export const EXTRA_TESTS = [
 
   /* 2. Profile + Leaderboard stat row composition — Puan / Seviye / Elmas. */
   makeCase('ui_shared_components', 'ui_profile_leaderboard_stats_contract',
-    'Profile and Leaderboard stat rows show Puan + Seviye + Elmas (no Yıldız tile)',
+    'Profile stat row shows Puan + Seviye + Elmas; Leaderboard rows/current-user card show unified Puan without top stat tiles',
     () => {
       const profileMissingLabels = missingTokens(profilePageSource, [
         "label: 'Puan'",
         "label: 'Seviye'",
         "label: 'Elmas'",
       ]);
-      const leaderboardMissingLabels = missingTokens(leaderboardPageSource, [
+      const leaderboardRequired = missingTokens(leaderboardPageSource, [
+        '<KronoxRankingSection',
+      ]);
+      const leaderboardForbiddenLabels = presentTokens(leaderboardPageSource, [
         'label="Puan"',
         'label="Seviye"',
         'label="Elmas"',
@@ -138,17 +140,17 @@ export const EXTRA_TESTS = [
       // but not as a StatTile label on these two pages.
       const profileYildiz = profilePageSource.includes("label: 'Yıldız'") || profilePageSource.includes('label="Yıldız"');
       const leaderboardYildiz = leaderboardPageSource.includes("label: 'Yıldız'") || leaderboardPageSource.includes('label="Yıldız"');
-      if (profileMissingLabels.length || leaderboardMissingLabels.length || profileYildiz || leaderboardYildiz) {
-        return fail('Profile/Leaderboard stat row composition drifted.', {
+      if (profileMissingLabels.length || leaderboardRequired.length || leaderboardForbiddenLabels.length || profileYildiz || leaderboardYildiz) {
+        return fail('Profile stat row or approved Leaderboard no-top-stat design drifted.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'pages/ProfilePage.jsx + pages/LeaderboardPage.jsx',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'Both pages render exactly Puan + Seviye + Elmas; no Yıldız stat tile in the stat row',
-          actual: { profileMissingLabels, leaderboardMissingLabels, profileYildiz, leaderboardYildiz },
+          expected: 'Profile renders exactly Puan + Seviye + Elmas; Leaderboard keeps rows/current-user Puan and no restored top stat labels',
+          actual: { profileMissingLabels, leaderboardRequired, leaderboardForbiddenLabels, profileYildiz, leaderboardYildiz },
         });
       }
-      return pass('Profile and Leaderboard stat rows match the Puan/Seviye/Elmas contract.', {
+      return pass('Profile stat row matches Puan/Seviye/Elmas and Leaderboard keeps unified Puan without restored top stat tiles.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
@@ -158,28 +160,24 @@ export const EXTRA_TESTS = [
 
   /* 3. Elmas source-of-truth preserved on both surfaces. */
   makeCase('ui_shared_components', 'ui_elmas_source_preserved',
-    'Elmas tile sources from getLeaderboardDiamondValue on both Profile and Leaderboard',
+    'Elmas tile sources from getLeaderboardDiamondValue where displayed',
     () => {
       const profileRequired = missingTokens(profilePageSource, [
         'getLeaderboardDiamondValue',
         // Profile mirrors via a tiny passthrough helper.
         'getProfileDiamondValue',
       ]);
-      const leaderboardRequired = missingTokens(leaderboardPageSource, [
-        'getLeaderboardDiamondValue',
-        'diamondValue = getLeaderboardDiamondValue(user)',
-      ]);
-      if (profileRequired.length || leaderboardRequired.length) {
+      if (profileRequired.length) {
         return fail('Elmas value is no longer sourced from getLeaderboardDiamondValue on at least one surface.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'pages/ProfilePage.jsx + pages/LeaderboardPage.jsx',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'Both pages call getLeaderboardDiamondValue(user); Elmas never derived from stars/score/completed levels',
-          actual: { profileRequired, leaderboardRequired },
+          expected: 'Displayed Elmas surfaces call getLeaderboardDiamondValue(user); Elmas never derived from stars/score/completed levels',
+          actual: { profileRequired },
         });
       }
-      return pass('Elmas tile sources from getLeaderboardDiamondValue on both surfaces.', {
+      return pass('Displayed Elmas tiles source from getLeaderboardDiamondValue.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
@@ -189,7 +187,7 @@ export const EXTRA_TESTS = [
 
   /* 4. Shared KronoxStatTile supports both variants. */
   makeCase('ui_shared_components', 'ui_stat_tile_variants_supported',
-    'KronoxStatTile supports both `profile` and `compact` variants so Profile and Leaderboard look density stays consistent',
+    'KronoxStatTile supports both `profile` and `compact` variants for shared stat surfaces',
     () => {
       const required = missingTokens(statTileSource, [
         "variant = 'profile'",
@@ -202,7 +200,7 @@ export const EXTRA_TESTS = [
         'tintHex',
       ]);
       if (required.length) {
-        return fail('Shared KronoxStatTile lost one of the variants or tint paths Profile/Leaderboard rely on.', {
+        return fail('Shared KronoxStatTile lost one of the variants or tint paths shared stat surfaces rely on.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'components/ui/KronoxStatTile.jsx',
@@ -255,8 +253,8 @@ export const EXTRA_TESTS = [
 
   /* 6. Honest gap — visual alignment on a real device. */
   makeCase('ui_shared_components', 'ui_profile_leaderboard_visual_parity_runtime_proof_needed',
-    'Live visual proof that Profile and Leaderboard stat rows look aligned on a real device',
-    () => notAutomatable('Static contracts can prove both pages import KronoxStatTile and render Puan/Seviye/Elmas, but cannot judge whether the rendered pixels feel consistent across iOS Safari, Android Chrome, and small-width devices. Release sign-off requires a side-by-side screenshot.', {
+    'Live visual proof that Profile stats and Leaderboard rows/current-user card look aligned on a real device',
+    () => notAutomatable('Static contracts can prove Profile uses KronoxStatTile and Leaderboard uses the approved row/current-user-card layout, but cannot judge whether the rendered pixels feel consistent across iOS Safari, Android Chrome, and small-width devices. Release sign-off requires side-by-side screenshots.', {
       verification: 'NOT_AUTOMATABLE',
       classification: 'STATIC_CHECK_LIMITATION',
       verificationLabels: ['NOT_AUTOMATABLE', 'EXTERNAL_DEVICE_REQUIRED'],

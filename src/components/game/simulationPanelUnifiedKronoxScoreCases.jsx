@@ -111,23 +111,25 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('leaderboard_description_uses_unified_puan_language',
-    'Liderlik description uses unified Kronox Puan copy',
+    'Liderlik avoids separate Solo/Online score copy while showing unified Puan rows',
     () => {
-      const missing = missingTokens(leaderboardPageSource, [
-        'Kronox Puanın Solo ve Online sonuçlarınla güncellenir.',
+      const missing = missingTokens(`${leaderboardPageSource}\n${rankingSectionSource}`, [
+        'row.summary.totalKronoxScore',
+        'Puan',
       ]);
       const offenders = findForbiddenCopy({ LeaderboardPage: leaderboardPageSource, KronoxRankingSection: rankingSectionSource }, [
         'Solo puanın artık',
         'solo puanına göre',
         '>Solo Puan<',
+        'Kronox Puanın Solo ve Online sonuçlarınla güncellenir.',
       ]);
       if (missing.length || offenders.length) {
-        return fail('Liderlik copy still suggests a separate Solo score system.', {
+        return fail('Liderlik unified Puan row copy/source drifted or the removed old description returned.', {
           verification: 'STATIC_CONTRACT',
           actual: { missing, offenders },
         });
       }
-      return pass('Liderlik explains unified Kronox Puan without Solo Puan labels.', { verification: 'STATIC_CONTRACT' });
+      return pass('Liderlik rows/current-user card use unified Puan without separate Solo/Online labels or the removed old description.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('result_popup_uses_unified_puan_language',
@@ -228,21 +230,24 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('leaderboard_top_and_row_score_same_source',
-    'Leaderboard top stat and current-user row use the same unified source',
+    'Leaderboard current-user card, row, and fallback score use the same unified source',
     () => {
-      const missing = missingTokens(`${leaderboardPageSource}\n${leaderboardLibSource}`, [
+      const missing = missingTokens(`${leaderboardPageSource}\n${leaderboardLibSource}\n${rankingSectionSource}`, [
         'visibleKronoxPuan',
         'getKronoxVisibleScore(user',
         'totalKronoxScore: getKronoxVisibleScore(user',
         'total_kronox_score: totalKronoxScore',
+        'row.summary.totalKronoxScore',
+        'ownScore?.totalKronoxScore',
+        'Senin Sıran',
       ]);
       if (missing.length) {
-        return fail('Liderlik top stat and row fallback are not tied to the same unified Puan source.', {
+        return fail('Liderlik current-user card, row, and fallback are not tied to the same unified Puan source.', {
           verification: 'STATIC_CONTRACT',
           missing,
         });
       }
-      return pass('Liderlik top stat and current-user row fallback share unified Kronox Puan.', { verification: 'STATIC_CONTRACT' });
+      return pass('Liderlik row, current-user card, and own fallback share unified Kronox Puan.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('materialized_kronox_puan_is_primary_read_path',

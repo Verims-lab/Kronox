@@ -1163,7 +1163,7 @@ export const EXTRA_TESTS = [
         'ADMIN_TOOL_CHEVRON_CLASS',
         'data-admin-standard-card',
         'data-admin-tone={visualTone}',
-        'ADMIN EKRANI',
+        'Admin Ekranı',
         'ARAÇLAR',
         'title="Teknik Döküman"',
         'title="İş Akışı Dökümanı"',

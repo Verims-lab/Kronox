@@ -31,6 +31,7 @@ const SimulationPanelErrorBoundary = lazyWithRetry(
   () => import('@/components/game/SimulationPanelErrorBoundary'),
   'SimulationPanelErrorBoundary',
 );
+const ADMIN_PAGE_TITLE = 'Admin Ekranı';
 
 export default function AdminPage() {
   const { user, isLoadingAuth, adminStatus } = useAuth();
@@ -116,7 +117,7 @@ export default function AdminPage() {
         <div className="mx-auto flex min-h-[60dvh] w-full max-w-sm items-center justify-center px-5">
           <div className="rounded-3xl border border-primary/20 bg-secondary/20 p-6 text-center">
             <ShieldAlert className="mx-auto mb-4 h-10 w-10 text-primary" />
-            <h1 className={ADMIN_PAGE_TITLE_CLASS}>ADMIN EKRANI</h1>
+            <h1 className={ADMIN_PAGE_TITLE_CLASS}>{ADMIN_PAGE_TITLE}</h1>
             <p className={ADMIN_PAGE_SUBTITLE_CLASS}>
               Bu alan yalnızca aktif admin/owner kullanıcılar içindir.
             </p>
@@ -145,7 +146,7 @@ export default function AdminPage() {
       <StandardTopBar diamonds={diamondValue} user={user} showBack />
 
       <div className="px-4 pb-1">
-        <h1 className={ADMIN_PAGE_TITLE_CLASS}>ADMIN EKRANI</h1>
+        <h1 className={ADMIN_PAGE_TITLE_CLASS}>{ADMIN_PAGE_TITLE}</h1>
         <p className={ADMIN_PAGE_SUBTITLE_CLASS}>
           Yalnızca aktif AdminUser owner/admin araçları.
         </p>

@@ -336,6 +336,11 @@ projection first. The fast player-facing Liderlik path may skip bounded
 User.kronox_puan_total repair and friend enrichment so top rows can render from
 projection/cache; repair remains a bounded server-side maintenance or fallback
 path and never returns full User rows.
+The approved Liderlik UI no longer renders top Puan/Seviye/Elmas stat cards,
+the old unified-score helper sentence, or the removed friends empty area. It
+keeps the centered trophy + LİDERLİK heading, scrollable ranking rows, shared
+KronoxAvatar rendering, username-only public identity, and a fixed Senin Sıran
+card above BottomNav using the same materialized visible Puan source.
 
 Unified Kronox Puan is the player-facing score source: Solo contributes the
 Solo best-score component and Online contributes User.online_progress.score.

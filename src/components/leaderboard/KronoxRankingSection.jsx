@@ -1,8 +1,8 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Loader2, Medal, RefreshCw, Trophy, UserRound } from 'lucide-react';
 import useLongPress from '@/hooks/useLongPress';
 import LeaderboardRowActionMenu from '@/components/leaderboard/LeaderboardRowActionMenu';
-import { resolveProfileAvatar } from '@/lib/avatarOptions';
+import KronoxAvatar from '@/components/profile/KronoxAvatar';
 import { normalizeLeaderboardRank } from '@/lib/leaderboard';
 
 /**
@@ -148,36 +148,23 @@ export default function KronoxRankingSection({
   );
 }
 
-function LeaderboardAvatar({ row }) {
-  const avatar = resolveProfileAvatar(row);
-  const [photoFailed, setPhotoFailed] = useState(false);
-
-  useEffect(() => {
-    setPhotoFailed(false);
-  }, [avatar.url]);
-
-  const showPhoto = avatar.type === 'photo' && avatar.url && !photoFailed;
+function getLeaderboardInitial(row) {
   const initial = String(row?.initial || row?.displayName || 'K')
     .charAt(0)
     .toLocaleUpperCase('tr-TR');
+  return initial || 'K';
+}
 
-  if (showPhoto) {
-    return (
-      <img
-        src={avatar.url}
-        alt=""
-        className="leaderboard-avatar"
-        draggable={false}
-        aria-hidden="true"
-        onError={() => setPhotoFailed(true)}
-      />
-    );
-  }
-
+function LeaderboardAvatar({ row }) {
   return (
-    <div className="leaderboard-avatar leaderboard-avatar--default" aria-hidden="true">
-      <span className="leaderboard-avatar-letter">{initial}</span>
-    </div>
+    <KronoxAvatar
+      profile={row}
+      initial={getLeaderboardInitial(row)}
+      variant="leaderboard"
+      useIconFallback={false}
+      ariaHidden
+      alt=""
+    />
   );
 }
 
@@ -199,7 +186,7 @@ function MyRankCard({ row, onOpenSettings }) {
       <LeaderboardAvatar row={row} />
       <div className="min-w-0">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="my-rank-label">Senin sıran</span>
+          <span className="my-rank-label">Senin Sıran</span>
           <span className="my-rank-you-badge">SEN</span>
         </div>
         <p className="leaderboard-name">{row.displayName}</p>
