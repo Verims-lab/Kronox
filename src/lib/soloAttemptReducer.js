@@ -1,6 +1,7 @@
 import {
   calculateSoloAttemptResult,
   getSoloCardsRequiredForLevel,
+  getSoloMaxEvaluatedMovesForLevel,
   SOLO_CORRECT_PLACEMENTS_NEEDED,
   SOLO_INITIAL_TIMELINE_CARDS,
   SOLO_MAX_EVALUATED_MOVES,
@@ -82,7 +83,10 @@ function normalizeRules(config = {}) {
     config.correctPlacementsNeeded,
     Math.max(1, targetTimelineCardCount - anchorCount),
   );
-  const maxEvaluatedMoves = positiveInt(config.maxEvaluatedMoves ?? config.maxMoves, DEFAULT_SOLO_ATTEMPT_RULES.maxEvaluatedMoves);
+  const defaultMaxEvaluatedMoves = levelNumber
+    ? getSoloMaxEvaluatedMovesForLevel(levelNumber)
+    : DEFAULT_SOLO_ATTEMPT_RULES.maxEvaluatedMoves;
+  const maxEvaluatedMoves = positiveInt(config.maxEvaluatedMoves ?? config.maxMoves, defaultMaxEvaluatedMoves);
 
   return {
     levelNumber,
@@ -292,6 +296,7 @@ export function soloAttemptReducer(state = createSoloAttemptInitialState(), acti
           targetTimelineCardCount: action.targetTimelineCardCount,
           correctPlacementsNeeded: action.correctPlacementsNeeded,
           maxEvaluatedMoves: action.maxEvaluatedMoves,
+          maxMoves: action.maxMoves,
           elapsedTimeSource: action.elapsedTimeSource,
         }),
         phase: SOLO_ATTEMPT_PHASES.STARTED,

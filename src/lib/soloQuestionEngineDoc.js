@@ -11,15 +11,17 @@ Status: Active product contract for new Solo attempts.
 Normal Solo levels end at 7 correct timeline cards, including seed cards
 already on the timeline, start with 2 timeline anchor cards, use a 10
 evaluated moves limit, and use an internal 18-question deck buffer.
-Special Solo levels start at level 10 and repeat every 5 levels: 10, 15,
-20, 25, and so on. Special Solo levels end at 10 correct timeline cards,
-including seed cards already on the timeline, and use an internal
-19-question deck buffer.
+Special Solo levels start at level 5 and repeat every 5 levels: 5, 10,
+15, 20, and so on. Special Solo levels end at 10 correct timeline cards,
+including seed cards already on the timeline, use a 13 evaluated moves limit,
+and use an internal 21-question deck buffer. The 3 extra moves are only a
+mistake buffer and do not change scoring.
 
-All new Solo attempts use a 180 seconds timer and fail when 10 evaluated moves
-are used before the target timeline card count is reached.
-Internal deck sizing is 2 anchors + 10 playable moves + Kart Değiştir buffer +
-Kronokalkan buffer. Zaman Dondur does not require extra card buffer.
+All new Solo attempts use a 180 seconds timer and fail when their level-specific
+evaluated move limit is used before the target timeline card count is reached.
+Internal deck sizing is normal 2 anchors + 10 playable moves + Kart Değiştir
+buffer + Kronokalkan buffer, and special 2 anchors + 13 playable moves +
+Kart Değiştir buffer + Kronokalkan buffer. Zaman Dondur does not require extra card buffer.
 Extra Kart Değiştir or Kronokalkan use beyond the per-attempt buffer fails
 safely before spend; there is no raw client question list fallback.
 
@@ -55,8 +57,9 @@ cards. This avoids player-facing 1-4 year conflicts such as 1996/1997,
 
 Hard deck rules:
 - 18 questions for normal levels.
-- 19 questions for special levels.
-- 10 evaluated moves.
+- 21 questions for special levels.
+- 10 evaluated moves for normal levels.
+- 13 evaluated moves for special levels.
 - unique question IDs.
 - unique years.
 - active questions only.
@@ -86,7 +89,7 @@ expose categoryDistribution, subcategoryDistribution, themeDistribution,
 decadeDistribution, yearBandDistribution, diversityFairness,
 firstSevenCategoryDistribution, and fallbackTier for Health/admin/debug only.
 Normal 18-card decks target 13 selected-category cards and 5 global-pool
-cards; special 19-card decks target 13 selected-category cards and 6
+cards; special 21-card decks target 15 selected-category cards and 6
 global-pool cards. The selected-category lane uses difficulty 1 and 2.
 Global-pool cards first use difficulty 1 from all active categories. Selected-category
 shortage or global difficulty-1 shortage fills from the broader active global
@@ -143,7 +146,7 @@ answer years, first 5 years, minimum first-5 gap, visible-spacing conflict
 count, category/subcategory/theme/decade/year-band/difficulty distributions,
 fallback tier, balance score, and warnings. Question pool health warns about invalid
 years, sparse categories/subcategories, missing sub_category/tag/difficulty
-metadata, insufficient unique years, and limited 16/19 deck readiness.
+metadata, insufficient unique years, and limited 18/21 deck readiness.
 Difficulty progression is readiness-oriented only and falls back safely when
 difficulty metadata is missing. Replay variety diagnostics and Kart Değiştir
 replacement diagnostics are helper-only and must not be exposed to normal UI.

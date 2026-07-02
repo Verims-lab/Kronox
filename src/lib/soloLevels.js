@@ -46,13 +46,15 @@ import {
   getBestSoloLevelResult,
   getSoloAttemptDeckSizeForLevel,
   getSoloCardsRequiredForLevel,
+  getSoloMaxEvaluatedMovesForLevel,
   getEffectiveUnlockedLevel,
   getHighestCompletedLevel,
   getLevelStatus,
   isSoloSpecialLevel,
   SOLO_INITIAL_TIMELINE_CARDS as SOLO_INITIAL_TIMELINE_CARDS_FROM_RULES,
-  SOLO_MAX_EVALUATED_MOVES,
+  SOLO_NORMAL_MAX_EVALUATED_MOVES,
   SOLO_NORMAL_CARD_TARGET,
+  SOLO_SPECIAL_MAX_EVALUATED_MOVES,
   SOLO_SPECIAL_CARD_TARGET,
   SOLO_RULES_VERSION,
   summarizeSoloProgress,
@@ -69,7 +71,8 @@ export const SOLO_CARDS_PER_LEVEL = SOLO_NORMAL_CARD_TARGET;
 export const SOLO_SPECIAL_CARDS_PER_LEVEL = SOLO_SPECIAL_CARD_TARGET;
 export const SOLO_INITIAL_TIMELINE_CARDS = SOLO_INITIAL_TIMELINE_CARDS_FROM_RULES;
 export const SOLO_LEVEL_TIME_SECONDS = 180;
-export const SOLO_MAX_MOVES = SOLO_MAX_EVALUATED_MOVES;
+export const SOLO_MAX_MOVES = SOLO_NORMAL_MAX_EVALUATED_MOVES;
+export const SOLO_SPECIAL_MAX_MOVES = SOLO_SPECIAL_MAX_EVALUATED_MOVES;
 
 export function getSoloTimelineWinCardCountForLevel(levelNumber) {
   // The timeline itself is the Solo source of truth: seed cards and
@@ -80,6 +83,10 @@ export function getSoloTimelineWinCardCountForLevel(levelNumber) {
 
 export function getSoloDeckSizeForLevel(levelNumber) {
   return getSoloAttemptDeckSizeForLevel(levelNumber);
+}
+
+export function getSoloMaxMovesForLevel(levelNumber) {
+  return getSoloMaxEvaluatedMovesForLevel(levelNumber);
 }
 
 // Solo Level Path catalog. Extended to support a long progression journey
@@ -106,7 +113,13 @@ export function getSoloLevelCount() {
  */
 export function computeLevelStars(usedMoves, levelNumber = null) {
   const requiredCards = getSoloCardsRequiredForLevel(levelNumber);
-  const { stars, passed } = calculateSoloStars(usedMoves, requiredCards, 0, requiredCards, SOLO_MAX_MOVES);
+  const { stars, passed } = calculateSoloStars(
+    usedMoves,
+    requiredCards,
+    0,
+    requiredCards,
+    getSoloMaxMovesForLevel(levelNumber),
+  );
   return { stars, passed };
 }
 
@@ -365,7 +378,7 @@ function mergeBetterResult(previous, fresh) {
     mistakes: fresh.mistakes,
     usedMoves: fresh.usedMoves,
     remainingMoves: fresh.remainingMoves,
-    maxMoves: fresh.maxMoves ?? SOLO_MAX_MOVES,
+    maxMoves: fresh.maxMoves ?? getSoloMaxMovesForLevel(fresh.levelNumber),
     completedCards: fresh.cardsCompleted ?? (fresh.passed ? requiredCards : 0),
     elapsedSeconds: fresh.timeSeconds,
     requiredCards,
@@ -521,6 +534,7 @@ export function buildSoloGameConfigForLevel(level) {
   const levelNumber = level?.levelNumber || 1;
   const cardCount = getSoloCardsRequiredForLevel(levelNumber);
   const deckSize = getSoloAttemptDeckSizeForLevel(levelNumber);
+  const maxMoves = getSoloMaxMovesForLevel(levelNumber);
   return {
     playerNames: ['Sen'],
     category: 'karisik',
@@ -535,8 +549,8 @@ export function buildSoloGameConfigForLevel(level) {
       isSpecial: isSoloSpecialLevel(levelNumber),
       soloRulesVersion: SOLO_RULES_VERSION,
       totalTimeSeconds: SOLO_LEVEL_TIME_SECONDS,
-      maxMoves: SOLO_MAX_MOVES,
-      maxMistakes: SOLO_MAX_MOVES,
+      maxMoves,
+      maxMistakes: maxMoves,
     },
   };
 }
@@ -544,5 +558,6 @@ export function buildSoloGameConfigForLevel(level) {
 export {
   getSoloAttemptDeckSizeForLevel,
   getSoloCardsRequiredForLevel,
+  getSoloMaxEvaluatedMovesForLevel,
   isSoloSpecialLevel,
 } from './soloProgressHelpers';

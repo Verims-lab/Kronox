@@ -37,7 +37,7 @@ import GameRenderErrorBoundary from '@/components/game/GameRenderErrorBoundary';
 import { useAuth } from '@/lib/AuthContext';
 import { GuidedTutorialPopup, GuidedSoloTutorialOverlay } from '@/components/game/GuidedTutorialOverlays';
 import { normalizeOnlineEmail, getOpponentEmailForOnlineResult, buildOnlineScorePopupState } from '@/lib/onlineScorePopup';
-import { applyLevelAttempt, getSoloCardsRequiredForLevel, getSoloAttemptDeckSizeForLevel, getSoloTimelineWinCardCountForLevel, getSoloLevelCount, isSoloSpecialLevel, SOLO_LEVEL_TIME_SECONDS, SOLO_MAX_MOVES, readSoloProgress, writeSoloProgress } from '@/lib/soloLevels';
+import { applyLevelAttempt, getSoloCardsRequiredForLevel, getSoloAttemptDeckSizeForLevel, getSoloMaxMovesForLevel, getSoloTimelineWinCardCountForLevel, getSoloLevelCount, isSoloSpecialLevel, SOLO_LEVEL_TIME_SECONDS, SOLO_MAX_MOVES, readSoloProgress, writeSoloProgress } from '@/lib/soloLevels';
 import {
   calculateSoloAttemptResult,
   getBestSoloLevelResult,
@@ -281,7 +281,14 @@ export default function Game() {
   //                         ends. Triggers the SoloLevelResult overlay.
   //   soloResultPersistedRef — guard so we only call writeSoloProgress once
   //                         per attempt even if effects re-run.
-  const soloMaxMoves = useMemo(() => Math.max(1, Number(soloLevel?.maxMoves) || SOLO_MAX_MOVES), [soloLevel?.maxMoves]);
+  const soloMaxMoves = useMemo(() => {
+    const canonicalMaxMoves = getSoloMaxMovesForLevel(soloLevel?.levelNumber);
+    const configuredMaxMoves = Number(soloLevel?.maxMoves);
+    const safeConfiguredMaxMoves = Number.isFinite(configuredMaxMoves) && configuredMaxMoves > 0
+      ? Math.floor(configuredMaxMoves)
+      : 0;
+    return Math.max(1, canonicalMaxMoves, safeConfiguredMaxMoves || SOLO_MAX_MOVES);
+  }, [soloLevel?.levelNumber, soloLevel?.maxMoves]);
   const [usedMoveCount, setUsedMoveCount] = useState(0);
   const remainingMoveCount = Math.max(0, soloMaxMoves - usedMoveCount);
   const [mistakeCount, setMistakeCount] = useState(0);
@@ -2322,6 +2329,7 @@ export default function Game() {
     setSoloAttemptDeck(null);
     setSoloAttemptId(null);
     resetGame();
+    const retryMaxMoves = getSoloMaxMovesForLevel(soloLevel.levelNumber);
     navigate('/game', {
       replace: true,
       state: {
@@ -2337,8 +2345,8 @@ export default function Game() {
           deckSize: getSoloAttemptDeckSizeForLevel(soloLevel.levelNumber),
           onboardingTutorial: isGuidedSoloTutorial,
           totalTimeSeconds: isGuidedSoloTutorial ? GUIDED_TUTORIAL_TIME_LIMIT_SECONDS : SOLO_LEVEL_TIME_SECONDS,
-          maxMoves: SOLO_MAX_MOVES,
-          maxMistakes: SOLO_MAX_MOVES,
+          maxMoves: retryMaxMoves,
+          maxMistakes: retryMaxMoves,
           soloRulesVersion: SOLO_RULES_VERSION,
         },
         onboardingTutorial: isGuidedSoloTutorial,
@@ -2372,6 +2380,7 @@ export default function Game() {
     const nextLevelNumber = soloLevel.levelNumber + 1;
     if (nextLevelNumber > getSoloLevelCount()) return;
     const nextCardCount = getSoloCardsRequiredForLevel(nextLevelNumber);
+    const nextMaxMoves = getSoloMaxMovesForLevel(nextLevelNumber);
     setSoloLevelResult(null);
     setUsedMoveCount(0);
     setMistakeCount(0);
@@ -2398,8 +2407,8 @@ export default function Game() {
           cardCount: nextCardCount,
           deckSize: getSoloAttemptDeckSizeForLevel(nextLevelNumber),
           totalTimeSeconds: SOLO_LEVEL_TIME_SECONDS,
-          maxMoves: SOLO_MAX_MOVES,
-          maxMistakes: SOLO_MAX_MOVES,
+          maxMoves: nextMaxMoves,
+          maxMistakes: nextMaxMoves,
           soloRulesVersion: SOLO_RULES_VERSION,
         },
       },

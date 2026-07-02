@@ -80,9 +80,14 @@ Current normal Solo is move-based:
 * Normal Solo jokers are inventory-backed.
 * Guided tutorial/demo joker use must not spend real inventory.
 
+Special Solo levels start at level 5 and repeat every 5 levels. They keep the
+10-card timeline target, use 13 evaluated moves as a mistake buffer, and do not
+change the Solo scoring, Kronox Puan, Diamond, leaderboard, Online, Daily Wheel,
+or Daily Quest contracts.
+
 Internal engine docs may describe prebuilt deck buffers for anchors, playable
 moves, and joker reserves. Player-facing docs should describe the 2-anchor /
-10-playable-move model.
+normal 10-playable-move / special 13-playable-move model.
 
 ## Release Honesty
 

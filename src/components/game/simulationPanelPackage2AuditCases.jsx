@@ -233,7 +233,7 @@ export const EXTRA_TESTS = [
     () => {
       const missing = missingTokens(`${soloQuestionDocSource}\n${categoryTaxonomyDocSource}\n${releaseChecklistDocSource}`, [
         '18-question deck',
-        '19-question deck',
+        '21-question deck',
         'first 5 ordered questions',
         'categoryid -> category_id',
         'Question.state === "A"',

@@ -49,7 +49,7 @@ Status: Active product workflow contract.
 - Authenticated category preference save minimum is 3 active valid categories; guest category selection is advisory and empty guest selections mean all active Solo categories remain eligible.
 - Online category list is sorted by category_id ASC and Online is not a BottomNav item.
 - Current Solo shows HAMLE / remaining moves and Puan / Kronox Puan. HATA is legacy/internal and not current visible Solo result/stat copy.
-- Normal Solo uses 2 anchors, an internal 18-question attempt deck buffer, 10 evaluated moves, a 180-second timer, and a 7-card target including anchors. Special Solo uses an internal 19-question attempt deck buffer and a 10-card target.
+- Normal Solo uses 2 anchors, an internal 18-question attempt deck buffer, 10 evaluated moves, a 180-second timer, and a 7-card target including anchors. Special Solo starts at level 5 and every 5 levels after that, uses an internal 21-question attempt deck buffer, a 13 evaluated move limit, the same 180-second timer, and a 10-card target. The extra special moves are only a mistake buffer and do not change scoring.
 - Online uses Lobby.selected_category_ids and a startLobbyGame shared deck selected 100% from active lobby-selected categories with difficulty 1/2 only; Online does not use Solo preferences.
 - Unified Kronox Puan is Solo best-score component plus Online progress score. Online winner scoring is exactly +15 Kronox Puan, loser scoring is exactly -6 Kronox Puan before checkpoint protection, and Online has no speed bonus.
 - Daily Quest and Daily Wheel grant Diamonds only, no Kronox Puan, and no leaderboard impact. Authenticated users and token-proven completed GuestProfile users can use these daily systems. Guest rewards persist on GuestProfile.diamonds with internal guest:<g_owner_key> ledger keys. DiamondTransaction and DailyWheelSpin have function-level idempotency guards plus EconomyOperationLock balance mutation guards; DB/entity unique constraints are not repo-proven.
@@ -701,8 +701,10 @@ npm run check:base44-functions must run before Base44 Save & Deploy to catch fun
 
 ## Solo v3
 Normal levels need 7 correct cards with an internal 18-question deck buffer; special levels
-need 10 correct cards with an internal 19-question deck buffer. All attempts use a 180 seconds
-timer and fail when 10 evaluated moves are used before the target is reached.
+start at level 5/every 5 levels, need 10 correct cards, and use an internal
+21-question deck buffer. Normal attempts use 10 evaluated moves; special
+attempts use 13 evaluated moves. All attempts use a 180 seconds timer and fail
+when the level-specific move limit is used before the target is reached.
 Runtime consumes the deck in order. The visible in-game limit is HAMLE /
 remaining moves, not HATA. The
 first 5 ordered active player question cards keep a minimum 5-year spacing.

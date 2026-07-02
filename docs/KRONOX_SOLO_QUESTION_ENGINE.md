@@ -16,16 +16,17 @@ Normal Solo levels:
 - fail when 10 evaluated moves are used and the 7-card target has not been reached
 
 Special Solo levels:
-- start at level 10 and repeat every 5 levels: 10, 15, 20, 25, ...
+- start at level 5 and repeat every 5 levels: 5, 10, 15, 20, ...
 - end successfully at 10 correct timeline cards, including seed cards already on the timeline
-- use an internal 19-question deck buffer for the special target lane
+- use a 13 evaluated move limit, giving a 3-move mistake buffer without changing scoring
+- use an internal 21-question deck buffer for the special target lane
 - use the 180 seconds timer unless a future explicit config changes it
-- use the same 10 evaluated move limit and 180 seconds timeout
+- fail when 13 evaluated moves are used and the 10-card target has not been reached
 
 Internal deck buffer formula:
 - `deckSize = initialTimelineCards + maxEvaluatedMoves + cardSwapBuffer + kronokalkanBuffer`
 - normal: `2 + 10 + 3 + 3 = 18 questions`
-- special: at least the same move/joker buffer and currently 19 questions for the special target lane
+- special: `2 + 13 + 3 + 3 = 21 questions`
 - Zaman Dondur does not require a card buffer
 - Kart Değiştir uses the card-swap buffer and does not consume a move
 - Kronokalkan uses the shield buffer and protects one wrong valid placement from consuming a move
@@ -63,7 +64,7 @@ Seed/preplaced timeline cards are still part of the early visible gameplay conte
 Normal Solo also uses a visible timeline spacing guardrail during runtime. Before the next active card is shown, the ordered deck picker prefers an unused prebuilt-deck card whose answer year is at least 5 years away from already visible timeline years, including placed cards and seed/preplaced cards. This avoids player-facing 1-4 year conflicts such as 1996/1997, 1998/1999, and 1913/1914 where a safe alternative exists. If no safe candidate remains, the runtime may choose the least-bad valid deck candidate instead of fetching or randomizing a new question.
 
 Every valid deck must satisfy:
-- required deck size: 18 questions for normal levels, 19 questions for special levels
+- required deck size: 18 questions for normal levels, 21 questions for special levels
 - unique question IDs
 - unique years across the full deck
 - active questions only
@@ -113,7 +114,7 @@ P1/P2 balancing applies during deck selection and deck ordering where the pool a
   a deck, while smaller valid groups receive gentle protection from accidental
   starvation where deck size and hard rules allow.
 - normal 18-card Solo decks target 13 selected-category cards and 5 global-pool
-  cards; special 19-card decks target 13 selected-category cards and 6
+  cards; special 21-card decks target 15 selected-category cards and 6
   global-pool cards. Selected-category cards are eligible only at difficulty 1
   or 2. Global-pool cards first use difficulty 1 from all active categories.
   If selected categories or global difficulty-1 candidates cannot supply enough
@@ -167,7 +168,7 @@ or by `/getQuestions`.
 
 P2 adds a helper-only quality layer on top of these rules:
 - deck diagnostics include level number, level type, deck size, correct target, fail threshold, question IDs, answer years, first 5 years, minimum first-5 gap, visible-spacing conflict count, category/subcategory/theme/decade/difficulty distributions, fallback tier, balance score, and warnings
-- question pool health can warn about sparse categories, sparse subcategories, overrepresented buckets, invalid years, missing sub_category/tag/difficulty metadata, insufficient unique years, and limited 16/19 deck readiness
+- question pool health can warn about sparse categories, sparse subcategories, overrepresented buckets, invalid years, missing sub_category/tag/difficulty metadata, insufficient unique years, and limited 18/21 deck readiness
 - pool-health warnings do not block gameplay by themselves; hard deck failures still block the level cleanly
 - difficulty progression is readiness-oriented only. Missing difficulty data falls back safely to easy behavior, and special-level strategy can differ without forcing unavailable difficulty levels
 - replay variety diagnostics can flag exact repeated early sequences where alternatives exist, but replay variety remains a soft preference

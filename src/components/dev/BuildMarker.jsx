@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex528 — Special Solo move-buffer rule:
+//   • Special Solo levels now start at level 5 and every fifth level after, keep the 10-card timeline target, and use 13 evaluated moves instead of the normal 10 so the extra moves are only a mistake buffer.
+//   • Special Solo route/retry/next-level configs, runtime move enforcement, backend getQuestions deck sizing, docs, mirrors, and Health expectations now agree on normal 18-card/10-move and special 21-card/13-move rules.
+//   • Solo scoring, star thresholds, Kronox Puan, Diamonds, leaderboard, Online, Daily Wheel, and Daily Quest behavior remain unchanged.
+//
 // Codex527 — BottomNav Profile guest-route bounce fix:
 //   • App-level guest onboarding guard now explicitly exempts the normal /profile BottomNav destination so Profile can resolve/repair guest state locally instead of briefly selecting Profil and bouncing back to Home.
 //   • Health/mirror contracts now pin Profile as a guest-compatible BottomNav route while keeping BottomNav limited to Ana Sayfa/Liderlik/Profil and Online Home-CTA-owned.
@@ -148,7 +153,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex527';
+const BUILD_MARKER = 'Codex528';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

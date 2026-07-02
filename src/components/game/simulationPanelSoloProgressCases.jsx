@@ -53,6 +53,8 @@ import {
   calculateSoloLevelScore,
   calculateSoloLevelScoreFromBestResult,
   getBestSoloLevelResult,
+  getSoloMaxEvaluatedMovesForLevel,
+  SOLO_SPECIAL_MAX_EVALUATED_MOVES,
   summarizeSoloProgress,
 } from '../../lib/soloProgressHelpers';
 
@@ -136,6 +138,7 @@ export const EXTRA_TESTS = [
         'RECORD_CONTEXT_RECEIVED',
         'RECORD_CONTEXT_FAILED',
         'calculateSoloAttemptResult',
+        'getSoloMaxEvaluatedMovesForLevel',
         'SOLO_MAX_EVALUATED_MOVES',
         'SOLO_CORRECT_PLACEMENTS_NEEDED',
         'inventorySpendRequested: false',
@@ -153,9 +156,10 @@ export const EXTRA_TESTS = [
         'JokerTransaction',
       ]);
 
-      const startReducer = () => soloAttemptReducer(createSoloAttemptInitialState(), {
+      const startReducer = (config = {}) => soloAttemptReducer(createSoloAttemptInitialState(), {
         type: SOLO_ATTEMPT_ACTIONS.ATTEMPT_STARTED,
-        levelNumber: 1,
+        levelNumber: config.levelNumber ?? 1,
+        maxEvaluatedMoves: config.maxEvaluatedMoves,
       });
 
       const started = startReducer();
@@ -176,6 +180,25 @@ export const EXTRA_TESTS = [
           cardId: `wrong-${i}`,
           correct: false,
           elapsedSeconds: 90,
+        });
+      }
+
+      let specialAtTen = startReducer({ levelNumber: 5 });
+      for (let i = 0; i < 10; i += 1) {
+        specialAtTen = soloAttemptReducer(specialAtTen, {
+          type: SOLO_ATTEMPT_ACTIONS.MOVE_EVALUATED,
+          cardId: `special-wrong-${i}`,
+          correct: false,
+          elapsedSeconds: 90,
+        });
+      }
+      let specialFailed = specialAtTen;
+      for (let i = 10; i < SOLO_SPECIAL_MAX_EVALUATED_MOVES; i += 1) {
+        specialFailed = soloAttemptReducer(specialFailed, {
+          type: SOLO_ATTEMPT_ACTIONS.MOVE_EVALUATED,
+          cardId: `special-wrong-${i}`,
+          correct: false,
+          elapsedSeconds: 100,
         });
       }
 
@@ -201,6 +224,8 @@ export const EXTRA_TESTS = [
       if (success.phase !== SOLO_ATTEMPT_PHASES.SUCCEEDED || !success.passed) executableFailures.push('5 correct placements did not succeed');
       if (success.usedMoves !== 5 || success.evaluatedMoveCount !== 5 || success.stars !== 3) executableFailures.push('5 HAMLE success did not produce 3 stars');
       if (failed.phase !== SOLO_ATTEMPT_PHASES.FAILED || !failed.failed || failed.usedMoves !== 10 || failed.evaluatedMoveCount !== 10) executableFailures.push('10 evaluated moves max was not respected');
+      if (specialAtTen.phase === SOLO_ATTEMPT_PHASES.FAILED || specialAtTen.remainingMoves !== 3 || specialAtTen.maxEvaluatedMoves !== 13) executableFailures.push('special level incorrectly failed at 10 moves instead of retaining 3 moves');
+      if (specialFailed.phase !== SOLO_ATTEMPT_PHASES.FAILED || !specialFailed.failed || specialFailed.usedMoves !== 13 || specialFailed.failReason !== 'moves') executableFailures.push('special level did not fail only after 13 evaluated moves');
       if (starsForMoves(5) !== 3 || starsForMoves(6) !== 3) executableFailures.push('5-6 HAMLE threshold no longer gives 3 stars');
       if (starsForMoves(7) !== 2 || starsForMoves(8) !== 2) executableFailures.push('7-8 HAMLE threshold no longer gives 2 stars');
       if (starsForMoves(9) !== 1 || starsForMoves(10) !== 1) executableFailures.push('9-10 HAMLE threshold no longer gives 1 star');
@@ -212,7 +237,7 @@ export const EXTRA_TESTS = [
           verification: 'STATIC_AND_EXECUTABLE_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'pure reducer, no Base44/network/browser effects, 5 correct placements pass, 10 evaluated moves cap, HAMLE star thresholds, joker summary without spending inventory',
+          expected: 'pure reducer, no Base44/network/browser effects, normal 10-move cap, special 13-move cap, HAMLE star thresholds, joker summary without spending inventory',
           actual: { required, forbidden, executableFailures },
         });
       }
@@ -632,6 +657,27 @@ export const EXTRA_TESTS = [
         elapsedSeconds: 50,
         requiredCards: 10,
       });
+      const specialMove10StillRunning = calculateSoloAttemptResult({
+        usedMoves: 10,
+        completedCards: 9,
+        elapsedSeconds: 75,
+        requiredCards: 10,
+        maxMoves: getSoloMaxEvaluatedMovesForLevel(5),
+      });
+      const specialMove13Fail = calculateSoloAttemptResult({
+        usedMoves: 13,
+        completedCards: 9,
+        elapsedSeconds: 75,
+        requiredCards: 10,
+        maxMoves: getSoloMaxEvaluatedMovesForLevel(5),
+      });
+      const specialMove13Pass = calculateSoloAttemptResult({
+        usedMoves: 13,
+        completedCards: 10,
+        elapsedSeconds: 150,
+        requiredCards: 10,
+        maxMoves: getSoloMaxEvaluatedMovesForLevel(5),
+      });
       if (
         mismatches.length ||
         attemptTimeout.levelScore !== 0 ||
@@ -642,14 +688,31 @@ export const EXTRA_TESTS = [
         tenMoveFail.passed ||
         tenMoveFail.failReason !== 'moves' ||
         specialStillNeeds10.passed ||
-        specialStillNeeds10.failReason !== 'incomplete'
+        specialStillNeeds10.failReason !== 'incomplete' ||
+        specialMove10StillRunning.passed ||
+        specialMove10StillRunning.failReason !== 'incomplete' ||
+        specialMove13Fail.passed ||
+        specialMove13Fail.failReason !== 'moves' ||
+        !specialMove13Pass.passed ||
+        specialMove13Pass.stars !== 1 ||
+        specialMove13Pass.levelScore !== 5
       ) {
         return fail('Solo score helper returned an unexpected score or timeout result.', {
           verification: 'RUNTIME_VERIFIED',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'examples match product score table; timeout = 0; normal levels pass at 7 cards; 7 used moves = 2 stars; 10 moves without target fails; special levels still need 10',
-          actual: { mismatches, attemptTimeout, normalPass, sevenMovePass, tenMoveFail, specialStillNeeds10 },
+          expected: 'examples match product score table; timeout = 0; normal levels pass at 7 cards; 7 used moves = 2 stars; normal 10 moves without target fails; special needs 10 target cards, stays incomplete at 10/13 moves, fails at 13/13, and 13-move success remains 1-star scoring',
+          actual: {
+            mismatches,
+            attemptTimeout,
+            normalPass,
+            sevenMovePass,
+            tenMoveFail,
+            specialStillNeeds10,
+            specialMove10StillRunning,
+            specialMove13Fail,
+            specialMove13Pass,
+          },
         });
       }
       return pass('Solo score helper matches the product score table and exact 60/90/120s boundaries.', {

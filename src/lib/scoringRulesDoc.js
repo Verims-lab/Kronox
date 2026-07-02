@@ -26,14 +26,17 @@ Per-level best score is stored on User.solo_progress and projected into the
 leaderboard by getSoloLeaderboard.
 
 Normal Solo levels require 7 correct timeline cards, including seed cards
-already on the timeline. Special Solo levels start at level 10 and repeat
+already on the timeline. Special Solo levels start at level 5 and repeat
 every 5 levels; they require 10 correct timeline cards, including seed cards
 already on the timeline.
-All new Solo attempts use a 180 seconds timer, 2 timeline anchor cards, and
-10 evaluated moves. Deck sizing is 2 anchors + 10 playable moves + Kart Değiştir buffer. The visible counter is HAMLE / remaining moves. A valid
-evaluated placement consumes one move; touch, drag start, invalid drop, joker
-activation, and tutorial popups do not consume moves. Ten used moves without
-the target card count fails the attempt.
+All new Solo attempts use a 180 seconds timer and 2 timeline anchor cards.
+Normal levels use 10 evaluated moves; special levels use 13 evaluated moves
+only as a mistake buffer. Deck sizing is anchors + level-specific playable
+moves + Kart Değiştir/Kronokalkan buffer. The visible counter is HAMLE /
+remaining moves. A valid evaluated placement consumes one move; touch, drag
+start, invalid drop, joker activation, and tutorial popups do not consume
+moves. Using the level-specific move limit without the target card count fails
+the attempt.
 
 Star thresholds:
 - 5–6 used moves: 3 stars.

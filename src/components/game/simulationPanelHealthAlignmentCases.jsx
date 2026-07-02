@@ -356,9 +356,10 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(combined, [
         '7 correct',
         '18-question deck',
-        '19-question deck',
+        '21-question deck',
         '180 seconds',
         '10 evaluated moves',
+        '13 evaluated moves',
         'HAMLE',
         'first 5 ordered questions',
         'minimum 5-year',

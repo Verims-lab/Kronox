@@ -36,7 +36,8 @@ checks that source code and static Health cannot honestly prove alone.
   `Kullanıcı ID`; the row must fit 320px-class screens without becoming an
   editable field or leaking private/internal IDs elsewhere.
 * Solo gameplay shows the remaining move counter as `10 HAMLE`, `9 HAMLE`,
-  etc.; result popups show `HAMLE` instead of `HATA`.
+  etc. on normal levels and `13 HAMLE`, `12 HAMLE`, etc. on special levels;
+  result popups show `HAMLE` instead of `HATA`.
 * Manual mobile proof must confirm touch, slight drag, invalid drop, tutorial
   hand/finger animation, tutorial popups, and joker activation do not decrement
   the remaining move counter.

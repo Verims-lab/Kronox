@@ -6,11 +6,11 @@
 //   attempt deck of level-aware size per Solo attempt.
 //
 // CORE RULES (locked in by Health suite solo_question_engine_health):
-//   • Deck size               = normal 18, special 19
+//   • Deck size               = normal 18, special 21
 //   • Win condition           = normal 7 correct timeline cards; special 10
 //                                (seed cards already count on the timeline)
-//   • Special levels          = level 10, then every 5 levels
-//   • Fail condition          = 10 evaluated moves without target OR 180s time expired
+//   • Special levels          = level 5, then every 5 levels
+//   • Fail condition          = level-specific evaluated move limit without target OR 180s time expired
 //   • Unique question IDs     in the same deck
 //   • Unique answer/year      in the same deck             (HARD rule)
 //   • Active questions only   (state==='A')
@@ -1755,7 +1755,7 @@ function buildCategoryPreferenceDiagnostics(candidates = [], selectedDeck = [], 
  *                                            failed/unavailable; engine falls
  *                                            back to global Solo selection.
  * @param {number=} args.deckSize             Defaults from the Solo rules:
- *                                            normal 18, special 19. Engine
+ *                                            normal 18, special 21. Engine
  *                                            does not relax this; passed in
  *                                            only for tests.
  * @param {number=} args.seedCount            Visible seed/preplaced timeline
