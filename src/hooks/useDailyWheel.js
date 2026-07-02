@@ -64,6 +64,30 @@ function userSafeDailyWheelError(err, fallback) {
   return body?.error || fallback;
 }
 
+function buildClaimResultFromStatus(body) {
+  const lastReward = body?.lastReward && typeof body.lastReward === 'object' ? body.lastReward : {};
+  const totalRewardAmount = Number(lastReward.totalRewardAmount) || 0;
+  const rewardAmount = Number(lastReward.rewardAmount) || totalRewardAmount;
+  return {
+    ok: true,
+    available: false,
+    alreadyClaimedToday: true,
+    alreadyClaimed: true,
+    serverDate: body?.serverDate,
+    rewardAmount,
+    streakBefore: Number(lastReward.streakBefore) || 0,
+    streakAfter: Number(lastReward.streakAfter ?? body?.currentStreak) || 0,
+    streakBonusAmount: Number(lastReward.streakBonusAmount) || 0,
+    totalRewardAmount,
+    claimedAt: lastReward.claimedAt || null,
+    nextAvailableAt: lastReward.nextAvailableAt || body?.nextAvailableAt || null,
+    updatedDiamondTotal: Number(body?.diamondTotal) || 0,
+    userPatch: body?.userPatch || (Number.isFinite(Number(body?.diamondTotal))
+      ? { diamonds: Number(body.diamondTotal) }
+      : null),
+  };
+}
+
 async function invokeDailyWheelFunction(name, payload = {}) {
   const isClaim = name === 'claimDailyWheelReward';
   let response = null;
@@ -185,6 +209,35 @@ export function useDailyWheel({ user, guestProfile, onUserUpdated } = {}) {
     setShowPrompt(false);
   }, [markPromptSeen]);
 
+  const applyClaimSuccessBody = useCallback((body) => {
+    markPromptSeen(body.serverDate);
+    setShowPrompt(false);
+    setLastResult(body);
+    setShowResult(true);
+    const claimedWheelStatus = {
+      available: false,
+      alreadyClaimedToday: true,
+      serverDate: body.serverDate,
+      nextAvailableAt: body.nextAvailableAt,
+      currentStreak: body.streakAfter,
+      lastReward: {
+        rewardAmount: body.rewardAmount,
+        streakBefore: body.streakBefore,
+        streakAfter: body.streakAfter,
+        streakBonusAmount: body.streakBonusAmount,
+        totalRewardAmount: body.totalRewardAmount,
+        balanceAfter: body.updatedDiamondTotal,
+        claimedAt: body.claimedAt,
+        nextAvailableAt: body.nextAvailableAt,
+      },
+      diamondTotal: body.updatedDiamondTotal,
+    };
+    writeDailyWheelStatusCache(dailyWheelCacheKey, claimedWheelStatus);
+    setWheel(claimedWheelStatus);
+    setStatus('claimed');
+    if (body.userPatch && typeof onUserUpdated === 'function') onUserUpdated(body.userPatch);
+  }, [dailyWheelCacheKey, markPromptSeen, onUserUpdated]);
+
   const claim = useCallback(async () => {
     if (claiming) return null;
     if (claimingRef.current) return null;
@@ -200,35 +253,45 @@ export function useDailyWheel({ user, guestProfile, onUserUpdated } = {}) {
         ...dailyWheelPayload,
         buildMarker: KRONOX_BUILD_MARKER,
       });
-      markPromptSeen(body.serverDate);
-      setShowPrompt(false);
-      setLastResult(body);
-      setShowResult(true);
-      const claimedWheelStatus = {
-        available: false,
-        alreadyClaimedToday: true,
-        serverDate: body.serverDate,
-        nextAvailableAt: body.nextAvailableAt,
-        currentStreak: body.streakAfter,
-        lastReward: {
-          rewardAmount: body.rewardAmount,
-          streakBefore: body.streakBefore,
-          streakAfter: body.streakAfter,
-          streakBonusAmount: body.streakBonusAmount,
-          totalRewardAmount: body.totalRewardAmount,
-          claimedAt: body.claimedAt,
-          nextAvailableAt: body.nextAvailableAt,
-        },
-        diamondTotal: body.updatedDiamondTotal,
-      };
-      writeDailyWheelStatusCache(dailyWheelCacheKey, claimedWheelStatus);
-      setWheel(claimedWheelStatus);
-      setStatus('claimed');
-      if (body.userPatch && typeof onUserUpdated === 'function') onUserUpdated(body.userPatch);
+      applyClaimSuccessBody(body);
       return body;
     } catch (err) {
-      setStatus('error');
-      setError('Çark çevrilemedi. Lütfen tekrar dene.');
+      const recoveredStatus = await refresh().catch(() => null);
+      if (recoveredStatus?.alreadyClaimedToday && recoveredStatus?.available === false) {
+        const expectedBalanceAfter = Number(recoveredStatus?.lastReward?.balanceAfter);
+        const visibleDiamondTotal = Number(recoveredStatus?.diamondTotal);
+        const needsBalanceRepair = Number.isFinite(expectedBalanceAfter) &&
+          Number.isFinite(visibleDiamondTotal) &&
+          expectedBalanceAfter > visibleDiamondTotal;
+        const recoveredClaim = needsBalanceRepair
+          ? await invokeDailyWheelFunction('claimDailyWheelReward', {
+              ...dailyWheelPayload,
+              buildMarker: KRONOX_BUILD_MARKER,
+              recoveryFromClaimFailure: true,
+            }).catch(() => null)
+          : null;
+
+        if (recoveredClaim) {
+          applyClaimSuccessBody(recoveredClaim);
+          return recoveredClaim;
+        }
+
+        if (!needsBalanceRepair) {
+          const recoveredResult = buildClaimResultFromStatus(recoveredStatus);
+          setLastResult(recoveredResult);
+          setStatus('claimed');
+          setError('');
+          if (recoveredResult.userPatch && typeof onUserUpdated === 'function') {
+            onUserUpdated(recoveredResult.userPatch);
+          }
+        } else {
+          setStatus('error');
+          setError(userSafeDailyWheelError(err, 'Çark ödülü doğrulanamadı. Lütfen tekrar dene.'));
+        }
+      } else {
+        setStatus('error');
+        setError(userSafeDailyWheelError(err, 'Çark çevrilemedi. Lütfen tekrar dene.'));
+      }
       setShowPrompt(false);
       setShowResult(true);
       return null;
@@ -236,7 +299,7 @@ export function useDailyWheel({ user, guestProfile, onUserUpdated } = {}) {
       claimingRef.current = false;
       setClaiming(false);
     }
-  }, [claiming, dailyWheelCacheKey, dailyWheelPayload, isSignedIn, markPromptSeen, onUserUpdated]);
+  }, [applyClaimSuccessBody, claiming, dailyWheelPayload, isSignedIn, onUserUpdated, refresh]);
 
   return useMemo(() => ({
     status,

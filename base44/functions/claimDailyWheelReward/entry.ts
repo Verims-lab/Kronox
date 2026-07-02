@@ -75,6 +75,24 @@ function economyOperationLockEntity(base44: any) {
   return serviceEntity || authEntity;
 }
 
+function userEntity(base44: any) {
+  const serviceEntity = base44?.asServiceRole?.entities ? base44.asServiceRole.entities.User : null;
+  const authEntity = base44?.entities ? base44.entities.User : null;
+  return serviceEntity || authEntity;
+}
+
+function dailyWheelSpinEntity(base44: any) {
+  const serviceEntity = base44?.asServiceRole?.entities ? base44.asServiceRole.entities.DailyWheelSpin : null;
+  const authEntity = base44?.entities ? base44.entities.DailyWheelSpin : null;
+  return serviceEntity || authEntity;
+}
+
+function diamondTransactionEntity(base44: any, player: any = null) {
+  const serviceEntity = base44?.asServiceRole?.entities ? base44.asServiceRole.entities.DiamondTransaction : null;
+  const authEntity = base44?.entities ? base44.entities.DiamondTransaction : null;
+  return player?.isGuest ? serviceEntity : (authEntity || serviceEntity);
+}
+
 function buildEconomyLockKey(actorKey: string) {
   return `economy:user:${actorKey}`;
 }
@@ -329,7 +347,8 @@ async function updateDailyWheelPlayer(base44: any, player: any, patch: Record<st
   if (!player?.rowId) return null;
   if (player.isGuest) {
     const entity = base44?.asServiceRole?.entities?.GuestProfile || base44?.entities?.GuestProfile;
-    return entity?.update?.(player.rowId, {
+    if (!entity?.update) throw new Error('daily_wheel_guest_update_unavailable');
+    return entity.update(player.rowId, {
       ...patch,
       last_seen_at: String(patch.economy_updated_at || new Date().toISOString()),
       metadata: {
@@ -339,7 +358,9 @@ async function updateDailyWheelPlayer(base44: any, player: any, patch: Record<st
       },
     });
   }
-  return base44.asServiceRole.entities.User.update(player.rowId, patch);
+  const entity = userEntity(base44);
+  if (!entity?.update) throw new Error('daily_wheel_user_update_unavailable');
+  return entity.update(player.rowId, patch);
 }
 
 function randomUnit() {
@@ -368,7 +389,7 @@ function computeStreak(user: any, todayKey: string) {
 }
 
 async function findSpinRows(base44: any, email: string, dateKey: string, idempotencyKey: string) {
-  const entity = base44.asServiceRole.entities.DailyWheelSpin;
+  const entity = dailyWheelSpinEntity(base44);
   if (!entity?.filter) return [];
   const [byKey, byDate] = await Promise.all([
     entity.filter({ user_email: email, idempotency_key: idempotencyKey }, '-claimed_at', 5).catch(() => []),
@@ -383,30 +404,36 @@ async function findSpin(base44: any, email: string, dateKey: string, idempotency
   return rows[0] || null;
 }
 
-async function findDiamondTransaction(base44: any, email: string, idempotencyKey: string) {
-  const rows = await base44.asServiceRole.entities.DiamondTransaction
+async function findDiamondTransaction(base44: any, playerOrEmail: any, idempotencyKey: string) {
+  const player = playerOrEmail && typeof playerOrEmail === 'object' ? playerOrEmail : null;
+  const email = normalizeEmail(player?.playerKey || playerOrEmail);
+  const entity = diamondTransactionEntity(base44, player);
+  if (!entity?.filter || !email || !idempotencyKey) return null;
+  const rows = await entity
     .filter({ user_email: email, idempotency_key: idempotencyKey }, '-created_at', 1)
     .catch(() => []);
   return Array.isArray(rows) && rows.length ? rows[0] : null;
 }
 
-async function createDiamondTransaction(base44: any, payload: Record<string, unknown>) {
+async function createDiamondTransaction(base44: any, player: any, payload: Record<string, unknown>) {
   const email = normalizeEmail(payload.user_email);
   const idempotencyKey = String(payload.idempotency_key || '').trim();
   if (!email || !idempotencyKey) return null;
-  const existing = await findDiamondTransaction(base44, email, idempotencyKey);
+  const existing = await findDiamondTransaction(base44, player || email, idempotencyKey);
   if (existing) return existing;
-  const created = await base44.asServiceRole.entities.DiamondTransaction.create({
+  const entity = diamondTransactionEntity(base44, player);
+  if (!entity?.create) return null;
+  const created = await entity.create({
     ...payload,
     user_email: email,
     idempotency_key: idempotencyKey,
   });
-  const confirmed = await findDiamondTransaction(base44, email, idempotencyKey);
+  const confirmed = await findDiamondTransaction(base44, player || email, idempotencyKey);
   return confirmed || created;
 }
 
 async function createDailyWheelSpin(base44: any, payload: Record<string, unknown>) {
-  const DailyWheelSpin = base44.asServiceRole.entities.DailyWheelSpin;
+  const DailyWheelSpin = dailyWheelSpinEntity(base44);
   if (!DailyWheelSpin?.create) {
     return { row: null, error: 'daily_wheel_spin_entity_unavailable', recoveredExisting: false };
   }
@@ -523,7 +550,7 @@ async function recoverExistingSpin(base44: any, player: any, row: any, dateKey: 
     diamonds: balanceAfter,
   };
   await updateDailyWheelPlayer(base44, player, patch).catch(() => null);
-  await createDiamondTransaction(base44, {
+  await createDiamondTransaction(base44, player, {
     user_email: playerKey,
     owner_key: player.ownerKey,
     player_type: player.isGuest ? 'guest' : 'registered',
@@ -578,7 +605,7 @@ Deno.serve(async (req: Request) => {
       if (guardSpin) {
         return json(publicResult(guardSpin, normalizeNumber(latestPlayer.row?.diamonds), true));
       }
-      const guardTransaction = await findDiamondTransaction(base44, playerKey, idempotencyKey);
+      const guardTransaction = await findDiamondTransaction(base44, latestPlayer, idempotencyKey);
       if (guardTransaction) {
         const syntheticSpin = spinRowFromDiamondTransaction(guardTransaction, latestPlayer.row, playerKey, todayKey, nextAvailableAt);
         return json(publicResult(syntheticSpin, normalizeNumber(latestPlayer.row?.diamonds), true));
@@ -623,7 +650,7 @@ Deno.serve(async (req: Request) => {
       : await base44.auth.me().catch(() => latestPlayer.row);
     const lockedPlayer = { ...latestPlayer, row: lockedRow || latestPlayer.row, rowId: rowId(lockedRow) || latestPlayer.rowId };
     if (String(lockedPlayer.row?.daily_wheel_last_spin_date || '') === todayKey) {
-      const guardTransaction = await findDiamondTransaction(base44, playerKey, idempotencyKey);
+      const guardTransaction = await findDiamondTransaction(base44, lockedPlayer, idempotencyKey);
       if (guardTransaction) {
         const syntheticSpin = spinRowFromDiamondTransaction(guardTransaction, lockedPlayer.row, playerKey, todayKey, nextAvailableAt);
         return json(publicResult(syntheticSpin, normalizeNumber(lockedPlayer.row?.diamonds), true));
@@ -710,7 +737,7 @@ Deno.serve(async (req: Request) => {
       if (guardSpin) {
         return json(publicResult(guardSpin, normalizeNumber(postReservePlayer.row?.diamonds), true));
       }
-      const guardTransaction = await findDiamondTransaction(base44, playerKey, idempotencyKey);
+      const guardTransaction = await findDiamondTransaction(base44, postReservePlayer, idempotencyKey);
       if (guardTransaction) {
         const syntheticSpin = spinRowFromDiamondTransaction(guardTransaction, postReservePlayer.row, playerKey, todayKey, nextAvailableAt);
         return json(publicResult(syntheticSpin, normalizeNumber(postReservePlayer.row?.diamonds), true));
@@ -736,7 +763,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const postReserveTransaction = await findDiamondTransaction(base44, playerKey, idempotencyKey);
+    const postReserveTransaction = await findDiamondTransaction(base44, postReservePlayer, idempotencyKey);
     if (postReserveTransaction) {
       const recoveredBalance = Math.max(
         normalizeNumber(postReservePlayer.row?.diamonds),
@@ -780,7 +807,7 @@ Deno.serve(async (req: Request) => {
       transactionMetadata.dailyWheelSpinCreateError = spinLedgerError;
     }
     try {
-      await createDiamondTransaction(base44, {
+      await createDiamondTransaction(base44, postReservePlayer, {
         user_email: playerKey,
         owner_key: postReservePlayer.ownerKey,
         player_type: postReservePlayer.isGuest ? 'guest' : 'registered',
