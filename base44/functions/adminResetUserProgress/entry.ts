@@ -13,6 +13,20 @@ function normalizeEmail(value: unknown) {
   return String(value || '').trim().toLowerCase();
 }
 
+// Strict server-side format validation for the destructive reset target.
+// The confirmEmail match is client-supplied, so we additionally require the
+// normalized target to be a syntactically valid, single, bounded email
+// address before any lookup/destructive path runs (CWE-285 hardening).
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function isValidTargetEmail(email: string) {
+  return (
+    typeof email === 'string' &&
+    email.length >= 3 &&
+    email.length <= 254 &&
+    EMAIL_PATTERN.test(email)
+  );
+}
+
 function normalizeAdminAuthEmail(value: unknown) {
   return String(value || '').trim().toLowerCase();
 }
@@ -453,6 +467,9 @@ Deno.serve(async (req) => {
 
     if (!targetEmail) {
       return json({ ok: false, code: 'missing_target_email', error: 'Hedef kullanıcı e-postası gerekli.' }, 400);
+    }
+    if (!isValidTargetEmail(targetEmail)) {
+      return json({ ok: false, code: 'invalid_target_email', error: 'Geçersiz hedef kullanıcı e-postası.' }, 400);
     }
     if (!VALID_MODES.has(mode)) {
       return json({ ok: false, code: 'invalid_reset_mode', error: 'Geçersiz sıfırlama modu.' }, 400);

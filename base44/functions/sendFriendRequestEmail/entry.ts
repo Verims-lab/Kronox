@@ -5,9 +5,10 @@
 //  - The function verifies that an actual pending FriendRequest exists from
 //    the authenticated user to the provided `toEmail`. This prevents using
 //    this endpoint as an open email spammer.
-//  - `appUrl` is sanitized to https://... and used to build a single safe
-//    deep link to /friends (the Friends inbox surface). No raw user input
-//    is rendered into the email body.
+//  - The deep link is built ONLY from the server-side canonical constant
+//    (KRONOX_DEFAULT_APP_URL). Client-supplied `appUrl` is never accepted,
+//    so notification emails can never carry an attacker-controlled link
+//    (CWE-601 open redirect). No raw user input is rendered into the body.
 //  - Email is sent via the built-in Base44 SendEmail integration. If it
 //    fails, we return ok:false with a short reason — the client treats
 //    this as a soft warning and does NOT roll back the FriendRequest.
@@ -19,36 +20,10 @@ function json(payload, status = 200) {
   return Response.json(payload, { status });
 }
 
-// Trusted base domain for app deep links. The client may NOT redirect this
-// to an arbitrary host: appUrl is only honored when it resolves to the
-// official Kronox domain. Anything else — including any other *.base44.app
-// subdomain — is rejected so notification emails can never carry a
-// phishing link (CWE-601 open redirect).
+// Canonical base domain for app deep links. This is a hardcoded server-side
+// constant and is the ONLY value ever used to build notification links. No
+// client-supplied URL is accepted, eliminating any open-redirect surface.
 const KRONOX_DEFAULT_APP_URL = 'https://kronox.base44.app';
-const KRONOX_TRUSTED_APP_HOSTS = ['kronox.base44.app'];
-
-function isTrustedAppHost(hostname) {
-  const host = String(hostname || '').trim().toLowerCase();
-  return KRONOX_TRUSTED_APP_HOSTS.includes(host);
-}
-
-function sanitizeAppUrl(raw) {
-  const s = String(raw || '').trim();
-  if (!s) return null;
-  try {
-    const u = new URL(s);
-    // Only https and only a trusted Kronox/base44 host — block open redirects.
-    if (u.protocol !== 'https:') return null;
-    if (!isTrustedAppHost(u.hostname)) return null;
-    // Strip query/hash — we control the deep link ourselves.
-    u.search = '';
-    u.hash = '';
-    // Strip trailing slash for clean concatenation.
-    return u.toString().replace(/\/$/, '');
-  } catch {
-    return null;
-  }
-}
 
 function escapeText(s) {
   // Plain-text email body; just defang any control characters.
@@ -79,7 +54,8 @@ Deno.serve(async (req) => {
     const toEmail = normalizeEmail(body?.toEmail);
     const fromEmail = normalizeEmail(user.email);
     const senderName = escapeText(safePublicActorName(user.username || user.public_username || user.full_name, 'Bir oyuncu'));
-    const appUrl = sanitizeAppUrl(body?.appUrl) || KRONOX_DEFAULT_APP_URL;
+    // Server-side canonical URL only — client-supplied appUrl is ignored.
+    const appUrl = KRONOX_DEFAULT_APP_URL;
 
     if (!toEmail) return json({ ok: false, error: 'toEmail required' }, 400);
     if (toEmail === fromEmail) return json({ ok: false, error: 'Cannot email self' }, 400);
