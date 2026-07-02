@@ -792,7 +792,7 @@ export const EXTRA_TESTS = [
         'absolute left-0 top-1/2',
         'absolute right-0 top-1/2',
         "objectFit: 'contain'",
-        "mixBlendMode: 'screen'",
+        "backgroundColor: 'transparent'",
         "filter: 'none'",
         'function HomeTimeArtifact',
         'function HomeShortcut',

@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex525 — Home hourglass alpha asset fix:
+//   • Replaced the Home hourglass PNG in-place with an RGBA alpha version of the same 1024x1024 local artwork, removing the baked black rectangle while preserving current source path, position, and size.
+//   • MainMenu now renders the hourglass normally on a transparent image background (no screen-blend workaround, no filter), and the visual Health/docs contract expects the real transparent asset.
+//
 // Codex524 — Home geometry balance fix:
 //   • Home middle section now uses a real centered stage: equal left/right shortcut anchors and an absolute 50% hourglass anchor, so the hourglass sits between Görevler and Çark instead of overflowing from a narrow grid column.
 //   • Solo/Online CTA stack keeps the same button sizes and 14px internal gap, but uses one shared balance gap above and below the stack so hourglass-to-Solo and Online-to-BottomNav spacing read evenly.
@@ -135,7 +139,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex524';
+const BUILD_MARKER = 'Codex525';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
