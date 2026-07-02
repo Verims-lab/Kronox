@@ -27,9 +27,9 @@ Static UI images for Kronox may live here. Adding a file here does not automatic
   background; do not wrap them in visible cards, panels, capsules, or colored
   containers.
 - The Home middle section must stay balanced as left `Görevler`, centered
-  transparent hourglass, and right `Çark`. The local hourglass PNG has no alpha
-  channel, so runtime code uses screen blending and must not add image filters
-  that create a rectangular shadow block.
+  transparent hourglass, and right `Çark`. The local hourglass PNG must keep a
+  real alpha channel; runtime code must not rely on a black-background screen
+  blend workaround or add image filters that create a rectangular shadow block.
 - The Home CTA stack keeps its button sizes and internal gap; only its stack
   position is balanced so the hourglass-to-Solo and Online-to-BottomNav gaps
   read as equivalent.

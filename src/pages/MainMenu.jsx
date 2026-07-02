@@ -324,12 +324,8 @@ function HomeTimeArtifact() {
   // Static, single-file illustrated centerpiece per the Home spec: an ornate
   // gold hourglass. It must float directly on the Home background — NO
   // container, panel, dark block, glow plate, or tinted backdrop behind it.
-  // The local asset is rendered on flat black; `mix-blend-mode: screen` drops
-  // those black pixels out against the dark Home gradient (black → transparent
-  // under screen) while the bright hourglass artwork stays fully visible, so
-  // there is no box, halo, or hard edge. Do not add drop-shadow/filter here:
-  // the PNG has no alpha channel, so image filters can create a rectangular
-  // shadow block around the art.
+  // The local PNG has real alpha transparency; keep rendering normal and avoid
+  // filters/backdrops that could create a rectangular shadow block around it.
   return (
     <div
       className="absolute left-1/2 top-1/2 grid -translate-x-1/2 -translate-y-1/2 place-items-center"
@@ -343,7 +339,7 @@ function HomeTimeArtifact() {
         loading="eager"
         className="relative block h-full w-full select-none object-contain"
         style={{
-          mixBlendMode: 'screen',
+          backgroundColor: 'transparent',
           filter: 'none',
         }}
       />
