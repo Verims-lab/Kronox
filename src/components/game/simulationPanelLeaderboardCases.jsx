@@ -176,6 +176,85 @@ export const EXTRA_TESTS = [
       });
     }),
 
+  makeCase('leaderboard_health', 'leaderboard_panel_list_visual_contract',
+    'Liderlik ranking panel uses the approved scrollable list and row style without changing row data',
+    () => {
+      const requiredComponent = missingTokens(kronoxRankingSectionSource, [
+        '<section className="leaderboard-panel">',
+        '<h2 className="leaderboard-section-title">',
+        '<Medal aria-hidden="true" />',
+        '<span>Kronox Sıralaması</span>',
+        '<div className="leaderboard-list">',
+        'leaderboard-row',
+        'leaderboard-rank',
+        'normalizeLeaderboardRank(row.rank)',
+        '<KronoxAvatar profile={row}',
+        '{row.displayName}',
+        'row.summary.totalKronoxScore',
+        'Badge text="Sen"',
+        'Badge text="Arkadaş"',
+      ]);
+      const requiredCss = missingTokens(indexCssSource, [
+        '.leaderboard-panel',
+        'width: 100%',
+        'rgba(16, 38, 75, 0.96) 0%',
+        'rgba(8, 26, 53, 0.98) 100%',
+        'rgba(85, 216, 255, 0.22)',
+        'clamp(1.2rem, 5vw, 1.8rem)',
+        'clamp(0.9rem, 4vw, 1.3rem)',
+        '0 0.8rem 1.8rem',
+        '.leaderboard-section-title',
+        'gap: clamp(0.5rem, 2vw, 0.8rem)',
+        '"Barlow Condensed"',
+        'font-weight: 700',
+        'font-style: italic',
+        'font-size:',
+        'clamp(1.2rem, 5.5vw, 1.65rem)',
+        'color: #F4F7FB',
+        '.leaderboard-section-title svg',
+        'width: clamp(1.3rem, 5.5vw, 1.8rem)',
+        'color: #55D8FF',
+        '.leaderboard-list',
+        'display: flex',
+        'flex-direction: column',
+        'gap: clamp(0.5rem, 1.8dvh, 0.75rem)',
+        'clamp(0.8rem, 2.5dvh, 1.2rem)',
+        'overflow-y: auto',
+        '-webkit-overflow-scrolling: touch',
+        'overscroll-behavior: contain',
+        '.leaderboard-row',
+        'grid-template-columns:',
+        'auto auto minmax(0, 1fr) auto',
+        'min-height:',
+        'clamp(4rem, 9dvh, 5rem)',
+        'rgba(31, 52, 91, 0.92) 0%',
+        'rgba(21, 40, 75, 0.96) 100%',
+        'rgba(167, 196, 229, 0.16)',
+        '.leaderboard-rank',
+        'clamp(1.35rem, 6vw, 1.85rem)',
+        'color: #A7C4E5',
+      ]);
+      const forbidden = forbiddenTokensFound(kronoxRankingSectionSource, [
+        'Tüm oyuncular arasında Kronox sıralaman.',
+        'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-amber-200',
+        'font-inter text-sm font-black text-white">Kronox Sıralaması',
+      ]);
+      if (requiredComponent.length || requiredCss.length || forbidden.length) {
+        return fail('Liderlik ranking panel/list visual contract drifted.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'VISUAL_REGRESSION_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'KronoxRankingSection uses .leaderboard-panel/.leaderboard-section-title/.leaderboard-list/.leaderboard-row/.leaderboard-rank, the old helper sentence is absent, and row rank/avatar/username/score data remains rendered.',
+          actual: { requiredComponent, requiredCss, forbidden },
+        });
+      }
+      return pass('Liderlik ranking panel uses the approved scrollable list and row style while preserving public row rank, avatar, username, badges, and score.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
   makeCase('leaderboard_health', 'leaderboard_public_score_source_exists',
     'Leaderboard uses a public-safe Kronox Puan source, not private full User rows',
     () => {

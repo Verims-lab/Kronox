@@ -87,30 +87,11 @@ export default function KronoxRankingSection({
     : 'Arkadaşlarını davet et, sıralamada yarışın.';
 
   return (
-    <section
-      className="rounded-2xl p-4"
-      style={{
-        background: 'linear-gradient(180deg, rgba(30,41,75,0.72), rgba(10,16,36,0.88))',
-        boxShadow: 'inset 0 0 0 1.5px rgba(120,170,255,0.24), 0 10px 20px rgba(2,6,23,0.42)',
-      }}
-    >
-      <div className="flex items-start gap-3">
-        <div
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-amber-200"
-          style={{
-            background: 'linear-gradient(180deg, rgba(250,204,21,0.16), rgba(185,122,6,0.10))',
-            boxShadow: 'inset 0 0 0 1px rgba(250,204,21,0.42)',
-          }}
-        >
-          <Medal className="h-5 w-5" />
-        </div>
-        <div className="min-w-0">
-          <p className="font-inter text-sm font-black text-white">Kronox Sıralaması</p>
-          <p className="mt-1 font-inter text-[11px] leading-relaxed text-blue-100/70">
-            Tüm oyuncular arasında Kronox sıralaman.
-          </p>
-        </div>
-      </div>
+    <section className="leaderboard-panel">
+      <h2 className="leaderboard-section-title">
+        <Medal aria-hidden="true" />
+        <span>Kronox Sıralaması</span>
+      </h2>
 
       {!authChecked || leaderboard.loading || waitingForLeaderboard ? (
         <LoadingState />
@@ -135,7 +116,7 @@ export default function KronoxRankingSection({
           backendReason=""
         />
       ) : (
-        <div className="mt-4 space-y-2">
+        <div className="leaderboard-list">
           {leaderboard.topRows.map((row) => (
             <LeaderboardRow
               key={row.id}
@@ -362,26 +343,19 @@ function LeaderboardRow({ row, compact = false, emphasis = false, onOpenSettings
   const canLongPress = !row.isCurrentUser && typeof onLongPress === 'function';
   const longPressProps = useLongPress(canLongPress ? () => onLongPress(row) : null);
   const displayRank = normalizeLeaderboardRank(row.rank);
-  const rankColor = displayRank !== null && displayRank <= 3 ? '#facc15' : '#93c5fd';
   const rankText = displayRank !== null ? `#${displayRank}` : '—';
   const className = [
-    'flex items-center gap-2 rounded-xl',
-    compact ? 'px-2.5 py-2' : 'px-3 py-2.5',
+    'leaderboard-row',
+    compact ? 'leaderboard-row--compact' : '',
+    isHighlighted ? 'leaderboard-row--highlighted' : '',
     canOpenSettings
-      ? 'w-full cursor-pointer border-0 text-left transition-transform active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-200/70'
+      ? 'w-full cursor-pointer appearance-none text-left transition-transform active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-200/70'
       : '',
+    canLongPress ? 'cursor-pointer select-none' : '',
   ].filter(Boolean).join(' ');
-  const style = {
-    background: isHighlighted
-      ? 'linear-gradient(180deg, rgba(250,204,21,0.16), rgba(37,99,235,0.14))'
-      : 'rgba(255,255,255,0.055)',
-    boxShadow: isHighlighted
-      ? 'inset 0 0 0 1px rgba(250,204,21,0.46), 0 0 14px rgba(250,204,21,0.12)'
-      : 'inset 0 0 0 1px rgba(125,211,252,0.16)',
-  };
   const content = (
     <>
-      <div className="kronox-number w-8 shrink-0 text-center text-lg leading-none" style={{ color: rankColor }}>
+      <div className="leaderboard-rank">
         {rankText}
       </div>
       <KronoxAvatar profile={row} initial={row.initial || row.displayName} size={32} className="shrink-0" />
@@ -406,7 +380,6 @@ function LeaderboardRow({ row, compact = false, emphasis = false, onOpenSettings
         onClick={onOpenSettings}
         aria-label="Profil ayarlarını aç"
         className={className}
-        style={style}
       >
         {content}
       </button>
@@ -416,7 +389,6 @@ function LeaderboardRow({ row, compact = false, emphasis = false, onOpenSettings
   return (
     <div
       className={className}
-      style={{ ...style, ...(canLongPress ? { cursor: 'pointer', WebkitUserSelect: 'none', userSelect: 'none' } : {}) }}
       {...(canLongPress ? longPressProps : {})}
     >
       {content}
