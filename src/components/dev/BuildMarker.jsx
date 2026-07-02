@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex531 — Home center hourglass sand recolor:
+//   • The Home center hourglass PNG asset (/assets/ui/kronox-hourglass-home.png) was replaced in place with the same ornate gold-frame / clear-glass / transparent-background artwork, changing ONLY the sand to the cyan palette (light #A7ECFF, dark #55D8FF). MainMenu still references the same local path at the same size/position, so frame, glass, glow, layout, and animation structure are unchanged.
+//   • No code, gameplay, economy, auth/guest, leaderboard, routing, BottomNav, Daily Wheel, or Daily Quest behavior changed; no other icon/asset was touched.
+//
 // Codex530 — Health blocker fixes (KRONOX-MR3JXNK3):
 //   • Base44 SDK exact pin: package.json and package-lock.json (root spec + installed node_modules/@base44/sdk block version/resolved/integrity) re-pinned from ^0.8.35 to exactly 0.8.34 with the real 0.8.34 tarball + integrity; no caret/range remains and critical Base44 Deno functions already import npm:@base44/sdk@0.8.34.
 //   • Solo P3 repeated-deck coverage: the "100 normal decks" simulation now cycles only normal levels [1,2,3,4,6,7,8,9] instead of (index % 9)+1, which had leaked special level 5 (21-card deck). 100 normal decks now select exactly 100 × 18 = 1800 cards, matching the expectation, while diversity/cooldown/first-five spacing rules are unchanged.
@@ -164,7 +168,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex530';
+const BUILD_MARKER = 'Codex531';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
