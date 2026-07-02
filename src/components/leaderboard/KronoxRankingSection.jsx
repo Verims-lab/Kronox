@@ -1,8 +1,8 @@
-import React, { useCallback, useState } from 'react';
-import { Loader2, Medal, RefreshCw, Trophy, UserRound, Users } from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Loader2, Medal, RefreshCw, Trophy, UserRound } from 'lucide-react';
 import useLongPress from '@/hooks/useLongPress';
 import LeaderboardRowActionMenu from '@/components/leaderboard/LeaderboardRowActionMenu';
-import KronoxAvatar from '@/components/profile/KronoxAvatar';
+import { resolveProfileAvatar } from '@/lib/avatarOptions';
 import { normalizeLeaderboardRank } from '@/lib/leaderboard';
 
 /**
@@ -26,8 +26,8 @@ import { normalizeLeaderboardRank } from '@/lib/leaderboard';
  *   authChecked      : boolean
  *   user             : current user (or null)
  *   leaderboard      : { loading, loaded, error, topRows, currentUserRow,
- *                        currentUserInTop, friendsOutsideTop, friendCount,
- *                        ownScoreRow, ownScoreFallback: { totalKronoxScore,
+ *                        currentUserInTop, ownScoreRow,
+ *                        ownScoreFallback: { totalKronoxScore,
  *                        totalSoloScore, currentLevel } }
  *   onRetry          : () => void
  *   isAdmin          : boolean — gates the technical diagnostic line
@@ -76,15 +76,15 @@ export default function KronoxRankingSection({
   );
 
   const hasRows = leaderboard.topRows.length > 0;
-  const showOwnRank = leaderboard.currentUserRow && !leaderboard.currentUserInTop;
-  const topRowIds = new Set(leaderboard.topRows.map((row) => row.id));
-  const ownScoreAlreadyInTop = Boolean(leaderboard.ownScoreRow && topRowIds.has(leaderboard.ownScoreRow.id));
-  const showOwnScorePending = !leaderboard.currentUserRow && leaderboard.ownScoreRow && !ownScoreAlreadyInTop;
-  const showFriendRows = leaderboard.friendsOutsideTop.length > 0;
+  const currentTopRow = leaderboard.topRows.find((row) => row.isCurrentUser) || null;
+  const stickyMyRankRow = user
+    ? (
+      leaderboard.currentUserRow ||
+      currentTopRow ||
+      (leaderboard.ownScoreRow ? { ...leaderboard.ownScoreRow, rank: null, isCurrentUser: true } : null)
+    )
+    : null;
   const waitingForLeaderboard = Boolean(user && !leaderboard.loaded && !leaderboard.error);
-  const friendEmptyCopy = leaderboard.friendCount > 0
-    ? 'Arkadaşların puan aldıkça burada görünecek.'
-    : 'Arkadaşlarını davet et, sıralamada yarışın.';
 
   return (
     <section className="leaderboard-panel">
@@ -125,66 +125,15 @@ export default function KronoxRankingSection({
               onLongPress={canAddFriend(row) ? handleLongPress : undefined}
             />
           ))}
+        </div>
+      )}
 
-          {showOwnRank && (
-            <div className="pt-2">
-              <p className="mb-2 px-1 font-inter text-[10px] font-black uppercase tracking-widest text-amber-200/80">
-                Senin Sıran
-              </p>
-              <LeaderboardRow
-                row={leaderboard.currentUserRow}
-                emphasis
-                onOpenSettings={onCurrentUserRowOpenSettings}
-              />
-            </div>
-          )}
-
-          {showOwnScorePending && (
-            <div className="pt-2">
-              <p className="mb-2 px-1 font-inter text-[10px] font-black uppercase tracking-widest text-amber-200/80">
-                Senin Puanın
-              </p>
-              <LeaderboardRow
-                row={{ ...leaderboard.ownScoreRow, rank: null, isCurrentUser: true }}
-                emphasis
-                onOpenSettings={onCurrentUserRowOpenSettings}
-              />
-              <p className="mt-1 px-1 font-inter text-[10px] leading-relaxed text-blue-100/55">
-                Genel sıran public tabloya yazıldığında netleşecek.
-              </p>
-            </div>
-          )}
-
-          <div className="pt-3">
-            <div className="mb-2 flex items-center gap-2 px-1">
-              <Users className="h-3.5 w-3.5 text-cyan-200" />
-              <p className="font-inter text-[10px] font-black uppercase tracking-widest text-cyan-100/80">
-                Arkadaşların
-              </p>
-            </div>
-            {showFriendRows ? (
-              <div className="space-y-2">
-                {leaderboard.friendsOutsideTop.map((row) => (
-                  <LeaderboardRow
-                    key={`friend-${row.id}`}
-                    row={row}
-                    compact
-                    onLongPress={canAddFriend(row) ? handleLongPress : undefined}
-                  />
-                ))}
-              </div>
-            ) : (
-              <p
-                className="rounded-xl px-3 py-3 font-inter text-[11px] leading-relaxed text-blue-100/62"
-                style={{
-                  background: 'rgba(255,255,255,0.045)',
-                  boxShadow: 'inset 0 0 0 1px rgba(125,211,252,0.14)',
-                }}
-              >
-                {friendEmptyCopy}
-              </p>
-            )}
-          </div>
+      {stickyMyRankRow && (
+        <div className="my-rank-sticky">
+          <MyRankCard
+            row={stickyMyRankRow}
+            onOpenSettings={onCurrentUserRowOpenSettings}
+          />
         </div>
       )}
 
@@ -197,6 +146,82 @@ export default function KronoxRankingSection({
       />
     </section>
   );
+}
+
+function LeaderboardAvatar({ row }) {
+  const avatar = resolveProfileAvatar(row);
+  const [photoFailed, setPhotoFailed] = useState(false);
+
+  useEffect(() => {
+    setPhotoFailed(false);
+  }, [avatar.url]);
+
+  const showPhoto = avatar.type === 'photo' && avatar.url && !photoFailed;
+  const initial = String(row?.initial || row?.displayName || 'K')
+    .charAt(0)
+    .toLocaleUpperCase('tr-TR');
+
+  if (showPhoto) {
+    return (
+      <img
+        src={avatar.url}
+        alt=""
+        className="leaderboard-avatar"
+        draggable={false}
+        aria-hidden="true"
+        onError={() => setPhotoFailed(true)}
+      />
+    );
+  }
+
+  return (
+    <div className="leaderboard-avatar leaderboard-avatar--default" aria-hidden="true">
+      <span className="leaderboard-avatar-letter">{initial}</span>
+    </div>
+  );
+}
+
+function ScoreBlock({ row }) {
+  return (
+    <div className="shrink-0 text-right">
+      <p className="leaderboard-score">{row.summary.totalKronoxScore}</p>
+      <p className="leaderboard-score-label">Puan</p>
+    </div>
+  );
+}
+
+function MyRankCard({ row, onOpenSettings }) {
+  const displayRank = normalizeLeaderboardRank(row.rank);
+  const rankText = displayRank !== null ? `#${displayRank}` : '—';
+  const content = (
+    <>
+      <div className="leaderboard-rank">{rankText}</div>
+      <LeaderboardAvatar row={row} />
+      <div className="min-w-0">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="my-rank-label">Senin sıran</span>
+          <span className="my-rank-you-badge">SEN</span>
+        </div>
+        <p className="leaderboard-name">{row.displayName}</p>
+      </div>
+      <ScoreBlock row={row} />
+    </>
+  );
+
+  if (typeof onOpenSettings === 'function') {
+    return (
+      <button
+        type="button"
+        onClick={onOpenSettings}
+        aria-label="Profil ayarlarını aç"
+        className="my-rank-card w-full appearance-none text-left transition-transform active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-200/70"
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return <div className="my-rank-card">{content}</div>;
 }
 
 function LoadingState() {
@@ -358,18 +383,15 @@ function LeaderboardRow({ row, compact = false, emphasis = false, onOpenSettings
       <div className="leaderboard-rank">
         {rankText}
       </div>
-      <KronoxAvatar profile={row} initial={row.initial || row.displayName} size={32} className="shrink-0" />
+      <LeaderboardAvatar row={row} />
       <div className="min-w-0 flex-1 self-center">
         <div className="flex min-w-0 items-center gap-1.5">
-          <p className="truncate font-inter text-xs font-black text-white">{row.displayName}</p>
+          <p className="leaderboard-name">{row.displayName}</p>
           {row.isCurrentUser && <Badge text="Sen" tone="gold" />}
           {row.isFriend && <Badge text="Arkadaş" tone="cyan" />}
         </div>
       </div>
-      <div className="shrink-0 text-right">
-        <p className="kronox-number text-lg leading-none text-amber-200">{row.summary.totalKronoxScore}</p>
-        <p className="font-inter text-[9px] font-black uppercase tracking-wider text-blue-100/45">Puan</p>
-      </div>
+      <ScoreBlock row={row} />
     </>
   );
 

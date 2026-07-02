@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex535 — Liderlik avatar/name/score + sticky current-user card:
+//   • KronoxRankingSection now uses scoped leaderboard-avatar/name/score classes, a fixed my-rank-sticky current-user card above BottomNav, and extra leaderboard-list bottom padding so rows remain reachable.
+//   • The Leaderboard-only Friends area is removed from Liderlik UI; friends/invites backend, badges, and features elsewhere remain untouched.
+//   • Leaderboard Health now guards avatar/default-letter styling, sticky current-user card styling, removed Friends empty copy, and preserved row rank/avatar/username/score data.
+//
 // Codex534 — Liderlik ranking panel/list polish:
 //   • KronoxRankingSection now uses the requested .leaderboard-panel, .leaderboard-section-title, .leaderboard-list, .leaderboard-row, and .leaderboard-rank classes, with the old "Tüm oyuncular arasında..." helper copy removed.
 //   • The list is internally scrollable with mobile containment while preserving row rank/avatar/username/badge/score data, materialized score sourcing, BottomNav, safe areas, and the approved Liderlik background/header.
@@ -184,7 +189,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex534';
+const BUILD_MARKER = 'Codex535';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

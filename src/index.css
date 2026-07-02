@@ -385,6 +385,8 @@
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
     padding-right: 0.125rem;
+    padding-bottom:
+      clamp(8rem, 20dvh, 11rem);
   }
 
   .leaderboard-row {
@@ -427,5 +429,128 @@
     font-size:
       clamp(1.35rem, 6vw, 1.85rem);
     color: #A7C4E5;
+  }
+
+  .leaderboard-avatar {
+    width: clamp(2.5rem, 11vw, 3.2rem);
+    aspect-ratio: 1 / 1;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+
+  .leaderboard-avatar--default {
+    display: grid;
+    place-items: center;
+    background:
+      radial-gradient(
+        circle at 35% 30%,
+        #FFE56F 0%,
+        #FFC928 46%,
+        #A97400 100%
+      );
+  }
+
+  .leaderboard-avatar-letter {
+    font-family: "Inter", sans-serif;
+    font-weight: 800;
+    font-size: clamp(0.9rem, 4vw, 1.2rem);
+    color: #101827;
+  }
+
+  .leaderboard-name {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-family: "Inter", sans-serif;
+    font-weight: 700;
+    font-size:
+      clamp(0.9rem, 4vw, 1.1rem);
+    color: #F4F7FB;
+  }
+
+  .leaderboard-score {
+    text-align: right;
+    font-family:
+      "Barlow Condensed",
+      sans-serif;
+    font-weight: 700;
+    font-size:
+      clamp(1.3rem, 6vw, 1.8rem);
+    color: #FFC928;
+  }
+
+  .leaderboard-score-label {
+    font-family: "Inter", sans-serif;
+    font-weight: 600;
+    font-size:
+      clamp(0.55rem, 2.5vw, 0.7rem);
+    letter-spacing: 0.04em;
+    color: #9BAEC2;
+  }
+
+  .my-rank-sticky {
+    position: fixed;
+    left: 50%;
+    bottom:
+      calc(
+        clamp(4.4rem, 10dvh, 5.4rem)
+        + env(safe-area-inset-bottom)
+        + 0.75rem
+      );
+    transform: translateX(-50%);
+    width: min(90%, 32rem);
+    z-index: 30;
+  }
+
+  .my-rank-card {
+    display: grid;
+    grid-template-columns:
+      auto auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: clamp(0.6rem, 2.5vw, 0.9rem);
+    padding:
+      clamp(0.7rem, 3vw, 1rem);
+    border-radius:
+      clamp(1rem, 4vw, 1.3rem);
+    background:
+      linear-gradient(
+        180deg,
+        rgba(49, 43, 25, 0.94) 0%,
+        rgba(17, 31, 57, 0.98) 100%
+      );
+    border:
+      0.09375rem solid
+      rgba(255, 201, 40, 0.62);
+    box-shadow:
+      0 0 1rem rgba(255, 201, 40, 0.16),
+      0 0.7rem 1.5rem rgba(0, 0, 0, 0.28);
+  }
+
+  .my-rank-label {
+    font-family:
+      "Barlow Condensed",
+      sans-serif;
+    font-weight: 700;
+    font-style: italic;
+    font-size:
+      clamp(0.85rem, 3.8vw, 1.05rem);
+    color: #FFC928;
+  }
+
+  .my-rank-you-badge {
+    padding-inline:
+      clamp(0.35rem, 1.5vw, 0.55rem);
+    padding-block:
+      clamp(0.12rem, 0.5dvh, 0.2rem);
+    border-radius: 999rem;
+    border:
+      0.0625rem solid
+      rgba(255, 201, 40, 0.62);
+    color: #FFC928;
+    font-family: "Inter", sans-serif;
+    font-weight: 700;
+    font-size:
+      clamp(0.55rem, 2.5vw, 0.7rem);
   }
 }
