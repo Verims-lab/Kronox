@@ -5,6 +5,7 @@
 // User.list reads, placeholder-only UI, fake ranks, or email leakage.
 
 import leaderboardPageSource from '../../pages/LeaderboardPage.jsx?raw';
+import indexCssSource from '../../index.css?raw';
 import mainMenuSource from '../../pages/MainMenu.jsx?raw';
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
 import profileEditPageSource from '../../pages/ProfileEditPage.jsx?raw';
@@ -82,6 +83,54 @@ export const EXTRA_SUITES = [
 ];
 
 export const EXTRA_TESTS = [
+  makeCase('leaderboard_health', 'leaderboard_root_background_gradient',
+    'Liderlik root uses the approved scoped dark-blue gradient background',
+    () => {
+      const requiredPage = missingTokens(leaderboardPageSource, [
+        'className="leaderboard-page text-white"',
+        '<StandardTopBar diamonds={diamondValue} user={user} />',
+        '<PullToRefresh onRefresh={loadLeaderboard} disabled={!leaderboardPlayer}>',
+        'pt-16',
+      ]);
+      const requiredCss = missingTokens(indexCssSource, [
+        '.leaderboard-page',
+        'min-height: 100dvh',
+        'width: 100%',
+        'background-color: #061225',
+        'ellipse at 50% 24%',
+        'rgba(58, 137, 220, 0.20) 0%',
+        'rgba(25, 77, 139, 0.09) 36%',
+        'transparent 62%',
+        '#061225 0%',
+        '#0A2346 46%',
+        '#0B2852 68%',
+        '#061225 100%',
+        'padding-top: env(safe-area-inset-top)',
+        'padding-bottom: calc(5rem + env(safe-area-inset-bottom))',
+      ]);
+      const forbiddenPage = forbiddenTokensFound(leaderboardPageSource, [
+        "radial-gradient(ellipse at 50% 12%",
+        '#050b1c 0%',
+        '#0a1738 55%',
+        '#03060f 100%',
+        'bg-background text-white',
+      ]);
+      if (requiredPage.length || requiredCss.length || forbiddenPage.length) {
+        return fail('Liderlik root background no longer matches the approved scoped gradient contract.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'VISUAL_REGRESSION_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'LeaderboardPage root uses .leaderboard-page only; CSS owns exact requested dark-blue radial + linear gradient and safe-area/BottomNav padding.',
+          actual: { requiredPage, requiredCss, forbiddenPage },
+        });
+      }
+      return pass('Liderlik root uses the approved scoped background gradient and safe-area/BottomNav spacing class.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
   makeCase('leaderboard_health', 'leaderboard_public_score_source_exists',
     'Leaderboard uses a public-safe Kronox Puan source, not private full User rows',
     () => {
