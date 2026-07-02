@@ -14,6 +14,17 @@ import { AdminRefreshContext } from '@/lib/AdminRefreshContext';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 import { useAuth } from '@/lib/AuthContext';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
+import {
+  ADMIN_PAGE_SUBTITLE_CLASS,
+  ADMIN_PAGE_TITLE_CLASS,
+  ADMIN_SECTION_LABEL_CLASS,
+  ADMIN_TOOL_CARD_CLASS,
+  ADMIN_TOOL_CHEVRON_CLASS,
+  ADMIN_TOOL_DESCRIPTION_CLASS,
+  ADMIN_TOOL_HEADER_BUTTON_CLASS,
+  ADMIN_TOOL_ICON_CLASS,
+  ADMIN_TOOL_TITLE_CLASS,
+} from '@/components/admin/adminVisualStyles';
 
 const SimulationPanel = lazyWithRetry(() => import('@/components/game/SimulationPanel'), 'SimulationPanel');
 const SimulationPanelErrorBoundary = lazyWithRetry(
@@ -105,8 +116,8 @@ export default function AdminPage() {
         <div className="mx-auto flex min-h-[60dvh] w-full max-w-sm items-center justify-center px-5">
           <div className="rounded-3xl border border-primary/20 bg-secondary/20 p-6 text-center">
             <ShieldAlert className="mx-auto mb-4 h-10 w-10 text-primary" />
-            <h1 className="font-cinzel text-xl font-black tracking-widest text-primary">Admin Ekranı</h1>
-            <p className="mt-3 font-inter text-sm text-muted-foreground">
+            <h1 className={ADMIN_PAGE_TITLE_CLASS}>ADMIN EKRANI</h1>
+            <p className={ADMIN_PAGE_SUBTITLE_CLASS}>
               Bu alan yalnızca aktif admin/owner kullanıcılar içindir.
             </p>
             {!user && (
@@ -134,15 +145,15 @@ export default function AdminPage() {
       <StandardTopBar diamonds={diamondValue} user={user} showBack />
 
       <div className="px-4 pb-1">
-        <h1 className="font-cinzel text-2xl font-black tracking-wide text-foreground">Admin Ekranı</h1>
-        <p className="mt-1 font-inter text-xs font-semibold text-muted-foreground">
+        <h1 className={ADMIN_PAGE_TITLE_CLASS}>ADMIN EKRANI</h1>
+        <p className={ADMIN_PAGE_SUBTITLE_CLASS}>
           Yalnızca aktif AdminUser owner/admin araçları.
         </p>
       </div>
 
       <PullToRefresh onRefresh={refreshAdminMaintenanceLists}>
         <div className="px-4 space-y-5">
-          <Section label="Araçlar">
+          <Section label="ARAÇLAR">
             <AdminRefreshContext.Provider value={registerAdminRefresh}>
               <ToolCard
                 icon={<FileDown className="w-4 h-4" />}
@@ -208,7 +219,7 @@ function AdminToolLoading() {
 function Section({ label, children }) {
   return (
     <div className="space-y-2">
-      <p className="font-inter text-[10px] text-muted-foreground font-semibold uppercase tracking-widest px-1">{label}</p>
+      <p className={ADMIN_SECTION_LABEL_CLASS}>{label}</p>
       <div className="space-y-2">{children}</div>
     </div>
   );
@@ -219,16 +230,17 @@ function ToolCard({ icon, title, desc, loading, onClick }) {
     <button
       onClick={onClick}
       disabled={loading}
-      className="w-full flex items-center gap-3 p-4 rounded-2xl border border-border/40 bg-secondary/20 hover:bg-secondary/40 hover:border-border/70 transition-all text-left disabled:opacity-60"
+      className={`w-full ${ADMIN_TOOL_CARD_CLASS} ${ADMIN_TOOL_HEADER_BUTTON_CLASS}`}
+      data-admin-standard-card
     >
-      <div className="w-8 h-8 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0 text-primary">
+      <div className={ADMIN_TOOL_ICON_CLASS}>
         {loading ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : icon}
       </div>
-      <div className="flex-1">
-        <p className="font-inter text-sm font-semibold text-foreground">{title}</p>
-        <p className="font-inter text-xs text-muted-foreground">{desc}</p>
+      <div className="min-w-0 flex-1">
+        <p className={ADMIN_TOOL_TITLE_CLASS}>{title}</p>
+        <p className={ADMIN_TOOL_DESCRIPTION_CLASS}>{desc}</p>
       </div>
-      <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
+      <ChevronRight className={ADMIN_TOOL_CHEVRON_CLASS} />
     </button>
   );
 }
