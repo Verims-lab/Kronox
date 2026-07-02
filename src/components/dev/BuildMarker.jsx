@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex532 — Liderlik header simplification:
+//   • Removed the old top Liderlik summary card, including Puan/Seviye/Elmas tiles and the explanatory "Kronox Puanın Solo ve Online sonuçlarınla güncellenir." sentence.
+//   • Added the centered .leaderboard-heading with the requested gold .leaderboard-trophy badge and exact LİDERLİK title styling while preserving the approved Liderlik background, StandardTopBar, BottomNav, ranking rows, score materialization, and username-only identity.
+//   • Leaderboard Health now guards the new header tokens and prevents the removed summary block from returning.
+//
 // Codex531 — Liderlik background gradient:
 //   • LeaderboardPage root now uses the scoped .leaderboard-page class with the exact requested dark-blue radial + vertical gradient and safe-area/BottomNav padding.
 //   • The old inline Liderlik background was removed; content/top-bar offset remains inside the page content so BottomNav, StandardTopBar, scoring/data, identity/privacy, and other page backgrounds stay unchanged.
@@ -169,7 +174,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex531';
+const BUILD_MARKER = 'Codex532';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

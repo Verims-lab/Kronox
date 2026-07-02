@@ -283,4 +283,52 @@
     padding-top: env(safe-area-inset-top);
     padding-bottom: calc(5rem + env(safe-area-inset-bottom));
   }
+
+  .leaderboard-heading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: clamp(0.5rem, 1.8dvh, 0.9rem);
+    padding-top: clamp(1rem, 3dvh, 1.8rem);
+    padding-bottom: clamp(0.9rem, 2.5dvh, 1.4rem);
+  }
+
+  .leaderboard-trophy {
+    width: clamp(3.4rem, 15vw, 4.8rem);
+    aspect-ratio: 1 / 1;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background:
+      radial-gradient(
+        circle at 35% 30%,
+        #FFE56F 0%,
+        #FFC928 48%,
+        #E4A600 100%
+      );
+    box-shadow:
+      0 0 1rem rgba(255, 201, 40, 0.24),
+      0 0.6rem 1.3rem rgba(0, 0, 0, 0.24);
+  }
+
+  .leaderboard-trophy svg {
+    width: 52%;
+    height: 52%;
+    color: #101827;
+  }
+
+  .leaderboard-title {
+    font-family:
+      "Barlow Condensed",
+      sans-serif;
+    font-weight: 800;
+    font-style: italic;
+    font-size: clamp(2rem, 9vw, 3rem);
+    line-height: 1;
+    letter-spacing: 0.02em;
+    color: #FFC928;
+    text-shadow:
+      0 0 0.75rem
+      rgba(255, 201, 40, 0.24);
+  }
 }

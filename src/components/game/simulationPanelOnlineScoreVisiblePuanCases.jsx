@@ -112,7 +112,7 @@ export const EXTRA_TESTS = [
       // Codex159 — Honest contract scope. The visible Kronox Puan
       // SURFACES (what the user reads as "Puan") today are:
       //   • Profile İstatistikler tile
-      //   • Liderlik stat row + ranking section
+      //   • Liderlik ranking/fallback section
       // Home/Solo/Online top bars intentionally show Elmas, not Puan
       // (StandardTopBar). So the helper-usage contract is scoped to the
       // two Puan-rendering screens, and we verify the REAL canonical

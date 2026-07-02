@@ -84,13 +84,18 @@ export const EXTRA_SUITES = [
 
 export const EXTRA_TESTS = [
   makeCase('leaderboard_health', 'leaderboard_root_background_gradient',
-    'Liderlik root uses the approved scoped dark-blue gradient background',
+    'Liderlik root uses the approved scoped background and trophy heading',
     () => {
       const requiredPage = missingTokens(leaderboardPageSource, [
         'className="leaderboard-page text-white"',
         '<StandardTopBar diamonds={diamondValue} user={user} />',
         '<PullToRefresh onRefresh={loadLeaderboard} disabled={!leaderboardPlayer}>',
         'pt-16',
+        '<header className="leaderboard-heading"',
+        '<div className="leaderboard-trophy"',
+        '<Trophy strokeWidth={2.4} />',
+        '<h1 className="leaderboard-title">LİDERLİK</h1>',
+        '<KronoxRankingSection',
       ]);
       const requiredCss = missingTokens(indexCssSource, [
         '.leaderboard-page',
@@ -107,6 +112,39 @@ export const EXTRA_TESTS = [
         '#061225 100%',
         'padding-top: env(safe-area-inset-top)',
         'padding-bottom: calc(5rem + env(safe-area-inset-bottom))',
+        '.leaderboard-heading',
+        'display: flex',
+        'flex-direction: column',
+        'align-items: center',
+        'gap: clamp(0.5rem, 1.8dvh, 0.9rem)',
+        'padding-top: clamp(1rem, 3dvh, 1.8rem)',
+        'padding-bottom: clamp(0.9rem, 2.5dvh, 1.4rem)',
+        '.leaderboard-trophy',
+        'width: clamp(3.4rem, 15vw, 4.8rem)',
+        'aspect-ratio: 1 / 1',
+        'display: grid',
+        'place-items: center',
+        'border-radius: 50%',
+        'circle at 35% 30%',
+        '#FFE56F 0%',
+        '#FFC928 48%',
+        '#E4A600 100%',
+        '0 0 1rem rgba(255, 201, 40, 0.24)',
+        '0 0.6rem 1.3rem rgba(0, 0, 0, 0.24)',
+        '.leaderboard-trophy svg',
+        'width: 52%',
+        'height: 52%',
+        'color: #101827',
+        '.leaderboard-title',
+        '"Barlow Condensed"',
+        'font-weight: 800',
+        'font-style: italic',
+        'font-size: clamp(2rem, 9vw, 3rem)',
+        'line-height: 1',
+        'letter-spacing: 0.02em',
+        'color: #FFC928',
+        '0 0 0.75rem',
+        'rgba(255, 201, 40, 0.24)',
       ]);
       const forbiddenPage = forbiddenTokensFound(leaderboardPageSource, [
         "radial-gradient(ellipse at 50% 12%",
@@ -114,17 +152,24 @@ export const EXTRA_TESTS = [
         '#0a1738 55%',
         '#03060f 100%',
         'bg-background text-white',
+        'KronoxStatTile',
+        'visibleKronoxPuan',
+        'label="Puan"',
+        'label="Seviye"',
+        'label="Elmas"',
+        'Liderlik Tablosu',
+        'Kronox Puanın Solo ve Online sonuçlarınla güncellenir.',
       ]);
       if (requiredPage.length || requiredCss.length || forbiddenPage.length) {
-        return fail('Liderlik root background no longer matches the approved scoped gradient contract.', {
+        return fail('Liderlik root visual contract no longer matches the approved background and centered trophy heading.', {
           verification: 'STATIC_CONTRACT',
           classification: 'VISUAL_REGRESSION_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'LeaderboardPage root uses .leaderboard-page only; CSS owns exact requested dark-blue radial + linear gradient and safe-area/BottomNav padding.',
+          expected: 'LeaderboardPage root uses .leaderboard-page; top summary cards/sentence are removed; CSS owns the exact requested gradient plus centered trophy badge and LİDERLİK title.',
           actual: { requiredPage, requiredCss, forbiddenPage },
         });
       }
-      return pass('Liderlik root uses the approved scoped background gradient and safe-area/BottomNav spacing class.', {
+      return pass('Liderlik root uses the approved scoped background gradient and centered trophy/title heading without the old summary cards.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
