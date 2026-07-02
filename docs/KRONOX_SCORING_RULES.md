@@ -556,6 +556,8 @@ Rules:
 * Leaderboard no longer renders the removed top Puan/Seviye/Elmas stat cards
   or old explanatory helper sentence; score-source parity is validated through
   public rows, the fixed `Senin Sıran` card, and safe fallback own-score UI.
+* The current player's public row, fixed `Senin Sıran` card, and fallback
+  own-score state are normalized through the same visible Kronox Puan value.
 * Leaderboard should not expose unnecessary private user fields.
 * Elmas must not be derived from Kronox Puan.
 

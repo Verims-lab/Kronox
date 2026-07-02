@@ -235,7 +235,10 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(`${leaderboardPageSource}\n${leaderboardLibSource}\n${rankingSectionSource}`, [
         'visibleKronoxPuan',
         'getKronoxVisibleScore(user',
-        'totalKronoxScore: getKronoxVisibleScore(user',
+        'withCurrentVisibleKronoxPuan',
+        'total_kronox_score: visibleKronoxPuan',
+        'totalKronoxScore: visibleKronoxPuan',
+        'getKronoxVisibleScore(leaderboardPlayer',
         'total_kronox_score: totalKronoxScore',
         'row.summary.totalKronoxScore',
         'ownScore?.totalKronoxScore',
@@ -293,10 +296,11 @@ export const EXTRA_TESTS = [
   makeCase('online_delta_reflected_in_leaderboard_rows',
     'Online delta is included in leaderboard row Puan',
     () => {
-      const missing = missingTokens(`${leaderboardLibSource}\n${leaderboardFunctionSource}`, [
+      const missing = missingTokens(`${leaderboardLibSource}\n${leaderboardFunctionSource}\n${kronoxScoreSource}`, [
         'online_score',
         'online_progress?.score',
-        'totalKronoxScore = totalSoloScore + onlineScore',
+        'getKronoxVisibleScore(user',
+        'getSoloProgressScore(user, options) + getOnlineProgressScore(user)',
         'totalKronoxScore = summary.totalSoloScore + onlineScore',
       ]);
       if (missing.length) {
@@ -314,7 +318,8 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(`${profilePageSource}\n${leaderboardPageSource}\n${leaderboardLibSource}`, [
         'getKronoxVisibleScore(user',
         'visibleKronoxPuan',
-        'totalKronoxScore: getKronoxVisibleScore(user',
+        'totalKronoxScore: visibleKronoxPuan',
+        'getKronoxVisibleScore(leaderboardPlayer',
         'total_kronox_score: totalKronoxScore',
       ]);
       if (missing.length) {

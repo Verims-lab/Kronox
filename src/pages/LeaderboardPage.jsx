@@ -64,6 +64,20 @@ function hydrateLeaderboardRow(publicRow, friendKeys, currentOwnerKey) {
   };
 }
 
+function withCurrentVisibleKronoxPuan(row, visibleKronoxPuan) {
+  if (!row?.isCurrentUser) return row;
+  const safeScore = Number.isFinite(Number(visibleKronoxPuan))
+    ? Math.max(0, Math.floor(Number(visibleKronoxPuan)))
+    : 0;
+  return {
+    ...row,
+    summary: {
+      ...row.summary,
+      totalKronoxScore: safeScore,
+    },
+  };
+}
+
 /**
  * Codex117/Codex119/Codex150 — Public-safe Kronox leaderboard with
  * graceful fallback.
@@ -156,18 +170,20 @@ export default function LeaderboardPage() {
     const currentOwnerKey = user?.email
       ? getLeaderboardOwnerKey(user.email)
       : getGuestLeaderboardOwnerKey(completedGuestProfile?.guest_id);
-    const currentPayload = user?.email
-      ? buildSoloLeaderboardPayload(user, currentProgress)
-      : buildGuestSoloLeaderboardPayload(completedGuestProfile, currentProgress);
+    const leaderboardPlayer = user || completedGuestProfile;
+    const visibleKronoxPuan = getKronoxVisibleScore(leaderboardPlayer, { soloProgress: currentProgress });
+    const currentPayload = {
+      ...(user?.email
+        ? buildSoloLeaderboardPayload(user, currentProgress)
+        : buildGuestSoloLeaderboardPayload(completedGuestProfile, currentProgress)),
+      total_kronox_score: visibleKronoxPuan,
+    };
     const ownSummary = summarizeSoloProgress(currentProgress, getSoloLevelCount());
     const ownScoreFallback = {
-      totalKronoxScore: getKronoxVisibleScore(user, { soloProgress: currentProgress }),
+      totalKronoxScore: visibleKronoxPuan,
       totalSoloScore: ownSummary.totalSoloScore,
       currentLevel: ownSummary.currentLevel,
     };
-    if (!user?.email) {
-      ownScoreFallback.totalKronoxScore = currentPayload.total_kronox_score;
-    }
 
     const requestId = leaderboardRequestSeqRef.current + 1;
     leaderboardRequestSeqRef.current = requestId;
@@ -185,15 +201,21 @@ export default function LeaderboardPage() {
       ]);
       const topRows = (snapshot.topRows || [])
         .map((row) => hydrateLeaderboardRow(row, friendKeys, currentOwnerKey))
+        .map((row) => withCurrentVisibleKronoxPuan(row, visibleKronoxPuan))
         .filter((row) => row.id);
       const currentUserRow = snapshot.currentUserRow
-        ? hydrateLeaderboardRow(snapshot.currentUserRow, friendKeys, currentOwnerKey)
+        ? withCurrentVisibleKronoxPuan(
+          hydrateLeaderboardRow(snapshot.currentUserRow, friendKeys, currentOwnerKey),
+          visibleKronoxPuan,
+        )
         : null;
       const friendsOutsideTop = (snapshot.friendsOutsideTop || [])
         .map((row) => hydrateLeaderboardRow(row, friendKeys, currentOwnerKey))
+        .map((row) => withCurrentVisibleKronoxPuan(row, visibleKronoxPuan))
         .filter((row) => row.id);
       let rankedRows = (snapshot.rows || [])
         .map((row) => hydrateLeaderboardRow(row, friendKeys, currentOwnerKey))
+        .map((row) => withCurrentVisibleKronoxPuan(row, visibleKronoxPuan))
         .filter((row) => row.id);
       let sections = {
         topRows,
@@ -202,7 +224,8 @@ export default function LeaderboardPage() {
         friendsOutsideTop,
       };
       if (!sections.topRows.length && rankedRows.length) {
-        rankedRows = rankSoloLeaderboardEntries(snapshot.rows, friendKeys, currentOwnerKey);
+        rankedRows = rankSoloLeaderboardEntries(snapshot.rows, friendKeys, currentOwnerKey)
+          .map((row) => withCurrentVisibleKronoxPuan(row, visibleKronoxPuan));
         sections = selectLeaderboardSections(rankedRows, currentOwnerKey, LEADERBOARD_TOP_LIMIT);
       }
       const ownScoreRow = sections.currentUserRow || toSoloLeaderboardEntry(currentPayload, friendKeys, currentOwnerKey);

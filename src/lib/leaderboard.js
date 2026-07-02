@@ -3,6 +3,7 @@ import { backfillSoloScores, summarizeSoloProgress } from './soloProgressHelpers
 import { getDiamondBalance } from './diamondEconomy';
 import { isSafePublicUsername, resolveSafePublicUsername } from './guestProfile';
 import { getKronoxUserId } from './kronoxUserId';
+import { getKronoxVisibleScore } from './kronoxScore';
 import { pickPublicAvatarFields } from './avatarOptions';
 
 export const LEADERBOARD_TOP_LIMIT = 10;
@@ -150,7 +151,10 @@ export function buildSoloLeaderboardPayload(user, progress, totalLevels = LEADER
   // Online win/loss delta is added to the same Solo total used everywhere
   // (Profile/Header/Leaderboard), so rows never split Solo vs Online:
   //   totalKronoxScore = summary.totalSoloScore + onlineScore
-  const totalKronoxScore = totalSoloScore + onlineScore;
+  const totalKronoxScore = getKronoxVisibleScore(user, {
+    soloProgress: normalizedProgress,
+    totalLevels,
+  });
   const displayName = getSafeLeaderboardName(user);
   const aggregateBestTimeSeconds = getAggregateBestTimeSeconds(normalizedProgress);
 
@@ -178,6 +182,10 @@ export function buildGuestSoloLeaderboardPayload(guestProfile, progress, totalLe
   const normalizedProgress = normalizeSoloProgressForLeaderboard(progress || guestProfile?.solo_progress, totalLevels);
   const summary = summarizeSoloProgress(normalizedProgress, totalLevels);
   const totalSoloScore = Math.max(0, Number(summary.totalSoloScore) || 0);
+  const totalKronoxScore = getKronoxVisibleScore(guestProfile, {
+    soloProgress: normalizedProgress,
+    totalLevels,
+  });
   const displayName = getSafeLeaderboardName({
     ...guestProfile,
     owner_key: ownerKey,
@@ -191,7 +199,7 @@ export function buildGuestSoloLeaderboardPayload(guestProfile, progress, totalLe
     display_name: displayName,
     initial: initialFromName(displayName),
     ...pickPublicAvatarFields(guestProfile),
-    total_kronox_score: totalSoloScore,
+    total_kronox_score: totalKronoxScore,
     total_solo_score: totalSoloScore,
     online_score: 0,
     current_level: Math.max(1, Number(summary.currentLevel) || 1),
