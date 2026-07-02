@@ -553,6 +553,9 @@ Rules:
   `username` and opaque `leaderboard_id`.
 * Leaderboard sort score and displayed score must match.
 * Profile visible Puan and current user Leaderboard row Puan must match.
+* Leaderboard no longer renders the removed top Puan/Seviye/Elmas stat cards
+  or old explanatory helper sentence; score-source parity is validated through
+  public rows, the fixed `Senin Sıran` card, and safe fallback own-score UI.
 * Leaderboard should not expose unnecessary private user fields.
 * Elmas must not be derived from Kronox Puan.
 

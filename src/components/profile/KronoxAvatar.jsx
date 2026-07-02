@@ -12,16 +12,23 @@ export default function KronoxAvatar({
   size = 56,
   className = '',
   style = {},
+  variant = 'default',
+  useIconFallback = true,
+  alt = 'Profil fotoğrafı',
+  ariaHidden = false,
 }) {
   const avatar = resolveProfileAvatar(profile);
   const color = getAvatarColor(avatar.colorId);
   const [photoFailed, setPhotoFailed] = useState(false);
+  const isLeaderboardVariant = variant === 'leaderboard';
 
   useEffect(() => {
     setPhotoFailed(false);
   }, [avatar.url]);
 
-  const frameStyle = {
+  const frameStyle = isLeaderboardVariant ? {
+    ...style,
+  } : {
     width: size,
     height: size,
     borderRadius: '9999px',
@@ -31,19 +38,28 @@ export default function KronoxAvatar({
     ...style,
   };
 
-  const showPhoto = avatar.type === 'photo' && !photoFailed;
-  const IconGlyph = avatar.type === 'icon' ? getAvatarIconGlyph(avatar.iconId) : null;
+  const showPhoto = avatar.type === 'photo' && avatar.url && !photoFailed;
+  const IconGlyph = useIconFallback && avatar.type === 'icon' ? getAvatarIconGlyph(avatar.iconId) : null;
   const glyphSize = Math.round(size * 0.5);
+  const frameClassName = isLeaderboardVariant
+    ? [
+      'relative flex shrink-0 items-center justify-center overflow-hidden',
+      'leaderboard-avatar',
+      showPhoto ? '' : 'leaderboard-avatar--default',
+      className,
+    ].filter(Boolean).join(' ')
+    : `relative flex shrink-0 items-center justify-center overflow-hidden ${className}`;
 
   return (
     <div
-      className={`relative flex shrink-0 items-center justify-center overflow-hidden ${className}`}
+      className={frameClassName}
       style={frameStyle}
+      aria-hidden={ariaHidden || undefined}
     >
       {showPhoto ? (
         <img
           src={avatar.url}
-          alt="Profil fotoğrafı"
+          alt={ariaHidden ? '' : alt}
           className="h-full w-full object-cover"
           draggable={false}
           onError={() => setPhotoFailed(true)}
@@ -56,7 +72,10 @@ export default function KronoxAvatar({
           style={{ color: color.glyph }}
         />
       ) : initial ? (
-        <span className="font-bangers leading-none" style={{ color: color.glyph, fontSize: glyphSize }}>
+        <span
+          className={isLeaderboardVariant ? 'leaderboard-avatar-letter' : 'font-bangers leading-none'}
+          style={isLeaderboardVariant ? undefined : { color: color.glyph, fontSize: glyphSize }}
+        >
           {String(initial).charAt(0).toLocaleUpperCase('tr-TR')}
         </span>
       ) : (

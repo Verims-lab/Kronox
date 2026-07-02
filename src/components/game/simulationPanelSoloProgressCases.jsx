@@ -1233,10 +1233,9 @@ export const EXTRA_TESTS = [
         'summarizeSoloProgress',
         'summary.totalSoloScore',
         'getKronoxVisibleScore',
-        'visibleKronoxPuan',
-        'summary.currentLevel',
+        'totalKronoxScore: getKronoxVisibleScore(user',
+        'ownScoreFallback',
         'getLeaderboardDiamondValue',
-        'label="Elmas"',
         'Kronox Sıralaması',
       ]);
       const forbidden = forbiddenTokensFound(leaderboardPageSource, [
@@ -1252,11 +1251,11 @@ export const EXTRA_TESTS = [
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'Puan from getKronoxVisibleScore; Solo summary retained for level/progression; Elmas separate',
+          expected: 'Current-user/fallback Puan from getKronoxVisibleScore; Solo summary retained for level/progression; Elmas separate',
           actual: { required, forbidden },
         });
       }
-      return pass('Leaderboard keeps Solo summary for progression, visible Puan from unified helper, and Elmas separate from stars.', {
+      return pass('Leaderboard keeps Solo summary for progression, current-user fallback Puan from unified helper, and Elmas separate from stars.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,

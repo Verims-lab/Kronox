@@ -136,7 +136,13 @@ Profile, Settings, and list rows:
 Leaderboard:
 
 - The current user row should be obvious and competitive.
+- The approved Liderlik screen no longer has top Puan/Seviye/Elmas stat
+  cards, the old unified-score helper sentence, or the removed friends empty
+  area. Keep the centered trophy + `LİDERLİK` heading, ranking panel,
+  scrollable rows, and fixed `Senin Sıran` card above BottomNav.
 - Only the user's own row may open profile settings.
+- Leaderboard rows and the fixed current-user card use the shared
+  `KronoxAvatar` renderer, username-safe identity, rank, and unified Puan.
 - Public identity is username only.
 - Do not render email, provider ID, owner_key, raw guest_id,
   `kronox_user_id`, or internal player_key on public rows.

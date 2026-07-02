@@ -8,8 +8,9 @@
 //   error box that exposes backend internals to end users.
 //
 // CONTRACTS
-//   1. Stat cards (Puan / Seviye / Elmas) must still source from the
-//      shared Solo summary so own-score never disappears.
+//   1. The removed top stat cards must stay removed; fallback/current-user
+//      surfaces still source from the unified visible-score helpers so
+//      own-score never disappears.
 //   2. End-user-facing copy must not mention backend/permission language.
 //   3. The fallback placeholder must show the user's own unified Kronox Puan
 //      and a safe "Hazırlanıyor" rank phrase, never an invented rank.
@@ -71,38 +72,38 @@ export const EXTRA_SUITES = [
 export const EXTRA_TESTS = [
   /* 1. Own score visible even when global load fails. */
   makeCase('leaderboard_fallback', 'leaderboard_own_score_visible_when_global_load_fails',
-    'Stat cards + fallback placeholder both source the user\'s own visible Kronox Puan/Seviye so the screen never feels broken when global ranking fails',
+    'Current-user card + fallback placeholder source the user\'s own visible Kronox Puan so the screen never feels broken when global ranking fails',
     () => {
-      // Page must keep computing & rendering Puan/Seviye/Elmas tiles from
-      // getKronoxVisibleScore + summarizeSoloProgress regardless of
-      // leaderboard error state — i.e. those values are derived OUTSIDE
-      // the leaderboard fetch's try/catch.
+      // The old top Puan/Seviye/Elmas stat cards were intentionally removed.
+      // The page still computes unified own-score fallback outside the global
+      // leaderboard fetch so the sticky "Senin Sıran" card and fallback panel
+      // can render a safe current-user score if global ranking fails.
       const pageMissing = missingTokens(leaderboardPageSource, [
         'summarizeSoloProgress(progress, getSoloLevelCount())',
         'getKronoxVisibleScore',
-        'value={visibleKronoxPuan}',
-        'value={summary.currentLevel}',
-        'value={diamondValue}',
         // Fallback payload travels alongside the leaderboard state so
         // the section component can render own Puan in the placeholder.
         'ownScoreFallback',
       ]);
-      // The section component must render Senin Puanın from ownScore.
+      // The section component must render the sticky current-user card and
+      // fallback "Senin Puanın" from ownScore.
       const sectionMissing = missingTokens(kronoxRankingSectionSource, [
+        'my-rank-sticky',
+        'Senin Sıran',
         'Senin Puanın',
         'ownScore?.totalKronoxScore',
       ]);
       if (pageMissing.length || sectionMissing.length) {
-        return fail('Own-score visibility contract broken: a global load failure could hide the user\'s real Puan/Seviye.', {
+        return fail('Own-score visibility contract broken: a global load failure could hide the user\'s real Puan.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'pages/LeaderboardPage.jsx + components/leaderboard/KronoxRankingSection.jsx',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'stat tiles use visible Kronox Puan + Solo level outside the leaderboard fetch; placeholder reads ownScoreFallback',
+          expected: 'current-user card/fallback use visible Kronox Puan outside the leaderboard fetch; placeholder reads ownScoreFallback',
           actual: { pageMissing, sectionMissing },
         });
       }
-      return pass('Own Puan/Seviye/Elmas stays visible independent of global ranking state.', {
+      return pass('Own Puan stays visible through the current-user card/fallback independent of global ranking state.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
@@ -212,9 +213,9 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX, critical: false }),
 
-  /* 5. Stat cards continue using shared visible score + Solo level sources. */
+  /* 5. Current-user/fallback score continues using shared visible score source. */
   makeCase('leaderboard_fallback', 'leaderboard_stat_cards_use_solo_source',
-    'Puan / Seviye / Elmas tiles read from getKronoxVisibleScore + summarizeSoloProgress + getLeaderboardDiamondValue',
+    'Current-user/fallback Puan reads from getKronoxVisibleScore while removed top stat cards stay removed',
     () => {
       const pageMissing = missingTokens(leaderboardPageSource, [
         "from '@/lib/soloProgressHelpers'",
@@ -224,21 +225,25 @@ export const EXTRA_TESTS = [
         'summarizeSoloProgress(progress, getSoloLevelCount())',
         'getKronoxVisibleScore',
         'getLeaderboardDiamondValue(user)',
+        'totalKronoxScore: getKronoxVisibleScore(user',
+      ]);
+      const pageForbidden = forbiddenTokensFound(leaderboardPageSource, [
+        '<KronoxStatTile',
         'value={visibleKronoxPuan}',
         'value={summary.currentLevel}',
         'value={diamondValue}',
       ]);
-      if (pageMissing.length) {
-        return fail('Stat cards no longer use the shared visible-score/Solo/economy source.', {
+      if (pageMissing.length || pageForbidden.length) {
+        return fail('Current-user/fallback visible-score source drifted or removed top stat cards returned.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'pages/LeaderboardPage.jsx',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'Puan from getKronoxVisibleScore; Level from summarizeSoloProgress; Elmas from getLeaderboardDiamondValue',
-          actual: { pageMissing },
+          expected: 'Own/fallback Puan from getKronoxVisibleScore; no removed Leaderboard top stat cards',
+          actual: { pageMissing, pageForbidden },
         });
       }
-      return pass('Stat cards read from the single shared visible-score + Solo + economy sources of truth.', {
+      return pass('Current-user/fallback Puan reads from the shared visible-score source and the removed top stat cards remain absent.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,

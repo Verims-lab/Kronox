@@ -417,6 +417,11 @@ Economy ledgers and balances must not be cleared by question analytics reset.
 
 Leaderboard displays unified `Kronox Puan`.
 
+The current Liderlik UI shows a centered trophy heading, global ranking rows,
+and a fixed `Senin Sıran` card above BottomNav. The old top Puan/Seviye/Elmas
+summary cards, old helper sentence, and removed friends empty area are not part
+of the active Leaderboard screen.
+
 Public identity:
 
 * username
