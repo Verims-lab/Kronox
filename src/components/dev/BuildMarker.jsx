@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex537 — Unified Liderlik visible-score source fix:
+//   • LeaderboardPage now computes one visibleKronoxPuan value for the current linked-or-guest player, applies it to the current-player public row, fixed "Senin Sıran" card, and fallback own-score state, and keeps global row ranking/data source unchanged.
+//   • buildSoloLeaderboardPayload/buildGuestSoloLeaderboardPayload now use getKronoxVisibleScore for total_kronox_score so background projection writes match the approved materialized visible Puan source instead of a derived-only fallback.
+//   • Unified Kronox Score Health/docs/mirrors now guard current row/card/fallback source parity without restoring removed top stat cards, helper copy, or Friends area.
+//
 // Codex536 — Health blocker alignment for MR3RATHD:
 //   • AdminPage now uses the canonical "Admin Ekranı" title text while the shared Admin title class keeps the approved uppercase visual treatment and the existing AdminUser gate/tools remain unchanged.
 //   • Leaderboard rows/current-user card now render avatars through shared KronoxAvatar with a leaderboard variant; Health/docs retarget stale checks away from removed top stat cards, removed helper copy, and removed friends empty area while preserving materialized score/privacy contracts.
@@ -194,7 +199,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex536';
+const BUILD_MARKER = 'Codex537';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
