@@ -261,4 +261,26 @@
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
   }
+
+  .leaderboard-page {
+    min-height: 100dvh;
+    width: 100%;
+    background-color: #061225;
+    background-image:
+      radial-gradient(
+        ellipse at 50% 24%,
+        rgba(58, 137, 220, 0.20) 0%,
+        rgba(25, 77, 139, 0.09) 36%,
+        transparent 62%
+      ),
+      linear-gradient(
+        180deg,
+        #061225 0%,
+        #0A2346 46%,
+        #0B2852 68%,
+        #061225 100%
+      );
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+  }
 }

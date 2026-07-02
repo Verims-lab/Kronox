@@ -393,19 +393,15 @@ export default function LeaderboardPage() {
 
   return (
     <div
-      className="min-h-screen bg-background text-white"
+      className="leaderboard-page text-white"
       style={{
-        paddingTop: 'calc(4rem + env(safe-area-inset-top))',
-        paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))',
-        background:
-          'radial-gradient(ellipse at 50% 12%, rgba(59,130,246,0.30), transparent 45%), linear-gradient(180deg, #050b1c 0%, #0a1738 55%, #03060f 100%)',
         userSelect: 'none',
       }}
     >
       <StandardTopBar diamonds={diamondValue} user={user} />
 
       <PullToRefresh onRefresh={loadLeaderboard} disabled={!leaderboardPlayer}>
-        <div className="mx-auto w-full max-w-md px-4 mt-2 space-y-3">
+        <div className="mx-auto w-full max-w-md px-4 pt-16 mt-2 space-y-3">
           <div
             className="rounded-2xl p-5 text-center"
             style={{
