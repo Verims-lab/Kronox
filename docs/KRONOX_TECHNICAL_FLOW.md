@@ -49,6 +49,14 @@ Primary mobile shell constraints:
 * Gameplay avoids page-level vertical scroll where possible.
 * timeline horizontal scroll is intentional and contained.
 * Settings/Admin/Health/report pages may scroll.
+* The root viewport is locked to scale 1 and the App shell owns a centralized
+  zoom-prevention guard for pinch, double-tap, iOS gesture events, and
+  ctrl/meta-wheel zoom.
+* Zoom prevention must not block one-finger drag, timeline horizontal
+  scroll/auto-scroll, normal scrollable panels, BottomNav taps, modals, or
+  inputs.
+* Native Android/iOS wrapper files remain outside this repo scope for the
+  zoom-prevention contract.
 
 ---
 

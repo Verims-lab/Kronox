@@ -9,6 +9,9 @@ import gameLayoutSource from './GameLayout.jsx?raw';
 import questionCardSource from './QuestionCard.jsx?raw';
 import timelineSource from './Timeline.jsx?raw';
 import indexCssSource from '../../index.css?raw';
+import appSource from '../../App.jsx?raw';
+import preventAppZoomSource from '../../hooks/usePreventAppZoom.js?raw';
+import indexHtmlSource from '../../../index.html?raw';
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL', NOT_AUTOMATABLE: 'NOT_AUTOMATABLE' };
 const ACTION_TYPES = { CODE_FIX: 'CODE_FIX', DEVICE_TEST: 'DEVICE_TEST' };
@@ -22,6 +25,11 @@ function safeStr(source) {
 function missingTokens(source, tokens) {
   const src = safeStr(source);
   return tokens.filter((token) => !src.includes(token));
+}
+
+function forbiddenTokensFound(source, tokens) {
+  const src = safeStr(source);
+  return tokens.filter((token) => src.includes(token));
 }
 
 function pass(reason, extra = {}) { return { status: STATUS.PASS, reason, ...extra }; }
@@ -46,6 +54,76 @@ function makeCase(suiteId, suiteName, id, name, run, options = {}) {
 export const EXTRA_SUITES = [];
 
 export const EXTRA_TESTS = [
+  makeCase('mobile_viewport', 'Mobile Viewport Suite',
+    'root_viewport_locked_to_scale_one',
+    'Root viewport meta locks Kronox to app scale 1',
+    () => {
+      const viewportMatches = safeStr(indexHtmlSource).match(/<meta\s+name=["']viewport["'][^>]*>/gi) || [];
+      const viewport = viewportMatches[0] || '';
+      const missing = missingTokens(viewport, [
+        'width=device-width',
+        'initial-scale=1',
+        'maximum-scale=1',
+        'minimum-scale=1',
+        'user-scalable=no',
+        'viewport-fit=cover',
+      ]);
+      if (viewportMatches.length !== 1 || missing.length) return fail('Root viewport meta is missing, duplicated, or allows page scaling.', {
+        verification: 'STATIC_CONTRACT',
+        file: 'index.html',
+        actual: { viewportCount: viewportMatches.length, missing },
+      });
+      return pass('index.html has exactly one viewport meta tag locked to scale 1 with viewport-fit=cover.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('mobile_viewport', 'Mobile Viewport Suite',
+    'app_shell_zoom_guard_mounted_once',
+    'App shell mounts one centralized zoom-prevention guard',
+    () => {
+      const missing = missingTokens(`${appSource}\n${preventAppZoomSource}`, [
+        "import usePreventAppZoom from '@/hooks/usePreventAppZoom'",
+        'usePreventAppZoom();',
+        'KRONOX_LOCKED_VIEWPORT_CONTENT',
+        "document.querySelectorAll('meta[name=\"viewport\"]')",
+        "viewportMetas.slice(1).forEach((node) => node.remove())",
+      ]);
+      if (missing.length) return fail('Central app-shell zoom guard is missing or not mounted at App root.', {
+        verification: 'STATIC_CONTRACT',
+        files: ['src/App.jsx', 'src/hooks/usePreventAppZoom.js'],
+        missing,
+      });
+      return pass('App mounts a single centralized zoom guard and normalizes duplicate viewport metas at runtime.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('mobile_gesture_risk', 'Mobile Gesture Risk Suite',
+    'zoom_guard_blocks_only_scale_gestures',
+    'Zoom guard blocks scale gestures without blocking one-finger gameplay touch',
+    () => {
+      const missing = missingTokens(preventAppZoomSource, [
+        "document.addEventListener('gesturestart', preventGestureZoom, nonPassiveCapture)",
+        "document.addEventListener('gesturechange', preventGestureZoom, nonPassiveCapture)",
+        "document.addEventListener('gestureend', preventGestureZoom, nonPassiveCapture)",
+        "document.addEventListener('touchmove', preventMultiTouchZoom, nonPassiveCapture)",
+        'event.touches && event.touches.length > 1',
+        "window.addEventListener('wheel', preventWheelZoom, nonPassiveCapture)",
+        'event.ctrlKey || event.metaKey',
+        "document.addEventListener('touchend', preventDoubleTapZoom, nonPassiveCapture)",
+        "document.addEventListener('dblclick', preventDoubleClickZoom, nonPassiveCapture)",
+        'isEditableTarget(event.target)',
+        'return () => {',
+      ]);
+      const forbidden = forbiddenTokensFound(preventAppZoomSource, [
+        'touches.length >= 1',
+        'touches.length > 0',
+      ]);
+      if (missing.length || forbidden.length) return fail('Zoom guard may block normal one-finger touch or lacks scale gesture coverage.', {
+        verification: 'STATIC_CONTRACT',
+        file: 'src/hooks/usePreventAppZoom.js',
+        actual: { missing, forbidden },
+      });
+      return pass('Zoom guard prevents iOS gesture events, multi-touch touchmove, ctrl/meta wheel, and double-tap zoom while preserving one-finger touchmove.', { verification: 'STATIC_CONTRACT' });
+    }),
+
   makeCase('mobile_gesture_risk', 'Mobile Gesture Risk Suite',
     'gameplay_drag_lock_class_lifecycle',
     'Gameplay card drag adds/removes a scoped drag-lock class',

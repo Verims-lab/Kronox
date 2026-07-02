@@ -102,6 +102,10 @@ harness or recorded proof exists. This includes:
 * push/VAPID deployment proof.
 * destructive account deletion proof.
 * Android wrapper, safe-area, notch, gesture, and real-device drag/drop proof.
+* In-app pinch/page zoom is disabled globally by the web app shell. The locked
+  viewport and zoom guard must preserve one-finger Solo drag/drop, timeline
+  horizontal scroll/auto-scroll, BottomNav taps, modals, inputs, and normal
+  scrollable panels.
 * parallel economy/idempotency proof where platform uniqueness is not proven.
 
 ## Validation

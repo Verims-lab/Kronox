@@ -656,6 +656,9 @@ Checklist:
 
 * Home is no-scroll.
 * Home respects safe area.
+* Pinch zoom, double-tap zoom, iOS gesture zoom, and ctrl/meta-wheel page zoom
+  do not change Kronox UI scale on Home, Solo gameplay, Liderlik, Profile,
+  Market, Admin/Health, and reward modal surfaces.
 * Home / Ana Sayfa does not show Google / Apple / email login buttons or a
   secure-progress / `Hesabını bağla` account-link card; guest account linking is
   available from Profile instead. The first-launch welcome may show `Hesabım
@@ -664,6 +667,8 @@ Checklist:
 * Solo map scrolls only the map/path area.
 * Gameplay does not page-scroll during drag.
 * Timeline horizontal scroll still works.
+* Solo card drag/drop, getBoundingClientRect hit-testing, and timeline
+  horizontal auto-scroll still work after the global zoom guard is active.
 * Bottom nav does not collide with home indicator.
 * BottomNav visible tabs are Ana Sayfa, Liderlik, and Profil only. Online is
   launched from Home through Online Kapışma, not from BottomNav. Switching

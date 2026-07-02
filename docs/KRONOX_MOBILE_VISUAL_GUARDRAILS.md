@@ -15,6 +15,12 @@ checks that source code and static Health cannot honestly prove alone.
 * Use safe-area padding around top bars, bottom CTAs, sheets, and BottomNav.
 * Touch targets stay reachable and readable with system font scaling.
 * Keyboard focus does not hide form actions or trap scroll.
+* In-app pinch/page zoom is disabled globally by the app shell: viewport scale
+  remains 1 across Home, Game, Solo map, Liderlik, Profile, Market, Admin,
+  Health, Daily Wheel, Daily Quest, and routed modal surfaces.
+* The zoom guard targets scale gestures only. It must not block one-finger card
+  drag, timeline horizontal scroll/auto-scroll, normal page/panel scroll,
+  BottomNav taps, form inputs, or modal actions.
 * Pull-to-refresh/overscroll guards are scoped to the relevant container or
   active gameplay drag only.
 * Reduced motion keeps functional feedback without relying on long animations.
@@ -58,6 +64,9 @@ checks that source code and static Health cannot honestly prove alone.
 ## PWA
 
 * Direct URL routes load correctly in installed/standalone and browser modes.
+* Browser/PWA/WebView zoom prevention is web-owned in `index.html` plus the
+  root app-shell zoom guard; native Android/iOS wrapper files are not edited
+  for this contract.
 * Service worker/cache updates do not leave stale question/runtime bundles after
   a question-set or function contract change.
 * Push notification UI is feature-detected and remains optional; in-app invite
@@ -76,7 +85,8 @@ checks that source code and static Health cannot honestly prove alone.
 * `npm run check:ios-icons` is required before archive upload, but App Store
   Connect validation remains the final proof.
 * Safari/PWA drag, safe-area, keyboard, home-indicator, and back navigation
-  behavior require real-device proof.
+  behavior require real-device proof, including pinch/double-tap zoom rejection
+  and preserved Solo drag/timeline scroll.
 * Privacy URL and App Store privacy answers must match the live app behavior.
 
 ## Android

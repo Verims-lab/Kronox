@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex529 — Global in-app zoom prevention:
+//   • index.html locks the app viewport to scale 1 and the App root mounts usePreventAppZoom once for WebView/PWA/browser runtime guardrails.
+//   • The guard blocks iOS gesture zoom, multi-touch pinch movement, ctrl/meta-wheel zoom, and double-tap zoom while leaving one-finger touchmove, Solo drag/drop, timeline horizontal scroll, BottomNav taps, modals, and inputs functional.
+//   • Mobile docs/mirrors/Health now guard the no-zoom contract without touching native Android/iOS files, scoring, economy, Online, Daily Wheel, or Daily Quest behavior.
+//
 // Codex528 — Special Solo move-buffer rule:
 //   • Special Solo levels now start at level 5 and every fifth level after, keep the 10-card timeline target, and use 13 evaluated moves instead of the normal 10 so the extra moves are only a mistake buffer.
 //   • Special Solo route/retry/next-level configs, runtime move enforcement, backend getQuestions deck sizing, docs, mirrors, and Health expectations now agree on normal 18-card/10-move and special 21-card/13-move rules.
@@ -153,7 +158,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex528';
+const BUILD_MARKER = 'Codex529';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

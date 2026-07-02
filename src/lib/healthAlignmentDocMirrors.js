@@ -537,17 +537,20 @@ Status: Active manual visual/platform release gate.
 - Use safe-area padding around top bars, bottom CTAs, sheets, and BottomNav.
 - Touch targets stay reachable and readable with system font scaling.
 - Keyboard focus does not hide form actions or trap scroll.
+- In-app pinch/page zoom is disabled globally by the app shell; viewport scale remains 1 across routed Kronox screens.
+- The zoom guard targets scale gestures only and must not block one-finger Solo drag/drop, timeline horizontal scroll/auto-scroll, normal scrollable panels, BottomNav taps, form inputs, or modals.
 - Pull-to-refresh/overscroll guards are scoped to the relevant container or active gameplay drag only.
 - Reduced motion keeps functional feedback without relying on long animations.
 - Loading/error/retry states are local to the affected section when possible.
 - Health Center report actions, case details, copy buttons, clipboard fallback textarea, manual proof details, and raw JSON preview must fit narrow mobile widths without horizontal overflow.
 - Direct URL routes load correctly in installed/standalone and browser modes.
+- Browser/PWA/WebView zoom prevention is web-owned in index.html plus the root app-shell zoom guard; native Android/iOS wrapper files are not edited for this contract.
 - Service worker/cache updates do not leave stale question/runtime bundles after a question-set or function contract change.
 - Push notification UI is feature-detected and remains optional.
 - Offline UI is shown only for real offline or failed fetch plus no usable cache.
 - Final App Store icon proof is the exported IPA / WixOneApp.app, not only source PNGs.
 - npm run check:ios-icons is required before archive upload, but App Store Connect validation remains the final proof.
-- Safari/PWA drag, safe-area, keyboard, home-indicator, and back navigation behavior require real-device proof.
+- Safari/PWA drag, safe-area, keyboard, home-indicator, pinch/double-tap zoom rejection, and back navigation behavior require real-device proof.
 - Privacy URL and App Store privacy answers must match the live app behavior.
 - Android wrapper edge-to-edge behavior, status/navigation bar handling, back button behavior, orientation, tablet/foldable resizability, and Play Console quality warnings require AAB/device/Play proof.
 - Web/PWA source checks do not prove native wrapper behavior.
