@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex534 — Liderlik ranking panel/list polish:
+//   • KronoxRankingSection now uses the requested .leaderboard-panel, .leaderboard-section-title, .leaderboard-list, .leaderboard-row, and .leaderboard-rank classes, with the old "Tüm oyuncular arasında..." helper copy removed.
+//   • The list is internally scrollable with mobile containment while preserving row rank/avatar/username/badge/score data, materialized score sourcing, BottomNav, safe areas, and the approved Liderlik background/header.
+//   • Leaderboard Health now guards the panel/list/row/rank visual contract and the removed helper text.
+//
 // Codex533 — Admin Panel visual standardization:
 //   • AdminPage and AdminCollapsibleSection now share adminVisualStyles for one consistent card shape, border/background, icon container, title font, description font, summary badge, and section/header typography.
 //   • The eight Admin tool entries remain present and keep their existing routes/actions; AdminUser gate, report tools, Health Simulator, Test Elmas, cleanup, and reset behavior are unchanged.
@@ -179,7 +184,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex533';
+const BUILD_MARKER = 'Codex534';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
