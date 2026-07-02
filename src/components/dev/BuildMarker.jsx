@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex530 — Health blocker fixes (KRONOX-MR3JXNK3):
+//   • Base44 SDK exact pin: package.json and package-lock.json (root spec + installed node_modules/@base44/sdk block version/resolved/integrity) re-pinned from ^0.8.35 to exactly 0.8.34 with the real 0.8.34 tarball + integrity; no caret/range remains and critical Base44 Deno functions already import npm:@base44/sdk@0.8.34.
+//   • Solo P3 repeated-deck coverage: the "100 normal decks" simulation now cycles only normal levels [1,2,3,4,6,7,8,9] instead of (index % 9)+1, which had leaked special level 5 (21-card deck). 100 normal decks now select exactly 100 × 18 = 1800 cards, matching the expectation, while diversity/cooldown/first-five spacing rules are unchanged.
+//   • Health alignment doc freshness: the scoring doc mirror + canonical docs/KRONOX_SCORING_RULES.md now carry the exact "Deck sizing is 2 anchors + 10 playable moves + Kart Değiştir buffer + Kronokalkan buffer" normal-level phrasing the alignment case scans.
+//   • Solo Health registration: the alignment expectation now references the real current cases special_deck_size_is_21 and solo_attempt_uses_level_specific_move_limits (removed stale special_deck_size_is_19 / solo_move_based_runtime_contract tokens), and a new executable solo_attempt_fails_on_10th_move case proves normal Solo fails exactly on the 10th evaluated move while special keeps the 13-move buffer. Scoring, special 10-correct/13-move rules, economy, auth, navigation, and Home are unchanged.
+//
 // Codex529 — Global in-app zoom prevention:
 //   • index.html locks the app viewport to scale 1 and the App root mounts usePreventAppZoom once for WebView/PWA/browser runtime guardrails.
 //   • The guard blocks iOS gesture zoom, multi-touch pinch movement, ctrl/meta-wheel zoom, and double-tap zoom while leaving one-finger touchmove, Solo drag/drop, timeline horizontal scroll, BottomNav taps, modals, and inputs functional.
@@ -158,7 +164,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex529';
+const BUILD_MARKER = 'Codex530';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

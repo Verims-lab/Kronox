@@ -93,7 +93,7 @@ Each Solo level:
 * starts with 2 timeline anchor cards
 * normal levels have 10 evaluated placement moves
 * special levels have 13 evaluated placement moves, only as a mistake buffer
-* Deck sizing is anchors + level-specific playable moves + Kart Değiştir/Kronokalkan buffer
+* Deck sizing is 2 anchors + 10 playable moves + Kart Değiştir buffer + Kronokalkan buffer for normal levels, and 2 anchors + 13 playable moves + Kart Değiştir buffer + Kronokalkan buffer for special levels
 * fails when the level-specific move limit is used and the target card count has not been reached
 
 Constants:

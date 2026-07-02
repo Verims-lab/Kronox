@@ -254,7 +254,7 @@ function runP3RepeatedDeckSimulation({ builds = 100 } = {}) {
   for (let index = 0; index < builds; index += 1) {
     const result = buildSoloAttemptDeck({
       pool,
-      levelNumber: (index % 9) + 1,
+      levelNumber: [1, 2, 3, 4, 6, 7, 8, 9][index % 8],
       seedCount: 2,
       recentlySeenQuestionIds: recentIds,
       questionExposureStats: exposureStats,

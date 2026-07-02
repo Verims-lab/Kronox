@@ -31,8 +31,8 @@ every 5 levels; they require 10 correct timeline cards, including seed cards
 already on the timeline.
 All new Solo attempts use a 180 seconds timer and 2 timeline anchor cards.
 Normal levels use 10 evaluated moves; special levels use 13 evaluated moves
-only as a mistake buffer. Deck sizing is anchors + level-specific playable
-moves + Kart Değiştir/Kronokalkan buffer. The visible counter is HAMLE /
+only as a mistake buffer. Deck sizing is 2 anchors + 10 playable moves + Kart Değiştir buffer + Kronokalkan buffer for normal levels, and 2 anchors + 13 playable moves + Kart Değiştir buffer + Kronokalkan buffer for special levels.
+The visible counter is HAMLE /
 remaining moves. A valid evaluated placement consumes one move; touch, drag
 start, invalid drop, joker activation, and tutorial popups do not consume
 moves. Using the level-specific move limit without the target card count fails

@@ -1374,6 +1374,65 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
+  makeCase('solo_progress_health', 'solo_attempt_fails_on_10th_move',
+    'Normal Solo fails exactly on the 10th evaluated move without the target; special buffer stays 13',
+    () => {
+      // Real runtime proof through the shared scoring helper: a normal level
+      // that reaches its 10th evaluated move without the 7-card target must
+      // fail with failReason 'moves' and 0 score. The 9th move must still be
+      // playable, and special levels must not fail at 10 (they keep 3 buffer
+      // moves up to 13). Scoring constants are unchanged.
+      const ninthMoveNormal = calculateSoloAttemptResult({
+        usedMoves: 9,
+        completedCards: 6,
+        elapsedSeconds: 70,
+        requiredCards: 7,
+        maxMoves: getSoloMaxEvaluatedMovesForLevel(1),
+      });
+      const tenthMoveNormalFail = calculateSoloAttemptResult({
+        usedMoves: 10,
+        completedCards: 6,
+        elapsedSeconds: 70,
+        requiredCards: 7,
+        maxMoves: getSoloMaxEvaluatedMovesForLevel(1),
+      });
+      const tenthMoveSpecialStillRunning = calculateSoloAttemptResult({
+        usedMoves: 10,
+        completedCards: 9,
+        elapsedSeconds: 70,
+        requiredCards: 10,
+        maxMoves: getSoloMaxEvaluatedMovesForLevel(5),
+      });
+      const failures = [];
+      if (ninthMoveNormal.passed || ninthMoveNormal.failReason === 'moves') {
+        failures.push('9th normal move already treated as a move-limit failure');
+      }
+      if (!tenthMoveNormalFail || tenthMoveNormalFail.passed || tenthMoveNormalFail.failReason !== 'moves' || tenthMoveNormalFail.levelScore !== 0) {
+        failures.push('10th normal evaluated move without target did not fail with 0 score');
+      }
+      if (getSoloMaxEvaluatedMovesForLevel(1) !== 10 || SOLO_SPECIAL_MAX_EVALUATED_MOVES !== 13) {
+        failures.push('normal 10 / special 13 evaluated move limits drifted');
+      }
+      if (tenthMoveSpecialStillRunning.failReason === 'moves') {
+        failures.push('special level failed at the 10th move instead of keeping the 13-move buffer');
+      }
+      if (failures.length) {
+        return fail('Normal Solo 10th-move failure contract drifted.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'normal Solo fails only on the 10th evaluated move without the target; special keeps buffer through 13',
+          actual: { ninthMoveNormal, tenthMoveNormalFail, tenthMoveSpecialStillRunning },
+        });
+      }
+      return pass('Normal Solo fails exactly on the 10th evaluated move without the target while special retains the 13-move buffer; scoring unchanged.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'EXECUTABLE_HELPER_PROOF',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
   // Honest runtime gap — actual audible playback requires a real device.
   makeCase('solo_progress_health', 'solo_last_10_seconds_audio_runtime_proof',
     'Actual audible last-10s cue playback proof on a real device',
