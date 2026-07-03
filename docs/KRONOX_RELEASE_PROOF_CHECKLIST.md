@@ -397,8 +397,8 @@ Checklist:
   `idempotency_key` after create; this is function-level guard only.
 * DiamondTransaction risk classification is Low only with DB/entity unique plus
   code guard; Medium/P1 hardening with code guard only; High if neither exists.
-* Home shows compact `Görevler` and `Çark` shortcuts above
-  `SOLO MEYDAN OKUMA`; tapping them opens centered Daily Quest and Daily Wheel
+* Home shows compact `Görevler` and `Çark` shortcuts above the primary
+  `OYNA` / dynamic `Seviye X` Solo CTA; tapping them opens centered Daily Quest and Daily Wheel
   popups without rendering an expanded `Günlük Ödüller` panel on first Home
   render.
 * Home logo and hourglass visuals use local `/assets/ui/` PNG assets on the
@@ -494,7 +494,9 @@ Checklist:
 * Home shows the larger centered transparent Kronox logo, larger centered local
   hourglass visual with no visible wrapper/background block, compact `Görevler`
   / `Çark` shortcuts with ready badges, centered shortcut popups, and large
-  `SOLO MEYDAN OKUMA` / `ONLINE KAPIŞMA` CTAs balanced above BottomNav.
+  `OYNA` / dynamic `Seviye X` and `ONLINE KAPIŞMA` CTAs with equal dimensions
+  balanced above BottomNav. The Solo CTA direct-starts the resolved current/next
+  Solo level; Online remains Home CTA-owned.
 * Mağaza Phase 1 sells only three Solo jokers:
   `Zaman Dondur = 40` Diamonds, `Kart Değiştir = 50` Diamonds,
   `Kronokalkan = 60` Diamonds.

@@ -86,6 +86,10 @@ fallback polling/refetch.
 - Updated question analytics reset coverage so the Admin card must list
   report names, actual source tables, Joker/rhythm sub-reports, and protected
   non-reset data instead of a dense paragraph.
+- Updated Home CTA coverage so static checks require the primary `OYNA` /
+  dynamic `Seviye X` Solo CTA to use canonical Solo progress, direct-start the
+  resolved level, keep equal dimensions with `ONLINE KAPIŞMA`, and preserve
+  Online as Home CTA-owned.
 - Added admin user-report coverage for the `Kullanıcı Raporu` aggregate-only
   privacy contract and server-time `recordAppOpen` latest-open/coarse-platform
   tracking. This proves source contracts only; deployed admin/non-admin access,

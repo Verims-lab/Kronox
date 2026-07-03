@@ -30,9 +30,13 @@ Static UI images for Kronox may live here. Adding a file here does not automatic
   transparent hourglass, and right `Çark`. The local hourglass PNG must keep a
   real alpha channel; runtime code must not rely on a black-background screen
   blend workaround or add image filters that create a rectangular shadow block.
-- The Home CTA stack keeps its button sizes and internal gap; only its stack
-  position is balanced so the hourglass-to-Solo and Online-to-BottomNav gaps
-  read as equivalent.
+- The Home CTA stack keeps its shared button dimensions and internal gap; only
+  its stack position is balanced so the hourglass-to-Solo and
+  Online-to-BottomNav gaps read as equivalent.
+- The primary Home CTA is `OYNA` / dynamic `Seviye X`, sourced from the same
+  Solo progress helpers as the Solo level path, and direct-starts that resolved
+  Solo level. The secondary Home CTA is `ONLINE KAPIŞMA`, remains Home-owned,
+  and uses the same dimensions as the primary CTA.
 - `Görevler` and `Çark` open centered popups from Home; they must not behave as
   bottom sheets or page-like first-render panels.
 - Home press feedback is CSS/Framer Motion based, not a pressed-image swap.

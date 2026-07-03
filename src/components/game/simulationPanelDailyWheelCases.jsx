@@ -75,7 +75,7 @@ export const EXTRA_TESTS = [
     () => {
       const src = safeStr(mainMenuSource);
       const shortcutIndex = src.indexOf('label="Görevler"');
-      const soloIndex = src.indexOf('label="SOLO MEYDAN OKUMA"');
+      const soloIndex = src.indexOf('primaryLabel="OYNA"');
       const missing = missingTokens(`${src}\n${dailyRewardsPanelSource}`, [
         'HomeShortcut',
         'HomeShortcutModal',
@@ -94,7 +94,9 @@ export const EXTRA_TESTS = [
         'Günlük Görev',
         'getLeaderboardDiamondValue(user || completedGuestProfile)',
         'onUserUpdated={handleDailyWheelUserPatch}',
-        'label="SOLO MEYDAN OKUMA"',
+        'primaryLabel="OYNA"',
+        '`Seviye ${homeSoloLevelNumber}`',
+        'buildSoloGameConfigForLevel',
         'label="ONLINE KAPIŞMA"',
       ]);
       const forbidden = forbiddenTokens(src, [

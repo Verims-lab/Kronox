@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex538 — Home primary Solo CTA direct-start + secondary Online CTA styling:
+//   • MainMenu now derives the Home Solo CTA's dynamic Seviye value from the shared Solo progress helpers and direct-starts the resolved playable level via buildSoloGameConfigForLevel -> /game.
+//   • Home CTAs now render OYNA / Seviye X and ONLINE KAPIŞMA with equal dimensions, requested yellow/blue gradients, borders, glow, and centered Montserrat typography.
+//   • Home CTA docs/mirrors/Health scans now guard the direct-start/equal-dimension contract while preserving Solo/Online scoring, rewards, BottomNav, and Online Home ownership.
+//
 // Codex537 — Unified Liderlik visible-score source fix:
 //   • LeaderboardPage now computes one visibleKronoxPuan value for the current linked-or-guest player, applies it to the current-player public row, fixed "Senin Sıran" card, and fallback own-score state, and keeps global row ranking/data source unchanged.
 //   • buildSoloLeaderboardPayload/buildGuestSoloLeaderboardPayload now use getKronoxVisibleScore for total_kronox_score so background projection writes match the approved materialized visible Puan source instead of a derived-only fallback.
@@ -199,7 +204,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex537';
+const BUILD_MARKER = 'Codex538';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
