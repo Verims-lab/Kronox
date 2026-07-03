@@ -27,6 +27,7 @@ import deployedReportSource from '../../../base44/functions/sendQuestionAnalytic
 import packageJsonSource from '../../../package.json?raw';
 import base44FunctionCompileScriptSource from '../../../scripts/checkBase44FunctionsCompile.mjs?raw';
 import adminResetUserProgressSource from '../../../base44/functions/adminResetUserProgress/entry.ts?raw';
+import adminResetDailyWheelStateSource from '../../../base44/functions/adminResetDailyWheelState/entry.ts?raw';
 import aggregateQuestionStatsSource from '../../../base44/functions/aggregateQuestionStats/entry.ts?raw';
 import cancelStaleLobbiesSource from '../../../base44/functions/cancelStaleLobbies/entry.ts?raw';
 import cleanupAdminMaintenanceLogSource from '../../../base44/functions/cleanupAdminMaintenanceLog/entry.ts?raw';
@@ -116,6 +117,7 @@ const KNOWN_BACKEND_FUNCTIONS = new Set([
 
 const DEPLOY_RISK_BASE44_FUNCTIONS = [
   { name: 'adminResetUserProgress', source: adminResetUserProgressSource },
+  { name: 'adminResetDailyWheelState', source: adminResetDailyWheelStateSource },
   { name: 'aggregateQuestionStats', source: aggregateQuestionStatsSource },
   { name: 'cancelStaleLobbies', source: cancelStaleLobbiesSource },
   { name: 'cleanupAdminMaintenanceLog', source: cleanupAdminMaintenanceLogSource },

@@ -370,6 +370,24 @@ Rules:
 * reset writes `User.progress_reset_at` so client-side user progress mirrors are invalidated
 * admin/target/mode/timestamp/result are recorded in `AdminMaintenanceLog`
 
+Daily Wheel test reset:
+
+```text
+POST /adminResetDailyWheelState
+```
+
+Rules:
+
+* requires authenticated active AdminUser owner/admin context server-side
+* unauthenticated callers receive 401
+* authenticated non-admin callers receive 403
+* input is Kronox User ID only
+* resets today’s Daily Wheel test state only: free-spin guard, next-available guard, auto-popup reset marker, and blocking same-day wheel idempotency rows
+* preserves completed reward/audit rows by archiving same-day DailyWheelSpin, DiamondTransaction, and JokerTransaction idempotency keys
+* does not grant rewards or reverse previously awarded Diamonds/Jokers
+* does not affect Daily Quest, Kronox Puan, leaderboard, Solo, Online, Profile, or account data
+* admin/target/day/result are recorded in `AdminMaintenanceLog`
+
 Supported modes:
 
 ```text

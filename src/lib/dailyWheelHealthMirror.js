@@ -4,6 +4,7 @@
 // - base44/entities/DailyWheelSpin.jsonc
 // - base44/functions/getDailyWheelStatus/entry.ts
 // - base44/functions/claimDailyWheelReward/entry.ts
+// - base44/functions/adminResetDailyWheelState/entry.ts
 
 export const DAILY_WHEEL_BACKEND_HEALTH_SOURCE = `
 DailyWheelSpin
@@ -49,6 +50,8 @@ lastReward
 balanceAfter
 playerType
 guestProfile
+daily_wheel_auto_popup_reset_at
+dailyWheelAutoPopupResetAt
 
 claimDailyWheelReward
 base44.auth.me()
@@ -120,6 +123,10 @@ grants no Kronox Puan
 Daily Wheel V2 can grant Diamonds, approved Solo jokers, or Gift Box rewards
 Daily Wheel never grants Kronox Puan
 does not affect leaderboard sorting or rank
+adminResetDailyWheelState
+daily_wheel_admin_reset_at
+doesNotReverseRewards: true
+grantsRewards: false
 daily_wheel_last_spin_date
 daily_wheel_next_available_at
 daily_wheel_streak

@@ -269,6 +269,7 @@ Deno.serve(async (req: Request) => {
       currentStreak: alreadyClaimedToday
         ? normalizeNumber(todaySpin?.streak_after ?? playerRow?.daily_wheel_streak)
         : currentAvailableStreak(playerRow, todayKey),
+      dailyWheelAutoPopupResetAt: playerRow?.daily_wheel_auto_popup_reset_at || null,
       lastReward,
       diamondTotal: normalizeNumber(playerRow?.diamonds),
     });

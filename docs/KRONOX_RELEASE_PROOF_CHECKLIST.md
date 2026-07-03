@@ -1013,6 +1013,12 @@ Checklist:
 * `New player reset` sets visible progress to starting state and allows normal starter/daily Diamond bootstrap plus Daily Wheel availability on next app entry.
 * `New player reset` clears Daily Wheel guard fields and removes target `DailyWheelSpin` rows.
 * Daily Wheel admin reset cleanup contract: clears Daily Wheel guard fields.
+* Admin-only `Günlük Çark Reset` appears only on Admin Ekranı, accepts Kronox User ID, and calls `/adminResetDailyWheelState`.
+* Unauthenticated `/adminResetDailyWheelState` calls return 401.
+* Authenticated non-admin `/adminResetDailyWheelState` calls return 403.
+* `/adminResetDailyWheelState` resets today’s Daily Wheel test state only: free-spin guard, next-available guard, auto-popup reset marker, and blocking same-day wheel idempotency rows.
+* `/adminResetDailyWheelState` preserves completed reward/audit rows by archiving same-day DailyWheelSpin, DiamondTransaction, and JokerTransaction idempotency keys instead of subtracting balances.
+* `/adminResetDailyWheelState` does not grant rewards, reverse awarded Diamonds/Jokers, reset Daily Quest, change Kronox Puan, or affect leaderboard.
 * Target user account and login/auth identity remain intact.
 * Target user local Solo progress mirror is invalidated by `progress_reset_at` after refresh/reopen.
 * AdminMaintenanceLog records admin email, target email, mode, timestamp, and result.

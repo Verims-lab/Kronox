@@ -78,6 +78,17 @@ and 📺 Reklam İzle ve Tekrar Çevir, is disabled, and is marked Yakında. Fut
 rewarded-ad integration may add up to 5 ad spins/day for 6 total spins with the
 free spin, but no fake rewarded-ad grant flow is active.
 
+Admin Ekranı includes a narrow Günlük Çark Reset support tool backed by
+adminResetDailyWheelState. The tool accepts Kronox User ID only, requires
+active AdminUser owner/admin authorization server-side, resets today's Daily
+Wheel test state (free-spin guard, next-available guard, auto-popup reset
+marker, and blocking same-day wheel idempotency rows), archives same-day
+DailyWheelSpin/DiamondTransaction/JokerTransaction idempotency keys under an
+admin-reset namespace to preserve completed reward audit rows, and writes
+AdminMaintenanceLog. It does not grant rewards, does not reverse previously
+awarded Diamonds or Jokers, and does not affect Daily Quest, Kronox Puan,
+leaderboard, Solo, Online, profile, or account data.
+
 Result copy reflects the server reward: Diamonds, approved jokers, or Hediye
 Kutusu. When the 7-day streak bonus applies it also shows 7 günlük seri bonusu:
 +150 elmas and Toplam: +Y elmas. The Home

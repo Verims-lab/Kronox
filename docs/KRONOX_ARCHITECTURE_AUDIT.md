@@ -27,7 +27,7 @@ Mechanical scan from this pass:
 | --- | --- |
 | Audited source/doc/script files in requested folders | 416 |
 | Base44 entity schemas | 35 |
-| Base44 function entry files | 46 |
+| Base44 function entry files | 52 |
 | Base44 function manifests in repo | 22 |
 | Files touching `base44.` / SDK calls in source, backend, scripts, or Health | 151 |
 | Existing DB gateway start | `src/lib/dbGateway/*`, plus many direct Base44 calls remain |

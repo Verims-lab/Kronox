@@ -76,7 +76,7 @@ Status: Active technical flow contract.
 - Solo runtime uses getQuestions bounded projections and buildSoloAttemptDeck; raw Question.list gameplay fallback and full-bank exposure are forbidden.
 - PlayerQuestionExposure is private per-player anti-repeat memory; PlayerQuestionDailyExposure is daily anonymous exposure summary; actual reports source history from QuestionAttemptEvent.
 - UserJokerInventory is the current joker balance source and JokerTransaction is the ledger. purchaseJokerWithDiamonds writes DiamondTransaction plus JokerTransaction under EconomyOperationLock.
-- claimDailyWheelReward writes DailyWheelSpin, DiamondTransaction for Diamond portions, and JokerTransaction/UserJokerInventory for approved joker portions using function-level same-day/idempotency guards plus EconomyOperationLock; no atomic/upsert guarantee is repo-proven.
+- claimDailyWheelReward writes DailyWheelSpin, DiamondTransaction for Diamond portions, and JokerTransaction/UserJokerInventory for approved joker portions using function-level same-day/idempotency guards plus EconomyOperationLock; no atomic/upsert guarantee is repo-proven. adminResetDailyWheelState is an AdminUser-gated Admin Ekranı support tool that accepts Kronox User ID, resets only today's Daily Wheel test guards/auto-popup marker/blocking same-day wheel idempotency rows, archives DailyWheelSpin/DiamondTransaction/JokerTransaction idempotency keys to preserve completed reward rows, grants no rewards, reverses no Diamonds/Jokers, and does not affect Daily Quest, Kronox Puan, or leaderboard.
 - startLobbyGame owns the Online shared deck. Online does not read Solo preference weighting or guest Solo projection.
 - sendQuestionAnalyticsReportEmail is admin-only, email-body-only, exactly nine sections, with anonymized User0001-style per-player coverage where used.
 - Public assets must not contain secrets, tokens, question bank, answer years, internal IDs, raw guest IDs/tokens, provider IDs, or private user data.
@@ -614,7 +614,7 @@ Status: Active product contract.
 - AdminUser rows remain private and are not listed by normal users.
 - Profile normal-user actions include screen-navigation rows for Profil Bilgileri, Arkadaşlarım, and Ayarlar; privacy/account-deletion actions live under Settings.
 - Active AdminUser owner/admin users additionally see Admin Ekranı on Profile.
-- Admin Ekranı contains admin-only maintenance/report tools; Settings remains account/security focused.
+- Admin Ekranı contains admin-only maintenance/report tools, including Günlük Çark Reset for Kronox User ID-targeted Daily Wheel testing resets; Settings remains account/security focused.
 - BottomNav visible items are Ana Sayfa, Liderlik, and Profil; Online is launched from Home through Online Kapışma, not exposed as a bottom tab.
 - Direct /admin access by normal users is blocked or redirected safely.
 - admin-only maintenance functions verify AdminUser-backed authorization server-side.

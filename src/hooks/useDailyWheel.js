@@ -18,8 +18,9 @@ function dailyWheelActorKey(user, guestCredentials) {
   return email && email !== 'guest' ? `auth:${email}` : `guest:${guestId || 'pending'}`;
 }
 
-function autoPopupStorageKey(user, guestCredentials, serverDate) {
-  return `kronox_daily_wheel_auto_popup_seen:${dailyWheelActorKey(user, guestCredentials)}:${serverDate || todayFallbackKey()}`;
+function autoPopupStorageKey(user, guestCredentials, serverDate, resetAt = '') {
+  const resetSuffix = resetAt ? `:${String(resetAt).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 32)}` : '';
+  return `kronox_daily_wheel_auto_popup_seen:${dailyWheelActorKey(user, guestCredentials)}:${serverDate || todayFallbackKey()}${resetSuffix}`;
 }
 
 const DAILY_REWARD_STATUS_CACHE_TTL_MS = 60 * 1000;
@@ -80,6 +81,7 @@ function buildClaimResultFromStatus(body) {
     alreadyClaimedToday: true,
     alreadyClaimed: true,
     serverDate: body?.serverDate,
+    dailyWheelAutoPopupResetAt: body?.dailyWheelAutoPopupResetAt || null,
     rewardType: lastReward.rewardType || 'diamonds',
     rewardId: lastReward.rewardId || `diamond_${rewardAmount}`,
     rewardLabel: lastReward.rewardLabel || '',
@@ -148,13 +150,13 @@ export function useDailyWheel({ user, guestProfile, onUserUpdated } = {}) {
   const isAvailable = status === 'available';
   const isClaimed = status === 'claimed';
 
-  const markPromptSeen = useCallback((serverDate = wheel?.serverDate) => {
+  const markPromptSeen = useCallback((serverDate = wheel?.serverDate, resetAt = wheel?.dailyWheelAutoPopupResetAt) => {
     try {
-      localStorage.setItem(autoPopupStorageKey(user, guestCredentials, serverDate), '1');
+      localStorage.setItem(autoPopupStorageKey(user, guestCredentials, serverDate, resetAt), '1');
     } catch {
       // Auto-popup state is visual only; reward source of truth stays server-side.
     }
-  }, [guestCredentials, user, wheel?.serverDate]);
+  }, [guestCredentials, user, wheel?.dailyWheelAutoPopupResetAt, wheel?.serverDate]);
 
   const applyDailyWheelStatusBody = useCallback((body) => {
     setWheel(body);
@@ -162,7 +164,7 @@ export function useDailyWheel({ user, guestProfile, onUserUpdated } = {}) {
     setStatus(nextStatus);
 
     if (body.available) {
-      const key = autoPopupStorageKey(user, guestCredentials, body.serverDate);
+      const key = autoPopupStorageKey(user, guestCredentials, body.serverDate, body.dailyWheelAutoPopupResetAt);
       const alreadySeen = (() => {
         try { return localStorage.getItem(key) === '1'; } catch { return true; }
       })();
@@ -223,7 +225,7 @@ export function useDailyWheel({ user, guestProfile, onUserUpdated } = {}) {
   }, [markPromptSeen]);
 
   const applyClaimSuccessBody = useCallback((body) => {
-    markPromptSeen(body.serverDate);
+    markPromptSeen(body.serverDate, body.dailyWheelAutoPopupResetAt);
     setShowPrompt(false);
     setLastResult(body);
     setShowResult(true);
@@ -231,6 +233,7 @@ export function useDailyWheel({ user, guestProfile, onUserUpdated } = {}) {
       available: false,
       alreadyClaimedToday: true,
       serverDate: body.serverDate,
+      dailyWheelAutoPopupResetAt: body.dailyWheelAutoPopupResetAt || null,
       nextAvailableAt: body.nextAvailableAt,
       currentStreak: body.streakAfter,
       lastReward: {
