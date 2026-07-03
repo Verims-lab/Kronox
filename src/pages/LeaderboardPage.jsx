@@ -64,10 +64,10 @@ function hydrateLeaderboardRow(publicRow, friendKeys, currentOwnerKey) {
   };
 }
 
-function withCurrentVisibleKronoxPuan(row, visibleKronoxPuan) {
+function withCurrentTotalKronoxScore(row, totalKronoxScore) {
   if (!row?.isCurrentUser) return row;
-  const safeScore = Number.isFinite(Number(visibleKronoxPuan))
-    ? Math.max(0, Math.floor(Number(visibleKronoxPuan)))
+  const safeScore = Number.isFinite(Number(totalKronoxScore))
+    ? Math.max(0, Math.floor(Number(totalKronoxScore)))
     : 0;
   return {
     ...row,
@@ -171,16 +171,16 @@ export default function LeaderboardPage() {
       ? getLeaderboardOwnerKey(user.email)
       : getGuestLeaderboardOwnerKey(completedGuestProfile?.guest_id);
     const leaderboardPlayer = user || completedGuestProfile;
-    const visibleKronoxPuan = getKronoxVisibleScore(leaderboardPlayer, { soloProgress: currentProgress });
+    const totalKronoxScore = getKronoxVisibleScore(leaderboardPlayer, { soloProgress: currentProgress });
     const currentPayload = {
       ...(user?.email
         ? buildSoloLeaderboardPayload(user, currentProgress)
         : buildGuestSoloLeaderboardPayload(completedGuestProfile, currentProgress)),
-      total_kronox_score: visibleKronoxPuan,
+      total_kronox_score: totalKronoxScore,
     };
     const ownSummary = summarizeSoloProgress(currentProgress, getSoloLevelCount());
     const ownScoreFallback = {
-      totalKronoxScore: visibleKronoxPuan,
+      totalKronoxScore: getKronoxVisibleScore(user || completedGuestProfile, { soloProgress: currentProgress }),
       totalSoloScore: ownSummary.totalSoloScore,
       currentLevel: ownSummary.currentLevel,
     };
@@ -201,21 +201,21 @@ export default function LeaderboardPage() {
       ]);
       const topRows = (snapshot.topRows || [])
         .map((row) => hydrateLeaderboardRow(row, friendKeys, currentOwnerKey))
-        .map((row) => withCurrentVisibleKronoxPuan(row, visibleKronoxPuan))
+        .map((row) => withCurrentTotalKronoxScore(row, totalKronoxScore))
         .filter((row) => row.id);
       const currentUserRow = snapshot.currentUserRow
-        ? withCurrentVisibleKronoxPuan(
+        ? withCurrentTotalKronoxScore(
           hydrateLeaderboardRow(snapshot.currentUserRow, friendKeys, currentOwnerKey),
-          visibleKronoxPuan,
+          totalKronoxScore,
         )
         : null;
       const friendsOutsideTop = (snapshot.friendsOutsideTop || [])
         .map((row) => hydrateLeaderboardRow(row, friendKeys, currentOwnerKey))
-        .map((row) => withCurrentVisibleKronoxPuan(row, visibleKronoxPuan))
+        .map((row) => withCurrentTotalKronoxScore(row, totalKronoxScore))
         .filter((row) => row.id);
       let rankedRows = (snapshot.rows || [])
         .map((row) => hydrateLeaderboardRow(row, friendKeys, currentOwnerKey))
-        .map((row) => withCurrentVisibleKronoxPuan(row, visibleKronoxPuan))
+        .map((row) => withCurrentTotalKronoxScore(row, totalKronoxScore))
         .filter((row) => row.id);
       let sections = {
         topRows,
@@ -225,7 +225,7 @@ export default function LeaderboardPage() {
       };
       if (!sections.topRows.length && rankedRows.length) {
         rankedRows = rankSoloLeaderboardEntries(snapshot.rows, friendKeys, currentOwnerKey)
-          .map((row) => withCurrentVisibleKronoxPuan(row, visibleKronoxPuan));
+          .map((row) => withCurrentTotalKronoxScore(row, totalKronoxScore));
         sections = selectLeaderboardSections(rankedRows, currentOwnerKey, LEADERBOARD_TOP_LIMIT);
       }
       const ownScoreRow = sections.currentUserRow || toSoloLeaderboardEntry(currentPayload, friendKeys, currentOwnerKey);

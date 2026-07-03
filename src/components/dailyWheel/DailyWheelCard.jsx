@@ -578,6 +578,8 @@ function RewardPill({ icon: Icon, label }) {
 }
 
 function DisabledAdSpinCta() {
+  // Future rewarded-ad integration only: this visible repeat CTA stays disabled
+  // and cannot start a spin or grant a fake ad reward path.
   return (
     <div
       className="w-full rounded-2xl px-3 py-3 text-center"
@@ -600,6 +602,9 @@ function DisabledAdSpinCta() {
       >
         📺 Reklam İzle ve Tekrar Çevir
       </button>
+      <p className="mt-1 text-[10px] font-bold text-slate-300/70">
+        Reklamla tekrar çevirme yakında.
+      </p>
       <span className="mt-2 inline-flex rounded-full bg-amber-300/14 px-2.5 py-1 text-[11px] font-black text-amber-100">
         Yakında
       </span>

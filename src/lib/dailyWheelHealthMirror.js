@@ -33,6 +33,8 @@ player_type
 daily_wheel:<playerKey>:<YYYY-MM-DD>
 guest:<g_owner_key>
 one claim per player per UTC server day
+DailyWheelSpin.idempotency_key
+logical guard; unique constraint platform/manual
 
 getDailyWheelStatus
 base44.auth.me()

@@ -346,8 +346,9 @@ keeps the centered trophy + LİDERLİK heading, scrollable ranking rows, shared
 KronoxAvatar rendering, username-only public identity, and a fixed Senin Sıran
 card above BottomNav using the same materialized visible Puan source. The
 current player's public row, fixed Senin Sıran card, and fallback own-score
-state are normalized through one visibleKronoxPuan value and do not reconstruct
-historical score transactions on Leaderboard load.
+state are normalized through one totalKronoxScore value sourced from
+getKronoxVisibleScore and do not reconstruct historical score transactions on
+Leaderboard load.
 
 Unified Kronox Puan is the player-facing score source: Solo contributes the
 Solo best-score component and Online contributes User.online_progress.score.
