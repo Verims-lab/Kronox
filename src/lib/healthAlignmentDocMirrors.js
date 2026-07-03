@@ -301,7 +301,10 @@ recheck, username release, audit log, no automatic scheduler, no
 linked/scored/social/missing-last-open deletion, and no private identifier
 response. Question analytics reset coverage requires the Admin card to list
 report names, actual source tables, Joker/rhythm sub-reports, and protected
-non-reset data instead of a dense paragraph. Two-account, realtime, push,
+non-reset data instead of a dense paragraph. Home CTA coverage requires OYNA /
+dynamic Seviye X from canonical Solo progress, direct-start to the resolved
+Solo level, equal dimensions with ONLINE KAPIŞMA, and Online remaining
+Home-owned. Two-account, realtime, push,
 RLS/BOLA, keyboard/screen-reader,
 device, and store proof remain manual/live probes.
 The Online lobby/start/reconnect contract remains an architecture target and
@@ -741,9 +744,12 @@ Kart Değiştir 50, Kronokalkan 60.
 Home uses a larger centered transparent local Kronox logo, a larger centered
 transparent hourglass visual balanced between left Görevler and right Çark,
 compact shortcuts with ready badges, centered Görevler/Çark popups, and large
-Solo/Online CTAs whose stack position balances the hourglass-to-Solo gap with
-the Online-to-BottomNav gap; the expanded Günlük Ödüller panel is not rendered
-on first Home paint.
+OYNA / dynamic Seviye X and ONLINE KAPIŞMA CTAs whose stack position balances
+the hourglass-to-Solo gap with the Online-to-BottomNav gap; the expanded Günlük
+Ödüller panel is not rendered on first Home paint. The Home primary Solo CTA
+reads Seviye X from the canonical Solo progress helper and direct-starts that
+resolved level; the secondary Online CTA remains Home-owned and has the same
+dimensions as the primary CTA.
 Client is not trusted for price; purchase validation is server-authoritative.
 Market open should be fast: Home may idle-prefetch the Market chunk and fast
 UserJokerInventory cache, the static Phase 1 catalog renders immediately, and

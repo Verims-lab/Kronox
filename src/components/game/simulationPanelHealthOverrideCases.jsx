@@ -768,13 +768,13 @@ export const EXTRA_TESTS = [
   /* ------------------------------------------------------------------
    *  visual_composition_regression.asset_path_drift_warning
    *  The active Home screen uses transparent/local KRONOX logo + hourglass PNG
-   *  assets, CSS/motion gold Solo/Online CTAs, compact shortcuts, and StandardTopBar.
+   *  assets, CSS/motion Home CTAs, compact shortcuts, and StandardTopBar.
    *  Legacy PNG pressed-swap paths are intentionally absent.
    * ------------------------------------------------------------------ */
   makeCase(
     'visual_composition_regression', 'Visual Composition Regression Suite',
     'asset_path_drift_warning',
-    'MainMenu uses transparent local KRONOX logo/hourglass assets, CSS/motion CTAs, and no stale PNG pressed asset swap',
+    'MainMenu uses transparent local KRONOX logo/hourglass assets, direct-start Solo CTA, secondary Online CTA, and no stale PNG pressed asset swap',
     () => {
       const src = safeStr(mainMenuSource);
       const required = [
@@ -802,8 +802,20 @@ export const EXTRA_TESTS = [
         'marginTop: HOME_CTA_BALANCE_GAP',
         'marginBottom: HOME_CTA_BALANCE_GAP',
         'whileTap',
-        'SOLO MEYDAN OKUMA',
-        'ONLINE KAPIŞMA',
+        'variant="solo"',
+        'variant="online"',
+        'primaryLabel="OYNA"',
+        '`Seviye ${homeSoloLevelNumber}`',
+        'buildSoloGameConfigForLevel',
+        "navigate('/game'",
+        'label="ONLINE KAPIŞMA"',
+        'height: 74',
+        'minHeight: 74',
+        "padding: '0 1.15rem'",
+        'borderRadius: 22',
+        "boxSizing: 'border-box'",
+        'linear-gradient(180deg, #FFD95A 0%, #FFC72C 45%, #F4B400 100%)',
+        'linear-gradient(180deg, #42D7FF 0%, #17BCE8 50%, #009FD1 100%)',
       ];
       const forbidden = ['normalSrc', 'pressedSrc', 'Kronox_Home_Button_Solo.png', 'Kronox_Home_Button_Online.png', 'Kronox_Home_Button_Solo_Pressed.png', 'Kronox_Home_Button_Online_Pressed.png'];
       const missing = required.filter((token) => !src.includes(token));
@@ -818,7 +830,7 @@ export const EXTRA_TESTS = [
           actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW,
         });
       }
-      return pass('MainMenu uses transparent local logo/hourglass assets, CSS/motion CTAs, compact shortcuts, and no stale PNG pressed asset swaps.', {
+      return pass('MainMenu uses transparent local logo/hourglass assets, CSS/motion direct-start Home CTAs, compact shortcuts, and no stale PNG pressed asset swaps.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         file: 'pages/MainMenu.jsx',

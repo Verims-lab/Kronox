@@ -128,7 +128,10 @@ notifications right. Mağaza title is Mağaza and prices are Zaman Dondur 40,
 Kart Değiştir 50, Kronokalkan 60. The Home middle section keeps left Görevler,
 centered transparent hourglass, and right Çark balanced, with centered
 shortcut popups and CTA stack spacing balanced between the hourglass and fixed
-BottomNav.
+BottomNav. The primary Home CTA is OYNA / dynamic Seviye X from the canonical
+Solo progress helper and direct-starts that resolved Solo level; the secondary
+CTA is ONLINE KAPIŞMA, remains Home-owned, and matches the primary CTA
+dimensions.
 Client is not trusted for price; purchase validation is server-authoritative.
 Successful purchases write both \`DiamondTransaction\` and \`JokerTransaction\`
 with market_purchase and the same idempotency key. Runtime explicitly binds

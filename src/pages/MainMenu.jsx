@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, Crosshair, ScrollText, Swords, TimerReset, X } from 'lucide-react';
+import { ScrollText, TimerReset, X } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
 import { useAuth } from '@/lib/AuthContext';
@@ -23,6 +23,14 @@ import {
 } from '@/lib/leaderboard';
 import { getCompletedGuestCredentialsPayload, isGuestOnboardingComplete } from '@/lib/guestProfile';
 import { getUserJokerBalances } from '@/lib/jokerInventory';
+import {
+  buildSoloGameConfigForLevel,
+  ensureSoloProgressBackfill,
+  getSoloLevelCount,
+  getSoloLevels,
+  readSoloProgress,
+} from '@/lib/soloLevels';
+import { getDefaultSelectedLevel } from '@/lib/soloProgressHelpers';
 
 // Local/project-approved visual assets only. No remote (https/http) asset URLs
 // are used on Home — the no-remote-visual-assets Health contract scans this
@@ -35,14 +43,17 @@ const HOME_MIDDLE_STAGE_HEIGHT = 'clamp(14rem, 38dvh, 20rem)';
 
 export default function MainMenu() {
   const navigate = useNavigate();
-  const { user: authUser, guestProfile } = useAuth();
+  const { user: authUser, guestProfile, isLoadingAuth, authChecked } = useAuth();
   const [localUser, setLocalUser] = useState(authUser || null);
   const [localGuestProfile, setLocalGuestProfile] = useState(guestProfile || null);
   const [activeShortcut, setActiveShortcut] = useState(null);
+  const [soloProgress, setSoloProgress] = useState(() => readSoloProgress(null));
+  const [soloProgressLoaded, setSoloProgressLoaded] = useState(false);
   const user = localUser || authUser || null;
   const completedGuestProfile = !user && isGuestOnboardingComplete(localGuestProfile || guestProfile)
     ? (localGuestProfile || guestProfile)
     : null;
+  const soloProgressPlayer = user || completedGuestProfile || null;
   // Resolved linked-or-guest rewards player. Completed guests remain valid
   // reward players (Daily Wheel / Daily Quest) without login; the shortcuts
   // and wheel status are gated by this resolved player, not by a logged-in
@@ -51,6 +62,23 @@ export default function MainMenu() {
 
   useEffect(() => { setLocalUser(authUser || null); }, [authUser]);
   useEffect(() => { setLocalGuestProfile(guestProfile || null); }, [guestProfile]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setSoloProgressLoaded(false);
+    ensureSoloProgressBackfill(soloProgressPlayer)
+      .then((normalizedProgress) => {
+        if (cancelled) return;
+        setSoloProgress(normalizedProgress || readSoloProgress(soloProgressPlayer));
+        setSoloProgressLoaded(true);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setSoloProgress(readSoloProgress(soloProgressPlayer));
+        setSoloProgressLoaded(true);
+      });
+    return () => { cancelled = true; };
+  }, [soloProgressPlayer]);
 
   useEffect(() => {
     let cancelled = false;
@@ -110,11 +138,23 @@ export default function MainMenu() {
     () => Boolean(rewardsPlayer) && (dailyQuests?.quests || []).some((quest) => quest?.status === 'completed'),
     [dailyQuests?.quests, rewardsPlayer],
   );
+  const soloTotalLevels = getSoloLevelCount();
+  const homeSoloLevelNumber = useMemo(
+    () => getDefaultSelectedLevel(soloProgress, soloTotalLevels),
+    [soloProgress, soloTotalLevels],
+  );
+  const homeSoloLevel = useMemo(() => {
+    const levels = getSoloLevels(soloProgress);
+    return levels.find((level) => level.levelNumber === homeSoloLevelNumber)
+      || { levelNumber: homeSoloLevelNumber, isPlayable: true };
+  }, [homeSoloLevelNumber, soloProgress]);
+  const soloCtaDisabled = isLoadingAuth || !authChecked || !soloProgressLoaded || !homeSoloLevel?.isPlayable;
 
-  const handleSolo = () => {
+  const handleSolo = useCallback(() => {
+    if (soloCtaDisabled) return;
     sounds.tap();
-    navigate('/solo');
-  };
+    navigate('/game', { state: buildSoloGameConfigForLevel(homeSoloLevel) });
+  }, [homeSoloLevel, navigate, soloCtaDisabled]);
 
   const handleOnline = () => {
     sounds.tap();
@@ -233,13 +273,15 @@ export default function MainMenu() {
             style={{ gap: 14, marginTop: HOME_CTA_BALANCE_GAP, marginBottom: HOME_CTA_BALANCE_GAP }}
           >
             <HomeCTA
-              icon={Crosshair}
-              label="SOLO MEYDAN OKUMA"
+              variant="solo"
+              primaryLabel="OYNA"
+              secondaryLabel={soloProgressLoaded ? `Seviye ${homeSoloLevelNumber}` : 'Seviye hazırlanıyor'}
               onClick={handleSolo}
-              ariaLabel="Solo Meydan Okuma"
+              disabled={soloCtaDisabled}
+              ariaLabel={soloProgressLoaded ? `Oyna Seviye ${homeSoloLevelNumber}` : 'Solo seviyesi hazırlanıyor'}
             />
             <HomeCTA
-              icon={Swords}
+              variant="online"
               label="ONLINE KAPIŞMA"
               onClick={handleOnline}
               ariaLabel="Online Kapışma"
@@ -347,59 +389,88 @@ function HomeTimeArtifact() {
   );
 }
 
-function HomeCTA({ icon: Icon, label, onClick, ariaLabel }) {
-  // Both CTAs share one identical premium-gold family (Screenshot 2 target):
-  // fixed 74px height, 22px radius, strong yellow gradient, deep tactile
-  // shadow, left icon zone → vertical divider → bold condensed italic text →
-  // right chevron near the edge.
+function HomeCTA({ variant, label, primaryLabel, secondaryLabel, onClick, ariaLabel, disabled = false }) {
+  const isSolo = variant === 'solo';
+  // Primary and secondary CTAs share the same box model so their dimensions
+  // cannot drift while each keeps its own visual variant.
+  const baseStyle = {
+    appearance: 'none',
+    height: 74,
+    minHeight: 74,
+    width: '100%',
+    padding: '0 1.15rem',
+    borderRadius: 22,
+    boxSizing: 'border-box',
+    touchAction: 'manipulation',
+    opacity: disabled ? 0.72 : 1,
+  };
+  const variantStyle = isSolo
+    ? {
+      border: '0.12rem solid #FFE27A',
+      background: 'linear-gradient(180deg, #FFD95A 0%, #FFC72C 45%, #F4B400 100%)',
+      boxShadow: '0 0 1rem rgba(255, 199, 44, 0.45)',
+      cursor: disabled ? 'default' : 'pointer',
+    }
+    : {
+      border: '0.12rem solid #73E6FF',
+      background: 'linear-gradient(180deg, #42D7FF 0%, #17BCE8 50%, #009FD1 100%)',
+      boxShadow: '0 0 1rem rgba(66, 215, 255, 0.35)',
+      cursor: 'pointer',
+    };
   return (
     <motion.button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       whileTap={{ y: 2, scale: 0.985 }}
       transition={{ type: 'spring', stiffness: 620, damping: 26, mass: 0.7 }}
-      className="relative flex w-full items-center"
-      style={{
-        appearance: 'none',
-        height: 74,
-        padding: '0 1.1rem 0 1.15rem',
-        borderRadius: 22,
-        border: '1px solid rgba(255, 227, 109, 0.78)',
-        background: 'linear-gradient(180deg, #FFE36D 0%, #FFC928 52%, #E4A600 100%)',
-        boxShadow: '0 7px 0 #A97400, 0 12px 24px rgba(0, 0, 0, 0.26), 0 0 16px rgba(255, 201, 40, 0.20), inset 0 1px 0 rgba(255,255,255,0.62)',
-        color: '#101827',
-        touchAction: 'manipulation',
-      }}
+      className="relative flex items-center justify-center text-center"
+      style={{ ...baseStyle, ...variantStyle }}
       aria-label={ariaLabel}
     >
-      <span className="grid shrink-0 place-items-center" style={{ width: 40 }}>
-        <Icon className="h-7 w-7" strokeWidth={2.5} style={{ color: '#101827' }} />
-      </span>
-      <span
-        aria-hidden="true"
-        className="mr-3.5 shrink-0"
-        style={{
-          width: 1.5,
-          height: 34,
-          background: 'rgba(16, 24, 39, 0.42)',
-          borderRadius: 1,
-        }}
-      />
-      <span
-        className="min-w-0 flex-1 truncate text-left"
-        style={{
-          fontFamily: "'Barlow Condensed', var(--font-inter)",
-          fontSize: 26,
-          lineHeight: 1,
-          fontStyle: 'italic',
-          fontWeight: 800,
-          letterSpacing: '0',
-          color: '#101827',
-        }}
-      >
-        {label}
-      </span>
-      <ChevronRight className="h-7 w-7 shrink-0" strokeWidth={2.7} style={{ color: '#101827' }} />
+      {isSolo ? (
+        <span className="flex min-w-0 flex-col items-center justify-center" style={{ lineHeight: 1 }}>
+          <span
+            style={{
+              fontFamily: '"Montserrat", sans-serif',
+              fontSize: 'clamp(1.45rem, 7.2vw, 2rem)',
+              fontWeight: 600,
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              color: '#1B1B1B',
+            }}
+          >
+            {primaryLabel}
+          </span>
+          <span
+            style={{
+              marginTop: 6,
+              fontFamily: '"Montserrat", sans-serif',
+              fontSize: 'clamp(0.72rem, 3.2vw, 0.92rem)',
+              fontWeight: 500,
+              letterSpacing: '0',
+              color: '#3D3200',
+            }}
+          >
+            {secondaryLabel}
+          </span>
+        </span>
+      ) : (
+        <span
+          className="min-w-0 truncate"
+          style={{
+            fontFamily: '"Montserrat", sans-serif',
+            fontSize: 'clamp(1.45rem, 7.2vw, 2rem)',
+            lineHeight: 1,
+            fontWeight: 600,
+            letterSpacing: '0.1em',
+            textTransform: 'uppercase',
+            color: '#FFFFFF',
+          }}
+        >
+          {label}
+        </span>
+      )}
     </motion.button>
   );
 }

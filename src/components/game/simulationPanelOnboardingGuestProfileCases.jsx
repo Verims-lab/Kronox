@@ -564,7 +564,8 @@ export const EXTRA_TESTS = [
       const guestContinueMissing = missingTokens(`${authContextSource}\n${onboardingPageSource}\n${mainMenuSource}`, [
         'ensureGuestProfile',
         "navigate('/', { replace: true })",
-        'SOLO MEYDAN OKUMA',
+        'primaryLabel="OYNA"',
+        '`Seviye ${homeSoloLevelNumber}`',
         'rewardsPlayer &&',
       ]);
       const forbiddenHome = presentTokens(mainMenuSource, [
