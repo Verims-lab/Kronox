@@ -660,7 +660,7 @@ export const EXTRA_TESTS = [
         'Market purchase increases the correct UserJokerInventory joker type only',
         'Solo joker bar can reflect purchased Market balances',
         'Market purchase does not trust client price or client identity',
-        'Daily Wheel remains Diamond-only',
+        'Daily Wheel V2 grants approved rewards without Mağaza purchase semantics',
         'Online does not use market/joker purchases',
       ]);
       if (missing.length) {

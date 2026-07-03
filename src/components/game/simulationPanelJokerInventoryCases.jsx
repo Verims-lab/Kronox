@@ -544,27 +544,27 @@ export const EXTRA_TESTS = [
       return pass('Joker inventory uses separate balance and ledger entities, not Diamond balance fields.', { verification: 'STATIC_CONTRACT' });
     }),
 
-  makeCase('daily_wheel_remains_diamond_only',
-    'Daily Wheel remains Diamond-only and does not grant jokers',
+  makeCase('daily_wheel_v2_joker_grants_are_backend_owned',
+    'Daily Wheel V2 joker grants are backend-owned and ledgered',
     () => {
       const required = missingTokens(claimDailyWheelRewardSource, [
-        'DiamondTransaction',
-        'totalRewardAmount',
-        'diamonds',
-      ]);
-      const forbidden = forbiddenTokens(claimDailyWheelRewardSource, [
+        'DailyWheelSpin',
         'JokerTransaction',
         'UserJokerInventory',
-        'mistake_shield',
-        'card_swap',
-        'time_freeze',
+        "DAILY_WHEEL_JOKER_REASON = 'daily_wheel'",
+        'grantDailyWheelJokers',
+        '${context.idempotencyKey}:joker:${jokerType}',
       ]);
-      if (required.length || forbidden.length) return fail('Daily Wheel no longer looks Diamond-only.', {
+      const forbidden = forbiddenTokens(claimDailyWheelRewardSource, [
+        'market_purchase',
+        'purchaseJokerWithDiamonds',
+      ]);
+      if (required.length || forbidden.length) return fail('Daily Wheel V2 joker grants are missing backend ledger ownership or leak Market purchase semantics.', {
         verification: 'STATIC_CONTRACT',
         file: 'base44/functions/claimDailyWheelReward/entry.ts',
         actual: { required, forbidden },
       });
-      return pass('Daily Wheel still grants Diamonds only and does not touch joker inventory.', { verification: 'STATIC_CONTRACT' });
+      return pass('Daily Wheel V2 approved joker rewards write UserJokerInventory/JokerTransaction through the server claim path.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('market_phase_1_joker_only_boundary',

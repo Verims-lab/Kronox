@@ -134,32 +134,58 @@ leaderboard sorting or rank.
 
 # 3A. Daily Reward Wheel / Günlük Çark
 
-Daily Wheel is an active Diamond-only retention reward.
+Daily Wheel V2 is an active server-selected retention reward.
 
 Rules:
 
-* grants Diamonds only
+* grants Diamonds, approved Solo jokers, or Gift Box rewards only
 * grants no Kronox Puan
 * does not affect leaderboard sorting or rank
 * is separate from the existing +20 daily login reward
 * claim requires an authenticated user or a token-proven completed GuestProfile
-* one claim per player per UTC server day
+* one free claim per player per UTC server day
 * reward is selected server-side by `claimDailyWheelReward`
-* UI animates to the backend-selected reward
-* localStorage/sessionStorage may only hide the once-per-session popup, never grant rewards
+* UI animates to the backend-selected 8-slice segment
+* localStorage/sessionStorage may only hide the once-per-day auto-popup, never grant rewards
+* closing the auto-popup does not consume the free spin
+* after the free spin is used, the repeat ad-spin CTA is visible but disabled
+  as `Yakında`; there is no fake rewarded-ad grant path until future rewarded-ad
+  integration is implemented
 
 Reward table and weights:
 
 ```text
-30 diamonds — high — weight 24
-40 diamonds — high — weight 22
-50 diamonds — high — weight 20
-60 diamonds — medium — weight 12
-75 diamonds — medium — weight 10
-100 diamonds — low — weight 7
-150 diamonds — rare — weight 4
-250 diamonds — very rare — weight 1
+diamond_20 — 20 Diamonds — weight 28
+diamond_60 — 60 Diamonds — weight 20
+diamond_100 — 100 Diamonds — weight 15
+joker_krono_kalkan — 1 Kronokalkan — weight 12
+joker_zamani_dondur — 1 Zaman Dondur — weight 10
+joker_kart_degistir — 1 Kart Değiştir — weight 8
+gift_box — server-resolved Gift Box — weight 5
+diamond_250 — 250 Diamonds — weight 2
 ```
+
+The visual wheel always uses 8 equal segments. Segment weights live on the
+server; the client only animates to `reward_segment_index` returned by the
+claim response.
+
+Gift Box package table:
+
+```text
+diamond_50
+diamond_70
+diamond_80
+diamond_100 + joker_kart_degistir
+diamond_60 + joker_krono_kalkan
+diamond_20 + joker_zamani_dondur
+joker_krono_kalkan + joker_kart_degistir
+joker_zamani_dondur + joker_kart_degistir
+joker_krono_kalkan + joker_zamani_dondur
+```
+
+Gift Box contents are selected server-side during the same idempotent claim and
+stored on `DailyWheelSpin`. A Gift Box package must not contain two separate
+Diamond rewards or the same joker twice.
 
 7-day streak:
 
@@ -517,8 +543,8 @@ Solo move interaction:
 
 Purchase rules:
 
-* Diamond source/sink balance: Daily Wheel remains a Diamond source and Daily
-  Wheel remains Diamond-only, while Mağaza purchase is a Diamond sink
+* Diamond source/sink balance: Daily Wheel V2 can be a Diamond source and/or an
+  approved joker grant source, while Mağaza purchase is a Diamond sink
 * `purchaseJokerWithDiamonds` owns the trusted price table
 * purchase validation is server-authoritative; Client is not trusted for price
   and client-provided price/cost is ignored

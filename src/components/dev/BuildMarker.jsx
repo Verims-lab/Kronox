@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex539 — Daily Wheel V2 server-weighted rewards:
+//   • claimDailyWheelReward now owns the V2 weighted reward table, 8 equal visual segments, Gift Box package resolution, and approved Daily Wheel joker grants through DailyWheelSpin + DiamondTransaction/JokerTransaction/UserJokerInventory idempotency.
+//   • useDailyWheel/MainMenu add one free daily auto-popup per player/day without consuming the spin on close; DailyWheelCard reveals Diamonds/jokers/Gift Box rewards and shows a disabled Yakında rewarded-ad repeat CTA with no fake reward flow.
+//   • Daily Wheel docs, mirrors, and Health now guard V2 no-Puan/no-leaderboard, server-selected segment, Gift Box, approved joker grant, and Daily Quest Diamond-only separation contracts.
+//
 // Codex538 — Home primary Solo CTA direct-start + secondary Online CTA styling:
 //   • MainMenu now derives the Home Solo CTA's dynamic Seviye value from the shared Solo progress helpers and direct-starts the resolved playable level via buildSoloGameConfigForLevel -> /game.
 //   • Home CTAs now render OYNA / Seviye X and ONLINE KAPIŞMA with equal dimensions, requested yellow/blue gradients, borders, glow, and centered Montserrat typography.
@@ -204,7 +209,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex538';
+const BUILD_MARKER = 'Codex539';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

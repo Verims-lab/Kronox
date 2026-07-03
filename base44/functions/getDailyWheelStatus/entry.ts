@@ -176,12 +176,31 @@ async function findTodayDiamondTransaction(base44: any, email: string, idempoten
 
 function publicSpinResult(row: any) {
   if (!row) return null;
+  const metadata = row?.metadata && typeof row.metadata === 'object' ? row.metadata : {};
+  const rewardType = String(row?.reward_type || metadata.rewardType || (normalizeNumber(row.reward_amount) > 0 ? 'diamonds' : 'unknown'));
+  const rewardId = String(row?.reward_id || metadata.rewardId || (rewardType === 'diamonds' ? `diamond_${normalizeNumber(row.reward_amount)}` : 'unknown'));
   return {
+    rewardType,
+    rewardId,
+    rewardLabel: String(row?.reward_label || metadata.rewardLabel || ''),
+    rewardSegmentIndex: normalizeNumber(row?.reward_segment_index ?? metadata.rewardSegmentIndex),
+    rewardSegmentCount: normalizeNumber(row?.reward_segment_count ?? metadata.rewardSegmentCount) || 8,
     rewardAmount: normalizeNumber(row.reward_amount),
     streakBefore: normalizeNumber(row.streak_before),
     streakAfter: normalizeNumber(row.streak_after),
     streakBonusAmount: normalizeNumber(row.streak_bonus_amount),
     totalRewardAmount: normalizeNumber(row.total_reward_amount),
+    jokerRewards: Array.isArray(row?.joker_reward_summary)
+      ? row.joker_reward_summary
+      : (Array.isArray(metadata.jokerRewards) ? metadata.jokerRewards : []),
+    giftBox: row?.gift_box_reward_summary && typeof row.gift_box_reward_summary === 'object'
+      ? {
+        ...(row.gift_box_reward_summary || {}),
+        giftBoxRewardId: row?.gift_box_reward_id || row.gift_box_reward_summary.giftBoxRewardId || '',
+        status: row?.gift_box_status || row.gift_box_reward_summary.status || 'opened',
+        openedAt: row?.gift_box_opened_at || row.gift_box_reward_summary.openedAt || null,
+      }
+      : (metadata.giftBox && typeof metadata.giftBox === 'object' ? metadata.giftBox : null),
     balanceAfter: normalizeNumber(row.balance_after),
     claimedAt: row.claimed_at || null,
     nextAvailableAt: row.next_available_at || null,
@@ -197,11 +216,18 @@ function publicSpinResultFromTransaction(tx: any, user: any, nextAvailableAt: st
   const streakAfter = normalizeNumber(metadata.streakAfter ?? user?.daily_wheel_streak);
   const streakBefore = normalizeNumber(metadata.streakBefore ?? Math.max(0, streakAfter - 1));
   return {
+    rewardType: 'diamonds',
+    rewardId: metadata.rewardId || 'legacy_diamond',
+    rewardLabel: `+${rewardAmount} Elmas`,
+    rewardSegmentIndex: normalizeNumber(metadata.rewardSegmentIndex),
+    rewardSegmentCount: 8,
     rewardAmount,
     streakBefore,
     streakAfter,
     streakBonusAmount,
     totalRewardAmount,
+    jokerRewards: [],
+    giftBox: null,
     balanceAfter: normalizeNumber(tx.balance_after ?? user?.diamonds),
     claimedAt: tx.created_at || user?.daily_wheel_last_spin_at || null,
     nextAvailableAt: user?.daily_wheel_next_available_at || nextAvailableAt,

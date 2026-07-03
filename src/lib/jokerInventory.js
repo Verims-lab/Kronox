@@ -20,6 +20,7 @@ export const JOKER_TRANSACTION_REASONS = Object.freeze({
   ADMIN_ADJUSTMENT: 'admin_adjustment',
   SOLO_USE: 'solo_use',
   MARKET_PURCHASE: 'market_purchase',
+  DAILY_WHEEL: 'daily_wheel',
   ACCOUNT_LINK_MERGE: 'account_link_merge',
   REFUND: 'refund',
   CORRECTION: 'correction',

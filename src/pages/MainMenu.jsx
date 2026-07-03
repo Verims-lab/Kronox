@@ -150,6 +150,13 @@ export default function MainMenu() {
   }, [homeSoloLevelNumber, soloProgress]);
   const soloCtaDisabled = isLoadingAuth || !authChecked || !soloProgressLoaded || !homeSoloLevel?.isPlayable;
 
+  useEffect(() => {
+    if (!rewardsPlayer) return;
+    if (activeShortcut) return;
+    if (dailyWheel?.shouldAutoOpen !== true) return;
+    setActiveShortcut('wheel');
+  }, [activeShortcut, dailyWheel?.shouldAutoOpen, rewardsPlayer]);
+
   const handleSolo = useCallback(() => {
     if (soloCtaDisabled) return;
     sounds.tap();
@@ -294,7 +301,10 @@ export default function MainMenu() {
         activeShortcut={activeShortcut}
         user={user}
         guestProfile={completedGuestProfile}
-        onClose={() => setActiveShortcut(null)}
+        onClose={() => {
+          if (activeShortcut === 'wheel') dailyWheel?.markAutoPopupShown?.();
+          setActiveShortcut(null);
+        }}
         onUserUpdated={handleDailyWheelUserPatch}
       />
     </main>

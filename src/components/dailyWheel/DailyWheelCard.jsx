@@ -1,11 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Gem, Gift, Loader2, RotateCw, Sparkles, X } from 'lucide-react';
+import { Gem, Gift, Loader2, PackageOpen, RefreshCw, RotateCw, Shield, Snowflake, Sparkles, X } from 'lucide-react';
 import { useDailyWheel } from '@/hooks/useDailyWheel';
+import {
+  DAILY_WHEEL_REWARD_SEGMENTS,
+  DAILY_WHEEL_VISUAL_SEGMENT_COUNT,
+  formatDailyWheelJokerLabel,
+  normalizeDailyWheelJokerRewards,
+  normalizeDailyWheelSegmentIndex,
+  summarizeDailyWheelReward,
+} from '@/lib/dailyWheelRewards';
 import { sounds } from '@/lib/gameSounds';
 
-const WHEEL_REWARD_SLICES = [30, 40, 50, 60, 75, 100, 150, 250];
-const WHEEL_SLICE_DEGREES = 360 / WHEEL_REWARD_SLICES.length;
+const WHEEL_REWARD_SLICES = DAILY_WHEEL_REWARD_SEGMENTS;
+const WHEEL_SLICE_DEGREES = 360 / DAILY_WHEEL_VISUAL_SEGMENT_COUNT;
 // One coherent landing spin. Single cubic-bezier deceleration — no keyframe
 // speed phases, no overshoot/bounce — so the wheel reads as one controlled
 // motion that smoothly comes to rest under the pointer.
@@ -31,8 +39,8 @@ const WHEEL_SLICE_COLORS = [
   '#a855f7',
 ];
 
-function getWheelTargetRotation(rewardAmount, reducedMotion = false) {
-  const index = Math.max(0, WHEEL_REWARD_SLICES.indexOf(Number(rewardAmount)));
+function getWheelTargetRotation(rewardSegmentIndex, reducedMotion = false) {
+  const index = normalizeDailyWheelSegmentIndex(rewardSegmentIndex);
   const fullSpins = reducedMotion ? 1 : 8;
   return (360 * fullSpins) - (index * WHEEL_SLICE_DEGREES);
 }
@@ -338,7 +346,7 @@ function RewardWheel({
     wheelAnimation = { rotate: targetRotation };
     wheelTransition = { duration: 0.18, ease: 'easeOut' };
   }
-  const conicStops = WHEEL_REWARD_SLICES.map((amount, index) => {
+  const conicStops = WHEEL_REWARD_SLICES.map((segment, index) => {
     const start = index * WHEEL_SLICE_DEGREES;
     const end = (index + 1) * WHEEL_SLICE_DEGREES;
     return `${WHEEL_SLICE_COLORS[index]} ${start}deg ${end}deg`;
@@ -435,12 +443,12 @@ function RewardWheel({
             pointerEvents: 'none',
           }}
         />
-        {WHEEL_REWARD_SLICES.map((amount, index) => {
+        {WHEEL_REWARD_SLICES.map((segment, index) => {
           const angle = index * WHEEL_SLICE_DEGREES;
-          const isHighlighted = Number(highlightAmount) === amount;
+          const isHighlighted = String(highlightAmount || '') === segment.id;
           return (
             <div
-              key={amount}
+              key={segment.id}
               className="absolute left-1/2 top-1/2 grid place-items-center"
               style={{
                 width: compact ? 56 : 66,
@@ -461,8 +469,8 @@ function RewardWheel({
                   textShadow: '0 1px 2px rgba(0,0,0,0.72)',
                 }}
               >
-                +{amount}
-                <Gem className="h-3 w-3 text-amber-200" fill="currentColor" strokeWidth={2.6} />
+                <RewardSliceIcon segment={segment} />
+                {segment.shortLabel}
               </span>
             </div>
           );
@@ -491,6 +499,114 @@ function RewardWheel({
   );
 }
 
+function RewardSliceIcon({ segment }) {
+  if (segment?.type === 'gift_box') return <Gift className="h-3 w-3 text-amber-100" strokeWidth={2.6} />;
+  if (segment?.jokerType === 'mistake_shield') return <Shield className="h-3 w-3 text-sky-100" strokeWidth={2.7} />;
+  if (segment?.jokerType === 'time_freeze') return <Snowflake className="h-3 w-3 text-cyan-100" strokeWidth={2.6} />;
+  if (segment?.jokerType === 'card_swap') return <RefreshCw className="h-3 w-3 text-emerald-100" strokeWidth={2.6} />;
+  return <Gem className="h-3 w-3 text-amber-200" fill="currentColor" strokeWidth={2.6} />;
+}
+
+function fireDailyWheelConfetti(reducedMotion) {
+  if (reducedMotion || typeof window === 'undefined') return;
+  import('canvas-confetti')
+    .then((module) => {
+      const confetti = module?.default || module;
+      if (typeof confetti !== 'function') return;
+      confetti({
+        particleCount: 72,
+        spread: 58,
+        startVelocity: 32,
+        scalar: 0.82,
+        ticks: 150,
+        origin: { y: 0.36 },
+        colors: ['#facc15', '#38bdf8', '#f8fafc', '#22c55e'],
+      });
+    })
+    .catch(() => null);
+}
+
+function GiftBoxRewardSummary({ giftBox }) {
+  const diamonds = Number(giftBox?.diamonds) || 0;
+  const jokers = normalizeDailyWheelJokerRewards(giftBox?.jokers);
+  return (
+    <div className="rounded-xl bg-slate-950/26 px-3 py-2">
+      <p className="mb-1 text-xs font-black uppercase text-amber-100">Hediye Kutusu</p>
+      <div className="flex flex-wrap justify-center gap-1.5">
+        {diamonds > 0 && (
+          <RewardPill icon={Gem} label={`+${formatDiamondCount(diamonds)} Elmas`} />
+        )}
+        {jokers.map((reward) => (
+          <RewardPill
+            key={reward.jokerType}
+            icon={Gift}
+            label={`${reward.quantity} ${formatDailyWheelJokerLabel(reward.jokerType)}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function JokerRewardSummary({ rewards }) {
+  return (
+    <div className="flex flex-wrap justify-center gap-1.5">
+      {normalizeDailyWheelJokerRewards(rewards).map((reward) => (
+        <RewardPill
+          key={reward.jokerType}
+          icon={Gift}
+          label={`${reward.quantity} ${formatDailyWheelJokerLabel(reward.jokerType)}`}
+        />
+      ))}
+    </div>
+  );
+}
+
+function RewardPill({ icon: Icon, label }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-extrabold text-amber-50"
+      style={{
+        background: 'rgba(15,23,42,0.58)',
+        boxShadow: 'inset 0 0 0 1px rgba(250,204,21,0.24)',
+      }}
+    >
+      <Icon className="h-3.5 w-3.5 text-amber-200" />
+      {label}
+    </span>
+  );
+}
+
+function DisabledAdSpinCta() {
+  return (
+    <div
+      className="w-full rounded-2xl px-3 py-3 text-center"
+      style={{
+        background: 'rgba(15,23,42,0.44)',
+        boxShadow: 'inset 0 0 0 1px rgba(148,163,184,0.20)',
+      }}
+    >
+      <p className="text-sm font-black text-white">Tekrar şansını dene!</p>
+      <button
+        type="button"
+        disabled
+        className="mt-2 min-h-10 w-full rounded-xl px-3 py-2 text-sm font-black"
+        style={{
+          background: 'linear-gradient(180deg, rgba(148,163,184,0.26), rgba(71,85,105,0.26))',
+          color: '#cbd5e1',
+          boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.10)',
+        }}
+        aria-label="Reklam İzle ve Tekrar Çevir Yakında"
+      >
+        📺 Reklam İzle ve Tekrar Çevir
+      </button>
+      <span className="mt-2 inline-flex rounded-full bg-amber-300/14 px-2.5 py-1 text-[11px] font-black text-amber-100">
+        Yakında
+      </span>
+    </div>
+  );
+}
+
 function DailyWheelPromptModal({ claiming, onSpin, onClose }) {
   const prefersReducedMotion = useReducedMotion();
   return (
@@ -509,7 +625,9 @@ function DailyWheelPromptModal({ claiming, onSpin, onClose }) {
 }
 
 function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClose }) {
-  const hasReward = Number(result?.totalRewardAmount) > 0;
+  const jokerRewards = useMemo(() => normalizeDailyWheelJokerRewards(result?.jokerRewards), [result?.jokerRewards]);
+  const resultSummary = useMemo(() => summarizeDailyWheelReward({ ...result, jokerRewards }), [jokerRewards, result]);
+  const hasReward = Boolean(result?.rewardId || Number(result?.totalRewardAmount) > 0 || jokerRewards.length || result?.giftBox);
   const alreadyClaimed = Boolean(result?.alreadyClaimedToday || result?.alreadyClaimed);
   const updatedDiamondTotal = Number(result?.updatedDiamondTotal);
   const streakBonusAmount = Number(result?.streakBonusAmount) || 0;
@@ -519,8 +637,8 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
   const [revealReady, setRevealReady] = useState(false);
   const prefersReducedMotion = useReducedMotion();
   const targetRotation = useMemo(
-    () => getWheelTargetRotation(result?.rewardAmount, prefersReducedMotion),
-    [result?.rewardAmount, prefersReducedMotion],
+    () => getWheelTargetRotation(result?.rewardSegmentIndex, prefersReducedMotion),
+    [result?.rewardSegmentIndex, prefersReducedMotion],
   );
   const spinDurationMs = prefersReducedMotion ? WHEEL_REDUCED_MOTION_DURATION_MS : WHEEL_SPIN_DURATION_MS;
 
@@ -542,13 +660,15 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
     const revealId = window.setTimeout(() => {
       window.clearInterval(tickId);
       setRevealReady(true);
+      fireDailyWheelConfetti(prefersReducedMotion);
+      try { window.navigator?.vibrate?.(28); } catch { /* non-blocking */ }
       try { sounds.rewardReveal?.(); } catch { /* non-blocking */ }
     }, spinDurationMs);
     return () => {
       window.clearInterval(tickId);
       window.clearTimeout(revealId);
     };
-  }, [hasReward, result?.rewardAmount, spinDurationMs]);
+  }, [hasReward, prefersReducedMotion, result?.rewardId, spinDurationMs]);
 
   return (
     <DailyWheelModalFrame onClose={onClose} disableClose={claiming || (hasReward && !revealReady)}>
@@ -574,7 +694,7 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
           <RewardWheel
             phase={wheelPhase}
             targetRotation={targetRotation}
-            highlightAmount={revealReady ? result.rewardAmount : null}
+            highlightAmount={revealReady ? result.rewardId : null}
             compact={revealReady}
             reducedMotion={prefersReducedMotion}
           />
@@ -600,10 +720,17 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
                 }}
               >
                 {!prefersReducedMotion && <RewardBurst />}
-                <Sparkles className="mx-auto mb-2 h-8 w-8 text-amber-300" />
+                {result?.rewardType === 'gift_box' ? (
+                  <PackageOpen className="mx-auto mb-2 h-8 w-8 text-amber-300" />
+                ) : (
+                  <Sparkles className="mx-auto mb-2 h-8 w-8 text-amber-300" />
+                )}
                 <h2 className="font-inter text-3xl font-black text-white">
-                  +{formatDiamondCount(result.rewardAmount)} Elmas kazandın
+                  {resultSummary.title}
                 </h2>
+                <p className="mt-1 text-sm font-bold text-amber-50/82">
+                  {resultSummary.subtitle}
+                </p>
                 <div
                   aria-hidden="true"
                   className="pointer-events-none absolute inset-0"
@@ -613,14 +740,18 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
                 />
               </motion.div>
               <div className="space-y-2 rounded-xl bg-amber-300/12 px-3 py-2 text-center">
+                {result?.giftBox && <GiftBoxRewardSummary giftBox={result.giftBox} />}
+                {jokerRewards.length > 0 && <JokerRewardSummary rewards={jokerRewards} />}
                 {streakBonusAmount > 0 && (
                   <p className="text-sm font-extrabold text-amber-100">
                     {streakBonusText}
                   </p>
                 )}
-                <p className="text-xs font-bold text-amber-50/80">
-                  Toplam: +{formatDiamondCount(result.totalRewardAmount)} elmas
-                </p>
+                {Number(result.totalRewardAmount) > 0 && (
+                  <p className="text-xs font-bold text-amber-50/80">
+                    Toplam: +{formatDiamondCount(result.totalRewardAmount)} elmas
+                  </p>
+                )}
               </div>
               {Number.isFinite(updatedDiamondTotal) && (
                 <p className="rounded-full bg-slate-950/38 px-3 py-1.5 text-center text-sm font-extrabold text-amber-100">
@@ -630,6 +761,7 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
               <p className="text-center text-xs font-semibold text-slate-300">
                 Seri: <span className="kronox-number">{Number(result.streakAfter) || 1}</span> gün
               </p>
+              <DisabledAdSpinCta />
               <ModalButton onClick={onClose}>Kapat</ModalButton>
             </>
           )}
@@ -646,6 +778,7 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
               {formatCountdown(result.nextAvailableAt)}
             </p>
           )}
+          <DisabledAdSpinCta />
           <ModalButton onClick={onClose}>Tamam</ModalButton>
         </>
       ) : (
@@ -676,6 +809,7 @@ function DailyWheelStatusModal({ nextLabel, onClose }) {
         Yeni çark yarın hazır olacak.
       </p>
       <p className="kronox-number text-center text-xs text-amber-100/85">{nextLabel}</p>
+      <DisabledAdSpinCta />
       <ModalButton onClick={onClose}>Tamam</ModalButton>
     </DailyWheelModalFrame>
   );

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { KRONOX_BUILD_MARKER } from '@/components/dev/BuildMarker';
 import { claimDailyWheelReward, getDailyWheelStatus } from '@/lib/dbGateway/economyGateway';
 import { getCompletedGuestCredentialsPayload } from '@/lib/guestProfile';
+import { normalizeDailyWheelJokerRewards } from '@/lib/dailyWheelRewards';
 
 function normalizeFunctionBody(response) {
   return response?.data || response || {};
@@ -11,9 +12,14 @@ function todayFallbackKey() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function promptSessionKey(user, serverDate) {
+function dailyWheelActorKey(user, guestCredentials) {
   const email = String(user?.email || user?.user_email || 'guest').trim().toLowerCase();
-  return `kronox_daily_wheel_prompt_seen:${email}:${serverDate || todayFallbackKey()}`;
+  const guestId = String(guestCredentials?.guest_id || '').trim();
+  return email && email !== 'guest' ? `auth:${email}` : `guest:${guestId || 'pending'}`;
+}
+
+function autoPopupStorageKey(user, guestCredentials, serverDate) {
+  return `kronox_daily_wheel_auto_popup_seen:${dailyWheelActorKey(user, guestCredentials)}:${serverDate || todayFallbackKey()}`;
 }
 
 const DAILY_REWARD_STATUS_CACHE_TTL_MS = 60 * 1000;
@@ -74,11 +80,18 @@ function buildClaimResultFromStatus(body) {
     alreadyClaimedToday: true,
     alreadyClaimed: true,
     serverDate: body?.serverDate,
+    rewardType: lastReward.rewardType || 'diamonds',
+    rewardId: lastReward.rewardId || `diamond_${rewardAmount}`,
+    rewardLabel: lastReward.rewardLabel || '',
+    rewardSegmentIndex: Number(lastReward.rewardSegmentIndex) || 0,
+    rewardSegmentCount: Number(lastReward.rewardSegmentCount) || 8,
     rewardAmount,
     streakBefore: Number(lastReward.streakBefore) || 0,
     streakAfter: Number(lastReward.streakAfter ?? body?.currentStreak) || 0,
     streakBonusAmount: Number(lastReward.streakBonusAmount) || 0,
     totalRewardAmount,
+    jokerRewards: normalizeDailyWheelJokerRewards(lastReward.jokerRewards),
+    giftBox: lastReward.giftBox || null,
     claimedAt: lastReward.claimedAt || null,
     nextAvailableAt: lastReward.nextAvailableAt || body?.nextAvailableAt || null,
     updatedDiamondTotal: Number(body?.diamondTotal) || 0,
@@ -137,11 +150,11 @@ export function useDailyWheel({ user, guestProfile, onUserUpdated } = {}) {
 
   const markPromptSeen = useCallback((serverDate = wheel?.serverDate) => {
     try {
-      sessionStorage.setItem(promptSessionKey(user, serverDate), '1');
+      localStorage.setItem(autoPopupStorageKey(user, guestCredentials, serverDate), '1');
     } catch {
-      // Session prompt state is visual only; reward source of truth stays server-side.
+      // Auto-popup state is visual only; reward source of truth stays server-side.
     }
-  }, [user, wheel?.serverDate]);
+  }, [guestCredentials, user, wheel?.serverDate]);
 
   const applyDailyWheelStatusBody = useCallback((body) => {
     setWheel(body);
@@ -149,15 +162,15 @@ export function useDailyWheel({ user, guestProfile, onUserUpdated } = {}) {
     setStatus(nextStatus);
 
     if (body.available) {
-      const key = promptSessionKey(user, body.serverDate);
+      const key = autoPopupStorageKey(user, guestCredentials, body.serverDate);
       const alreadySeen = (() => {
-        try { return sessionStorage.getItem(key) === '1'; } catch { return true; }
+        try { return localStorage.getItem(key) === '1'; } catch { return true; }
       })();
       setShowPrompt(!alreadySeen);
     } else {
       setShowPrompt(false);
     }
-  }, [user]);
+  }, [guestCredentials, user]);
 
   const refresh = useCallback(async () => {
     setError('');
@@ -221,11 +234,18 @@ export function useDailyWheel({ user, guestProfile, onUserUpdated } = {}) {
       nextAvailableAt: body.nextAvailableAt,
       currentStreak: body.streakAfter,
       lastReward: {
+        rewardType: body.rewardType,
+        rewardId: body.rewardId,
+        rewardLabel: body.rewardLabel,
+        rewardSegmentIndex: body.rewardSegmentIndex,
+        rewardSegmentCount: body.rewardSegmentCount,
         rewardAmount: body.rewardAmount,
         streakBefore: body.streakBefore,
         streakAfter: body.streakAfter,
         streakBonusAmount: body.streakBonusAmount,
         totalRewardAmount: body.totalRewardAmount,
+        jokerRewards: normalizeDailyWheelJokerRewards(body.jokerRewards),
+        giftBox: body.giftBox || null,
         balanceAfter: body.updatedDiamondTotal,
         claimedAt: body.claimedAt,
         nextAvailableAt: body.nextAvailableAt,
@@ -315,6 +335,8 @@ export function useDailyWheel({ user, guestProfile, onUserUpdated } = {}) {
     refresh,
     claim,
     dismissPrompt,
+    markAutoPopupShown: markPromptSeen,
+    shouldAutoOpen: showPrompt,
     closeResult: () => setShowResult(false),
     openResult: () => setShowResult(true),
   }), [
@@ -331,5 +353,6 @@ export function useDailyWheel({ user, guestProfile, onUserUpdated } = {}) {
     refresh,
     claim,
     dismissPrompt,
+    markPromptSeen,
   ]);
 }

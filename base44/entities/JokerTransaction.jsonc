@@ -1,7 +1,7 @@
 {
   "name": "JokerTransaction",
   "type": "object",
-  "description": "Append-only user joker ledger. Starter grants write starter_grant rows; Solo joker usage writes solo_use rows; Ma\u011faza Phase 1 writes market_purchase rows through server-side validation. Base44/platform index contract: idempotency_key is the logical unique duplicate-protection key when present; user_email + joker_type + created_at supports audit history. Until platform unique proof exists, mutation functions query idempotency_key before ledger writes and fail/return already-applied on duplicates.",
+  "description": "Append-only user joker ledger. Starter grants write starter_grant rows; Solo joker usage writes solo_use rows; Ma\u011faza Phase 1 writes market_purchase rows through server-side validation; Daily Wheel V2 writes daily_wheel rows for approved joker rewards. Base44/platform index contract: idempotency_key is the logical unique duplicate-protection key when present; user_email + joker_type + created_at supports audit history. Until platform unique proof exists, mutation functions query idempotency_key before ledger writes and fail/return already-applied on duplicates.",
   "properties": {
     "user_email": {
       "type": "string",
@@ -27,6 +27,7 @@
         "admin_adjustment",
         "solo_use",
         "market_purchase",
+        "daily_wheel",
         "account_link_merge",
         "refund",
         "correction"

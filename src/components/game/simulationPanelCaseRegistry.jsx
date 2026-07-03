@@ -129,7 +129,7 @@ import * as unifiedKronoxScoreCases from './simulationPanelUnifiedKronoxScoreCas
 // Codex152 — Diamond economy foundation: canonical User.diamonds balance,
 // starter + daily login grants, idempotent ledger, and display contracts.
 import * as diamondEconomyCases from './simulationPanelDiamondEconomyCases';
-// Codex185 — Daily Reward Wheel: server-backed Home wheel, Diamond-only
+// Codex539 — Daily Reward Wheel V2: server-backed weighted rewards, Gift Box, jokers, no Puan
 // grants, UTC-day idempotency, 7-day streak bonus, and manual race proof.
 import * as dailyWheelCases from './simulationPanelDailyWheelCases';
 // Codex157 — Security cleanup: unused Spotify/external music import

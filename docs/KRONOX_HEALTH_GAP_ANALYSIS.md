@@ -34,7 +34,7 @@ fallback polling/refetch.
 | Notifications | Executable merge helpers cover stale empty fetches | Does not prove push delivery or service worker behavior on real devices |
 | Online presence / player selection | Confirms PlayerPresence owner binding, GuestProfile token proof for guest heartbeat, 75s TTL/25s heartbeat/12s visible refresh, accepted-friend lookup, backend-owned player selection, username-only labels, opaque target refs, and offline fallback | Does not prove deployed function freshness, two-device heartbeat timing, or live non-friend invite delivery |
 | Solo records | Confirms backend context and copy | Does not prove production data has multi-user records |
-| Economy | Confirms idempotency guards, Diamond-only rules, and function-level economy lock/recheck guards | Does not prove DB uniqueness or two-device race safety |
+| Economy | Confirms idempotency guards, Daily Wheel V2 no-Puan weighted reward rules, Daily Quest Diamond-only rules, and function-level economy lock/recheck guards | Does not prove DB uniqueness or two-device race safety |
 | Leaderboard privacy | Confirms sanitized public payload shape | Does not prove live RLS prevents direct entity reads |
 | Questions | Confirms no raw client `Question.list` gameplay fallback | Does not prove deployed function is current |
 
@@ -76,8 +76,9 @@ fallback polling/refetch.
   cleanup/no-token-logging.
 - Added Security Pass 2 coverage for `EconomyOperationLock`, post-lock
   idempotency/balance/inventory rechecks, Market purchase negative-balance
-  protection, Solo joker non-negative spend protection, and Daily Wheel /
-  Daily Quest Diamond-only claim serialization. DB unique/index proof and live
+  protection, Solo joker non-negative spend protection, Daily Wheel V2 weighted
+  reward serialization, and Daily Quest Diamond-only claim serialization.
+  DB unique/index proof and live
   two-device economy races remain manual gates.
 - Added Security Pass 3 coverage for accessible loading/status semantics,
   labeled custom modals, profile/onboarding form feedback semantics,

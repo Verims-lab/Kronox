@@ -34,14 +34,16 @@ neither DB/entity unique nor function-level guard is High.
 - starter_bonus (one-time, guarded by User.starter_bonus_granted_at)
 - first_login_reward (one-time Profile account-link reward, guarded by User.first_login_reward_granted_at and DiamondTransaction idempotency_key first_login_reward:<email>)
 - daily_login (guarded by User.last_daily_diamond_reward_date)
-- daily_wheel (server-backed Daily Wheel claim; Diamonds only, no Kronox Puan)
+- daily_wheel (server-backed Daily Wheel V2 claim; Diamonds, approved Solo jokers, or Gift Box only; no Kronox Puan)
 - market_purchase (server-backed Mağaza joker purchase; Diamond spend only)
 
-Daily Wheel is separate from the existing +20 daily login reward, grants once
+Daily Wheel V2 is separate from the existing +20 daily login reward, grants one free spin once
 per UTC server day, uses idempotency_key daily_wheel:<playerKey>:<YYYY-MM-DD>,
-records a DailyWheelSpin row plus DiamondTransaction.source = daily_wheel, and
-grants a 7-day streak bonus: +150 diamonds. It grants no Kronox Puan and does
-not affect leaderboard sorting or rank. Daily Wheel same-day duplicate
+records a DailyWheelSpin row plus DiamondTransaction.source = daily_wheel for
+Diamond portions and JokerTransaction.reason = daily_wheel for approved joker
+portions, and grants a 7-day streak bonus: +150 diamonds when applicable. It
+grants no Kronox Puan and does not affect leaderboard sorting or rank. Daily
+Wheel same-day duplicate
 prevention uses key/date lookup, reserve-first DailyWheelSpin rows, canonical
 same-player/same-day re-read, User/GuestProfile guard re-check, and DiamondTransaction
 re-check before balance mutation. This is not an atomic upsert until DB/entity
@@ -55,13 +57,30 @@ Daily Wheel claim requires an authenticated user or a token-proven completed
 GuestProfile, and guest reward rows use internal guest:<g_owner_key> keys.
 
 Daily Wheel reward is selected server-side by claimDailyWheelReward and the UI
-animates to the backend-selected reward. Reward weights are 30 high weight 24,
-40 high weight 22, 50 high weight 20, 60 medium weight 12,
-75 medium weight 10, 100 low weight 7, 150 rare weight 4,
-250 very_rare weight 1.
+animates to the backend-selected 8-slice reward_segment_index. Reward weights
+are diamond_20 weight 28, diamond_60 weight 20, diamond_100 weight 15,
+joker_krono_kalkan weight 12, joker_zamani_dondur weight 10,
+joker_kart_degistir weight 8, gift_box weight 5, and diamond_250 weight 2.
+The visual wheel always uses 8 equal segments; probabilities live on the
+server. Closing the once-per-day auto-popup does not consume the free spin.
 
-Result copy shows +X Elmas kazandın. When the 7-day streak bonus applies it
-also shows 7 günlük seri bonusu: +150 elmas and Toplam: +Y elmas. The Home
+Gift Box contents are selected server-side during the same idempotent claim and
+stored on DailyWheelSpin. Gift Box packages are diamond_50, diamond_70,
+diamond_80, diamond_100 + joker_kart_degistir,
+diamond_60 + joker_krono_kalkan, diamond_20 + joker_zamani_dondur,
+joker_krono_kalkan + joker_kart_degistir,
+joker_zamani_dondur + joker_kart_degistir, and
+joker_krono_kalkan + joker_zamani_dondur. A Gift Box package must not contain
+two separate Diamond rewards or the same joker twice.
+
+After the free spin is used, the repeat ad-spin CTA says Tekrar şansını dene!
+and 📺 Reklam İzle ve Tekrar Çevir, is disabled, and is marked Yakında. Future
+rewarded-ad integration may add up to 5 ad spins/day for 6 total spins with the
+free spin, but no fake rewarded-ad grant flow is active.
+
+Result copy reflects the server reward: Diamonds, approved jokers, or Hediye
+Kutusu. When the 7-day streak bonus applies it also shows 7 günlük seri bonusu:
++150 elmas and Toplam: +Y elmas. The Home
 claimed-state countdown uses Yarın hazır or compact time text such as 11 sa
 24 dk without a Diamond icon.
 
@@ -100,7 +119,7 @@ leaderboard sorting or rank.
 ## Mağaza / Joker purchases
 Mağaza Phase 1 sells only Solo jokers for Diamonds:
 Zaman Dondur = 40 Diamonds, Kart Değiştir = 50 Diamonds, Kronokalkan = 60 Diamonds.
-Diamond source/sink balance: Daily Wheel remains a Diamond source and Daily Wheel remains Diamond-only, while Mağaza purchase is a Diamond sink.
+Diamond source/sink balance: Daily Wheel V2 can be a Diamond source and/or approved joker grant source, while Mağaza purchase is a Diamond sink.
 purchaseJokerWithDiamonds owns the trusted price table, purchase validation is server-authoritative, Client is not trusted for price, client-provided price/cost is ignored, validates authenticated self-owned user context and sufficient User.diamonds server-side, writes DiamondTransaction.source = market_purchase with direction = spend, and writes JokerTransaction.reason = market_purchase.
 purchaseJokerWithDiamonds explicitly binds UserJokerInventory, DiamondTransaction, and JokerTransaction in the Base44 runtime path; deployed proof must confirm Diamond decrease, joker increase, both ledgers, insufficient-Diamond block, and duplicate tap guard.
 Insufficient Diamonds do not decrease Diamonds, increase joker balance, or write successful purchase ledgers. Purchase uses an idempotency key; double-tap, network retry, and two tabs/devices are guarded by EconomyOperationLock, post-lock idempotency rechecks, and a refreshed server balance; live race proof remains manual.

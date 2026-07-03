@@ -59,7 +59,7 @@ function makeCase(id, name, run, options = {}) {
     name,
     critical: options.critical ?? true,
     actionType: options.actionType || ACTION_TYPES.CODE_FIX,
-    nextStep: options.nextStep || 'Keep Daily Wheel server-backed, Diamond-only, and one-spin-per-server-day.',
+    nextStep: options.nextStep || 'Keep Daily Wheel V2 server-backed, weighted, one-free-spin-per-server-day, and no-Puan/no-leaderboard.',
     ...options,
     run,
   };
@@ -163,28 +163,31 @@ export const EXTRA_TESTS = [
       return pass('DailyWheelCard exposes every required user-facing state.', { verification: 'STATIC_CONTRACT' });
     }),
 
-  makeCase('daily_wheel_prompt_once_per_session_visual_only',
-    'Daily Wheel availability prompt is once-per-session and visual-only',
+  makeCase('daily_wheel_auto_popup_once_per_day_visual_only',
+    'Daily Wheel auto-popup is once per player/day and visual-only',
     () => {
-      const missing = missingTokens(dailyWheelHookSource, [
-        'kronox_daily_wheel_prompt_seen',
-        'sessionStorage',
+      const missing = missingTokens(`${dailyWheelHookSource}\n${mainMenuSource}`, [
+        'kronox_daily_wheel_auto_popup_seen',
+        'localStorage',
+        'autoPopupStorageKey',
         'showPrompt',
         'dismissPrompt',
-        'reward source of truth stays server-side',
+        'shouldAutoOpen',
+        'markAutoPopupShown',
+        "setActiveShortcut('wheel')",
+        'Auto-popup state is visual only; reward source of truth stays server-side.',
       ]);
       const forbidden = forbiddenTokens(dailyWheelHookSource, [
-        'localStorage.setItem',
         'diamonds +=',
       ]);
       if (missing.length || forbidden.length) {
-        return fail('Daily Wheel prompt state can affect reward source-of-truth or lacks session-only suppression.', {
+        return fail('Daily Wheel auto-popup state can affect reward source-of-truth or lacks day-key suppression.', {
           verification: 'STATIC_CONTRACT',
-          file: 'src/hooks/useDailyWheel.js',
+          files: ['src/hooks/useDailyWheel.js', 'src/pages/MainMenu.jsx'],
           actual: { missing, forbidden },
         });
       }
-      return pass('Prompt dismissal uses sessionStorage only and never grants rewards.', { verification: 'STATIC_CONTRACT' });
+      return pass('Auto-popup dismissal uses a per-player/day localStorage key and never grants rewards.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('daily_wheel_claim_requires_auth_and_server_reward',
@@ -246,18 +249,20 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('daily_wheel_reward_table_weighted_server_side',
-    'Daily Wheel v1 uses the weighted 8-slice backend reward table',
+    'Daily Wheel V2 uses the weighted 8-slice backend reward table',
     () => {
       const missing = missingTokens(DAILY_WHEEL_BACKEND_HEALTH_SOURCE, [
         'REWARD_TABLE',
-        '30 high weight 24',
-        '40 high weight 22',
-        '50 high weight 20',
-        '60 medium weight 12',
-        '75 medium weight 10',
-        '100 low weight 7',
-        '150 rare weight 4',
-        '250 very_rare weight 1',
+        'DAILY_WHEEL_REWARD_TABLE_VERSION = \'daily_wheel_v2\'',
+        'DAILY_WHEEL_VISUAL_SEGMENT_COUNT = 8',
+        'diamond_20 weight: 28',
+        'diamond_60 weight: 20',
+        'diamond_100 weight: 15',
+        'joker_krono_kalkan weight: 12',
+        'joker_zamani_dondur weight: 10',
+        'joker_kart_degistir weight: 8',
+        'gift_box weight: 5',
+        'diamond_250 weight: 2',
         'selectReward',
         'randomUnit',
       ]);
@@ -268,9 +273,9 @@ export const EXTRA_TESTS = [
           missing,
         });
       }
-      return pass('Daily Wheel v1 reward weights are documented in the backend mirror and selected server-side.', {
+      return pass('Daily Wheel V2 reward weights are documented in the backend mirror and selected server-side.', {
         verification: 'STATIC_CONTRACT',
-        actual: { rewards: [30, 40, 50, 60, 75, 100, 150, 250], weights: [24, 22, 20, 12, 10, 7, 4, 1] },
+        actual: { rewards: ['diamond_20', 'diamond_60', 'diamond_100', 'joker_krono_kalkan', 'joker_zamani_dondur', 'joker_kart_degistir', 'gift_box', 'diamond_250'], weights: [28, 20, 15, 12, 10, 8, 5, 2] },
       });
     }),
 
@@ -301,14 +306,14 @@ export const EXTRA_TESTS = [
       return pass('Daily Quest Runtime v1 is panel-visible and Diamond claims are backend-owned, not client-mutated.', { verification: 'STATIC_CONTRACT' });
     }),
 
-  makeCase('daily_wheel_diamonds_only_no_puan',
-    'Daily Wheel grants Diamonds only and never Kronox Puan',
+  makeCase('daily_wheel_v2_no_puan_no_leaderboard',
+    'Daily Wheel V2 rewards never grant Kronox Puan or leaderboard impact',
     () => {
       const combined = `${DAILY_WHEEL_BACKEND_HEALTH_SOURCE}\n${economyRulesSource}\n${diamondEconomySource}`;
       const missing = missingTokens(combined, [
         "DAILY_WHEEL: 'daily_wheel'",
         'noKronoxPuan: true',
-        'grants no Kronox Puan',
+        'Daily Wheel never grants Kronox Puan',
         'does not affect leaderboard sorting or rank',
       ]);
       const forbidden = forbiddenTokens(DAILY_WHEEL_BACKEND_HEALTH_SOURCE, [
@@ -318,38 +323,39 @@ export const EXTRA_TESTS = [
         'solo_progress',
       ]);
       if (missing.length || forbidden.length) {
-        return fail('Daily Wheel can affect scoring/leaderboard or lacks Diamond-only contract.', {
+        return fail('Daily Wheel can affect scoring/leaderboard or lacks no-Puan/no-leaderboard contract.', {
           verification: 'STATIC_CONTRACT',
           actual: { missing, forbidden },
         });
       }
-      return pass('Daily Wheel source is Diamond-only and has no Puan/leaderboard writes.', { verification: 'STATIC_CONTRACT' });
+      return pass('Daily Wheel V2 can grant rewards but has no Puan/leaderboard writes.', { verification: 'STATIC_CONTRACT' });
     }),
 
-  makeCase('daily_wheel_does_not_grant_market_jokers',
-    'Daily Wheel remains a Diamond source only after Mağaza launch',
+  makeCase('daily_wheel_v2_joker_and_giftbox_contract',
+    'Daily Wheel V2 can grant approved jokers and Gift Box without market purchase leakage',
     () => {
       const combined = `${DAILY_WHEEL_BACKEND_HEALTH_SOURCE}\n${economyRulesSource}`;
       const missing = missingTokens(combined, [
-        'Daily Wheel remains a Diamond source',
-        'Daily Wheel remains Diamond-only',
+        'Daily Wheel V2 can grant Diamonds, approved Solo jokers, or Gift Box rewards',
+        'GIFT_BOX_REWARD_TABLE',
+        'grantDailyWheelJokers',
+        'JokerTransaction.create',
+        'UserJokerInventory',
+        'giftBoxResolvedServerSide',
+        'noFakeAdRewardFlow',
         'Mağaza purchase is a Diamond sink',
       ]);
       const forbidden = forbiddenTokens(DAILY_WHEEL_BACKEND_HEALTH_SOURCE, [
-        'JokerTransaction',
-        'UserJokerInventory',
-        'mistake_shield',
-        'card_swap',
-        'time_freeze',
         'market_purchase',
+        'purchaseJokerWithDiamonds',
       ]);
       if (missing.length || forbidden.length) {
-        return fail('Daily Wheel can drift into joker rewards or Market purchase sources.', {
+        return fail('Daily Wheel V2 joker/gift-box rewards can drift into Market purchase sources or lose server ownership.', {
           verification: 'STATIC_CONTRACT',
           actual: { missing, forbidden },
         });
       }
-      return pass('Daily Wheel remains Diamond-only and Mağaza remains the separate Diamond sink for joker purchases.', { verification: 'STATIC_CONTRACT' });
+      return pass('Daily Wheel V2 grants approved reward lanes directly while Mağaza remains the separate Diamond sink for purchases.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('daily_wheel_one_spin_per_server_day',
@@ -493,7 +499,8 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(`${dailyWheelHookSource}\n${dailyWheelCardSource}`, [
         'setLastResult(body)',
         'setShowResult(true)',
-        '+{formatDiamondCount(result.rewardAmount)} Elmas kazandın',
+        'summarizeDailyWheelReward',
+        'resultSummary.title',
         'Toplam: +{formatDiamondCount(result.totalRewardAmount)} elmas',
         'Toplam Elmas',
         'updatedDiamondTotal',
@@ -515,7 +522,8 @@ export const EXTRA_TESTS = [
     () => {
       const missing = missingTokens(dailyWheelCardSource, [
         'RewardWheel',
-        'WHEEL_REWARD_SLICES = [30, 40, 50, 60, 75, 100, 150, 250]',
+        'WHEEL_REWARD_SLICES = DAILY_WHEEL_REWARD_SEGMENTS',
+        'DAILY_WHEEL_VISUAL_SEGMENT_COUNT',
         'WHEEL_SLICE_COLORS',
         'conic-gradient',
         'Günlük Çark ödül seçenekleri',
@@ -590,23 +598,73 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('daily_wheel_result_uses_backend_reward_amount',
-    'Daily Wheel spin lands on and reveals the backend reward amount',
+    'Daily Wheel spin lands on and reveals the backend reward segment',
     () => {
       const missing = missingTokens(dailyWheelCardSource, [
-        'getWheelTargetRotation(result?.rewardAmount, prefersReducedMotion)',
-        'highlightAmount={revealReady ? result.rewardAmount : null}',
+        'getWheelTargetRotation(result?.rewardSegmentIndex, prefersReducedMotion)',
+        'highlightAmount={revealReady ? result.rewardId : null}',
         'result.totalRewardAmount',
-        'result.rewardAmount',
+        'result.rewardId',
+        'result.rewardSegmentIndex',
         '7 günlük seri bonusu: +150 elmas',
       ]);
       if (missing.length) {
-        return fail('Daily Wheel visual result can drift from the backend reward payload.', {
+        return fail('Daily Wheel visual result can drift from the backend-selected segment payload.', {
           verification: 'STATIC_CONTRACT',
           file: 'src/components/dailyWheel/DailyWheelCard.jsx',
           missing,
         });
       }
-      return pass('Wheel landing target and reveal text are both derived from the claim result payload.', { verification: 'STATIC_CONTRACT' });
+      return pass('Wheel landing target and reveal text are both derived from the claim result segment payload.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('daily_wheel_gift_box_resolves_server_side',
+    'Daily Wheel Gift Box contents are server-resolved and idempotent',
+    () => {
+      const missing = missingTokens(`${DAILY_WHEEL_BACKEND_HEALTH_SOURCE}\n${dailyWheelCardSource}`, [
+        'GIFT_BOX_REWARD_TABLE',
+        'selectGiftBoxReward',
+        'giftBoxResolvedServerSide',
+        'gift_box_reward_id',
+        'gift_box_reward_summary',
+        'GiftBoxRewardSummary',
+        'Hediye Kutusu açıldı!',
+      ]);
+      if (missing.length) {
+        return fail('Gift Box reward contents can drift client-side or lose same-day idempotency context.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['base44/functions/claimDailyWheelReward/entry.ts', 'src/components/dailyWheel/DailyWheelCard.jsx'],
+          missing,
+        });
+      }
+      return pass('Gift Box package selection is backend-owned, stored on DailyWheelSpin, and rendered from the server result.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('daily_wheel_ad_repeat_cta_disabled_yakinda',
+    'Daily Wheel repeat ad spin CTA is visible but disabled as Yakında',
+    () => {
+      const missing = missingTokens(`${dailyWheelCardSource}\n${DAILY_WHEEL_BACKEND_HEALTH_SOURCE}\n${economyRulesSource}`, [
+        'DisabledAdSpinCta',
+        'Tekrar şansını dene!',
+        '📺 Reklam İzle ve Tekrar Çevir',
+        'Yakında',
+        'noFakeAdRewardFlow',
+        'future rewarded-ad integration',
+      ]);
+      const forbidden = forbiddenTokens(dailyWheelCardSource, [
+        'claimAdSpinReward',
+        'rewardedAd',
+        'showRewardedAd',
+        'adSpinReward',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Daily Wheel repeat ad CTA can look active or add a fake ad reward path.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['src/components/dailyWheel/DailyWheelCard.jsx', 'docs/KRONOX_ECONOMY_RULES.md'],
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('Repeat spin ad CTA is disabled, marked Yakında, and has no fake reward flow.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('daily_wheel_sound_safe_existing_infrastructure',

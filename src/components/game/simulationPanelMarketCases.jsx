@@ -489,7 +489,7 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('online_and_daily_wheel_unaffected',
-    'Online mode and Daily Wheel remain unaffected by Mağaza',
+    'Online mode remains unaffected and Daily Wheel does not use Mağaza purchase flow',
     () => {
       const onlineForbidden = forbiddenTokens(`${onlineChallengeSource}\n${lobbyGatewaySource}`, [
         'purchaseJokerWithDiamonds',
@@ -498,15 +498,13 @@ export const EXTRA_TESTS = [
       ]);
       const dailyForbidden = forbiddenTokens(claimDailyWheelRewardSource, [
         'purchaseJokerWithDiamonds',
-        'JokerTransaction',
-        'UserJokerInventory',
         'market_purchase',
       ]);
       if (onlineForbidden.length || dailyForbidden.length) return fail('Market purchase leaked into Online or Daily Wheel paths.', {
         verification: 'STATIC_CONTRACT',
         actual: { onlineForbidden, dailyForbidden },
       });
-      return pass('Online does not use market/joker purchases; Daily Wheel remains Diamond-only.', { verification: 'STATIC_CONTRACT' });
+      return pass('Online does not use market/joker purchases; Daily Wheel V2 grants approved rewards without Mağaza purchase semantics.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('economy_docs_capture_source_sink_and_research_principles',

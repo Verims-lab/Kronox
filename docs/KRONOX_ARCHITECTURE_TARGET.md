@@ -77,7 +77,8 @@ Target:
 Parity plan:
 - Guest/profile correctness remains backend-verified in background and must
   patch shared auth state when authoritative data arrives.
-- Daily Wheel and Daily Quest remain server-authoritative and Diamond-only;
+- Daily Wheel V2 remains server-authoritative for weighted Diamonds, approved
+  Solo jokers, and Gift Box rewards; Daily Quest remains Diamond-only.
   Home may show loading/cached status while post-paint refresh completes.
 - Low-end Android/WebView startup timing remains a manual release proof gate.
 
@@ -232,7 +233,8 @@ Parity plan:
 - UI must not trust request-body user/owner/reward/score fields.
 - Service-role writes stay inside Base44 functions.
 - Question bank stays backend-only through compact projections.
-- Daily Wheel/Daily Quest remain Diamond-only.
+- Daily Wheel V2 rewards remain server-selected and no-Puan/no-leaderboard;
+  Daily Quest remains Diamond-only.
 - Mağaza catalog is code-side/static for Phase 1 joker products and may be
   cached/prefetched for fast open, but purchase remains server-authoritative:
   the client is never trusted for price, cost, user identity, reward, or target

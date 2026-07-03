@@ -1,7 +1,7 @@
 {
   "name": "DailyWheelSpin",
   "type": "object",
-  "description": "Server-backed Daily Reward Wheel ledger. One logical row should exist per user_email + spin_date / idempotency_key. Grants Diamonds only; never Kronox Puan.",
+  "description": "Server-backed Daily Reward Wheel V2 ledger. One logical row should exist per user_email + spin_date / idempotency_key. Rewards are selected server-side and may grant Diamonds, approved Solo jokers, or a server-resolved Gift Box; never Kronox Puan.",
   "properties": {
     "user_email": {
       "type": "string",
@@ -23,9 +23,55 @@
       "type": "string",
       "description": "UTC YYYY-MM-DD server day for the spin."
     },
+    "reward_type": {
+      "type": "string",
+      "enum": [
+        "diamonds",
+        "joker",
+        "gift_box"
+      ],
+      "description": "Server-selected Daily Wheel V2 reward lane. Client visuals must animate to this returned segment and must not choose rewards."
+    },
+    "reward_id": {
+      "type": "string",
+      "description": "Stable server-selected reward id such as diamond_20, joker_krono_kalkan, gift_box, or diamond_250."
+    },
+    "reward_label": {
+      "type": "string",
+      "description": "Debug/admin-safe label for the selected visual reward segment."
+    },
+    "reward_segment_index": {
+      "type": "number",
+      "description": "Zero-based visual segment index in the 8 equal-slice client wheel."
+    },
+    "reward_segment_count": {
+      "type": "number",
+      "description": "Visual segment count. Daily Wheel V2 uses 8 equal visual segments while backend weights control probability."
+    },
     "reward_amount": {
       "type": "number",
-      "description": "Base wheel Diamond reward amount."
+      "description": "Base wheel Diamond reward amount. Joker/Gift Box rewards can be 0 here; total_reward_amount includes any Gift Box Diamonds and streak bonus."
+    },
+    "joker_reward_summary": {
+      "type": "array",
+      "description": "Approved Daily Wheel joker grants, if any. Items use internal jokerType values mistake_shield, card_swap, or time_freeze plus quantity. No raw private identifiers."
+    },
+    "gift_box_status": {
+      "type": "string",
+      "description": "Gift Box lifecycle for gift_box spins. Phase 1 resolves and opens the package server-side during claim for idempotency."
+    },
+    "gift_box_reward_id": {
+      "type": "string",
+      "description": "Stable server-selected Gift Box package id. Repeated same-day reads/claims return the same package."
+    },
+    "gift_box_opened_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Server timestamp when the Gift Box package was resolved/opened."
+    },
+    "gift_box_reward_summary": {
+      "type": "object",
+      "description": "Server-selected Gift Box contents. At most one Diamond amount and zero or more different approved joker types; no duplicate same joker and no two separate Diamond rewards."
     },
     "streak_before": {
       "type": "number",
@@ -41,7 +87,7 @@
     },
     "total_reward_amount": {
       "type": "number",
-      "description": "reward_amount + streak_bonus_amount."
+      "description": "Total Diamond grant from the wheel claim: base Diamond reward + Gift Box Diamonds + streak_bonus_amount. Joker-only rewards may have 0."
     },
     "balance_before": {
       "type": "number",
