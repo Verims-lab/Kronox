@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex540 — Admin Daily Wheel state reset by Kronox User ID:
+//   • Admin Ekranı adds Günlük Çark Reset with Kronox User ID input, safety copy, loading/success/error states, and the same AdminCollapsibleSection card format as other admin tools.
+//   • adminResetDailyWheelState enforces active AdminUser owner/admin server-side, resolves User/GuestProfile by kronox_user_id, resets today-only Daily Wheel guards/auto-popup marker/blocking idempotency rows, and logs AdminMaintenanceLog without exposing private IDs.
+//   • Daily Wheel reset docs, mirrors, and Health now guard that previous Diamonds/Jokers are not reversed, no rewards are granted, and Daily Quest/Kronox Puan/Leaderboard remain unaffected.
+//
 // Codex539 — Daily Wheel V2 server-weighted rewards:
 //   • claimDailyWheelReward now owns the V2 weighted reward table, 8 equal visual segments, Gift Box package resolution, and approved Daily Wheel joker grants through DailyWheelSpin + DiamondTransaction/JokerTransaction/UserJokerInventory idempotency.
 //   • useDailyWheel/MainMenu add one free daily auto-popup per player/day without consuming the spin on close; DailyWheelCard reveals Diamonds/jokers/Gift Box rewards and shows a disabled Yakında rewarded-ad repeat CTA with no fake reward flow.
@@ -209,7 +214,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex539';
+const BUILD_MARKER = 'Codex540';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

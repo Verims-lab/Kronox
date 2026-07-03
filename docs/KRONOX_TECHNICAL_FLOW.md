@@ -139,6 +139,7 @@ Key Base44 Functions include:
 * `getAdminStatus`
 * `deleteAccount`
 * `adminResetUserProgress`
+* `adminResetDailyWheelState`
 
 Service-role functions must bind every user-owned object to authenticated user,
 admin, participant, host, recipient, or documented authority fields before read

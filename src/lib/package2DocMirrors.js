@@ -114,6 +114,7 @@ Daily Wheel claimed countdown shows \`Yarın hazır\` or compact time text
 without a Diamond icon.
 Admin reset sets \`daily_wheel_last_spin_date\` to the current UTC day, clears Daily Wheel guard fields, and removes target \`DailyWheelSpin\` rows. Retained OnlineMatchResult/DiamondTransaction/DailyWheelSpin rows no longer contain the deleted user.
 Admin reset remains admin-only, previewed, confirmed, and logged; it prevents stale Daily Wheel availability/countdown state without granting duplicate Diamonds, changing Kronox Puan, or affecting leaderboard sorting or rank.
+Admin-only \`Günlük Çark Reset\` appears only on Admin Ekranı, accepts Kronox User ID, calls \`/adminResetDailyWheelState\`, returns 401/403 for unauthenticated or non-admin callers, resets today's Daily Wheel test state only, archives same-day DailyWheelSpin/DiamondTransaction/JokerTransaction idempotency keys to preserve completed reward rows, and does not grant rewards, reverse awarded Diamonds/Jokers, reset Daily Quest, change Kronox Puan, or affect leaderboard.
 Retained economy/gameplay rows do not expose the deleted user identity.
 Runtime Solo QuestionAttemptEvent writes are best-effort for shown, answered,
 swapped-out, and replacement-shown events and must never block drag/drop,

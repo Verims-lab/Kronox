@@ -30,6 +30,8 @@ import getUserReportSource from '../../../base44/functions/getUserReport/entry.t
 import getUserReportConfigSource from '../../../base44/functions/getUserReport/function.jsonc?raw';
 import adminGrantDiamondsSource from '../../../base44/functions/adminGrantDiamonds/entry.ts?raw';
 import adminGrantDiamondsConfigSource from '../../../base44/functions/adminGrantDiamonds/function.jsonc?raw';
+import adminResetDailyWheelStateSource from '../../../base44/functions/adminResetDailyWheelState/entry.ts?raw';
+import adminResetDailyWheelStateConfigSource from '../../../base44/functions/adminResetDailyWheelState/function.jsonc?raw';
 import cleanupInactiveGuestUsernamesSource from '../../../base44/functions/cleanupInactiveGuestUsernames/entry.ts?raw';
 import cleanupInactiveGuestUsernamesConfigSource from '../../../base44/functions/cleanupInactiveGuestUsernames/function.jsonc?raw';
 import recordAppOpenSource from '../../../base44/functions/recordAppOpen/entry.ts?raw';
@@ -55,6 +57,7 @@ import resetUserProgressToolSource from '../../components/admin/ResetUserProgres
 import userReportToolSource from '../../components/admin/UserReportTool.jsx?raw';
 import questionAnalyticsReportToolSource from '../../components/admin/QuestionAnalyticsReportTool.jsx?raw';
 import adminDiamondGrantToolSource from '../../components/admin/AdminDiamondGrantTool.jsx?raw';
+import adminDailyWheelResetToolSource from '../../components/admin/AdminDailyWheelResetTool.jsx?raw';
 import inactiveGuestCleanupToolSource from '../../components/admin/InactiveGuestCleanupTool.jsx?raw';
 import adminCollapsibleSectionSource from '../../components/admin/AdminCollapsibleSection.jsx?raw';
 import adminVisualStylesSource from '../../components/admin/adminVisualStyles.js?raw';
@@ -160,6 +163,7 @@ const TARGET_FUNCTIONS = [
   { name: 'generateWorkflowDoc', file: 'base44/functions/generateWorkflowDoc/entry.ts', source: generateWorkflowDocSource },
   { name: 'adminResetUserProgress', file: 'base44/functions/adminResetUserProgress/entry.ts', source: adminResetUserProgressSource },
   { name: 'adminGrantDiamonds', file: 'base44/functions/adminGrantDiamonds/entry.ts', source: adminGrantDiamondsSource },
+  { name: 'adminResetDailyWheelState', file: 'base44/functions/adminResetDailyWheelState/entry.ts', source: adminResetDailyWheelStateSource },
   { name: 'cleanupAdminMaintenanceLog', file: 'base44/functions/cleanupAdminMaintenanceLog/entry.ts', source: cleanupAdminMaintenanceLogSource },
   { name: 'expireOldGameInvites', file: 'base44/functions/expireOldGameInvites/entry.ts', source: expireOldGameInvitesSource },
   { name: 'expirePushSubscriptions', file: 'base44/functions/expirePushSubscriptions/entry.ts', source: expirePushSubscriptionsSource },
@@ -970,6 +974,99 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Test Elmas Yükleme is server-gated, Kronox-ID targeted, Diamond-only, ledgered, idempotent, and privacy-safe.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+  ),
+
+  makeCase(
+    'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
+    'admin_daily_wheel_reset_contract',
+    'Günlük Çark Reset is AdminUser-gated, Kronox-ID targeted, Daily-Wheel-only, and never reverses or grants rewards',
+    () => {
+      const backend = `${adminResetDailyWheelStateSource}\n${adminResetDailyWheelStateConfigSource}`;
+      const ui = `${adminDailyWheelResetToolSource}\n${adminPageSource}`;
+      const combined = `${backend}\n${ui}\n${adminMaintenanceLogSchemaSource}\n${userSchemaSource}\n${guestProfileSchemaSource}`;
+      const required = [
+        '"name": "adminResetDailyWheelState"',
+        'requireAdmin',
+        'entities?.AdminUser',
+        'normalizeKronoxUserId',
+        'KRONOX_ID_PATTERN',
+        'resolveTarget',
+        "'User'",
+        "'GuestProfile'",
+        'linked_guest_canonical_user_missing',
+        'DailyWheelSpin',
+        'DiamondTransaction',
+        'JokerTransaction',
+        'buildDailyWheelIdempotencyKey',
+        'findTodaySpinRows',
+        'findTodayDiamondTransactions',
+        'findTodayJokerTransactions',
+        'archiveRows',
+        'resetTargetDailyWheelGuard',
+        'daily_wheel_auto_popup_reset_at',
+        'daily_wheel_admin_reset_at',
+        'AdminMaintenanceLog',
+        'freeSpinStateReset',
+        'autoPopupStateReset',
+        'pendingWheelStateCleared',
+        'pendingGiftBoxStateHandled',
+        'adFutureStateReset',
+        'doesNotReverseRewards: true',
+        'grantsRewards: false',
+        'noDailyQuestImpact: true',
+        'noKronoxPuan: true',
+        'noLeaderboardImpact: true',
+        'Günlük Çark Reset',
+        'Kronox User ID',
+        'Çarkı Resetle',
+        'Daha önce kazanılan Elmas/Joker ödülleri geri alınmaz',
+        'base44.functions.fetch(\'/adminResetDailyWheelState\'',
+      ].filter((token) => !combined.includes(token));
+      const forbiddenBackend = [
+        'kronox_puan_total:',
+        'solo_progress:',
+        'online_progress:',
+        'daily_quest_last_claim',
+        'daily_quest_next_available',
+        'base44.asServiceRole.entities.User.delete',
+        'base44.asServiceRole.entities.GuestProfile.delete',
+        'amountAdded:',
+        'balance_after:',
+        "direction: 'earn'",
+      ].filter((token) => backend.includes(token));
+      const forbiddenUi = [
+        'target_email',
+        'guest_id',
+        'owner_key',
+        'provider',
+      ].filter((token) => ui.includes(token));
+      const forbiddenSettings = [
+        'Günlük Çark Reset',
+        'AdminDailyWheelResetTool',
+        'adminResetDailyWheelState',
+      ].filter((token) => safeStr(settingsPageSource).includes(token));
+      const forbiddenResponseShape = [
+        'targetEmail:',
+        'ownerKey:',
+        'guestId:',
+        'playerKey:',
+        'adminEmail:',
+      ].filter((token) => backend.includes(token));
+      if (required.length || forbiddenBackend.length || forbiddenUi.length || forbiddenSettings.length || forbiddenResponseShape.length) {
+        return fail('Admin Daily Wheel reset does not satisfy the protected support-tool contract.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'AdminUser-gated Kronox ID lookup, Daily Wheel-only guard/idempotency reset, popup reset marker, audit log, no reward reversal/grant, no Daily Quest/Puan/Leaderboard mutation, and no Settings exposure.',
+          actual: { missing: required, forbiddenBackend, forbiddenUi, forbiddenSettings, forbiddenResponseShape },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Günlük Çark Reset is server-gated, AdminPage-only, Kronox-ID targeted, Daily-Wheel-only, audit-logged, and reward-safe.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,

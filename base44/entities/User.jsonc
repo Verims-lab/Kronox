@@ -315,6 +315,16 @@
       "type": "number",
       "description": "Total Daily Wheel spin count for retention/economy diagnostics."
     },
+    "daily_wheel_auto_popup_reset_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Admin-only Daily Wheel test reset marker. getDailyWheelStatus returns this marker so the client uses a fresh local auto-popup key after an admin reset; it does not grant rewards or affect Kronox Puan/leaderboard."
+    },
+    "daily_wheel_admin_reset_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Latest server-side admin reset timestamp for Daily Wheel testing state only. Previous Diamond/Joker rewards are not reversed."
+    },
     "daily_quest_last_claim_at": {
       "type": "string",
       "format": "date-time",

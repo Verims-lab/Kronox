@@ -170,6 +170,7 @@ export const EXTRA_TESTS = [
         'kronox_daily_wheel_auto_popup_seen',
         'localStorage',
         'autoPopupStorageKey',
+        'dailyWheelAutoPopupResetAt',
         'showPrompt',
         'dismissPrompt',
         'shouldAutoOpen',

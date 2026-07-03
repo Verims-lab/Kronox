@@ -17,7 +17,7 @@ API client:
 * Frontend runtime code calls Base44 auth, entities, functions, subscriptions,
   and provider login paths directly from pages, hooks, and shared libs.
 * `base44/entities` defines 34 entity schemas.
-* `base44/functions` contains 41 function entry files; 17 currently have
+* `base44/functions` contains 52 function entry files; 28 currently have
   `function.jsonc` manifests in this repo.
 * Release docs assume Base44 for backend deploy proof, Android/iOS wrapper
   generation, App Store file generation, and some manual platform gates.
@@ -55,8 +55,8 @@ Current inventory from source scan:
 | --- | --- |
 | Files containing `@base44/sdk`, `createClientFromRequest`, or `base44.` | 149, including runtime, docs, scripts, and Health cases |
 | Base44 entity schemas | 34 |
-| Base44 function entry files | 41 |
-| Function manifests present in repo | 17 |
+| Base44 function entry files | 52 |
+| Function manifests present in repo | 28 |
 | Frontend Base44 client | `src/api/base44Client.js` |
 | Existing adapter start | `src/lib/dbGateway/*`, but many direct calls remain |
 | Mobile source of truth | No complete native iOS/Android app source of truth in repo; current wrapper/export path is Base44-managed |
@@ -95,6 +95,7 @@ Current inventory from source scan:
 Function entry files exist for these areas:
 
 * Admin/status/maintenance: `getAdminStatus`, `adminResetUserProgress`,
+  `adminResetDailyWheelState`,
   `resetTestAccountProgress`, `cleanupAdminMaintenanceLog`,
   `aggregateQuestionStats`, `refreshLeaderboardProjection`
 * Guest/account/profile: `createGuestProfile`, `linkGuestAccount`,

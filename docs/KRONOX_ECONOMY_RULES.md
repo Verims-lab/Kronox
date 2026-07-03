@@ -520,6 +520,22 @@ Daily Wheel admin reset cleanup contract:
 * reset must not delete the user account or authentication identity
 * admin reset remains admin-only, previewed, confirmed, and logged
 
+Narrow Daily Wheel test reset:
+
+```text
+adminResetDailyWheelState
+```
+
+* lives only on Admin Ekranı as Günlük Çark Reset
+* accepts Kronox User ID, not raw guest_id, owner_key, email, or internal player_key
+* requires active AdminUser owner/admin authorization server-side
+* resets today’s Daily Wheel test state only: free-spin guard, next-available guard, auto-popup reset marker, and blocking same-day wheel idempotency rows
+* preserves completed reward/audit rows by archiving same-day DailyWheelSpin, DiamondTransaction, and JokerTransaction idempotency keys under an admin-reset namespace instead of subtracting balances
+* does not grant rewards
+* does not reverse previously awarded Diamonds or Jokers
+* does not affect Daily Quest, Kronox Puan, leaderboard, Solo, Online, profile, or account data
+* writes AdminMaintenanceLog
+
 ---
 
 # 3B. Mağaza / Joker Purchases

@@ -8,6 +8,7 @@ import QuestionAnalyticsReportTool from '@/components/admin/QuestionAnalyticsRep
 import UserReportTool from '@/components/admin/UserReportTool';
 import InactiveGuestCleanupTool from '@/components/admin/InactiveGuestCleanupTool';
 import AdminDiamondGrantTool from '@/components/admin/AdminDiamondGrantTool';
+import AdminDailyWheelResetTool from '@/components/admin/AdminDailyWheelResetTool';
 import StandardTopBar from '@/components/layout/StandardTopBar';
 import PullToRefresh from '@/components/mobile/PullToRefresh';
 import { AdminRefreshContext } from '@/lib/AdminRefreshContext';
@@ -184,6 +185,7 @@ export default function AdminPage() {
               <QuestionAnalyticsReportTool />
               <UserReportTool />
               <AdminDiamondGrantTool />
+              <AdminDailyWheelResetTool />
               <InactiveGuestCleanupTool />
               <ResetUserProgressTool />
             </AdminRefreshContext.Provider>
