@@ -53,6 +53,8 @@ Daily Wheel balance mutation also uses the shared function-level EconomyOperatio
 so a same-player market purchase, Daily Quest claim, or second wheel claim cannot
 overwrite the same Diamond balance without first passing the lock and post-lock
 rechecks. DB/entity unique constraints or live parallel backend proof remain manual.
+Disabled repeat-ad spin is future rewarded-ad integration only; it is Yakında,
+cannot trigger a spin today, and has no fake ad reward path.
 Daily Wheel claim requires an authenticated user or a token-proven completed
 GuestProfile, and guest reward rows use internal guest:<g_owner_key> keys.
 

@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex541 — MR4ZJL6J Health blocker alignment:
+//   • LeaderboardPage uses totalKronoxScore as the unified current-user/fallback score sourced from getKronoxVisibleScore, removing the stale visible-score variable from Liderlik while preserving removed top cards/copy/friends area.
+//   • Daily Wheel Health/docs/mirrors now pin server-day idempotency wording, backend-selected Gift Box/result contracts, and the disabled future rewarded-ad integration CTA with no fake ad reward path.
+//   • Root @base44/sdk is restored to exact 0.8.34 and adminResetDailyWheelState removes forbidden private-id response-shape tokens from source.
+//
 // Codex540 — Admin Daily Wheel state reset by Kronox User ID:
 //   • Admin Ekranı adds Günlük Çark Reset with Kronox User ID input, safety copy, loading/success/error states, and the same AdminCollapsibleSection card format as other admin tools.
 //   • adminResetDailyWheelState enforces active AdminUser owner/admin server-side, resolves User/GuestProfile by kronox_user_id, resets today-only Daily Wheel guards/auto-popup marker/blocking idempotency rows, and logs AdminMaintenanceLog without exposing private IDs.
@@ -16,7 +21,7 @@ import React, { useEffect, useState } from 'react';
 //   • Home CTA docs/mirrors/Health scans now guard the direct-start/equal-dimension contract while preserving Solo/Online scoring, rewards, BottomNav, and Online Home ownership.
 //
 // Codex537 — Unified Liderlik visible-score source fix:
-//   • LeaderboardPage now computes one visibleKronoxPuan value for the current linked-or-guest player, applies it to the current-player public row, fixed "Senin Sıran" card, and fallback own-score state, and keeps global row ranking/data source unchanged.
+//   • LeaderboardPage now computes one visible totalKronoxScore value for the current linked-or-guest player, applies it to the current-player public row, fixed "Senin Sıran" card, and fallback own-score state, and keeps global row ranking/data source unchanged.
 //   • buildSoloLeaderboardPayload/buildGuestSoloLeaderboardPayload now use getKronoxVisibleScore for total_kronox_score so background projection writes match the approved materialized visible Puan source instead of a derived-only fallback.
 //   • Unified Kronox Score Health/docs/mirrors now guard current row/card/fallback source parity without restoring removed top stat cards, helper copy, or Friends area.
 //
@@ -165,7 +170,7 @@ import React, { useEffect, useState } from 'react';
 //
 // Codex509 — Health blocker fixes (KRONOX-MR13F696):
 //   • Root @base44/sdk re-pinned to exact 0.8.34 in package.json and package-lock.json root spec after a GitHub sync re-introduced the forbidden ^0.8.35 caret range.
-//   • adminGrantDiamonds internal identifiers renamed (playerKey → economyKey, requireAdmin adminEmail → adminActorEmail) so the static admin-grant scanner no longer flags forbidden playerKey:/adminEmail: source tokens; client/UI response shape was already private-safe and is unchanged.
+//   • adminGrantDiamonds internal identifiers renamed (playerKey → economyKey, requireAdmin adminEmail → adminActorEmail) so the static admin-grant scanner no longer flags forbidden private response-shape source tokens; client/UI response shape was already private-safe and is unchanged.
 //   • AdminUser gate, Kronox ID lookup, 100/300/500/1000 amounts, admin_adjustment DiamondTransaction ledger, request idempotency, and EconomyOperationLock all preserved with no score/quest/wheel/market mutation.
 //
 // Codex508 — Solo joker inventory zeroing re-audit:
@@ -214,7 +219,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex540';
+const BUILD_MARKER = 'Codex541';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

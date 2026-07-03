@@ -233,11 +233,10 @@ export const EXTRA_TESTS = [
     'Leaderboard current-user card, row, and fallback score use the same unified source',
     () => {
       const missing = missingTokens(`${leaderboardPageSource}\n${leaderboardLibSource}\n${rankingSectionSource}`, [
-        'visibleKronoxPuan',
         'getKronoxVisibleScore(user',
-        'withCurrentVisibleKronoxPuan',
-        'total_kronox_score: visibleKronoxPuan',
-        'totalKronoxScore: visibleKronoxPuan',
+        'withCurrentTotalKronoxScore',
+        'total_kronox_score: totalKronoxScore',
+        'totalKronoxScore: getKronoxVisibleScore(user',
         'getKronoxVisibleScore(leaderboardPlayer',
         'total_kronox_score: totalKronoxScore',
         'row.summary.totalKronoxScore',
@@ -317,8 +316,7 @@ export const EXTRA_TESTS = [
     () => {
       const missing = missingTokens(`${profilePageSource}\n${leaderboardPageSource}\n${leaderboardLibSource}`, [
         'getKronoxVisibleScore(user',
-        'visibleKronoxPuan',
-        'totalKronoxScore: visibleKronoxPuan',
+        'totalKronoxScore: getKronoxVisibleScore(user',
         'getKronoxVisibleScore(leaderboardPlayer',
         'total_kronox_score: totalKronoxScore',
       ]);

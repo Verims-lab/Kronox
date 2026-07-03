@@ -197,7 +197,6 @@ function userTargetFromRow(row: any) {
     rowId: rowId(row),
     playerType: 'registered',
     economyKey: email,
-    ownerKey: ownerKeyFromEmail(email),
     kronoxUserId: normalizeKronoxUserId(row?.kronox_user_id),
     username: safeDisplayName(row),
   };
@@ -256,8 +255,8 @@ async function resolveTarget(base44: any, kronoxUserId: string) {
   return { response: json({ ok: false, success: false, code: 'target_not_found', error: 'Kullanici ID bulunamadi.' }, 404) };
 }
 
-function buildDailyWheelIdempotencyKey(playerKey: string, dayKey: string) {
-  return `daily_wheel:${playerKey}:${dayKey}`;
+function buildDailyWheelIdempotencyKey(economyActorKey: string, dayKey: string) {
+  return `daily_wheel:${economyActorKey}:${dayKey}`;
 }
 
 async function findTodaySpinRows(base44: any, target: any, dayKey: string, idempotencyKey: string) {

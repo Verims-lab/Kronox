@@ -8,6 +8,7 @@ import mainMenuSource from '../../pages/MainMenu.jsx?raw';
 import dailyWheelCardSource from '../dailyWheel/DailyWheelCard.jsx?raw';
 import dailyRewardsPanelSource from '../dailyWheel/DailyRewardsPanel.jsx?raw';
 import dailyWheelHookSource from '../../hooks/useDailyWheel.js?raw';
+import dailyWheelRewardsSource from '../../lib/dailyWheelRewards.js?raw';
 import economyGatewaySource from '../../lib/dbGateway/economyGateway.js?raw';
 import diamondEconomySource from '../../lib/diamondEconomy.js?raw';
 import gameSoundsSource from '../../lib/gameSounds.js?raw';
@@ -606,7 +607,7 @@ export const EXTRA_TESTS = [
         'highlightAmount={revealReady ? result.rewardId : null}',
         'result.totalRewardAmount',
         'result.rewardId',
-        'result.rewardSegmentIndex',
+        'result?.rewardSegmentIndex',
         '7 günlük seri bonusu: +150 elmas',
       ]);
       if (missing.length) {
@@ -622,7 +623,7 @@ export const EXTRA_TESTS = [
   makeCase('daily_wheel_gift_box_resolves_server_side',
     'Daily Wheel Gift Box contents are server-resolved and idempotent',
     () => {
-      const missing = missingTokens(`${DAILY_WHEEL_BACKEND_HEALTH_SOURCE}\n${dailyWheelCardSource}`, [
+      const missing = missingTokens(`${DAILY_WHEEL_BACKEND_HEALTH_SOURCE}\n${dailyWheelCardSource}\n${dailyWheelRewardsSource}`, [
         'GIFT_BOX_REWARD_TABLE',
         'selectGiftBoxReward',
         'giftBoxResolvedServerSide',

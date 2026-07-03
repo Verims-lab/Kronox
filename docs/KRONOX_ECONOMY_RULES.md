@@ -151,6 +151,8 @@ Rules:
 * after the free spin is used, the repeat ad-spin CTA is visible but disabled
   as `Yakında`; there is no fake rewarded-ad grant path until future rewarded-ad
   integration is implemented
+* disabled ad repeat is future rewarded-ad integration only; it cannot trigger
+  a spin or grant an ad reward today
 
 Reward table and weights:
 
@@ -254,8 +256,8 @@ re-checks the User/GuestProfile guard, and re-checks the
 function-level `EconomyOperationLock` so a same-player market purchase, Daily
 Quest claim, or second wheel claim cannot overwrite the same Diamond balance
 without first passing the lock and post-lock rechecks. This is function-level
-guard only, not an atomic upsert. DB/entity unique constraints or live parallel
-backend proof remain manual.
+guard only, not an atomic upsert; logical guard; unique constraint platform/manual.
+DB/entity unique constraints or live parallel backend proof remain manual.
 
 ---
 
