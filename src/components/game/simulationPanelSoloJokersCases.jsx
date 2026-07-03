@@ -628,19 +628,19 @@ export const EXTRA_TESTS = [
       return pass('Mağaza purchase exists outside Solo; Solo gameplay keeps only owned-count joker usage controls.', { verification: 'STATIC_CONTRACT' });
     }),
 
-  makeCase('daily_wheel_remains_diamond_only_in_solo_phase_2',
-    'Daily Wheel remains Diamond-only in Phase 2',
+  makeCase('daily_wheel_v2_stays_outside_solo_runtime',
+    'Daily Wheel V2 reward grants stay outside Solo runtime',
     () => {
       const forbidden = forbiddenTokens(`${gameSource}\n${soloJokerBarSource}`, [
         'DailyWheelSpin',
         'claimDailyWheelReward',
         'DiamondTransaction',
       ]);
-      if (forbidden.length) return fail('Solo joker Phase 2 touched Daily Wheel or Diamond ledger code.', {
+      if (forbidden.length) return fail('Solo joker runtime touched Daily Wheel or Diamond ledger code.', {
         verification: 'STATIC_CONTRACT',
         forbidden,
       });
-      return pass('Solo joker Phase 2 does not touch Daily Wheel or Diamond reward paths.', { verification: 'STATIC_CONTRACT' });
+      return pass('Solo joker runtime does not call Daily Wheel reward paths; wheel grants are handled by the backend claim flow.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('solo_jokers_runtime_proof_required',

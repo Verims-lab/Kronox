@@ -382,18 +382,20 @@ Diamonds / Elmas are separate from Kronox Puan.
 Current Diamond sources and sinks:
 
 * starter and login Diamond grants
-* Daily Wheel Diamond-only grants
+* Daily Wheel V2 weighted Diamond / approved joker / Gift Box grants
 * Daily Quest Diamond-only grants
 * Mağaza Diamond spends
 
 Daily Wheel:
 
-* grants Diamonds only
+* grants Diamonds, approved Solo jokers, or Gift Box rewards only
 * grants no Kronox Puan
 * does not affect leaderboard
 * is separate from Daily Quest
 * completed guests can claim once per UTC day through token-proven GuestProfile
 * uses function-level same-day guard through `DailyWheelSpin`
+* shows a disabled `Yakında` ad-repeat CTA after the free spin; no fake ad
+  reward flow is active
 
 Daily Quest:
 
@@ -529,7 +531,8 @@ Before release, verify at minimum:
   prices correct
 * Online: selected categories 100%, difficulty 1/2, shared authoritative deck
 * exposure: actual-shown-only writes and anonymized reports
-* economy: Daily Wheel / Daily Quest Diamond-only, idempotency duplicate probes
+* economy: Daily Wheel V2 no-Puan weighted rewards, Daily Quest Diamond-only,
+  idempotency duplicate probes
 * leaderboard: username-only public identity and matching Profile Puan
 * analytics: 9-section email-body report, no PDF, no raw player identifiers
 * security: AdminUser authorization, public function boundaries, VAPID secret

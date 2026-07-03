@@ -537,8 +537,9 @@ contract.
 Daily Wheel functions must require authenticated user context or token-proven
 completed GuestProfile context. `claimDailyWheelReward` must select rewards
 server-side, use the derived player key for the daily idempotency key, grant
-Diamonds only, and never grant Kronox Puan. Before mutating `User.diamonds` or
-`GuestProfile.diamonds`, the claim path must check existing same-day
+only Diamonds, approved Solo jokers, or Gift Box rewards, and never grant
+Kronox Puan. Before mutating `User.diamonds`, `GuestProfile.diamonds`, or
+`UserJokerInventory`, the claim path must check existing same-day
 `DailyWheelSpin` rows by `idempotency_key` and `user_email + spin_date`,
 reserve a spin row, re-read the canonical same-player/same-UTC-day spin,
 re-check the User/GuestProfile guard, and re-check
@@ -858,7 +859,7 @@ Joker inventory is user-owned data:
   unique constraint this remains function-level guard only / Medium P1
   hardening, not Low risk.
 * Home exposes compact `Görevler` and `Çark` shortcuts for Daily Quest Runtime
-  v1 `Günlük Görev` and Daily Wheel; Daily Quest claims grant diamonds only
+  v1 `Günlük Görev` and Daily Wheel V2; Daily Quest claims grant diamonds only
   through server-backed, player-bound `claimDailyQuestReward`
 * Daily Wheel and Daily Quest rewards use separate guard fields and
   idempotency keys so a quest claim cannot unlock or duplicate a wheel spin:

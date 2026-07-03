@@ -53,8 +53,10 @@ Preserve these current contracts unless a task explicitly changes them:
 * Gameplay must not expose raw `Question.list` fallback or the full question
   bank to the client.
 * Unified Kronox Puan is the only visible score system.
-* Daily Wheel and Daily Quest grant Diamonds only; Daily Quest does not affect
-  Kronox Puan or leaderboard.
+* Daily Wheel V2 grants server-selected Diamonds, approved Solo jokers, or Gift
+  Box rewards only; it never grants Kronox Puan and never affects leaderboard.
+  Daily Quest grants Diamonds only and does not affect Kronox Puan or
+  leaderboard.
 * Completed GuestProfile users are valid players for Daily Wheel, Daily Quest,
   and Liderlik. Guest rewards persist on GuestProfile.diamonds and account
   linking preserves guest Diamonds, daily reward guards/history, Solo progress,

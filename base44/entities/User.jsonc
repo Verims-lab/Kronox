@@ -296,7 +296,7 @@
     "daily_wheel_last_spin_at": {
       "type": "string",
       "format": "date-time",
-      "description": "ISO timestamp of the latest server-backed Daily Wheel claim. Daily Wheel grants Diamonds only and never Kronox Puan."
+      "description": "ISO timestamp of the latest server-backed Daily Wheel V2 claim. Daily Wheel grants only Diamonds, approved Solo jokers, or Gift Box rewards and never Kronox Puan."
     },
     "daily_wheel_last_spin_date": {
       "type": "string",

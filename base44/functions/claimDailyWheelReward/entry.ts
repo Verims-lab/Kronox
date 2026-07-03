@@ -1,22 +1,45 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 
 const DAILY_WHEEL_SOURCE = 'daily_wheel';
+const DAILY_WHEEL_REWARD_TABLE_VERSION = 'daily_wheel_v2';
 const STREAK_BONUS_AMOUNT = 150;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const GUEST_ID_PREFIX = 'guest_';
 const ECONOMY_LOCK_TTL_MS = 8_000;
 const ECONOMY_LOCK_SETTLE_MS = 80;
+const DAILY_WHEEL_VISUAL_SEGMENT_COUNT = 8;
+const DAILY_WHEEL_JOKER_REASON = 'daily_wheel';
+const DAILY_WHEEL_JOKER_SOURCE = 'daily_wheel';
+const JOKER_TYPES = ['mistake_shield', 'card_swap', 'time_freeze'] as const;
 
 const REWARD_TABLE = [
-  { amount: 30, rarity: 'high', weight: 24 },
-  { amount: 40, rarity: 'high', weight: 22 },
-  { amount: 50, rarity: 'high', weight: 20 },
-  { amount: 60, rarity: 'medium', weight: 12 },
-  { amount: 75, rarity: 'medium', weight: 10 },
-  { amount: 100, rarity: 'low', weight: 7 },
-  { amount: 150, rarity: 'rare', weight: 4 },
-  { amount: 250, rarity: 'very_rare', weight: 1 },
+  { rewardId: 'diamond_20', rewardType: 'diamonds', amount: 20, weight: 28, segmentIndex: 0, label: '+20 Elmas' },
+  { rewardId: 'diamond_60', rewardType: 'diamonds', amount: 60, weight: 20, segmentIndex: 1, label: '+60 Elmas' },
+  { rewardId: 'diamond_100', rewardType: 'diamonds', amount: 100, weight: 15, segmentIndex: 2, label: '+100 Elmas' },
+  { rewardId: 'joker_krono_kalkan', rewardType: 'joker', jokerType: 'mistake_shield', quantity: 1, weight: 12, segmentIndex: 3, label: 'Kronokalkan' },
+  { rewardId: 'joker_zamani_dondur', rewardType: 'joker', jokerType: 'time_freeze', quantity: 1, weight: 10, segmentIndex: 4, label: 'Zaman Dondur' },
+  { rewardId: 'joker_kart_degistir', rewardType: 'joker', jokerType: 'card_swap', quantity: 1, weight: 8, segmentIndex: 5, label: 'Kart Değiştir' },
+  { rewardId: 'gift_box', rewardType: 'gift_box', weight: 5, segmentIndex: 6, label: 'Hediye Kutusu' },
+  { rewardId: 'diamond_250', rewardType: 'diamonds', amount: 250, weight: 2, segmentIndex: 7, label: '+250 Elmas' },
 ];
+
+const GIFT_BOX_REWARD_TABLE = [
+  { giftBoxRewardId: 'gift_diamond_50', diamonds: 50, jokers: [] },
+  { giftBoxRewardId: 'gift_diamond_70', diamonds: 70, jokers: [] },
+  { giftBoxRewardId: 'gift_diamond_80', diamonds: 80, jokers: [] },
+  { giftBoxRewardId: 'gift_diamond_100_card_swap', diamonds: 100, jokers: [{ jokerType: 'card_swap', quantity: 1 }] },
+  { giftBoxRewardId: 'gift_diamond_60_krono_kalkan', diamonds: 60, jokers: [{ jokerType: 'mistake_shield', quantity: 1 }] },
+  { giftBoxRewardId: 'gift_diamond_20_zamani_dondur', diamonds: 20, jokers: [{ jokerType: 'time_freeze', quantity: 1 }] },
+  { giftBoxRewardId: 'gift_krono_kalkan_card_swap', diamonds: 0, jokers: [{ jokerType: 'mistake_shield', quantity: 1 }, { jokerType: 'card_swap', quantity: 1 }] },
+  { giftBoxRewardId: 'gift_zamani_dondur_card_swap', diamonds: 0, jokers: [{ jokerType: 'time_freeze', quantity: 1 }, { jokerType: 'card_swap', quantity: 1 }] },
+  { giftBoxRewardId: 'gift_krono_kalkan_zamani_dondur', diamonds: 0, jokers: [{ jokerType: 'mistake_shield', quantity: 1 }, { jokerType: 'time_freeze', quantity: 1 }] },
+];
+
+const JOKER_LABELS: Record<string, string> = {
+  mistake_shield: 'Kronokalkan',
+  time_freeze: 'Zaman Dondur',
+  card_swap: 'Kart Değiştir',
+};
 
 function json(payload: unknown, status = 200) {
   return Response.json(payload, { status });
@@ -91,6 +114,18 @@ function diamondTransactionEntity(base44: any, player: any = null) {
   const serviceEntity = base44?.asServiceRole?.entities ? base44.asServiceRole.entities.DiamondTransaction : null;
   const authEntity = base44?.entities ? base44.entities.DiamondTransaction : null;
   return player?.isGuest ? serviceEntity : (authEntity || serviceEntity);
+}
+
+function jokerInventoryEntity(base44: any) {
+  const serviceEntity = base44?.asServiceRole?.entities ? base44.asServiceRole.entities.UserJokerInventory : null;
+  const authEntity = base44?.entities ? base44.entities.UserJokerInventory : null;
+  return serviceEntity || authEntity;
+}
+
+function jokerTransactionEntity(base44: any) {
+  const serviceEntity = base44?.asServiceRole?.entities ? base44.asServiceRole.entities.JokerTransaction : null;
+  const authEntity = base44?.entities ? base44.entities.JokerTransaction : null;
+  return serviceEntity || authEntity;
 }
 
 function buildEconomyLockKey(actorKey: string) {
@@ -379,6 +414,61 @@ function selectReward() {
   return REWARD_TABLE[0];
 }
 
+function selectGiftBoxReward() {
+  const index = Math.min(GIFT_BOX_REWARD_TABLE.length - 1, Math.floor(randomUnit() * GIFT_BOX_REWARD_TABLE.length));
+  return GIFT_BOX_REWARD_TABLE[index] || GIFT_BOX_REWARD_TABLE[0];
+}
+
+function normalizeJokerType(value: unknown) {
+  const text = String(value || '').trim();
+  return (JOKER_TYPES as readonly string[]).includes(text) ? text : '';
+}
+
+function normalizeJokerRewards(input: any[] = []) {
+  const byType = new Map<string, number>();
+  (Array.isArray(input) ? input : []).forEach((row) => {
+    const jokerType = normalizeJokerType(row?.jokerType || row?.joker_type || row?.type);
+    const quantity = normalizeNumber(row?.quantity);
+    if (!jokerType || quantity <= 0) return;
+    byType.set(jokerType, normalizeNumber(byType.get(jokerType)) + quantity);
+  });
+  return Array.from(byType.entries()).map(([jokerType, quantity]) => ({
+    jokerType,
+    label: JOKER_LABELS[jokerType] || 'Joker',
+    quantity,
+  }));
+}
+
+function buildRewardPlan(selected: any) {
+  const giftBoxReward = selected?.rewardType === 'gift_box' ? selectGiftBoxReward() : null;
+  const baseDiamonds = selected?.rewardType === 'diamonds' ? normalizeNumber(selected?.amount) : 0;
+  const giftBoxDiamonds = giftBoxReward ? normalizeNumber(giftBoxReward.diamonds) : 0;
+  const selectedJokers = selected?.rewardType === 'joker'
+    ? [{ jokerType: selected.jokerType, quantity: normalizeNumber(selected.quantity) || 1 }]
+    : [];
+  const giftBoxJokers = giftBoxReward ? (giftBoxReward.jokers || []) : [];
+  const jokerRewards = normalizeJokerRewards([...selectedJokers, ...giftBoxJokers]);
+  const giftBox = giftBoxReward ? {
+    giftBoxRewardId: giftBoxReward.giftBoxRewardId,
+    status: 'opened',
+    diamonds: giftBoxDiamonds,
+    jokers: normalizeJokerRewards(giftBoxReward.jokers || []),
+  } : null;
+
+  return {
+    rewardType: selected?.rewardType || 'diamonds',
+    rewardId: selected?.rewardId || 'diamond_20',
+    rewardLabel: selected?.label || '+20 Elmas',
+    rewardSegmentIndex: normalizeNumber(selected?.segmentIndex),
+    rewardSegmentCount: DAILY_WHEEL_VISUAL_SEGMENT_COUNT,
+    rewardWeight: normalizeNumber(selected?.weight),
+    baseDiamonds,
+    giftBoxDiamonds,
+    jokerRewards,
+    giftBox,
+  };
+}
+
 function computeStreak(user: any, todayKey: string) {
   const previousDate = previousUtcDateKey(todayKey);
   const lastDate = String(user?.daily_wheel_last_spin_date || '');
@@ -430,6 +520,138 @@ async function createDiamondTransaction(base44: any, player: any, payload: Recor
   });
   const confirmed = await findDiamondTransaction(base44, player || email, idempotencyKey);
   return confirmed || created;
+}
+
+async function findJokerTransaction(base44: any, email: string, jokerType: string, idempotencyKey: string) {
+  const entity = jokerTransactionEntity(base44);
+  if (!entity?.filter || !email || !jokerType || !idempotencyKey) return null;
+  const rows = await entity
+    .filter({ user_email: email, joker_type: jokerType, idempotency_key: idempotencyKey }, '-created_at', 1)
+    .catch(() => []);
+  return Array.isArray(rows) && rows.length ? rows[0] : null;
+}
+
+async function createJokerTransaction(base44: any, payload: Record<string, unknown>) {
+  const existing = await findJokerTransaction(
+    base44,
+    String(payload.user_email || ''),
+    String(payload.joker_type || ''),
+    String(payload.idempotency_key || ''),
+  );
+  if (existing) return existing;
+  const entity = jokerTransactionEntity(base44);
+  if (!entity?.create) throw new Error('daily_wheel_joker_transaction_unavailable');
+  return entity.create(payload);
+}
+
+async function findJokerInventory(base44: any, email: string, jokerType: string) {
+  const entity = jokerInventoryEntity(base44);
+  if (!entity?.filter || !email || !jokerType) return null;
+  const rows = await entity
+    .filter({ user_email: email, joker_type: jokerType }, '-updated_at', 10)
+    .catch(() => []);
+  const sorted = (Array.isArray(rows) ? rows : [])
+    .filter((row) => row?.id)
+    .sort((a, b) => normalizeNumber(b?.quantity) - normalizeNumber(a?.quantity));
+  return sorted[0] || null;
+}
+
+async function upsertJokerInventory(base44: any, existing: any, payload: Record<string, unknown>) {
+  const entity = jokerInventoryEntity(base44);
+  if (!entity?.create || !entity?.update) throw new Error('daily_wheel_joker_inventory_unavailable');
+  const id = rowId(existing);
+  if (id) return entity.update(id, payload);
+  return entity.create(payload);
+}
+
+async function grantDailyWheelJokers(base44: any, player: any, jokerRewards: any[] = [], context: Record<string, unknown>) {
+  const email = String(player?.playerKey || '');
+  const timestamp = String(context.timestamp || new Date().toISOString());
+  const granted: any[] = [];
+  for (const reward of normalizeJokerRewards(jokerRewards)) {
+    const jokerType = reward.jokerType;
+    const quantity = normalizeNumber(reward.quantity);
+    if (!jokerType || quantity <= 0) continue;
+    const idempotencyKey = `${context.idempotencyKey}:joker:${jokerType}`;
+    const existingTx = await findJokerTransaction(base44, email, jokerType, idempotencyKey);
+    if (existingTx) {
+      const existingInventory = await findJokerInventory(base44, email, jokerType);
+      const balanceAfter = Math.max(normalizeNumber(existingTx.balance_after), normalizeNumber(existingInventory?.quantity));
+      if (existingInventory && balanceAfter !== normalizeNumber(existingInventory.quantity)) {
+        await upsertJokerInventory(base44, existingInventory, {
+          user_email: email,
+          joker_type: jokerType,
+          quantity: balanceAfter,
+          created_at: existingInventory?.created_at || timestamp,
+          updated_at: timestamp,
+          last_transaction_id: rowId(existingTx),
+          metadata: {
+            ...(existingInventory?.metadata && typeof existingInventory.metadata === 'object' ? existingInventory.metadata : {}),
+            repairedFromDailyWheelTransaction: true,
+          },
+        }).catch(() => null);
+      }
+      granted.push({
+        jokerType,
+        label: JOKER_LABELS[jokerType] || 'Joker',
+        quantity,
+        balanceAfter,
+        transactionId: rowId(existingTx),
+        alreadyApplied: true,
+      });
+      continue;
+    }
+
+    const inventory = await findJokerInventory(base44, email, jokerType);
+    const balanceBefore = normalizeNumber(inventory?.quantity);
+    const balanceAfter = balanceBefore + quantity;
+    const transaction = await createJokerTransaction(base44, {
+      user_email: email,
+      joker_type: jokerType,
+      quantity_delta: quantity,
+      reason: DAILY_WHEEL_JOKER_REASON,
+      source: DAILY_WHEEL_JOKER_SOURCE,
+      related_entity_type: 'daily_wheel_spin',
+      related_entity_id: String(context.spinId || context.idempotencyKey || ''),
+      idempotency_key: idempotencyKey,
+      balance_before: balanceBefore,
+      balance_after: balanceAfter,
+      created_at: timestamp,
+      created_by: DAILY_WHEEL_SOURCE,
+      metadata: {
+        dailyWheelSpinId: context.spinId || null,
+        rewardId: context.rewardId || null,
+        giftBoxRewardId: context.giftBoxRewardId || null,
+        playerType: player?.isGuest ? 'guest' : 'registered',
+        noKronoxPuan: true,
+        rawGuestTokenServerStored: false,
+      },
+      description: 'daily_wheel_joker_grant',
+    });
+    await upsertJokerInventory(base44, inventory, {
+      user_email: email,
+      joker_type: jokerType,
+      quantity: balanceAfter,
+      created_at: inventory?.created_at || timestamp,
+      updated_at: timestamp,
+      last_transaction_id: rowId(transaction),
+      metadata: {
+        ...(inventory?.metadata && typeof inventory.metadata === 'object' ? inventory.metadata : {}),
+        lastRewardSource: DAILY_WHEEL_SOURCE,
+        lastRewardReason: DAILY_WHEEL_JOKER_REASON,
+        dailyWheelSpinId: context.spinId || null,
+      },
+    });
+    granted.push({
+      jokerType,
+      label: JOKER_LABELS[jokerType] || 'Joker',
+      quantity,
+      balanceAfter,
+      transactionId: rowId(transaction),
+      alreadyApplied: false,
+    });
+  }
+  return granted;
 }
 
 async function createDailyWheelSpin(base44: any, payload: Record<string, unknown>) {
@@ -485,6 +707,11 @@ function spinRowFromDiamondTransaction(tx: any, playerRow: any, playerKey: strin
   return {
     user_email: playerKey,
     spin_date: dateKey,
+    reward_type: 'diamonds',
+    reward_id: metadata.rewardId || 'legacy_diamond',
+    reward_label: `+${rewardAmount} Elmas`,
+    reward_segment_index: normalizeNumber(metadata.rewardSegmentIndex),
+    reward_segment_count: DAILY_WHEEL_VISUAL_SEGMENT_COUNT,
     reward_amount: rewardAmount,
     streak_before: streakBefore,
     streak_after: streakAfter,
@@ -498,6 +725,7 @@ function spinRowFromDiamondTransaction(tx: any, playerRow: any, playerKey: strin
     metadata: {
       spinCountAfter: normalizeNumber(playerRow?.daily_wheel_spin_count),
       recoveredFromDiamondTransaction: true,
+      rewardTableVersion: 'legacy_diamond',
     },
   };
 }
@@ -516,17 +744,38 @@ function userPatchFromSpin(row: any, dateKey: string) {
 }
 
 function publicResult(row: any, diamondTotal: number, alreadyClaimed = false) {
+  const metadata = row?.metadata && typeof row.metadata === 'object' ? row.metadata : {};
+  const rewardType = String(row?.reward_type || metadata.rewardType || (normalizeNumber(row?.reward_amount) > 0 ? 'diamonds' : 'unknown'));
+  const rewardId = String(row?.reward_id || metadata.rewardId || (rewardType === 'diamonds' ? `diamond_${normalizeNumber(row?.reward_amount)}` : 'unknown'));
+  const jokerRewards = normalizeJokerRewards(row?.joker_reward_summary || metadata.jokerRewards || []);
+  const giftBoxSummary = row?.gift_box_reward_summary && typeof row.gift_box_reward_summary === 'object'
+    ? row.gift_box_reward_summary
+    : (metadata.giftBox && typeof metadata.giftBox === 'object' ? metadata.giftBox : null);
+  const giftBox = giftBoxSummary ? {
+    giftBoxRewardId: String(row?.gift_box_reward_id || giftBoxSummary.giftBoxRewardId || ''),
+    status: String(row?.gift_box_status || giftBoxSummary.status || 'opened'),
+    openedAt: row?.gift_box_opened_at || giftBoxSummary.openedAt || null,
+    diamonds: normalizeNumber(giftBoxSummary.diamonds),
+    jokers: normalizeJokerRewards(giftBoxSummary.jokers || []),
+  } : null;
   return {
     ok: true,
     available: false,
     alreadyClaimedToday: true,
     alreadyClaimed,
     serverDate: String(row?.spin_date || utcDateKey()),
+    rewardType,
+    rewardId,
+    rewardLabel: String(row?.reward_label || metadata.rewardLabel || ''),
+    rewardSegmentIndex: normalizeNumber(row?.reward_segment_index ?? metadata.rewardSegmentIndex),
+    rewardSegmentCount: normalizeNumber(row?.reward_segment_count ?? metadata.rewardSegmentCount) || DAILY_WHEEL_VISUAL_SEGMENT_COUNT,
     rewardAmount: normalizeNumber(row?.reward_amount),
     streakBefore: normalizeNumber(row?.streak_before),
     streakAfter: normalizeNumber(row?.streak_after),
     streakBonusAmount: normalizeNumber(row?.streak_bonus_amount),
     totalRewardAmount: normalizeNumber(row?.total_reward_amount),
+    jokerRewards,
+    giftBox,
     claimedAt: row?.claimed_at || null,
     nextAvailableAt: row?.next_available_at || null,
     updatedDiamondTotal: diamondTotal,
@@ -550,25 +799,37 @@ async function recoverExistingSpin(base44: any, player: any, row: any, dateKey: 
     diamonds: balanceAfter,
   };
   await updateDailyWheelPlayer(base44, player, patch).catch(() => null);
-  await createDiamondTransaction(base44, player, {
-    user_email: playerKey,
-    owner_key: player.ownerKey,
-    player_type: player.isGuest ? 'guest' : 'registered',
-    amount: normalizeNumber(row?.total_reward_amount),
-    balance_before: normalizeNumber(row?.balance_before),
-    balance_after: balanceAfter,
-    source: DAILY_WHEEL_SOURCE,
-    direction: 'earn',
-    idempotency_key: idempotencyKey,
-    metadata: {
-      dailyWheelSpinId: row?.id || null,
-      serverDate: dateKey,
-      recoveredFromDailyWheelSpin: true,
-      rewardAmount: normalizeNumber(row?.reward_amount),
-      streakBonusAmount: normalizeNumber(row?.streak_bonus_amount),
-    },
-    created_at: nowIso,
-    description: 'daily_wheel_recovery',
+  if (normalizeNumber(row?.total_reward_amount) > 0) {
+    await createDiamondTransaction(base44, player, {
+      user_email: playerKey,
+      owner_key: player.ownerKey,
+      player_type: player.isGuest ? 'guest' : 'registered',
+      amount: normalizeNumber(row?.total_reward_amount),
+      balance_before: normalizeNumber(row?.balance_before),
+      balance_after: balanceAfter,
+      source: DAILY_WHEEL_SOURCE,
+      direction: 'earn',
+      idempotency_key: idempotencyKey,
+      metadata: {
+        dailyWheelSpinId: row?.id || null,
+        serverDate: dateKey,
+        recoveredFromDailyWheelSpin: true,
+        rewardAmount: normalizeNumber(row?.reward_amount),
+        rewardType: String(row?.reward_type || row?.metadata?.rewardType || ''),
+        rewardId: String(row?.reward_id || row?.metadata?.rewardId || ''),
+        streakBonusAmount: normalizeNumber(row?.streak_bonus_amount),
+        noKronoxPuan: true,
+      },
+      created_at: nowIso,
+      description: 'daily_wheel_recovery',
+    }).catch(() => null);
+  }
+  await grantDailyWheelJokers(base44, player, row?.joker_reward_summary || row?.metadata?.jokerRewards || [], {
+    idempotencyKey,
+    timestamp: nowIso,
+    spinId: row?.id || null,
+    rewardId: row?.reward_id || row?.metadata?.rewardId || null,
+    giftBoxRewardId: row?.gift_box_reward_id || row?.metadata?.giftBox?.giftBoxRewardId || null,
   }).catch(() => null);
   return { ...row, balance_after: balanceAfter };
 }
@@ -677,9 +938,18 @@ Deno.serve(async (req: Request) => {
     }
 
     const selected = selectReward();
+    const rewardPlan = buildRewardPlan(selected);
+    const requiresJokerEntities = rewardPlan.jokerRewards.length > 0;
+    if (requiresJokerEntities) {
+      const inventoryStore = jokerInventoryEntity(base44);
+      const transactionStore = jokerTransactionEntity(base44);
+      if (!inventoryStore?.filter || !inventoryStore?.create || !inventoryStore?.update || !transactionStore?.filter || !transactionStore?.create) {
+        return json({ ok: false, code: 'daily_wheel_joker_entities_missing', error: 'Günlük Çark joker ödülü hazır değil. Lütfen tekrar dene.' }, 500);
+      }
+    }
     const { streakBefore, streakAfter } = computeStreak(lockedPlayer.row, todayKey);
     const streakBonusAmount = streakAfter % 7 === 0 ? STREAK_BONUS_AMOUNT : 0;
-    const totalRewardAmount = selected.amount + streakBonusAmount;
+    const totalRewardAmount = rewardPlan.baseDiamonds + rewardPlan.giftBoxDiamonds + streakBonusAmount;
     const balanceBefore = normalizeNumber(lockedPlayer.row?.diamonds);
     const balanceAfter = balanceBefore + totalRewardAmount;
     const spinCountAfter = normalizeNumber(latestPlayer.row?.daily_wheel_spin_count) + 1;
@@ -689,7 +959,17 @@ Deno.serve(async (req: Request) => {
       owner_key: lockedPlayer.ownerKey,
       player_type: lockedPlayer.isGuest ? 'guest' : 'registered',
       spin_date: todayKey,
-      reward_amount: selected.amount,
+      reward_type: rewardPlan.rewardType,
+      reward_id: rewardPlan.rewardId,
+      reward_label: rewardPlan.rewardLabel,
+      reward_segment_index: rewardPlan.rewardSegmentIndex,
+      reward_segment_count: rewardPlan.rewardSegmentCount,
+      reward_amount: rewardPlan.baseDiamonds,
+      joker_reward_summary: rewardPlan.jokerRewards,
+      gift_box_status: rewardPlan.giftBox ? 'opened' : '',
+      gift_box_reward_id: rewardPlan.giftBox?.giftBoxRewardId || '',
+      gift_box_opened_at: rewardPlan.giftBox ? nowIso : '',
+      gift_box_reward_summary: rewardPlan.giftBox,
       streak_before: streakBefore,
       streak_after: streakAfter,
       streak_bonus_amount: streakBonusAmount,
@@ -701,12 +981,23 @@ Deno.serve(async (req: Request) => {
       next_available_at: nextAvailableAt,
       build_marker: String(body?.buildMarker || '').slice(0, 40),
       metadata: {
-        rewardRarity: selected.rarity,
+        rewardType: rewardPlan.rewardType,
+        rewardId: rewardPlan.rewardId,
+        rewardLabel: rewardPlan.rewardLabel,
+        rewardWeight: rewardPlan.rewardWeight,
+        rewardTableVersion: DAILY_WHEEL_REWARD_TABLE_VERSION,
+        rewardSegmentIndex: rewardPlan.rewardSegmentIndex,
+        rewardSegmentCount: rewardPlan.rewardSegmentCount,
+        jokerRewards: rewardPlan.jokerRewards,
+        giftBox: rewardPlan.giftBox,
+        giftBoxResolvedServerSide: Boolean(rewardPlan.giftBox),
+        noFakeAdRewardFlow: true,
         spinCountAfter,
         serverDayBoundary: 'UTC',
         source: DAILY_WHEEL_SOURCE,
         guestProfileReward: lockedPlayer.isGuest,
         rawGuestTokenServerStored: false,
+        noKronoxPuan: true,
       },
       description: 'daily_wheel_claim',
     };
@@ -791,10 +1082,19 @@ Deno.serve(async (req: Request) => {
     await updateDailyWheelPlayer(base44, postReservePlayer, userPatch);
 
     let ledgerError = null;
+    let jokerLedgerError = null;
+    let grantedJokers: any[] = [];
     const transactionMetadata: Record<string, unknown> = {
       dailyWheelSpinId: spin?.id || null,
       serverDate: todayKey,
-      rewardAmount: selected.amount,
+      rewardAmount: rewardPlan.baseDiamonds,
+      rewardType: rewardPlan.rewardType,
+      rewardId: rewardPlan.rewardId,
+      rewardLabel: rewardPlan.rewardLabel,
+      rewardSegmentIndex: rewardPlan.rewardSegmentIndex,
+      giftBoxRewardId: rewardPlan.giftBox?.giftBoxRewardId || null,
+      giftBoxDiamonds: rewardPlan.giftBoxDiamonds,
+      jokerRewards: rewardPlan.jokerRewards,
       streakBefore,
       streakBonusAmount,
       streakAfter,
@@ -806,29 +1106,46 @@ Deno.serve(async (req: Request) => {
     if (spinLedgerError) {
       transactionMetadata.dailyWheelSpinCreateError = spinLedgerError;
     }
-    try {
-      await createDiamondTransaction(base44, postReservePlayer, {
-        user_email: playerKey,
-        owner_key: postReservePlayer.ownerKey,
-        player_type: postReservePlayer.isGuest ? 'guest' : 'registered',
-        amount: totalRewardAmount,
-        balance_before: balanceBefore,
-        balance_after: balanceAfter,
-        source: DAILY_WHEEL_SOURCE,
-        direction: 'earn',
-        idempotency_key: idempotencyKey,
-        metadata: transactionMetadata,
-        created_at: nowIso,
-        description: 'daily_wheel_claim',
-      });
-    } catch (error) {
-      ledgerError = error?.message || 'daily_wheel_diamond_ledger_failed';
+    if (totalRewardAmount > 0) {
+      try {
+        await createDiamondTransaction(base44, postReservePlayer, {
+          user_email: playerKey,
+          owner_key: postReservePlayer.ownerKey,
+          player_type: postReservePlayer.isGuest ? 'guest' : 'registered',
+          amount: totalRewardAmount,
+          balance_before: balanceBefore,
+          balance_after: balanceAfter,
+          source: DAILY_WHEEL_SOURCE,
+          direction: 'earn',
+          idempotency_key: idempotencyKey,
+          metadata: transactionMetadata,
+          created_at: nowIso,
+          description: 'daily_wheel_claim',
+        });
+      } catch (error) {
+        ledgerError = error?.message || 'daily_wheel_diamond_ledger_failed';
+      }
+    }
+    if (rewardPlan.jokerRewards.length) {
+      try {
+        grantedJokers = await grantDailyWheelJokers(base44, postReservePlayer, rewardPlan.jokerRewards, {
+          idempotencyKey,
+          timestamp: nowIso,
+          spinId: spin?.id || null,
+          rewardId: rewardPlan.rewardId,
+          giftBoxRewardId: rewardPlan.giftBox?.giftBoxRewardId || null,
+        });
+      } catch (error) {
+        jokerLedgerError = error?.message || 'daily_wheel_joker_ledger_failed';
+      }
     }
 
     return json({
       ...publicResult(spin || spinPayload, balanceAfter, false),
       spinLedgerError,
       ledgerError,
+      jokerLedgerError,
+      grantedJokers,
     });
     });
   } catch (error) {

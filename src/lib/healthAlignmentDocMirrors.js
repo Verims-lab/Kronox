@@ -52,7 +52,7 @@ Status: Active product workflow contract.
 - Normal Solo uses 2 anchors, an internal 18-question attempt deck buffer, 10 evaluated moves, a 180-second timer, and a 7-card target including anchors. Special Solo starts at level 5 and every 5 levels after that, uses an internal 21-question attempt deck buffer, a 13 evaluated move limit, the same 180-second timer, and a 10-card target. The extra special moves are only a mistake buffer and do not change scoring.
 - Online uses Lobby.selected_category_ids and a startLobbyGame shared deck selected 100% from active lobby-selected categories with difficulty 1/2 only; Online does not use Solo preferences.
 - Unified Kronox Puan is Solo best-score component plus Online progress score. Online winner scoring is exactly +15 Kronox Puan, loser scoring is exactly -6 Kronox Puan before checkpoint protection, and Online has no speed bonus.
-- Daily Quest and Daily Wheel grant Diamonds only, no Kronox Puan, and no leaderboard impact. Authenticated users and token-proven completed GuestProfile users can use these daily systems. Guest rewards persist on GuestProfile.diamonds with internal guest:<g_owner_key> ledger keys. DiamondTransaction and DailyWheelSpin have function-level idempotency guards plus EconomyOperationLock balance mutation guards; DB/entity unique constraints are not repo-proven.
+- Daily Wheel V2 grants server-selected Diamonds, approved Solo jokers, or Gift Box rewards only, never Kronox Puan, and never leaderboard impact. Daily Quest grants Diamonds only, no Kronox Puan, and no leaderboard impact. Authenticated users and token-proven completed GuestProfile users can use these daily systems. Guest rewards persist on GuestProfile.diamonds with internal guest:<g_owner_key> ledger keys. Daily Wheel uses DailyWheelSpin, DiamondTransaction when Diamonds are granted, JokerTransaction/UserJokerInventory when jokers are granted, function-level idempotency guards, and EconomyOperationLock balance mutation guards; DB/entity unique constraints are not repo-proven.
 - Question Analytics is an admin/private nine-section email-body report sourced from QuestionAttemptEvent. PlayerQuestionExposure is optional anti-repeat memory reset scope.
 - Health PASS is not release-ready proof; manual NOT_AUTOMATABLE gates remain required.
 - Stale Codex040 PDF references are old structure only; current truth is markdown/source plus current code and Health contracts.
@@ -76,7 +76,7 @@ Status: Active technical flow contract.
 - Solo runtime uses getQuestions bounded projections and buildSoloAttemptDeck; raw Question.list gameplay fallback and full-bank exposure are forbidden.
 - PlayerQuestionExposure is private per-player anti-repeat memory; PlayerQuestionDailyExposure is daily anonymous exposure summary; actual reports source history from QuestionAttemptEvent.
 - UserJokerInventory is the current joker balance source and JokerTransaction is the ledger. purchaseJokerWithDiamonds writes DiamondTransaction plus JokerTransaction under EconomyOperationLock.
-- claimDailyWheelReward writes DailyWheelSpin and DiamondTransaction using function-level same-day/idempotency guards plus EconomyOperationLock; no atomic/upsert guarantee is repo-proven.
+- claimDailyWheelReward writes DailyWheelSpin, DiamondTransaction for Diamond portions, and JokerTransaction/UserJokerInventory for approved joker portions using function-level same-day/idempotency guards plus EconomyOperationLock; no atomic/upsert guarantee is repo-proven.
 - startLobbyGame owns the Online shared deck. Online does not read Solo preference weighting or guest Solo projection.
 - sendQuestionAnalyticsReportEmail is admin-only, email-body-only, exactly nine sections, with anonymized User0001-style per-player coverage where used.
 - Public assets must not contain secrets, tokens, question bank, answer years, internal IDs, raw guest IDs/tokens, provider IDs, or private user data.
@@ -154,8 +154,9 @@ GuestProfile data to release first render while backend GuestProfile
 verification, Kronox ID ensure, profile hydration, Diamond economy grant,
 starter joker repair, account-link merge, admin status, app-open activity,
 presence, invite checks, reward status, and Market/Liderlik warm-up continue
-after paint/idle. Daily Wheel and Daily Quest remain server-authoritative and
-Diamond-only; loading/cached status is allowed while post-paint refresh
+after paint/idle. Daily Wheel V2 and Daily Quest remain server-authoritative;
+Daily Quest is Diamond-only, while Daily Wheel V2 supports weighted Diamonds,
+approved Solo jokers, and Gift Box rewards. Loading/cached status is allowed while post-paint refresh
 completes. Low-end Android/WebView startup timing remains a manual proof gate.
 
 Solo Phase 1 starts at src/lib/soloAttemptReducer.js: the reducer is pure,
@@ -759,9 +760,9 @@ Successful purchase writes both DiamondTransaction and JokerTransaction with
 market_purchase and the same idempotency key. Runtime explicitly binds
 UserJokerInventory, DiamondTransaction, and JokerTransaction. Double-tap, network retry,
 insufficient Diamonds, and two tabs/devices proof remains manual. Market
-purchase is a Diamond sink; Daily Wheel remains a Diamond source. Profile
+purchase is a Diamond sink; Daily Wheel V2 can be a Diamond source and approved joker grant source. Profile
 Joker Çantası and Solo joker bar must show the purchased balance; Online mode
-is unaffected and Daily Wheel remains Diamond-only.
+is unaffected and Daily Wheel V2 does not use Mağaza purchase semantics.
 
 ## Daily Quest Runtime v1
 Daily Quest Runtime v1 is active.

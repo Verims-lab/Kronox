@@ -566,12 +566,16 @@ Daily Wheel:
 * entity: `DailyWheelSpin`
 * function: `claimDailyWheelReward`
 * status function: `getDailyWheelStatus`
-* grants Diamonds only
+* grants server-selected Diamonds, approved Solo jokers, or Gift Box rewards
+  only
 * grants no Kronox Puan
 * no leaderboard impact
 * separate from Daily Quest
 * completed guests use token-proven `GuestProfile` and `GuestProfile.diamonds`
   before linking
+* approved joker portions write `JokerTransaction.reason = daily_wheel` and
+  update `UserJokerInventory`; Gift Box package contents are stored on
+  `DailyWheelSpin`
 
 Daily Quest:
 

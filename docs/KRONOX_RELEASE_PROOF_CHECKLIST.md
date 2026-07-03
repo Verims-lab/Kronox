@@ -408,7 +408,8 @@ Checklist:
   visual spacing from hourglass-to-Solo and Online-to-BottomNav.
 * Daily Wheel claim requires authenticated user context or token-proven
   completed GuestProfile.
-* Daily Wheel grants Diamonds only and never Kronox Puan.
+* Daily Wheel V2 grants server-selected Diamonds, approved Solo jokers, or Gift
+  Box rewards only; it never grants Kronox Puan and never affects leaderboard.
 * Daily Quest Runtime v1 grants diamonds only through the server-backed
   `claimDailyQuestReward` path.
 * Daily Wheel and Daily Quest use separate guard fields/idempotency keys:
@@ -416,12 +417,21 @@ Checklist:
   `daily_quest_reward:<playerKey>:<YYYY-MM-DD>:<quest_key>` /
   `User.daily_quest_*` or `GuestProfile.daily_quest_*`.
 * Daily Wheel is separate from the existing +20 daily login reward.
-* Daily Wheel can be claimed at most once per UTC server day.
+* Daily Wheel has one free claim per UTC server day.
 * Daily Wheel reward is selected server-side by `claimDailyWheelReward`.
-* Daily Wheel reward table is `30 high weight 24`, `40 high weight 22`,
-  `50 high weight 20`, `60 medium weight 12`, `75 medium weight 10`,
-  `100 low weight 7`, `150 rare weight 4`, `250 very_rare weight 1`.
-* Daily Wheel UI animates to the backend-selected reward.
+* Daily Wheel V2 reward table is `diamond_20 weight 28`,
+  `diamond_60 weight 20`, `diamond_100 weight 15`,
+  `joker_krono_kalkan weight 12`, `joker_zamani_dondur weight 10`,
+  `joker_kart_degistir weight 8`, `gift_box weight 5`,
+  `diamond_250 weight 2`.
+* Daily Wheel UI shows 8 equal visual segments and animates to the
+  backend-selected `reward_segment_index`.
+* Gift Box contents are selected server-side, stored on `DailyWheelSpin`, and
+  returned idempotently on same-day refresh/retry. Packages contain either one
+  Diamond reward, one Diamond plus one approved joker, or two different approved
+  jokers; never two Diamond rewards or duplicate same-joker rewards.
+* Auto-popup opens once per player/day when the free spin is unused. Closing it
+  does not consume the free spin.
 * Daily Wheel duplicate tap/refresh returns the same claimed result or claimed status without a duplicate grant.
 * Daily Wheel same-day duplicate prevention uses `DailyWheelSpin` key/date
   lookup, reserve-first spin rows, canonical same-player/same-day re-read,
@@ -542,10 +552,12 @@ Checklist:
       double-charge or double-grant.
   14. Repeat from two tabs/devices if possible; this is the live race proof.
   14. Verify Online mode remains unaffected.
-  15. Verify Daily Wheel still grants Diamonds only.
-* Market purchase is a Diamond sink; Daily Wheel remains a Diamond source.
-* Daily Wheel remains Diamond-only and must not grant jokers.
-* Daily Wheel result shows `+X Elmas kazandın`; when the 7-day streak bonus applies it also shows `7 günlük seri bonusu: +150 elmas` and `Toplam: +Y elmas`.
+  15. Verify Daily Wheel V2 grants only server-selected Diamonds, approved
+      jokers, or Gift Box contents.
+* Market purchase is a Diamond sink; Daily Wheel V2 can be a Diamond source and
+  approved joker grant source but must not use `market_purchase`.
+* Daily Wheel result reflects the server reward; when the 7-day streak bonus applies it also shows `7 günlük seri bonusu: +150 elmas` and `Toplam: +Y elmas`.
+* Daily Wheel shows `Tekrar şansını dene!` and disabled `📺 Reklam İzle ve Tekrar Çevir` with `Yakında` after the free spin is used; no fake ad reward flow is active before future rewarded-ad integration.
 * Daily Wheel claimed countdown shows `Yarın hazır` or compact time text without a Diamond icon.
 * Admin hard-zero / maintenance reset clears Daily Wheel guard fields without granting duplicate Diamonds, changing Kronox Puan, or affecting leaderboard sorting or rank.
 * Home diamond count updates immediately after a successful wheel claim.

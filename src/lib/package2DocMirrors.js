@@ -69,10 +69,15 @@ Two/three-account RLS probe matrix, service-role scoping.
 Daily Wheel is separate from the existing +20 daily login reward.
 First authenticated entry grants +100 once. Same-day daily login grants +20 once.
 Daily Wheel reward is selected server-side by \`claimDailyWheelReward\`.
-Daily Wheel reward table is \`30 high weight 24\`, \`40 high weight 22\`,
-\`50 high weight 20\`, \`60 medium weight 12\`, \`75 medium weight 10\`,
-\`100 low weight 7\`, \`150 rare weight 4\`, \`250 very_rare weight 1\`.
-Daily Wheel UI animates to the backend-selected reward.
+Daily Wheel V2 reward table is \`diamond_20 weight 28\`,
+\`diamond_60 weight 20\`, \`diamond_100 weight 15\`,
+\`joker_krono_kalkan weight 12\`, \`joker_zamani_dondur weight 10\`,
+\`joker_kart_degistir weight 8\`, \`gift_box weight 5\`,
+\`diamond_250 weight 2\`.
+Daily Wheel UI shows 8 equal visual segments and animates to the
+backend-selected \`reward_segment_index\`. Gift Box contents are selected
+server-side, stored on \`DailyWheelSpin\`, and returned idempotently on
+same-day refresh/retry.
 DiamondTransaction.idempotency_key has function-level pre-check and
 post-create confirmation; no repo DB/entity unique proof exists unless
 Base44/platform configuration is attached.
@@ -85,9 +90,11 @@ DailyWheelSpin.user_email + spin_date unless Base44/platform configuration is
 attached.
 DB/entity unique plus code guard is Low risk; code guard only is Medium/P1
 hardening; neither is High. Remaining parallel race risk stays manual proof.
-Daily Wheel result shows \`+X Elmas kazandın\`; when the 7-day streak bonus
+Daily Wheel result reflects the server reward; when the 7-day streak bonus
 applies it also shows \`7 günlük seri bonusu: +150 elmas\` and
-\`Toplam: +Y elmas\`.
+\`Toplam: +Y elmas\`. Daily Wheel shows \`Tekrar şansını dene!\` and disabled
+\`📺 Reklam İzle ve Tekrar Çevir\` with \`Yakında\` after the free spin is used;
+no fake ad reward flow is active before future rewarded-ad integration.
 Home exposes Daily Wheel through the Çark shortcut and one Günlük Görev through
 the Görevler shortcut/modal for active Daily Quest Runtime v1. Runtime owns one canonical code-backed quest:
 solo_level_complete / Solo’da Seviye Geç / Bugün 1 Solo seviyesini tamamla.,
@@ -137,13 +144,13 @@ Successful purchases write both \`DiamondTransaction\` and \`JokerTransaction\`
 with market_purchase and the same idempotency key. Runtime explicitly binds
 UserJokerInventory, DiamondTransaction, and JokerTransaction. Double-tap, network retry,
 insufficient Diamonds, and two tabs/devices proof remains manual. Market
-purchase is a Diamond sink; Daily Wheel remains a Diamond source. Profile
+purchase is a Diamond sink; Daily Wheel V2 can be a Diamond source and approved joker grant source. Profile
 Joker Çantası and Solo joker bar must show the purchased balance through the
 shared getUserJokerBalances path. Complete UserJokerInventory rows use a fast
 current-balance read, ensureUserJokerInventory runs only for missing/partial
 rows or explicit retry, Profile does not scan JokerTransaction to render
 balances, and Mağaza purchase/Solo spend update or invalidate the shared cache.
-Online mode is unaffected and Daily Wheel remains Diamond-only.
+Online mode is unaffected and Daily Wheel V2 does not use Mağaza purchase semantics.
 `;
 
 // ─── Out-of-/src backend sources (token mirrors) ───────────────────────

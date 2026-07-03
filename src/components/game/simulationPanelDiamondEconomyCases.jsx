@@ -487,7 +487,7 @@ export const EXTRA_TESTS = [
         '"daily_wheel"',
         '"market_purchase"',
         'earn for granted Diamonds, spend for Mağaza purchases/costs',
-        'Daily Wheel remains a Diamond source',
+        'Daily Wheel V2 can be a Diamond source',
         'Mağaza purchase is a Diamond sink',
       ]);
       if (missing.length) {
