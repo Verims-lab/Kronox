@@ -146,6 +146,10 @@ Rules:
 * one free claim per player per UTC server day
 * reward is selected server-side by `claimDailyWheelReward`
 * UI animates to the backend-selected 8-slice segment
+* the spinning state stays inside the same premium popup/wheel shell and must
+  not show a separate intermediate spinning-copy screen
+* result copy, confetti/glow, haptic, and reward sound reveal only after the
+  backend-selected landing animation completes
 * localStorage/sessionStorage may only hide the once-per-day auto-popup, never grant rewards
 * closing the auto-popup does not consume the free spin
 * after the free spin is used, the repeat ad-spin CTA is visible but disabled
@@ -178,6 +182,8 @@ Daily Wheel popup visual contract:
 * the wheel is centered at 85% of the popup width, max `22rem`, with a 1:1 aspect ratio
 * the pointer is stationary; wheel icons/text rotate with the wheel
 * the center hub is a small metallic gold hub with no logo/text/icon
+* segment icon/number content uses the shared `0.8` scale token so the wheel
+  stays full-size while slice content is reduced by 20%
 * visual segments are fixed clockwise from the top:
   `diamond_20`, `diamond_60`, `diamond_100`, `joker_krono_kalkan`,
   `joker_zamani_dondur`, `joker_kart_degistir`, `gift_box`, `diamond_250`

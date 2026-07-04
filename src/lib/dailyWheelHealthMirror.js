@@ -97,6 +97,10 @@ ready popup title GÜNLÜK ÇARK HAZIR
 ready popup subtitle Bugünkü ödülünü almak için çevir
 SONRA does not consume spin
 ÇEVİR starts backend claim only
+spinning state stays in same premium popup/wheel shell
+no separate intermediate spinning-copy screen
+result reveal waits for backend-selected landing animation
+segment content scale token 0.8
 GIFT_BOX_REWARD_TABLE
 gift_diamond_50
 gift_diamond_70
