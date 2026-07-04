@@ -111,6 +111,13 @@ Mechanical scan from this pass:
   scoring is exactly `+15`, loser scoring is exactly `-6` before checkpoint
   protection, and elapsed seconds are audit/display only with no Online speed
   bonus.
+- Restored the root `@base44/sdk` package and lockfile contract to the exact
+  `0.8.34` pin required by the security Health suite and current deployment
+  docs; no runtime SDK upgrade work was attempted in this audit.
+- Converted transient social/lobby/debug UI timers to ref-owned timers with
+  previous-timer clearing and unmount cleanup in the Friends success banner,
+  create-lobby auto-trim note, lobby copy-code state, and debug copy controls.
+  A focused static Health guard now checks this cleanup pattern.
 - Corrected invite navigation Health expectations from the older
   `lobby: updatedLobby` token to the current `verifiedLobby` / `joinedLobby`
   contract.

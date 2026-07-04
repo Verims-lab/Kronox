@@ -43,6 +43,9 @@ fallback polling/refetch.
 - Added architecture-audit Health coverage requiring the new audit/target,
   Health gap, DB reporting readiness, and visual asset readiness docs to stay
   aligned with the MVVM/MVI target and Base44-active boundary.
+- Added a focused transient UI timer cleanup guard for Friends, Online lobby,
+  and debug copy/notice surfaces. This guards ref-owned timeout cleanup in
+  source; live navigation/unmount profiling remains a manual proof area.
 - Updated invite navigation Health expectations to require `verifiedLobby` and
   `joinedLobby`, not the older `lobby: updatedLobby` token.
 - Added executable Online lobby reducer coverage for 4-player representation,

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
@@ -51,6 +51,24 @@ export default function CreateLobbyInvitePanel({
   const [playersLoading, setPlayersLoading] = useState(true);
   const [playersError, setPlayersError] = useState('');
   const [autoTrimNote, setAutoTrimNote] = useState('');
+  const autoTrimTimerRef = useRef(null);
+
+  const showAutoTrimNote = useCallback((message, durationMs = 2400) => {
+    if (autoTrimTimerRef.current) {
+      window.clearTimeout(autoTrimTimerRef.current);
+    }
+    setAutoTrimNote(message);
+    autoTrimTimerRef.current = window.setTimeout(() => {
+      setAutoTrimNote('');
+      autoTrimTimerRef.current = null;
+    }, durationMs);
+  }, []);
+
+  useEffect(() => () => {
+    if (autoTrimTimerRef.current) {
+      window.clearTimeout(autoTrimTimerRef.current);
+    }
+  }, []);
 
   /* ---------------- load selectable players once user is known ---------------- */
   useEffect(() => {
@@ -99,15 +117,14 @@ export default function CreateLobbyInvitePanel({
       const trimmed = selectedTargets.slice(0, inviteCap);
       const dropped = selectedTargets.length - trimmed.length;
       setSelectedTargets(trimmed);
-      setAutoTrimNote(
+      showAutoTrimNote(
         dropped === 1
           ? '1 oyuncu seçimden çıkarıldı (yeni oyuncu sayısına göre).'
           : `${dropped} oyuncu seçimden çıkarıldı (yeni oyuncu sayısına göre).`,
       );
-      const timer = window.setTimeout(() => setAutoTrimNote(''), 2400);
-      return () => window.clearTimeout(timer);
     }
-  }, [inviteCap, selectedTargets]);
+    return undefined;
+  }, [inviteCap, selectedTargets, showAutoTrimNote]);
 
   /* ---------------- selection helpers ---------------- */
   const togglePlayer = (targetRef) => {
@@ -120,8 +137,7 @@ export default function CreateLobbyInvitePanel({
       if (prev.length >= inviteCap) {
         // cap reached — surface a brief inline message but never throw
         sounds.tick();
-        setAutoTrimNote(`En fazla ${inviteCap} oyuncu seçebilirsin (${maxPlayers} kişi için).`);
-        window.setTimeout(() => setAutoTrimNote(''), 2200);
+        showAutoTrimNote(`En fazla ${inviteCap} oyuncu seçebilirsin (${maxPlayers} kişi için).`, 2200);
         return prev;
       }
       sounds.tap();

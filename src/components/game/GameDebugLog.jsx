@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Copy, CheckCheck } from 'lucide-react';
 
 // Global log store — Game component buraya yazar, bu component okur
@@ -25,6 +25,7 @@ export default function GameDebugLog() {
   const debugEnabled = isGameDebugLogEnabled();
   const [copied, setCopied] = useState(false);
   const [count, setCount] = useState(0);
+  const copiedTimerRef = useRef(null);
 
   // Poll log count so button badge updates only when the debug control is explicitly enabled.
   useEffect(() => {
@@ -33,13 +34,25 @@ export default function GameDebugLog() {
     return () => clearInterval(id);
   }, [debugEnabled]);
 
+  useEffect(() => () => {
+    if (copiedTimerRef.current) {
+      clearTimeout(copiedTimerRef.current);
+    }
+  }, []);
+
   if (!debugEnabled) return null;
 
   const handleCopy = () => {
     const text = gameLogs.join('\n');
     navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (copiedTimerRef.current) {
+        clearTimeout(copiedTimerRef.current);
+      }
+      copiedTimerRef.current = setTimeout(() => {
+        setCopied(false);
+        copiedTimerRef.current = null;
+      }, 2000);
     });
   };
 

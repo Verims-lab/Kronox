@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import LobbyCreateJoinPanel from '@/components/lobby/LobbyCreateJoinPanel';
@@ -66,6 +66,7 @@ export default function LobbyRoom() {
   const [deepLinkInvite, setDeepLinkInvite] = useState(null);
   const [deepLinkMessage, setDeepLinkMessage] = useState('');
   const [deepLinkBusy, setDeepLinkBusy] = useState(false);
+  const copiedTimerRef = useRef(null);
 
   // Codex131 — Active lobby auto-recovery. When the Online selection
   // screen is showing (no lobby, no deep-link), look up any pending
@@ -106,6 +107,12 @@ export default function LobbyRoom() {
 
   useEffect(() => {
     return () => setBottomNavHidden(false);
+  }, []);
+
+  useEffect(() => () => {
+    if (copiedTimerRef.current) {
+      window.clearTimeout(copiedTimerRef.current);
+    }
   }, []);
 
   // Create signature: { maxPlayers, inviteTargets, invitedEmails, selectedCategories }
@@ -389,7 +396,13 @@ export default function LobbyRoom() {
   const handleCopyCode = () => {
     navigator.clipboard.writeText(lobby.code);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    if (copiedTimerRef.current) {
+      window.clearTimeout(copiedTimerRef.current);
+    }
+    copiedTimerRef.current = window.setTimeout(() => {
+      setCopied(false);
+      copiedTimerRef.current = null;
+    }, 2000);
   };
 
   const lobbyIsHost = isHost(lobby, user) || isGuestHost(lobby, user, playerName);

@@ -1,10 +1,17 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Copy, ChevronDown, ChevronUp } from 'lucide-react';
 
 export default function SoloQuestionDebugPanel({ payload }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const copiedTimerRef = useRef(null);
+
+  useEffect(() => () => {
+    if (copiedTimerRef.current) {
+      window.clearTimeout(copiedTimerRef.current);
+    }
+  }, []);
 
   const debugText = useMemo(() => {
     if (!payload) return '';
@@ -21,7 +28,13 @@ export default function SoloQuestionDebugPanel({ payload }) {
     try {
       await navigator.clipboard.writeText(debugText);
       setCopied(true);
-      window.setTimeout(() => setCopied(false), 1600);
+      if (copiedTimerRef.current) {
+        window.clearTimeout(copiedTimerRef.current);
+      }
+      copiedTimerRef.current = window.setTimeout(() => {
+        setCopied(false);
+        copiedTimerRef.current = null;
+      }, 1600);
     } catch {
       setCopied(false);
     }

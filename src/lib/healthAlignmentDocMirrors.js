@@ -134,6 +134,13 @@ while visible Profile/Header/Leaderboard surfaces use Solo best-score plus
 Online progress. Online winner scoring is exactly +15, loser scoring is
 exactly -6 before checkpoint protection, and elapsed seconds are audit/display
 only with no Online speed bonus.
+
+Full architecture/performance cleanup audit restored the root @base44/sdk
+package and lockfile contract to exact 0.8.34, matching the security Health
+suite and deployment docs. Transient Friends, Online lobby, and debug copy/
+notice timers are ref-owned, clear previous timers before rescheduling, and
+clean up on unmount. No broad runtime refactor, unused-code deletion, or
+Base44 migration work was attempted during this safe pass.
 `;
 
 export const ARCHITECTURE_TARGET_DOC = `# Kronox Architecture Target
@@ -292,6 +299,9 @@ Kronokalkan, and Zaman Dondur decrement only the selected joker, preserve
 untouched counts through partial mutation payloads, avoid double-spend on
 idempotent retries, and keep guided tutorial demos separate from real inventory
 spend.
+Transient UI timer cleanup coverage now guards ref-owned timeout cleanup for
+Friends success notices, Online lobby auto-trim/copy-code feedback, and debug
+copy controls; live navigation/unmount profiling remains manual proof.
 Security Pass 3 coverage protects accessible
 loading/status semantics, labeled custom modals, profile/onboarding form
 feedback semantics, incremental unused-import lint behavior, the menubar

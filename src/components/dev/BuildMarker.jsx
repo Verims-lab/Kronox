@@ -1,5 +1,18 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex546 — Full architecture/performance cleanup safe pass:
+//   • Root package.json/package-lock.json restore @base44/sdk to the exact
+//     0.8.34 pin required by current security Health/docs; no SDK upgrade or
+//     Base44 migration work is introduced.
+//   • FriendsPage, CreateLobbyInvitePanel, LobbyRoom, SoloQuestionDebugPanel,
+//     and GameDebugLog now keep transient success/copy/auto-trim timers in refs,
+//     clear previous timers before rescheduling, and clear pending timers on
+//     unmount so delayed UI callbacks cannot outlive their component.
+//   • Architecture/Health docs and healthAlignmentDocMirrors record the audit
+//     decision; simulationPanelHealthUpdateAuditCases adds a focused static
+//     guard for the timer-cleanup contract. No broad refactor, gameplay,
+//     scoring, economy, admin-permission, or native behavior change.
+//
 // Codex545 — Daily Wheel segment content radial center-facing orientation:
 //   • DailyWheelCard rotates each segment's content group by its own segment
 //     center angle (transform: translate(-50%,-50%) rotate(${angle}deg),
@@ -264,7 +277,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex545';
+const BUILD_MARKER = 'Codex546';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
