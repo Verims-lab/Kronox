@@ -22,11 +22,15 @@ import profilePageSource from '../../pages/ProfilePage.jsx?raw';
 import profileEditPageSource from '../../pages/ProfileEditPage.jsx?raw';
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
 import friendsPageSource from '../../pages/FriendsPage.jsx?raw';
+import lobbyRoomSource from '../../pages/LobbyRoom.jsx?raw';
 import leaderboardPageSource from '../../pages/LeaderboardPage.jsx?raw';
 import kronoxRankingSectionSource from '../leaderboard/KronoxRankingSection.jsx?raw';
+import createLobbyInvitePanelSource from '../lobby/CreateLobbyInvitePanel.jsx?raw';
 import bottomNavSource from '../layout/BottomNav.jsx?raw';
+import gameDebugLogSource from './GameDebugLog.jsx?raw';
 import questionCardSource from './QuestionCard.jsx?raw';
 import gameLayoutSource from './GameLayout.jsx?raw';
+import soloQuestionDebugPanelSource from './SoloQuestionDebugPanel.jsx?raw';
 import timelineSource from './Timeline.jsx?raw';
 import builtInHealthCasesSource from './health/simulationCases.jsx?raw';
 import useDailyQuestsSource from '../../hooks/useDailyQuests.js?raw';
@@ -424,6 +428,86 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('SDK exact-pin Health remains pointed at package.json and critical Base44 function imports, including caret/range regression tokens.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('transient_ui_timer_cleanup_guard',
+    'Transient UI timers in social/lobby/debug surfaces are ref-owned and cleaned up',
+    () => {
+      const checks = [
+        {
+          file: 'src/pages/FriendsPage.jsx',
+          source: friendsPageSource,
+          required: [
+            'successTimerRef',
+            'showSuccessMessage',
+            'window.clearTimeout(successTimerRef.current)',
+            'successTimerRef.current = window.setTimeout',
+          ],
+        },
+        {
+          file: 'src/components/lobby/CreateLobbyInvitePanel.jsx',
+          source: createLobbyInvitePanelSource,
+          required: [
+            'autoTrimTimerRef',
+            'showAutoTrimNote',
+            'window.clearTimeout(autoTrimTimerRef.current)',
+            'autoTrimTimerRef.current = window.setTimeout',
+          ],
+        },
+        {
+          file: 'src/pages/LobbyRoom.jsx',
+          source: lobbyRoomSource,
+          required: [
+            'copiedTimerRef',
+            'window.clearTimeout(copiedTimerRef.current)',
+            'copiedTimerRef.current = window.setTimeout',
+          ],
+        },
+        {
+          file: 'src/components/game/SoloQuestionDebugPanel.jsx',
+          source: soloQuestionDebugPanelSource,
+          required: [
+            'copiedTimerRef',
+            'window.clearTimeout(copiedTimerRef.current)',
+            'copiedTimerRef.current = window.setTimeout',
+          ],
+        },
+        {
+          file: 'src/components/game/GameDebugLog.jsx',
+          source: gameDebugLogSource,
+          required: [
+            'copiedTimerRef',
+            'clearTimeout(copiedTimerRef.current)',
+            'copiedTimerRef.current = setTimeout',
+          ],
+        },
+      ];
+      const missing = checks.flatMap(({ file, source, required }) => (
+        missingTokens(source, required).map((token) => `${file}: ${token}`)
+      ));
+      const forbidden = forbiddenTokens([
+        friendsPageSource,
+        createLobbyInvitePanelSource,
+        lobbyRoomSource,
+        soloQuestionDebugPanelSource,
+        gameDebugLogSource,
+      ].join('\n'), [
+        'window.setTimeout(() => setSuccessMsg',
+        'window.setTimeout(() => setAutoTrimNote',
+        'setTimeout(() => setCopied',
+        'window.setTimeout(() => setCopied',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Transient UI timer cleanup guard drifted.', {
+          verification: 'STATIC_CONTRACT',
+          files: checks.map(({ file }) => file),
+          expected: 'Temporary success/copy/auto-trim timers are stored in refs, prior timers are cleared before rescheduling, and unmount cleanup clears pending timers.',
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('Social, lobby, and debug copy/notice timers are ref-owned and unmount-safe.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

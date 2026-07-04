@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, Users, Inbox, Send, UserPlus } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
@@ -42,9 +42,27 @@ export default function FriendsPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const successTimerRef = useRef(null);
   const { getPresenceForFriend } = useFriendPresence(friends, {
     enabled: authChecked && Boolean(user?.email),
   });
+
+  const showSuccessMessage = useCallback((message, durationMs) => {
+    if (successTimerRef.current) {
+      window.clearTimeout(successTimerRef.current);
+    }
+    setSuccessMsg(message);
+    successTimerRef.current = window.setTimeout(() => {
+      setSuccessMsg('');
+      successTimerRef.current = null;
+    }, durationMs);
+  }, []);
+
+  useEffect(() => () => {
+    if (successTimerRef.current) {
+      window.clearTimeout(successTimerRef.current);
+    }
+  }, []);
 
   useEffect(() => {
     base44.auth.me()
@@ -114,8 +132,7 @@ export default function FriendsPage() {
       } else {
         msg = 'İstek oluşturuldu. Alıcı Kronox\'a kayıtlı değilse e-posta iletilemez; kayıt olduğunda uygulamada görecek.';
       }
-      setSuccessMsg(msg);
-      window.setTimeout(() => setSuccessMsg(''), 5200);
+      showSuccessMessage(msg, 5200);
     }
     return result;
   };
@@ -125,9 +142,8 @@ export default function FriendsPage() {
     // loadFriends will pick it up from both sides — both users see each other.
     await acceptIncomingRequest(req);
     setLoadError('');
-    setSuccessMsg('Arkadaşlık isteği kabul edildi.');
+    showSuccessMessage('Arkadaşlık isteği kabul edildi.', 2200);
     await refresh(user.email);
-    window.setTimeout(() => setSuccessMsg(''), 2200);
   };
   const handleReject = async (req) => {
     await rejectIncomingRequest(req.id);
