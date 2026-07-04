@@ -15,7 +15,8 @@ import { sounds } from '@/lib/gameSounds';
 const WHEEL_REWARD_SLICES = DAILY_WHEEL_REWARD_SEGMENTS;
 const WHEEL_SLICE_DEGREES = 360 / DAILY_WHEEL_VISUAL_SEGMENT_COUNT;
 // One coherent landing spin: fast start, long deceleration, then a tiny final
-// settle so the backend-selected segment reads as landing under the pointer.
+// popup-scale settle so the backend-selected segment reads as landing under
+// the pointer without jumping the wheel rotation.
 const WHEEL_SPIN_DURATION_MS = 5000;
 const WHEEL_REDUCED_MOTION_DURATION_MS = 900;
 const WHEEL_SPIN_DURATION_SECONDS = WHEEL_SPIN_DURATION_MS / 1000;
@@ -25,7 +26,12 @@ const WHEEL_REDUCED_MOTION_DURATION_SECONDS = WHEEL_REDUCED_MOTION_DURATION_MS /
 // "loading" wait before the spin.
 const WHEEL_PRESPIN_ROTATION_SECONDS = 0.9;
 const WHEEL_LANDING_EASE = [0.12, 0.86, 0.22, 1];
-const WHEEL_LANDING_SETTLE_DEGREES = 1.1;
+const WHEEL_LANDING_SETTLE_SCALE = 1.018;
+const DAILY_WHEEL_SEGMENT_CONTENT_SCALE = 0.8;
+const DAILY_WHEEL_SEGMENT_CONTENT_STYLE = {
+  transform: 'scale(var(--daily-wheel-segment-content-scale))',
+  transformOrigin: 'center',
+};
 
 function getWheelTargetRotation(rewardSegmentIndex, reducedMotion = false) {
   const index = normalizeDailyWheelSegmentIndex(rewardSegmentIndex);
@@ -134,22 +140,14 @@ export default function DailyWheelCard({ user, guestProfile, onUserUpdated, onLo
         </div>
       </motion.button>
 
-      {wheel.showPrompt && (
-        <DailyWheelPromptModal
-          claiming={wheel.claiming}
-          onSpin={wheel.claim}
-          onClose={wheel.dismissPrompt}
-        />
-      )}
-
-      {wheel.showResult && (
+      {(wheel.showPrompt || wheel.showResult) && (
         <DailyWheelResultModal
           status={wheel.status}
           error={wheel.error}
           claiming={wheel.claiming}
           result={wheel.lastResult}
           onSpin={wheel.claim}
-          onClose={wheel.closeResult}
+          onClose={wheel.showResult ? wheel.closeResult : wheel.dismissPrompt}
         />
       )}
 
@@ -324,24 +322,21 @@ function RewardWheel({
       ease: 'linear',
     };
   } else if (phase === 'landing') {
-    wheelAnimation = reducedMotion
-      ? { rotate: targetRotation }
-      : {
-        rotate: [
-          targetRotation - WHEEL_LANDING_SETTLE_DEGREES,
-          targetRotation + (WHEEL_LANDING_SETTLE_DEGREES / 2),
-          targetRotation,
-        ],
-      };
+    wheelAnimation = { rotate: targetRotation };
     wheelTransition = {
       duration: landingDurationSeconds,
       ease: reducedMotion ? 'easeOut' : WHEEL_LANDING_EASE,
-      times: reducedMotion ? undefined : [0, 0.94, 1],
     };
   } else {
     wheelAnimation = { rotate: targetRotation };
     wheelTransition = { duration: 0.18, ease: 'easeOut' };
   }
+  const settleAnimation = highlightAmount && !reducedMotion
+    ? { scale: [1, WHEEL_LANDING_SETTLE_SCALE, 1] }
+    : { scale: 1 };
+  const settleTransition = highlightAmount && !reducedMotion
+    ? { duration: 0.34, ease: 'easeOut' }
+    : { duration: 0.18, ease: 'easeOut' };
   const conicStops = WHEEL_REWARD_SLICES.map((segment, index) => {
     const start = index * WHEEL_SLICE_DEGREES;
     const end = (index + 1) * WHEEL_SLICE_DEGREES;
@@ -350,9 +345,12 @@ function RewardWheel({
   const rimLights = Array.from({ length: compact ? 16 : 24 }, (_, index) => index);
 
   return (
-    <div
+    <motion.div
       className="relative grid place-items-center"
+      animate={settleAnimation}
+      transition={settleTransition}
       style={{
+        '--daily-wheel-segment-content-scale': DAILY_WHEEL_SEGMENT_CONTENT_SCALE,
         width: '85%',
         maxWidth: '22rem',
         aspectRatio: '1 / 1',
@@ -497,14 +495,17 @@ function RewardWheel({
           pointerEvents: 'none',
         }}
       />
-    </div>
+    </motion.div>
   );
 }
 
 function DailyWheelSegmentContent({ segment, compact }) {
   if (segment?.type === 'diamonds') {
     return (
-      <div className="flex flex-col items-center justify-center leading-none">
+      <div
+        className="flex flex-col items-center justify-center leading-none"
+        style={DAILY_WHEEL_SEGMENT_CONTENT_STYLE}
+      >
         <PremiumDiamondIcon />
         <span
           className="kronox-number mt-1 font-black text-white"
@@ -519,11 +520,19 @@ function DailyWheelSegmentContent({ segment, compact }) {
     );
   }
 
-  if (segment?.iconKey === 'gift_box') return <PremiumGiftIcon />;
-  if (segment?.iconKey === 'shield') return <PremiumShieldIcon />;
-  if (segment?.iconKey === 'snowflake') return <PremiumFreezeIcon />;
-  if (segment?.iconKey === 'swap') return <PremiumSwapIcon />;
-  return <PremiumDiamondIcon />;
+  const icon = (() => {
+    if (segment?.iconKey === 'gift_box') return <PremiumGiftIcon />;
+    if (segment?.iconKey === 'shield') return <PremiumShieldIcon />;
+    if (segment?.iconKey === 'snowflake') return <PremiumFreezeIcon />;
+    if (segment?.iconKey === 'swap') return <PremiumSwapIcon />;
+    return <PremiumDiamondIcon />;
+  })();
+
+  return (
+    <span className="grid place-items-center" style={DAILY_WHEEL_SEGMENT_CONTENT_STYLE}>
+      {icon}
+    </span>
+  );
 }
 
 function PremiumDiamondIcon() {
@@ -801,17 +810,6 @@ function DailyWheelReadyActions({ claiming, onSpin, onClose }) {
   );
 }
 
-function DailyWheelPromptModal({ claiming, onSpin, onClose }) {
-  const prefersReducedMotion = useReducedMotion();
-  return (
-    <DailyWheelModalFrame onClose={onClose} disableClose={claiming}>
-      <RewardWheel phase={claiming ? 'loop' : 'idle'} reducedMotion={prefersReducedMotion} />
-      <DailyWheelReadyTitle />
-      <DailyWheelReadyActions claiming={claiming} onSpin={onSpin} onClose={onClose} />
-    </DailyWheelModalFrame>
-  );
-}
-
 function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClose }) {
   const jokerRewards = useMemo(() => normalizeDailyWheelJokerRewards(result?.jokerRewards), [result?.jokerRewards]);
   const resultSummary = useMemo(() => summarizeDailyWheelReward({ ...result, jokerRewards }), [jokerRewards, result]);
@@ -835,6 +833,7 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
   //   • reward arrives → 'landing' single decel; reveal fires when it lands.
   const isLanding = hasReward && !revealReady;
   const wheelPhase = isLanding ? 'landing' : (claiming && !hasReward ? 'loop' : 'idle');
+  const spinLocked = claiming || (hasReward && !revealReady);
 
   // Start the reveal timer only once the reward is known and the landing
   // spin begins, so the result text always appears AFTER the wheel stops.
@@ -859,7 +858,7 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
   }, [hasReward, prefersReducedMotion, result?.rewardId, spinDurationMs]);
 
   return (
-    <DailyWheelModalFrame onClose={onClose} disableClose={claiming || (hasReward && !revealReady)}>
+    <DailyWheelModalFrame onClose={onClose} disableClose={spinLocked}>
       {status === 'error' ? (
         <>
           <RewardWheel phase="idle" reducedMotion={prefersReducedMotion} />
@@ -888,11 +887,8 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
           />
           {!revealReady ? (
             <>
-              <h2 className="text-center font-inter text-2xl font-black text-white">Çark dönüyor...</h2>
-              <p className="text-center text-sm font-semibold text-slate-200">
-                Ödülün işaretçinin altında duracak.
-              </p>
-              <ModalButton disabled>Çevriliyor...</ModalButton>
+              <DailyWheelReadyTitle />
+              <DailyWheelReadyActions claiming={spinLocked} onSpin={onSpin} onClose={onClose} />
             </>
           ) : (
             <>

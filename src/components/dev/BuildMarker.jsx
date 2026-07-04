@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex543 — Daily Wheel spin-state/animation polish:
+//   • DailyWheelCard removes the visible intermediate spinning-copy state and keeps one premium modal/wheel path mounted while the backend-selected landing spin runs.
+//   • The wheel now lands with one continuous rotation to reward_segment_index plus a light non-rotational settle at reveal, with spin ticks cleaned up before confetti/haptic/reward sound fire.
+//   • Daily Wheel segment icon/number content uses a shared 0.8 scale token; docs/mirrors/Health guard no Puan/leaderboard, Daily Quest Diamond-only, and disabled Yakında ad-repeat behavior.
+//
 // Codex542 — Daily Wheel premium popup visual refresh:
 //   • DailyWheelCard ready/result popup now uses the centered blurred modal, exact GÜNLÜK ÇARK HAZIR copy, equal SONRA/ÇEVİR actions, a proportional premium 8-slice wheel, stationary gold pointer, small unbranded hub, and icon-only joker/Gift Box slices.
 //   • dailyWheelRewards owns the visual segment metadata in the same backend-selected reward order: diamond_20, diamond_60, diamond_100, joker_krono_kalkan, joker_zamani_dondur, joker_kart_degistir, gift_box, diamond_250.
@@ -224,7 +229,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex542';
+const BUILD_MARKER = 'Codex543';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

@@ -583,6 +583,64 @@ export const EXTRA_TESTS = [
       });
     }),
 
+  makeCase('daily_wheel_spin_stays_in_ready_popup_without_intermediate_copy',
+    'Daily Wheel spinning state keeps the premium popup and removes intermediate copy',
+    () => {
+      const oldSpinTitle = 'Çark ' + 'dönüyor...';
+      const oldSpinSubtitle = 'Ödülün işaretçinin ' + 'altında duracak.';
+      const missing = missingTokens(dailyWheelCardSource, [
+        '(wheel.showPrompt || wheel.showResult)',
+        'onClose={wheel.showResult ? wheel.closeResult : wheel.dismissPrompt}',
+        'const spinLocked = claiming || (hasReward && !revealReady)',
+        'disableClose={spinLocked}',
+        'DailyWheelReadyTitle',
+        'DailyWheelReadyActions claiming={spinLocked}',
+        "const wheelPhase = isLanding ? 'landing' : (claiming && !hasReward ? 'loop' : 'idle')",
+        'highlightAmount={revealReady ? result.rewardId : null}',
+      ]);
+      const forbidden = forbiddenTokens(dailyWheelCardSource, [
+        oldSpinTitle,
+        oldSpinSubtitle,
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Daily Wheel can still swap to the old intermediate spinning screen instead of keeping the approved popup shell during spin.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'src/components/dailyWheel/DailyWheelCard.jsx',
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('Daily Wheel spin keeps the approved ready popup title/actions mounted and removes the intermediate spinning copy from runtime UI.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('daily_wheel_segment_content_scale_reduced',
+    'Daily Wheel segment icons and numbers are reduced by the 0.8 content scale token',
+    () => {
+      const missing = missingTokens(dailyWheelCardSource, [
+        'DAILY_WHEEL_SEGMENT_CONTENT_SCALE = 0.8',
+        "'--daily-wheel-segment-content-scale': DAILY_WHEEL_SEGMENT_CONTENT_SCALE",
+        "transform: 'scale(var(--daily-wheel-segment-content-scale))'",
+        'DAILY_WHEEL_SEGMENT_CONTENT_STYLE',
+        'style={DAILY_WHEEL_SEGMENT_CONTENT_STYLE}',
+        'PremiumDiamondIcon',
+        'PremiumShieldIcon',
+        'PremiumFreezeIcon',
+        'PremiumSwapIcon',
+        'PremiumGiftIcon',
+      ]);
+      if (missing.length) {
+        return fail('Daily Wheel segment content can drift back to oversized icon/number rendering.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'src/components/dailyWheel/DailyWheelCard.jsx',
+          missing,
+        });
+      }
+      return pass('All Daily Wheel segment content uses a shared 0.8 scale token without changing wheel size or segment order.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
   makeCase('daily_wheel_visual_segment_order_matches_backend_rewards',
     'Daily Wheel visual segment order matches backend-selected reward IDs',
     () => {
@@ -645,8 +703,9 @@ export const EXTRA_TESTS = [
         'WHEEL_REDUCED_MOTION_DURATION_MS = 900',
         'WHEEL_SPIN_DURATION_SECONDS',
         'useReducedMotion',
-        'disableClose={claiming || (hasReward && !revealReady)}',
-        '<ModalButton disabled>Çevriliyor...</ModalButton>',
+        'const spinLocked = claiming || (hasReward && !revealReady)',
+        'disableClose={spinLocked}',
+        'DailyWheelReadyActions claiming={spinLocked}',
         'setRevealReady(true)',
       ]);
       if (missing.length) {
@@ -663,7 +722,7 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('daily_wheel_single_coherent_spin_motion',
-    'Daily Wheel spin uses one coherent loop→landing motion with a tiny final settle',
+    'Daily Wheel spin uses one coherent loop→landing motion with a light final settle',
     () => {
       const missing = missingTokens(dailyWheelCardSource, [
         "phase === 'loop'",
@@ -671,10 +730,9 @@ export const EXTRA_TESTS = [
         'WHEEL_LANDING_EASE',
         'WHEEL_PRESPIN_ROTATION_SECONDS',
         'rotate: targetRotation',
-        'WHEEL_LANDING_SETTLE_DEGREES',
-        'targetRotation - WHEEL_LANDING_SETTLE_DEGREES',
-        'targetRotation + (WHEEL_LANDING_SETTLE_DEGREES / 2)',
-        'times: reducedMotion ? undefined : [0, 0.94, 1]',
+        'WHEEL_LANDING_SETTLE_SCALE',
+        'settleAnimation',
+        'scale: [1, WHEEL_LANDING_SETTLE_SCALE, 1]',
         // Spin starts immediately on tap — no separate "prepare" wait.
         'wheel.openResult();\n      wheel.claim();',
       ]);
@@ -683,16 +741,45 @@ export const EXTRA_TESTS = [
         'targetRotation * 0.72',
         'targetRotation - 8',
         'targetRotation + 2',
+        'targetRotation - WHEEL_LANDING_' + 'SETTLE_DEGREES',
         'Ödül hazırlanıyor',
       ]);
       if (missing.length || forbidden.length) {
-        return fail('Daily Wheel spin can still show multi-phase speed jumps, old heavy overshoot, or a separate prepare wait.', {
+        return fail('Daily Wheel spin can still show multi-phase speed jumps, old rotation overshoot, or a separate prepare wait.', {
           verification: 'STATIC_CONTRACT',
           file: 'src/components/dailyWheel/DailyWheelCard.jsx',
           actual: { missing, forbidden },
         });
       }
-      return pass('Daily Wheel starts spinning on tap and runs one loop→landing motion with only a tiny final settle.', {
+      return pass('Daily Wheel starts spinning on tap and runs one loop→landing motion with a light non-rotational settle after reveal.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('daily_wheel_spin_effects_sync_to_landing_end',
+    'Daily Wheel sounds, confetti, haptic, and result reveal fire only after the landing timer completes',
+    () => {
+      const missing = missingTokens(dailyWheelCardSource, [
+        'if (!hasReward) return undefined',
+        'sounds.wheelSpinStart?.()',
+        'sounds.wheelTick?.()',
+        'const revealId = window.setTimeout(() => {',
+        'window.clearInterval(tickId)',
+        'setRevealReady(true)',
+        'fireDailyWheelConfetti(prefersReducedMotion)',
+        'window.navigator?.vibrate?.(28)',
+        'sounds.rewardReveal?.()',
+        'window.clearTimeout(revealId)',
+        '}, spinDurationMs)',
+      ]);
+      if (missing.length) {
+        return fail('Daily Wheel result/effects can desynchronize from the landing spin timer or leak timers on close.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'src/components/dailyWheel/DailyWheelCard.jsx',
+          missing,
+        });
+      }
+      return pass('Daily Wheel starts spin cues with the backend-selected landing, stops ticks at reveal, then fires confetti/haptic/reward sound once.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
@@ -799,7 +886,7 @@ export const EXTRA_TESTS = [
       const alreadyIndex = safeStr(dailyWheelCardSource).indexOf(') : alreadyClaimed ? (');
       const rewardIndex = safeStr(dailyWheelCardSource).indexOf(') : hasReward ? (');
       const alreadyBlock = safeStr(dailyWheelCardSource).slice(alreadyIndex, safeStr(dailyWheelCardSource).indexOf(') : (', alreadyIndex));
-      const fakeSpin = alreadyBlock.includes('RewardWheel') || alreadyBlock.includes('Çark dönüyor');
+      const fakeSpin = alreadyBlock.includes('RewardWheel') || alreadyBlock.includes('Çark ' + 'dönüyor');
       if (alreadyIndex < 0 || rewardIndex < 0 || alreadyIndex <= rewardIndex || fakeSpin) {
         return fail('Already-claimed branch can show fake spin UI instead of direct status copy.', {
           verification: 'STATIC_CONTRACT',
