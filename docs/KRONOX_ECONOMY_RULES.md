@@ -194,6 +194,12 @@ Daily Wheel popup visual contract:
 * the wheel is centered at 85% of the popup width, max `22rem`, with a 1:1 aspect ratio
 * the pointer is stationary; wheel icons/text rotate with the wheel
 * the center hub is a small metallic gold hub with no logo/text/icon
+* segment content is radially oriented toward the wheel center: each Diamond
+  icon+number group and each Joker/Gift icon is rotated by its own segment
+  center angle so it faces the hub, and must not be artificially kept
+  screen-upright via a counter-rotation; the Diamond icon stays above its
+  number within the rotated group; this improves natural spin feel and must not
+  enlarge content or change reward mapping/segment order/stop alignment
 * segment icon/number content uses the shared `0.8` scale token so the wheel
   stays full-size while slice content is reduced by 20%
 * visual segments are fixed clockwise from the top:

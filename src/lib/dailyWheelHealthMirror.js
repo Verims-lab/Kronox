@@ -106,6 +106,9 @@ spin sound/effects synchronized with visible wheel rotation
 ticks widen as the wheel decelerates; celebration fires at the visible stop
 sound/timers cleaned up on close/unmount so no sound outlives the wheel
 segment content scale token 0.8; icons and numbers must not be enlarged
+segment content is radially oriented toward the wheel center: rotated by its own segment center angle, not screen-upright
+diamond icon+number rotate as one group; joker/gift icons rotate with their segment; content rotates with the wheel; pointer stays stationary
+no screen-upright counter-rotation of segment content; orientation must not enlarge content or change reward mapping/stop alignment
 visual polish may improve quality but must not change reward mapping or icon sizing
 GIFT_BOX_REWARD_TABLE
 gift_diamond_50

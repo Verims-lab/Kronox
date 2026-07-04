@@ -457,6 +457,11 @@ function RewardWheel({
           const x = 50 + (Math.sin(radians) * radius);
           const y = 50 - (Math.cos(radians) * radius);
           const isHighlighted = String(highlightAmount || '') === segment.id;
+          // Radial center-facing orientation: rotate each segment's content by
+          // its own center angle so the icon/number group aligns with the
+          // wedge and visually faces the wheel center (no screen-upright
+          // counter-rotation). Content stays inside the spinning wheel layer,
+          // so it rotates with the wheel; the pointer stays outside/stationary.
           return (
             <div
               key={segment.id}
@@ -465,7 +470,8 @@ function RewardWheel({
                 left: `${x}%`,
                 top: `${y}%`,
                 width: segment.type === 'diamonds' ? '17%' : '21%',
-                transform: 'translate(-50%, -50%)',
+                transform: `translate(-50%, -50%) rotate(${angle}deg)`,
+                transformOrigin: 'center',
                 zIndex: 5,
                 filter: isHighlighted
                   ? 'drop-shadow(0 0 12px rgba(255,255,255,0.74)) drop-shadow(0 0 20px rgba(250,204,21,0.86))'

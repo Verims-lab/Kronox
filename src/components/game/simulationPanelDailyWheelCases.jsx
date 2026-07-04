@@ -641,6 +641,38 @@ export const EXTRA_TESTS = [
       });
     }),
 
+  makeCase('daily_wheel_segment_content_radially_center_facing',
+    'Daily Wheel segment content rotates with its wedge and faces the wheel center (no screen-upright counter-rotation)',
+    () => {
+      const missing = missingTokens(dailyWheelCardSource, [
+        // Content group is placed at its segment center angle...
+        'const angle = index * WHEEL_SLICE_DEGREES;',
+        // ...and rotated by that same angle so it aligns radially with the wedge.
+        'transform: `translate(-50%, -50%) rotate(${angle}deg)`',
+        "transformOrigin: 'center'",
+        // The content lives inside the spinning wheel layer so it rotates with
+        // the wheel; the 0.8 content scale is preserved (not enlarged).
+        'WHEEL_REWARD_SLICES.map((segment, index)',
+        'DAILY_WHEEL_SEGMENT_CONTENT_SCALE = 0.8',
+      ]);
+      const forbidden = forbiddenTokens(dailyWheelCardSource, [
+        // No screen-upright counter-rotation that cancels the wheel/segment angle.
+        'rotate(${-angle}deg)',
+        'rotate(-${angle}deg)',
+        'rotate(${angle * -1}deg)',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Daily Wheel segment content can stay artificially screen-upright instead of facing the wheel center, or the size reduction can drift.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'src/components/dailyWheel/DailyWheelCard.jsx',
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('Diamond icon+number groups and Joker/Gift icons rotate with their wedge toward the wheel center, keep the reduced 0.8 scale, and add no counter-rotation.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
   makeCase('daily_wheel_visual_segment_order_matches_backend_rewards',
     'Daily Wheel visual segment order matches backend-selected reward IDs',
     () => {

@@ -1,5 +1,21 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex545 — Daily Wheel segment content radial center-facing orientation:
+//   • DailyWheelCard rotates each segment's content group by its own segment
+//     center angle (transform: translate(-50%,-50%) rotate(${angle}deg),
+//     transformOrigin center) so the Diamond icon+number groups and Joker/Gift
+//     icons face the wheel hub instead of staying screen-upright. Content lives
+//     inside the spinning wheel layer, so it rotates with the wheel; the pointer
+//     stays outside/stationary. No counter-rotation is added.
+//   • Icon/number sizes, the shared 0.8 content scale, segment order, segment
+//     sizes, pointer alignment, backend-selected reward mapping, and the stop
+//     angle (getWheelTargetRotation by rewardSegmentIndex) are all unchanged —
+//     orientation is a pure content-transform change with no reward drift.
+//   • Docs (KRONOX_ECONOMY_RULES.md), dailyWheelHealthMirror,
+//     healthAlignmentDocMirrors, and a new Daily Wheel Health case
+//     (daily_wheel_segment_content_radially_center_facing) capture the
+//     radial-orientation / no-screen-upright / no-enlargement contract.
+//
 // Codex544 — Daily Wheel spin-feel fix (continuous fast → decelerate):
 //   • DailyWheelCard removes the separate steady pre-spin 'loop' phase that
 //     caused the slow → fast → slow feel. The wheel now runs ONE continuous
@@ -248,7 +264,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex544';
+const BUILD_MARKER = 'Codex545';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
