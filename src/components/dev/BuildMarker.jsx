@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex542 — Daily Wheel premium popup visual refresh:
+//   • DailyWheelCard ready/result popup now uses the centered blurred modal, exact GÜNLÜK ÇARK HAZIR copy, equal SONRA/ÇEVİR actions, a proportional premium 8-slice wheel, stationary gold pointer, small unbranded hub, and icon-only joker/Gift Box slices.
+//   • dailyWheelRewards owns the visual segment metadata in the same backend-selected reward order: diamond_20, diamond_60, diamond_100, joker_krono_kalkan, joker_zamani_dondur, joker_kart_degistir, gift_box, diamond_250.
+//   • Daily Wheel Health/docs/mirrors now guard the visual contract while preserving backend-selected rewards, no Kronox Puan, no leaderboard impact, Daily Quest separation, and disabled Yakında ad-repeat behavior.
+//
 // Codex541 — MR4ZJL6J Health blocker alignment:
 //   • LeaderboardPage uses totalKronoxScore as the unified current-user/fallback score sourced from getKronoxVisibleScore, removing the stale visible-score variable from Liderlik while preserving removed top cards/copy/friends area.
 //   • Daily Wheel Health/docs/mirrors now pin server-day idempotency wording, backend-selected Gift Box/result contracts, and the disabled future rewarded-ad integration CTA with no fake ad reward path.
@@ -219,7 +224,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex541';
+const BUILD_MARKER = 'Codex542';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

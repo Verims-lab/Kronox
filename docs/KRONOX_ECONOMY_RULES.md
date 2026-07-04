@@ -171,6 +171,24 @@ The visual wheel always uses 8 equal segments. Segment weights live on the
 server; the client only animates to `reward_segment_index` returned by the
 claim response.
 
+Daily Wheel popup visual contract:
+
+* the ready popup is a centered responsive modal over a blurred dark overlay
+* popup width is `min(92vw, 32rem)`, with `height: auto`
+* the wheel is centered at 85% of the popup width, max `22rem`, with a 1:1 aspect ratio
+* the pointer is stationary; wheel icons/text rotate with the wheel
+* the center hub is a small metallic gold hub with no logo/text/icon
+* visual segments are fixed clockwise from the top:
+  `diamond_20`, `diamond_60`, `diamond_100`, `joker_krono_kalkan`,
+  `joker_zamani_dondur`, `joker_kart_degistir`, `gift_box`, `diamond_250`
+* Diamond slices show a diamond icon above `20`, `60`, `100`, or `250`;
+  joker and Gift Box slices are icon-only
+* segment visuals must not add visible wrappers, pills, or badges inside slices
+* title copy is exactly `GÜNLÜK ÇARK HAZIR`
+* subtitle copy is exactly `Bugünkü ödülünü almak için çevir`
+* actions are equal-width `SONRA` and `ÇEVİR`; `SONRA` only closes the popup
+  and never consumes a spin
+
 Gift Box package table:
 
 ```text

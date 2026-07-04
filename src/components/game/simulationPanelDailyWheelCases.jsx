@@ -526,12 +526,19 @@ export const EXTRA_TESTS = [
         'RewardWheel',
         'WHEEL_REWARD_SLICES = DAILY_WHEEL_REWARD_SEGMENTS',
         'DAILY_WHEEL_VISUAL_SEGMENT_COUNT',
-        'WHEEL_SLICE_COLORS',
+        'segment.segmentColor',
         'conic-gradient',
         'Günlük Çark ödül seçenekleri',
-        'borderTop: \'34px solid #fde68a\'',
+        'borderTop: \'clamp(1.35rem, 7vw, 2.25rem) solid #facc15\'',
         'rimLights',
         'center hub',
+        'width: \'85%\'',
+        'maxWidth: \'22rem\'',
+        'aspectRatio: \'1 / 1\'',
+        'DailyWheelSegmentContent',
+        'PremiumDiamondIcon',
+        'PremiumGiftIcon',
+        'width: \'8%\'',
       ]);
       if (missing.length) {
         return fail('Daily Wheel modal no longer proves a visible sliced wheel with a fixed pointer.', {
@@ -543,11 +550,98 @@ export const EXTRA_TESTS = [
       return pass('Daily Wheel modal has a sliced reward wheel, fixed pointer, and center hub.', { verification: 'STATIC_CONTRACT' });
     }),
 
-  makeCase('daily_wheel_spin_duration_and_button_lock',
-    'Daily Wheel spin duration is at least 4 seconds and button/close controls lock during spin',
+  makeCase('daily_wheel_ready_popup_premium_visual_contract',
+    'Daily Wheel ready popup uses the premium centered modal visual contract',
     () => {
       const missing = missingTokens(dailyWheelCardSource, [
-        'WHEEL_SPIN_DURATION_MS = 4600',
+        'rgba(0,0,0,.55)',
+        'backdropFilter: \'blur(8px)\'',
+        'WebkitBackdropFilter: \'blur(8px)\'',
+        'width: \'min(92vw, 32rem)\'',
+        'maxWidth: \'32rem\'',
+        'height: \'auto\'',
+        'border: \'1px solid rgba(250,204,21,0.46)\'',
+        'DailyWheelReadyTitle',
+        'DailyWheelReadyActions',
+        'GÜNLÜK ÇARK HAZIR',
+        'Bugünkü ödülünü almak için çevir',
+        'SONRA',
+        'ÇEVİR',
+        'fontFamily: "\'Barlow Condensed\', \'Arial Narrow\', sans-serif"',
+        'letterSpacing: \'0.12em\'',
+        'gap: \'clamp(.8rem,2vw,1rem)\'',
+      ]);
+      if (missing.length) {
+        return fail('Daily Wheel ready popup can drift from the requested premium centered modal/copy/button contract.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'src/components/dailyWheel/DailyWheelCard.jsx',
+          missing,
+        });
+      }
+      return pass('Daily Wheel ready popup uses the requested centered blur overlay, premium frame, exact copy, and equal actions.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('daily_wheel_visual_segment_order_matches_backend_rewards',
+    'Daily Wheel visual segment order matches backend-selected reward IDs',
+    () => {
+      const missing = missingTokens(dailyWheelRewardsSource, [
+        "id: 'diamond_20'",
+        'segmentIndex: 0',
+        "wheelLabel: '20'",
+        "segmentColor: '#0f5f4f'",
+        "id: 'diamond_60'",
+        'segmentIndex: 1',
+        "wheelLabel: '60'",
+        "segmentColor: '#1599c9'",
+        "id: 'diamond_100'",
+        'segmentIndex: 2',
+        "wheelLabel: '100'",
+        "segmentColor: '#d95b06'",
+        "id: 'joker_krono_kalkan'",
+        'segmentIndex: 3',
+        "iconKey: 'shield'",
+        "segmentColor: '#f2bb13'",
+        "id: 'joker_zamani_dondur'",
+        'segmentIndex: 4',
+        "iconKey: 'snowflake'",
+        "segmentColor: '#b8171f'",
+        "id: 'joker_kart_degistir'",
+        'segmentIndex: 5',
+        "iconKey: 'swap'",
+        "segmentColor: '#8526ae'",
+        "id: 'gift_box'",
+        'segmentIndex: 6',
+        "iconKey: 'gift_box'",
+        "segmentColor: '#087a38'",
+        "id: 'diamond_250'",
+        'segmentIndex: 7',
+        "wheelLabel: '250'",
+        "segmentColor: '#4c168d'",
+      ]);
+      const runtimeMissing = missingTokens(`${dailyWheelCardSource}\n${dailyWheelRewardsSource}`, [
+        'WHEEL_REWARD_SLICES = DAILY_WHEEL_REWARD_SEGMENTS',
+        'getWheelTargetRotation(result?.rewardSegmentIndex, prefersReducedMotion)',
+        'highlightAmount={revealReady ? result.rewardId : null}',
+      ]);
+      if (missing.length || runtimeMissing.length) {
+        return fail('Daily Wheel visible slices can drift from the backend reward ID/segment index mapping.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['src/lib/dailyWheelRewards.js', 'src/components/dailyWheel/DailyWheelCard.jsx'],
+          actual: { missing, runtimeMissing },
+        });
+      }
+      return pass('The client paints the same eight reward IDs in backend segment order and lands by rewardSegmentIndex.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('daily_wheel_spin_duration_and_button_lock',
+    'Daily Wheel spin duration is about 5 seconds and button/close controls lock during spin',
+    () => {
+      const missing = missingTokens(dailyWheelCardSource, [
+        'WHEEL_SPIN_DURATION_MS = 5000',
         'WHEEL_REDUCED_MOTION_DURATION_MS = 900',
         'WHEEL_SPIN_DURATION_SECONDS',
         'useReducedMotion',
@@ -562,14 +656,14 @@ export const EXTRA_TESTS = [
           missing,
         });
       }
-      return pass('Daily Wheel uses a 4.6s landing spin and keeps result/close controls disabled until reveal.', {
+      return pass('Daily Wheel uses a 5s landing spin and keeps result/close controls disabled until reveal.', {
         verification: 'STATIC_CONTRACT',
-        actual: { spinDurationMs: 4600 },
+        actual: { spinDurationMs: 5000 },
       });
     }),
 
   makeCase('daily_wheel_single_coherent_spin_motion',
-    'Daily Wheel spin uses one coherent loop→landing motion with no keyframe speed phases or overshoot',
+    'Daily Wheel spin uses one coherent loop→landing motion with a tiny final settle',
     () => {
       const missing = missingTokens(dailyWheelCardSource, [
         "phase === 'loop'",
@@ -577,24 +671,28 @@ export const EXTRA_TESTS = [
         'WHEEL_LANDING_EASE',
         'WHEEL_PRESPIN_ROTATION_SECONDS',
         'rotate: targetRotation',
+        'WHEEL_LANDING_SETTLE_DEGREES',
+        'targetRotation - WHEEL_LANDING_SETTLE_DEGREES',
+        'targetRotation + (WHEEL_LANDING_SETTLE_DEGREES / 2)',
+        'times: reducedMotion ? undefined : [0, 0.94, 1]',
         // Spin starts immediately on tap — no separate "prepare" wait.
         'wheel.openResult();\n      wheel.claim();',
       ]);
       const forbidden = forbiddenTokens(dailyWheelCardSource, [
-        // Old multi-phase keyframe array + overshoot/bounce-back must be gone.
+        // Old multi-phase keyframe array + heavy overshoot/bounce-back must be gone.
         'targetRotation * 0.72',
         'targetRotation - 8',
         'targetRotation + 2',
         'Ödül hazırlanıyor',
       ]);
       if (missing.length || forbidden.length) {
-        return fail('Daily Wheel spin can still show multi-phase speed jumps, overshoot, or a separate prepare wait.', {
+        return fail('Daily Wheel spin can still show multi-phase speed jumps, old heavy overshoot, or a separate prepare wait.', {
           verification: 'STATIC_CONTRACT',
           file: 'src/components/dailyWheel/DailyWheelCard.jsx',
           actual: { missing, forbidden },
         });
       }
-      return pass('Daily Wheel starts spinning on tap and runs one loop→single-decel landing with no overshoot or prepare wait.', {
+      return pass('Daily Wheel starts spinning on tap and runs one loop→landing motion with only a tiny final settle.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
