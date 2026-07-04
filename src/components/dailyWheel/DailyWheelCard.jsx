@@ -14,18 +14,21 @@ import { sounds } from '@/lib/gameSounds';
 
 const WHEEL_REWARD_SLICES = DAILY_WHEEL_REWARD_SEGMENTS;
 const WHEEL_SLICE_DEGREES = 360 / DAILY_WHEEL_VISUAL_SEGMENT_COUNT;
-// One coherent landing spin: fast start, long deceleration, then a tiny final
-// popup-scale settle so the backend-selected segment reads as landing under
-// the pointer without jumping the wheel rotation.
+// One continuous landing spin (no visible loop phase): the wheel reaches a
+// clear fast pace immediately, holds that speed, and decelerates only near the
+// final phase before a light bounce settle on the backend-selected segment.
+// This removes the old slow → fast → slow feel caused by handing off from a
+// separate steady loop into an eased landing.
 const WHEEL_SPIN_DURATION_MS = 5000;
 const WHEEL_REDUCED_MOTION_DURATION_MS = 900;
 const WHEEL_SPIN_DURATION_SECONDS = WHEEL_SPIN_DURATION_MS / 1000;
 const WHEEL_REDUCED_MOTION_DURATION_SECONDS = WHEEL_REDUCED_MOTION_DURATION_MS / 1000;
-// Pre-spin loop speed while the backend reward is still in-flight. Keeps the
-// wheel turning at a steady fast pace so tapping "Çevir" never shows a dead
-// "loading" wait before the spin.
-const WHEEL_PRESPIN_ROTATION_SECONDS = 0.9;
-const WHEEL_LANDING_EASE = [0.12, 0.86, 0.22, 1];
+// Monotonic deceleration curve: near-instant fast start (steep early ramp),
+// then a long smooth ease-out tail. No mid-animation acceleration.
+const WHEEL_LANDING_EASE = [0.05, 0.75, 0.15, 1];
+// Light final bounce on the wheel rotation itself (in degrees) so the landing
+// segment settles under the pointer with a small, controlled overshoot.
+const WHEEL_LANDING_BOUNCE_DEGREES = 5;
 const WHEEL_LANDING_SETTLE_SCALE = 1.018;
 const DAILY_WHEEL_SEGMENT_CONTENT_SCALE = 0.8;
 const DAILY_WHEEL_SEGMENT_CONTENT_STYLE = {
@@ -297,9 +300,8 @@ function WheelEmblem({ spinning, muted }) {
 }
 
 function RewardWheel({
-  // 'idle'    — resting (decorative / pre-tap)
-  // 'loop'    — continuous fast pre-spin while the reward is in-flight
-  // 'landing' — smooth deceleration to the backend-selected winning slice
+  // 'idle'    — resting (decorative / pre-tap / brief backend wait)
+  // 'landing' — one continuous fast-start → decelerate spin to the winning slice
   phase = 'idle',
   targetRotation = 0,
   highlightAmount = null,
@@ -312,21 +314,22 @@ function RewardWheel({
 
   let wheelAnimation;
   let wheelTransition;
-  if (phase === 'loop') {
-    // Continuous full-turn rotation — steady speed, no acceleration phases.
-    // The landing spin picks up smoothly from wherever this stops.
-    wheelAnimation = { rotate: reducedMotion ? [0, 24, 0] : 360 };
-    wheelTransition = {
-      duration: reducedMotion ? 1.1 : WHEEL_PRESPIN_ROTATION_SECONDS,
-      repeat: Infinity,
-      ease: 'linear',
-    };
-  } else if (phase === 'landing') {
-    wheelAnimation = { rotate: targetRotation };
-    wheelTransition = {
-      duration: landingDurationSeconds,
-      ease: reducedMotion ? 'easeOut' : WHEEL_LANDING_EASE,
-    };
+  if (phase === 'landing') {
+    // One continuous timeline from rest to the backend-selected segment. The
+    // wheel keyframes slightly PAST the target then settles back the small
+    // bounce amount — a single monotonic ease-out with a light final bounce,
+    // never a separate loop → landing handoff.
+    if (reducedMotion) {
+      wheelAnimation = { rotate: targetRotation };
+      wheelTransition = { duration: landingDurationSeconds, ease: 'easeOut' };
+    } else {
+      wheelAnimation = { rotate: [0, targetRotation + WHEEL_LANDING_BOUNCE_DEGREES, targetRotation] };
+      wheelTransition = {
+        duration: landingDurationSeconds,
+        times: [0, 0.9, 1],
+        ease: [WHEEL_LANDING_EASE, 'easeOut'],
+      };
+    }
   } else {
     wheelAnimation = { rotate: targetRotation };
     wheelTransition = { duration: 0.18, ease: 'easeOut' };
@@ -828,32 +831,51 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
   );
   const spinDurationMs = prefersReducedMotion ? WHEEL_REDUCED_MOTION_DURATION_MS : WHEEL_SPIN_DURATION_MS;
 
-  // Spin phase model:
-  //   • reward unknown (claiming, no reward yet) → 'loop' continuous pre-spin.
-  //   • reward arrives → 'landing' single decel; reveal fires when it lands.
+  // Spin phase model — one continuous timeline:
+  //   • reward unknown (brief backend wait) → 'idle', wheel at rest.
+  //   • reward arrives → 'landing' single fast-start decel; reveal fires when
+  //     the wheel visually stops. There is no separate visible loop phase.
   const isLanding = hasReward && !revealReady;
-  const wheelPhase = isLanding ? 'landing' : (claiming && !hasReward ? 'loop' : 'idle');
+  const wheelPhase = isLanding ? 'landing' : 'idle';
   const spinLocked = claiming || (hasReward && !revealReady);
 
-  // Start the reveal timer only once the reward is known and the landing
-  // spin begins, so the result text always appears AFTER the wheel stops.
+  // Spin sound/effects are synchronized to the visible landing spin only. The
+  // sound starts with the spin, ticks accelerate-then-decelerate in step with
+  // the wheel (denser early, sparser near the end), and celebration cues fire
+  // exactly when the wheel visually stops (reveal). Everything is cleaned up on
+  // close/unmount so no sound continues after the wheel is stopped.
   useEffect(() => {
     setRevealReady(false);
     if (!hasReward) return undefined;
+    let cancelled = false;
+    const timers = [];
+    const startAt = Date.now();
     try { sounds.wheelSpinStart?.(); } catch { /* non-blocking */ }
-    const tickId = window.setInterval(() => {
+    // Schedule ticks whose spacing widens as the wheel decelerates, so audio
+    // stays in step with the visible rotation instead of a constant cadence.
+    const scheduleTick = () => {
+      if (cancelled) return;
+      const elapsed = Date.now() - startAt;
+      const remaining = spinDurationMs - elapsed;
+      if (remaining <= 120) return;
+      const progress = Math.min(1, elapsed / spinDurationMs);
+      // 70ms while fast → ~360ms as it slows to a stop.
+      const gap = 70 + (progress * progress * 290);
       try { sounds.wheelTick?.(); } catch { /* non-blocking */ }
-    }, 145);
+      timers.push(window.setTimeout(scheduleTick, gap));
+    };
+    if (!prefersReducedMotion) scheduleTick();
     const revealId = window.setTimeout(() => {
-      window.clearInterval(tickId);
+      if (cancelled) return;
       setRevealReady(true);
       fireDailyWheelConfetti(prefersReducedMotion);
       try { window.navigator?.vibrate?.(28); } catch { /* non-blocking */ }
       try { sounds.rewardReveal?.(); } catch { /* non-blocking */ }
     }, spinDurationMs);
+    timers.push(revealId);
     return () => {
-      window.clearInterval(tickId);
-      window.clearTimeout(revealId);
+      cancelled = true;
+      timers.forEach((id) => window.clearTimeout(id));
     };
   }, [hasReward, prefersReducedMotion, result?.rewardId, spinDurationMs]);
 
@@ -967,7 +989,7 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
         </>
       ) : (
         <>
-          <RewardWheel phase={claiming ? 'loop' : 'idle'} reducedMotion={prefersReducedMotion} />
+          <RewardWheel phase="idle" reducedMotion={prefersReducedMotion} />
           <DailyWheelReadyTitle />
           {error && (
             <p role="alert" className="rounded-xl bg-red-500/12 px-3 py-2 text-center text-xs font-bold text-red-100">

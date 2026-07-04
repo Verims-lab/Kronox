@@ -100,7 +100,13 @@ SONRA does not consume spin
 spinning state stays in same premium popup/wheel shell
 no separate intermediate spinning-copy screen
 result reveal waits for backend-selected landing animation
-segment content scale token 0.8
+one continuous spin: fast start, decelerate only near the end, light final bounce
+no slow-fast-slow: no separate steady loop phase before the landing spin
+spin sound/effects synchronized with visible wheel rotation
+ticks widen as the wheel decelerates; celebration fires at the visible stop
+sound/timers cleaned up on close/unmount so no sound outlives the wheel
+segment content scale token 0.8; icons and numbers must not be enlarged
+visual polish may improve quality but must not change reward mapping or icon sizing
 GIFT_BOX_REWARD_TABLE
 gift_diamond_50
 gift_diamond_70

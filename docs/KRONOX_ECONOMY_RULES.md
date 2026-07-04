@@ -148,8 +148,20 @@ Rules:
 * UI animates to the backend-selected 8-slice segment
 * the spinning state stays inside the same premium popup/wheel shell and must
   not show a separate intermediate spinning-copy screen
-* result copy, confetti/glow, haptic, and reward sound reveal only after the
-  backend-selected landing animation completes
+* the wheel uses one continuous spin: it reaches a clear fast pace immediately
+  after `ÇEVİR`, holds a steady fast rotation, and decelerates only near the
+  final phase before a light final bounce on the backend-selected segment; it
+  must not visually behave as slow → fast → slow and must not use a separate
+  steady pre-spin loop that hands off into the landing
+* spin sound/effects are synchronized to the visible rotation: the spin sound
+  starts with the visible spin, ticks widen as the wheel decelerates, and the
+  sound/effects never continue after the wheel has visually stopped
+* celebration cues (confetti/glow, haptic, reward sound) and the result copy
+  reveal only after the wheel visually stops (the landing animation completes)
+* spin timers, sound, and effects are cleaned up on close/unmount/error
+* visual polish may improve wheel/icon quality but must not change reward
+  mapping, segment order/size, pointer alignment, or the reduced `0.8` segment
+  content scale (icons/numbers must not be enlarged)
 * localStorage/sessionStorage may only hide the once-per-day auto-popup, never grant rewards
 * closing the auto-popup does not consume the free spin
 * after the free spin is used, the repeat ad-spin CTA is visible but disabled

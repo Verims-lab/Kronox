@@ -595,7 +595,7 @@ export const EXTRA_TESTS = [
         'disableClose={spinLocked}',
         'DailyWheelReadyTitle',
         'DailyWheelReadyActions claiming={spinLocked}',
-        "const wheelPhase = isLanding ? 'landing' : (claiming && !hasReward ? 'loop' : 'idle')",
+        "const wheelPhase = isLanding ? 'landing' : 'idle'",
         'highlightAmount={revealReady ? result.rewardId : null}',
       ]);
       const forbidden = forbiddenTokens(dailyWheelCardSource, [
@@ -721,65 +721,77 @@ export const EXTRA_TESTS = [
       });
     }),
 
-  makeCase('daily_wheel_single_coherent_spin_motion',
-    'Daily Wheel spin uses one coherent loop→landing motion with a light final settle',
+  makeCase('daily_wheel_single_continuous_spin_no_slow_fast_slow',
+    'Daily Wheel spin uses one continuous fast-start → decelerate motion with no visible loop phase',
     () => {
       const missing = missingTokens(dailyWheelCardSource, [
-        "phase === 'loop'",
         "phase === 'landing'",
         'WHEEL_LANDING_EASE',
-        'WHEEL_PRESPIN_ROTATION_SECONDS',
-        'rotate: targetRotation',
-        'WHEEL_LANDING_SETTLE_SCALE',
-        'settleAnimation',
-        'scale: [1, WHEEL_LANDING_SETTLE_SCALE, 1]',
+        // Steep-early, long-tail monotonic ease-out (fast start, decel at end).
+        'const WHEEL_LANDING_EASE = [0.05, 0.75, 0.15, 1]',
+        // One continuous keyframe from rest to target with a light final bounce.
+        'rotate: [0, targetRotation + WHEEL_LANDING_BOUNCE_DEGREES, targetRotation]',
+        'WHEEL_LANDING_BOUNCE_DEGREES',
+        "times: [0, 0.9, 1]",
+        "const wheelPhase = isLanding ? 'landing' : 'idle'",
         // Spin starts immediately on tap — no separate "prepare" wait.
         'wheel.openResult();\n      wheel.claim();',
       ]);
       const forbidden = forbiddenTokens(dailyWheelCardSource, [
+        // The old separate steady pre-spin loop that caused slow → fast → slow.
+        "phase === 'loop'",
+        'WHEEL_PRESPIN_ROTATION_SECONDS',
+        "phase={claiming ? 'loop' : 'idle'}",
+        "(claiming && !hasReward ? 'loop' : 'idle')",
         // Old multi-phase keyframe array + heavy overshoot/bounce-back must be gone.
         'targetRotation * 0.72',
         'targetRotation - 8',
-        'targetRotation + 2',
-        'targetRotation - WHEEL_LANDING_' + 'SETTLE_DEGREES',
         'Ödül hazırlanıyor',
       ]);
       if (missing.length || forbidden.length) {
-        return fail('Daily Wheel spin can still show multi-phase speed jumps, old rotation overshoot, or a separate prepare wait.', {
+        return fail('Daily Wheel spin can still use a separate loop phase or non-monotonic curve, reintroducing slow → fast → slow.', {
           verification: 'STATIC_CONTRACT',
           file: 'src/components/dailyWheel/DailyWheelCard.jsx',
           actual: { missing, forbidden },
         });
       }
-      return pass('Daily Wheel starts spinning on tap and runs one loop→landing motion with a light non-rotational settle after reveal.', {
+      return pass('Daily Wheel starts spinning on tap and runs one continuous fast-start → decelerate landing with a light final bounce, no visible loop handoff.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
 
-  makeCase('daily_wheel_spin_effects_sync_to_landing_end',
-    'Daily Wheel sounds, confetti, haptic, and result reveal fire only after the landing timer completes',
+  makeCase('daily_wheel_spin_effects_sync_to_visible_rotation',
+    'Daily Wheel sounds/ticks track the visible spin and celebration fires only when the wheel stops',
     () => {
       const missing = missingTokens(dailyWheelCardSource, [
         'if (!hasReward) return undefined',
         'sounds.wheelSpinStart?.()',
         'sounds.wheelTick?.()',
+        // Ticks widen as the wheel decelerates (audio in step with rotation).
+        'const scheduleTick = () =>',
+        'const gap = 70 + (progress * progress * 290)',
         'const revealId = window.setTimeout(() => {',
-        'window.clearInterval(tickId)',
         'setRevealReady(true)',
         'fireDailyWheelConfetti(prefersReducedMotion)',
         'window.navigator?.vibrate?.(28)',
         'sounds.rewardReveal?.()',
-        'window.clearTimeout(revealId)',
+        // All timers cleaned up on close/unmount so no sound outlives the wheel.
+        'cancelled = true;',
+        'timers.forEach((id) => window.clearTimeout(id))',
         '}, spinDurationMs)',
       ]);
-      if (missing.length) {
-        return fail('Daily Wheel result/effects can desynchronize from the landing spin timer or leak timers on close.', {
+      const forbidden = forbiddenTokens(dailyWheelCardSource, [
+        // No fixed-cadence tick interval decoupled from deceleration.
+        "window.setInterval(() => {\n      try { sounds.wheelTick",
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Daily Wheel sound/effects can desynchronize from the visible spin or leak sound after the wheel stops.', {
           verification: 'STATIC_CONTRACT',
           file: 'src/components/dailyWheel/DailyWheelCard.jsx',
-          missing,
+          actual: { missing, forbidden },
         });
       }
-      return pass('Daily Wheel starts spin cues with the backend-selected landing, stops ticks at reveal, then fires confetti/haptic/reward sound once.', {
+      return pass('Daily Wheel ticks widen with deceleration, celebration cues fire at the visible stop, and all timers/sound are cleaned up on close/unmount.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

@@ -1,5 +1,24 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex544 — Daily Wheel spin-feel fix (continuous fast → decelerate):
+//   • DailyWheelCard removes the separate steady pre-spin 'loop' phase that
+//     caused the slow → fast → slow feel. The wheel now runs ONE continuous
+//     landing timeline: it reaches a clear fast pace immediately, holds it, and
+//     decelerates only near the end with a light final rotation bounce
+//     (WHEEL_LANDING_EASE = [0.05, 0.75, 0.15, 1], keyframe [0, target+5, target]
+//     over times [0, 0.9, 1]). Total spin stays ~5s; reduced-motion keeps a
+//     simple easeOut.
+//   • Spin sound/effects are synchronized to the visible rotation: ticks are
+//     scheduled with a gap that widens as the wheel decelerates (70ms → ~360ms)
+//     instead of a fixed cadence, and all timers/sound are cancelled on
+//     close/unmount so no sound outlives the visible wheel. Confetti/haptic/
+//     reward sound and result reveal still fire only at the visible stop.
+//   • No icon/number sizes changed; the reduced 0.8 segment content scale,
+//     segment order, pointer alignment, and backend-selected reward mapping are
+//     preserved. Docs (KRONOX_ECONOMY_RULES.md), dailyWheelHealthMirror,
+//     healthAlignmentDocMirrors, and Daily Wheel Health cases updated to the
+//     continuous-spin / no-slow-fast-slow / synchronized-effects contract.
+//
 // Codex543 — Daily Wheel spin-state/animation polish:
 //   • DailyWheelCard removes the visible intermediate spinning-copy state and keeps one premium modal/wheel path mounted while the backend-selected landing spin runs.
 //   • The wheel now lands with one continuous rotation to reward_segment_index plus a light non-rotational settle at reveal, with spin ticks cleaned up before confetti/haptic/reward sound fire.
@@ -229,7 +248,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex543';
+const BUILD_MARKER = 'Codex544';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
