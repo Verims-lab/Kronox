@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Gem, Gift, Loader2, PackageOpen, RefreshCw, RotateCw, Shield, Snowflake, Sparkles, X } from 'lucide-react';
+import { Gem, Gift, Loader2, PackageOpen, RotateCw, Sparkles, X } from 'lucide-react';
 import { useDailyWheel } from '@/hooks/useDailyWheel';
 import {
   DAILY_WHEEL_REWARD_SEGMENTS,
@@ -14,30 +14,18 @@ import { sounds } from '@/lib/gameSounds';
 
 const WHEEL_REWARD_SLICES = DAILY_WHEEL_REWARD_SEGMENTS;
 const WHEEL_SLICE_DEGREES = 360 / DAILY_WHEEL_VISUAL_SEGMENT_COUNT;
-// One coherent landing spin. Single cubic-bezier deceleration — no keyframe
-// speed phases, no overshoot/bounce — so the wheel reads as one controlled
-// motion that smoothly comes to rest under the pointer.
-const WHEEL_SPIN_DURATION_MS = 4600;
+// One coherent landing spin: fast start, long deceleration, then a tiny final
+// settle so the backend-selected segment reads as landing under the pointer.
+const WHEEL_SPIN_DURATION_MS = 5000;
 const WHEEL_REDUCED_MOTION_DURATION_MS = 900;
 const WHEEL_SPIN_DURATION_SECONDS = WHEEL_SPIN_DURATION_MS / 1000;
 const WHEEL_REDUCED_MOTION_DURATION_SECONDS = WHEEL_REDUCED_MOTION_DURATION_MS / 1000;
-const WHEEL_SPIN_KEYFRAME_TIMES = [0, 0.14, 0.72, 0.9, 0.96, 1];
 // Pre-spin loop speed while the backend reward is still in-flight. Keeps the
 // wheel turning at a steady fast pace so tapping "Çevir" never shows a dead
 // "loading" wait before the spin.
 const WHEEL_PRESPIN_ROTATION_SECONDS = 0.9;
-// Final deceleration easing — fast start that eases to a long smooth stop.
-const WHEEL_LANDING_EASE = [0.16, 0.62, 0.16, 1];
-const WHEEL_SLICE_COLORS = [
-  '#facc15',
-  '#2563eb',
-  '#fb923c',
-  '#7c3aed',
-  '#22c55e',
-  '#0ea5e9',
-  '#ef4444',
-  '#a855f7',
-];
+const WHEEL_LANDING_EASE = [0.12, 0.86, 0.22, 1];
+const WHEEL_LANDING_SETTLE_DEGREES = 1.1;
 
 function getWheelTargetRotation(rewardSegmentIndex, reducedMotion = false) {
   const index = normalizeDailyWheelSegmentIndex(rewardSegmentIndex);
@@ -313,7 +301,7 @@ function WheelEmblem({ spinning, muted }) {
 function RewardWheel({
   // 'idle'    — resting (decorative / pre-tap)
   // 'loop'    — continuous fast pre-spin while the reward is in-flight
-  // 'landing' — single smooth deceleration to the winning slice
+  // 'landing' — smooth deceleration to the backend-selected winning slice
   phase = 'idle',
   targetRotation = 0,
   highlightAmount = null,
@@ -336,11 +324,19 @@ function RewardWheel({
       ease: 'linear',
     };
   } else if (phase === 'landing') {
-    // ONE transform → target. Single deceleration curve, no overshoot/bounce.
-    wheelAnimation = { rotate: targetRotation };
+    wheelAnimation = reducedMotion
+      ? { rotate: targetRotation }
+      : {
+        rotate: [
+          targetRotation - WHEEL_LANDING_SETTLE_DEGREES,
+          targetRotation + (WHEEL_LANDING_SETTLE_DEGREES / 2),
+          targetRotation,
+        ],
+      };
     wheelTransition = {
       duration: landingDurationSeconds,
       ease: reducedMotion ? 'easeOut' : WHEEL_LANDING_EASE,
+      times: reducedMotion ? undefined : [0, 0.94, 1],
     };
   } else {
     wheelAnimation = { rotate: targetRotation };
@@ -349,58 +345,62 @@ function RewardWheel({
   const conicStops = WHEEL_REWARD_SLICES.map((segment, index) => {
     const start = index * WHEEL_SLICE_DEGREES;
     const end = (index + 1) * WHEEL_SLICE_DEGREES;
-    return `${WHEEL_SLICE_COLORS[index]} ${start}deg ${end}deg`;
+    return `${segment.segmentColor} ${start}deg ${end}deg`;
   }).join(', ');
-  const wheelSize = compact
-    ? 'clamp(190px, 58vw, 218px)'
-    : 'clamp(276px, 82vw, 318px)';
-  const rimLights = Array.from({ length: 24 }, (_, index) => index);
+  const rimLights = Array.from({ length: compact ? 16 : 24 }, (_, index) => index);
 
   return (
     <div
       className="relative grid place-items-center"
       style={{
-        width: wheelSize,
-        height: wheelSize,
-        filter: 'drop-shadow(0 22px 42px rgba(0,0,0,0.52))',
+        width: '85%',
+        maxWidth: '22rem',
+        aspectRatio: '1 / 1',
+        filter: 'drop-shadow(0 22px 42px rgba(0,0,0,0.54))',
       }}
       aria-label="Günlük Çark ödül seçenekleri"
     >
       <div
         aria-hidden="true"
-        className="absolute -top-3 z-30 grid place-items-center"
+        className="absolute z-40 grid place-items-center"
         style={{
-          width: 44,
-          height: 52,
-          filter: 'drop-shadow(0 4px 4px rgba(0,0,0,0.75)) drop-shadow(0 0 9px rgba(250,204,21,0.58))',
+          top: '-4.5%',
+          width: '13%',
+          height: '18%',
+          filter: 'drop-shadow(0 5px 5px rgba(0,0,0,0.78)) drop-shadow(0 0 10px rgba(250,204,21,0.62))',
         }}
       >
         <span
           className="absolute top-0 rounded-full"
           style={{
-            width: 28,
-            height: 28,
-            background: 'radial-gradient(circle at 35% 25%, #fff7bd, #facc15 45%, #92400e 100%)',
-            boxShadow: '0 0 0 3px rgba(6,10,24,0.85), inset 0 1px 2px rgba(255,255,255,0.5)',
+            width: '62%',
+            aspectRatio: '1 / 1',
+            background: 'radial-gradient(circle at 34% 24%, #fff8bd, #ffd431 42%, #b86b04 76%, #4b2100 100%)',
+            border: '2px solid rgba(255,248,189,0.88)',
+            boxShadow: '0 0 0 3px rgba(4,11,28,0.92), inset 0 2px 3px rgba(255,255,255,0.48)',
           }}
         />
         <span
-          className="absolute top-[18px]"
+          className="absolute"
           style={{
+            top: '42%',
             width: 0,
             height: 0,
-            borderLeft: '15px solid transparent',
-            borderRight: '15px solid transparent',
-            borderTop: '34px solid #fde68a',
+            borderLeft: 'clamp(0.6rem, 3.2vw, 1rem) solid transparent',
+            borderRight: 'clamp(0.6rem, 3.2vw, 1rem) solid transparent',
+            borderTop: 'clamp(1.35rem, 7vw, 2.25rem) solid #facc15',
           }}
         />
       </div>
       <div
         aria-hidden="true"
-        className="absolute -inset-[5px] rounded-full"
+        className="absolute rounded-full"
         style={{
-          background: 'linear-gradient(145deg, #fff4a3, #f5b301 32%, #4f46e5 66%, #082f49 100%)',
-          boxShadow: '0 0 28px rgba(250,204,21,0.26), inset 0 2px 3px rgba(255,255,255,0.4)',
+          inset: '-1.8%',
+          background:
+            'conic-gradient(from -35deg, #fff6aa, #f4b20d 16%, #9f5a05 28%, #fff1a8 42%, #d78b05 58%, #7c3f03 72%, #ffe88d 88%, #fff6aa)',
+          boxShadow:
+            '0 0 34px rgba(250,204,21,0.36), 0 0 62px rgba(56,189,248,0.14), inset 0 2px 4px rgba(255,255,255,0.45), inset 0 -5px 10px rgba(69,26,3,0.62)',
         }}
       />
       {rimLights.map((index) => (
@@ -409,69 +409,69 @@ function RewardWheel({
           aria-hidden="true"
           className="absolute left-1/2 top-1/2 z-10 rounded-full"
           style={{
-            width: index % 2 === 0 ? 5 : 3,
-            height: index % 2 === 0 ? 5 : 3,
-            background: index % 2 === 0 ? '#fef3c7' : 'rgba(191,219,254,0.9)',
-            boxShadow: index % 2 === 0 ? '0 0 8px rgba(250,204,21,0.76)' : '0 0 6px rgba(56,189,248,0.55)',
-            transform: `rotate(${index * 15}deg) translateY(${compact ? '-110px' : '-158px'})`,
+            width: index % 2 === 0 ? '1.9%' : '1.25%',
+            aspectRatio: '1 / 1',
+            background: index % 2 === 0 ? '#fff4a3' : 'rgba(255,231,122,0.82)',
+            boxShadow: index % 2 === 0
+              ? '0 0 10px rgba(250,204,21,0.88)'
+              : '0 0 7px rgba(250,204,21,0.58)',
+            transform: `rotate(${index * (360 / rimLights.length)}deg) translateY(calc(-1 * min(39vw, 10.95rem)))`,
           }}
         />
       ))}
       <motion.div
-        className="absolute inset-0 overflow-hidden rounded-full"
+        className="absolute overflow-hidden rounded-full"
         animate={wheelAnimation}
         transition={wheelTransition}
         style={{
-          background: `radial-gradient(circle at 50% 50%, transparent 0 31%, rgba(0,0,0,0.08) 32% 100%), conic-gradient(from -${WHEEL_SLICE_DEGREES / 2}deg, ${conicStops})`,
-          border: '7px solid rgba(250,204,21,0.96)',
-          boxShadow: 'inset 0 0 0 5px rgba(8,13,32,0.68), inset 0 0 30px rgba(0,0,0,0.36), 0 0 28px rgba(250,204,21,0.24)',
+          inset: '3.8%',
+          background: `radial-gradient(circle at 50% 50%, transparent 0 8%, rgba(0,0,0,0.08) 9% 100%), conic-gradient(from -${WHEEL_SLICE_DEGREES / 2}deg, ${conicStops})`,
+          border: 'clamp(0.28rem, 1.25vw, 0.45rem) solid rgba(250,204,21,0.98)',
+          boxShadow:
+            'inset 0 0 0 clamp(0.16rem, 0.55vw, 0.28rem) rgba(9,16,36,0.72), inset 0 0 30px rgba(0,0,0,0.38), 0 0 28px rgba(250,204,21,0.22)',
           willChange: 'transform',
         }}
       >
         <div
           aria-hidden="true"
-          className="absolute inset-[8px] rounded-full"
+          className="absolute inset-[2.5%] rounded-full"
           style={{
-            background: `repeating-conic-gradient(from -${WHEEL_SLICE_DEGREES / 2}deg, transparent 0deg ${WHEEL_SLICE_DEGREES - 1.2}deg, rgba(4,10,28,0.72) ${WHEEL_SLICE_DEGREES - 1.2}deg ${WHEEL_SLICE_DEGREES}deg)`,
+            zIndex: 2,
+            background: `repeating-conic-gradient(from -${WHEEL_SLICE_DEGREES / 2}deg, transparent 0deg ${WHEEL_SLICE_DEGREES - 1.05}deg, rgba(3,9,26,0.72) ${WHEEL_SLICE_DEGREES - 1.05}deg ${WHEEL_SLICE_DEGREES}deg)`,
           }}
         />
         <div
           aria-hidden="true"
           className="absolute inset-0 rounded-full"
           style={{
+            zIndex: 3,
             background: 'radial-gradient(circle at 34% 20%, rgba(255,255,255,0.28), transparent 26%), radial-gradient(circle at 50% 62%, transparent 0 42%, rgba(2,6,23,0.28) 76%)',
             pointerEvents: 'none',
           }}
         />
         {WHEEL_REWARD_SLICES.map((segment, index) => {
           const angle = index * WHEEL_SLICE_DEGREES;
+          const radians = (angle * Math.PI) / 180;
+          const radius = 31;
+          const x = 50 + (Math.sin(radians) * radius);
+          const y = 50 - (Math.cos(radians) * radius);
           const isHighlighted = String(highlightAmount || '') === segment.id;
           return (
             <div
               key={segment.id}
-              className="absolute left-1/2 top-1/2 grid place-items-center"
+              className="absolute grid place-items-center"
               style={{
-                width: compact ? 56 : 66,
-                height: compact ? 28 : 34,
-                marginLeft: compact ? -28 : -33,
-                marginTop: -15,
-                transform: `rotate(${angle}deg) translateY(${compact ? '-70px' : '-110px'}) rotate(${-angle}deg)`,
+                left: `${x}%`,
+                top: `${y}%`,
+                width: segment.type === 'diamonds' ? '17%' : '21%',
+                transform: 'translate(-50%, -50%)',
+                zIndex: 5,
+                filter: isHighlighted
+                  ? 'drop-shadow(0 0 12px rgba(255,255,255,0.74)) drop-shadow(0 0 20px rgba(250,204,21,0.86))'
+                  : 'drop-shadow(0 3px 3px rgba(0,0,0,0.48))',
               }}
             >
-              <span
-                className={`kronox-number inline-flex items-center gap-1 rounded-full px-2 py-1 ${compact ? 'text-[10px]' : 'text-[12px]'}`}
-                style={{
-                  color: '#fff7ed',
-                  background: isHighlighted ? 'rgba(6,10,24,0.94)' : 'rgba(6,10,24,0.68)',
-                  boxShadow: isHighlighted
-                    ? '0 0 0 2px rgba(255,255,255,0.78), 0 0 20px rgba(250,204,21,0.72)'
-                    : '0 0 0 1px rgba(255,255,255,0.28)',
-                  textShadow: '0 1px 2px rgba(0,0,0,0.72)',
-                }}
-              >
-                <RewardSliceIcon segment={segment} />
-                {segment.shortLabel}
-              </span>
+              <DailyWheelSegmentContent segment={segment} compact={compact} />
             </div>
           );
         })}
@@ -480,11 +480,13 @@ function RewardWheel({
       <div
         className="absolute rounded-full"
         style={{
-          width: '30%',
-          height: '30%',
-          background: 'radial-gradient(circle at 35% 26%, #fff9c4, #facc15 38%, #b45309 72%, #451a03 100%)',
-          border: '4px solid rgba(8,13,32,0.82)',
-          boxShadow: '0 0 0 4px rgba(250,204,21,0.62), 0 0 24px rgba(250,204,21,0.46), inset 0 3px 5px rgba(255,255,255,0.5), inset 0 -5px 8px rgba(69,26,3,0.55)',
+          width: '8%',
+          aspectRatio: '1 / 1',
+          background: 'radial-gradient(circle at 35% 26%, #fff7b8, #facc15 42%, #b45309 73%, #4a1f02 100%)',
+          border: '2px solid rgba(255,248,189,0.78)',
+          boxShadow:
+            '0 0 0 3px rgba(7,13,31,0.82), 0 0 16px rgba(250,204,21,0.5), inset 0 2px 3px rgba(255,255,255,0.52), inset 0 -3px 5px rgba(69,26,3,0.58)',
+          zIndex: 8,
         }}
       />
       <div
@@ -499,12 +501,138 @@ function RewardWheel({
   );
 }
 
-function RewardSliceIcon({ segment }) {
-  if (segment?.type === 'gift_box') return <Gift className="h-3 w-3 text-amber-100" strokeWidth={2.6} />;
-  if (segment?.jokerType === 'mistake_shield') return <Shield className="h-3 w-3 text-sky-100" strokeWidth={2.7} />;
-  if (segment?.jokerType === 'time_freeze') return <Snowflake className="h-3 w-3 text-cyan-100" strokeWidth={2.6} />;
-  if (segment?.jokerType === 'card_swap') return <RefreshCw className="h-3 w-3 text-emerald-100" strokeWidth={2.6} />;
-  return <Gem className="h-3 w-3 text-amber-200" fill="currentColor" strokeWidth={2.6} />;
+function DailyWheelSegmentContent({ segment, compact }) {
+  if (segment?.type === 'diamonds') {
+    return (
+      <div className="flex flex-col items-center justify-center leading-none">
+        <PremiumDiamondIcon />
+        <span
+          className="kronox-number mt-1 font-black text-white"
+          style={{
+            fontSize: compact ? 'clamp(1rem, 4vw, 1.35rem)' : 'clamp(1.15rem, 5vw, 1.75rem)',
+            textShadow: '0 2px 3px rgba(0,0,0,0.72), 0 0 7px rgba(255,255,255,0.18)',
+          }}
+        >
+          {segment.wheelLabel}
+        </span>
+      </div>
+    );
+  }
+
+  if (segment?.iconKey === 'gift_box') return <PremiumGiftIcon />;
+  if (segment?.iconKey === 'shield') return <PremiumShieldIcon />;
+  if (segment?.iconKey === 'snowflake') return <PremiumFreezeIcon />;
+  if (segment?.iconKey === 'swap') return <PremiumSwapIcon />;
+  return <PremiumDiamondIcon />;
+}
+
+function PremiumDiamondIcon() {
+  return (
+    <svg
+      viewBox="0 0 64 52"
+      aria-hidden="true"
+      className="block"
+      style={{ width: 'clamp(1.6rem, 7vw, 2.8rem)', height: 'auto' }}
+    >
+      <defs>
+        <linearGradient id="daily-wheel-diamond-top" x1="10" y1="5" x2="52" y2="45" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#fff7ad" />
+          <stop offset="0.42" stopColor="#ffc928" />
+          <stop offset="1" stopColor="#f97316" />
+        </linearGradient>
+        <linearGradient id="daily-wheel-diamond-side" x1="14" y1="10" x2="48" y2="50" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#ffd84e" />
+          <stop offset="1" stopColor="#d97706" />
+        </linearGradient>
+        <filter id="daily-wheel-icon-shadow" x="-30%" y="-30%" width="160%" height="170%">
+          <feDropShadow dx="0" dy="4" stdDeviation="3" floodColor="#000000" floodOpacity="0.45" />
+        </filter>
+      </defs>
+      <g filter="url(#daily-wheel-icon-shadow)">
+        <path d="M15 5h34l11 14-28 29L4 19 15 5Z" fill="url(#daily-wheel-diamond-side)" />
+        <path d="M15 5h34l-7 14H22L15 5Z" fill="#fff1a8" />
+        <path d="M4 19h18l10 29L4 19Z" fill="#f59e0b" />
+        <path d="M60 19H42L32 48 60 19Z" fill="#f97316" />
+        <path d="M22 19h20L32 48 22 19Z" fill="url(#daily-wheel-diamond-top)" />
+        <path d="M15 5 22 19M49 5 42 19M22 19 32 5 42 19" stroke="rgba(255,255,255,0.72)" strokeWidth="2" />
+      </g>
+    </svg>
+  );
+}
+
+function PremiumShieldIcon() {
+  return (
+    <svg viewBox="0 0 64 64" aria-hidden="true" style={{ width: 'clamp(2.2rem, 10vw, 4.1rem)', height: 'auto' }}>
+      <defs>
+        <linearGradient id="daily-wheel-shield" x1="16" y1="9" x2="50" y2="58" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#bfe8ff" />
+          <stop offset="0.45" stopColor="#1e9bff" />
+          <stop offset="1" stopColor="#0b2d6f" />
+        </linearGradient>
+      </defs>
+      <path d="M32 5 52 13v16c0 14-8.5 24.5-20 30C20.5 53.5 12 43 12 29V13l20-8Z" fill="url(#daily-wheel-shield)" stroke="#c7f0ff" strokeWidth="3" />
+      <path d="M32 12v38c8.1-4.5 13-11.8 13-21V18l-13-6Z" fill="rgba(255,255,255,0.18)" />
+      <path d="M22 30.5 29 37l14-17" fill="none" stroke="#e0fbff" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
+    </svg>
+  );
+}
+
+function PremiumFreezeIcon() {
+  return (
+    <svg viewBox="0 0 64 64" aria-hidden="true" style={{ width: 'clamp(2.1rem, 9.5vw, 3.9rem)', height: 'auto' }}>
+      <g fill="none" stroke="#ffe66d" strokeLinecap="round" strokeLinejoin="round" strokeWidth="5" filter="drop-shadow(0 3px 3px rgba(0,0,0,0.42))">
+        <path d="M32 7v50M12 19l40 26M52 19 12 45" />
+        <path d="m24 13 8 8 8-8M24 51l8-8 8 8M11 30l11-4 2-11M53 30l-11-4-2-11M11 34l11 4 2 11M53 34l-11 4-2 11" />
+      </g>
+      <circle cx="32" cy="32" r="6" fill="#fff5a8" />
+    </svg>
+  );
+}
+
+function PremiumSwapIcon() {
+  return (
+    <svg viewBox="0 0 64 64" aria-hidden="true" style={{ width: 'clamp(2.2rem, 10vw, 4rem)', height: 'auto' }}>
+      <defs>
+        <linearGradient id="daily-wheel-swap" x1="8" y1="12" x2="55" y2="52" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#b8ff8a" />
+          <stop offset="1" stopColor="#24c947" />
+        </linearGradient>
+      </defs>
+      <g fill="none" stroke="url(#daily-wheel-swap)" strokeLinecap="round" strokeLinejoin="round" strokeWidth="6" filter="drop-shadow(0 3px 3px rgba(0,0,0,0.45))">
+        <path d="M16 24a17 17 0 0 1 29-7l4 4" />
+        <path d="M50 12v13H37" />
+        <path d="M48 40a17 17 0 0 1-29 7l-4-4" />
+        <path d="M14 52V39h13" />
+      </g>
+    </svg>
+  );
+}
+
+function PremiumGiftIcon() {
+  return (
+    <svg viewBox="0 0 76 70" aria-hidden="true" style={{ width: 'clamp(2.6rem, 12vw, 4.8rem)', height: 'auto' }}>
+      <defs>
+        <linearGradient id="daily-wheel-gift-front" x1="14" y1="18" x2="62" y2="64" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#ff5330" />
+          <stop offset="1" stopColor="#b11611" />
+        </linearGradient>
+        <linearGradient id="daily-wheel-gift-ribbon" x1="18" y1="13" x2="58" y2="62" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#fff3a0" />
+          <stop offset="0.45" stopColor="#ffc928" />
+          <stop offset="1" stopColor="#c46b00" />
+        </linearGradient>
+      </defs>
+      <g filter="drop-shadow(0 5px 5px rgba(0,0,0,0.48))">
+        <path d="M10 28h56v33H10z" fill="url(#daily-wheel-gift-front)" />
+        <path d="M10 28h56v10H10z" fill="#ff8a36" />
+        <path d="M33 25h10v36H33z" fill="url(#daily-wheel-gift-ribbon)" />
+        <path d="M7 22h62v12H7z" fill="#f24a20" />
+        <path d="M32 22h12v12H32z" fill="url(#daily-wheel-gift-ribbon)" />
+        <path d="M36 21c-7-13-20-10-17-1 3 8 13 5 17 1Zm4 0c7-13 20-10 17-1-3 8-13 5-17 1Z" fill="url(#daily-wheel-gift-ribbon)" stroke="#fff1a8" strokeWidth="1.5" />
+        <path d="M10 38 33 61H10V38Zm56 0L43 61h23V38Z" fill="rgba(70,0,0,0.2)" />
+      </g>
+    </svg>
+  );
 }
 
 function fireDailyWheelConfetti(reducedMotion) {
@@ -612,19 +740,74 @@ function DisabledAdSpinCta() {
   );
 }
 
+function DailyWheelReadyTitle() {
+  return (
+    <>
+      <h2
+        className="text-center uppercase text-white"
+        style={{
+          fontFamily: "'Barlow Condensed', 'Arial Narrow', sans-serif",
+          fontSize: 'clamp(1.5rem, 6vw, 2.25rem)',
+          fontWeight: 800,
+          letterSpacing: '0.12em',
+          textShadow: '0 2px 8px rgba(0,0,0,0.62)',
+        }}
+      >
+        GÜNLÜK ÇARK HAZIR
+      </h2>
+      <p className="text-center font-inter text-sm font-medium text-slate-200/78">
+        Bugünkü ödülünü almak için çevir
+      </p>
+    </>
+  );
+}
+
+function DailyWheelReadyActions({ claiming, onSpin, onClose }) {
+  return (
+    <div
+      className="mt-1 grid w-full grid-cols-2"
+      style={{ gap: 'clamp(.8rem,2vw,1rem)' }}
+    >
+      <button
+        type="button"
+        onClick={onClose}
+        disabled={claiming}
+        className="min-h-12 rounded-xl px-4 py-3 font-inter text-sm font-black tracking-[0.35em] transition-transform active:scale-[0.98] disabled:opacity-50"
+        style={{
+          background: 'linear-gradient(180deg, rgba(13,31,67,0.92), rgba(6,15,36,0.96))',
+          color: '#e8efff',
+          border: '1px solid rgba(148,211,255,0.24)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)',
+        }}
+      >
+        SONRA
+      </button>
+      <button
+        type="button"
+        onClick={onSpin}
+        disabled={claiming}
+        aria-busy={claiming ? 'true' : 'false'}
+        className="min-h-12 rounded-xl px-4 py-3 font-inter text-sm font-black tracking-[0.35em] transition-transform active:scale-[0.98] disabled:opacity-70"
+        style={{
+          background: 'linear-gradient(180deg, #ffde48 0%, #ffc928 52%, #e5a409 100%)',
+          color: '#14151d',
+          border: '1px solid rgba(255,248,189,0.72)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.58), 0 10px 22px rgba(0,0,0,0.34), 0 0 18px rgba(250,204,21,0.28)',
+        }}
+      >
+        ÇEVİR
+      </button>
+    </div>
+  );
+}
+
 function DailyWheelPromptModal({ claiming, onSpin, onClose }) {
   const prefersReducedMotion = useReducedMotion();
   return (
     <DailyWheelModalFrame onClose={onClose} disableClose={claiming}>
       <RewardWheel phase={claiming ? 'loop' : 'idle'} reducedMotion={prefersReducedMotion} />
-      <h2 className="text-center font-inter text-2xl font-black text-white">Günlük Çark hazır!</h2>
-      <p className="text-center text-sm font-semibold text-slate-200">Bugünkü ödülünü almak için çevir.</p>
-      <div className="mt-2 flex w-full gap-2">
-        <ModalButton tone="secondary" onClick={onClose}>Sonra</ModalButton>
-        <ModalButton onClick={onSpin} disabled={claiming}>
-          {claiming ? 'Çevriliyor...' : 'Çevir'}
-        </ModalButton>
-      </div>
+      <DailyWheelReadyTitle />
+      <DailyWheelReadyActions claiming={claiming} onSpin={onSpin} onClose={onClose} />
     </DailyWheelModalFrame>
   );
 }
@@ -789,16 +972,13 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
       ) : (
         <>
           <RewardWheel phase={claiming ? 'loop' : 'idle'} reducedMotion={prefersReducedMotion} />
-          <h2 className="text-center font-inter text-2xl font-black text-white">Günlük Çark hazır!</h2>
-          <p className="text-center text-sm font-semibold text-slate-200">Bugünkü ödülünü almak için çevir.</p>
+          <DailyWheelReadyTitle />
           {error && (
             <p role="alert" className="rounded-xl bg-red-500/12 px-3 py-2 text-center text-xs font-bold text-red-100">
               {error}
             </p>
           )}
-          <ModalButton onClick={onSpin} disabled={claiming}>
-            {claiming ? 'Çevriliyor...' : 'Çevir'}
-          </ModalButton>
+          <DailyWheelReadyActions claiming={claiming} onSpin={onSpin} onClose={onClose} />
         </>
       )}
     </DailyWheelModalFrame>
@@ -825,8 +1005,9 @@ function DailyWheelModalFrame({ children, onClose, disableClose = false }) {
     <div
       className="fixed inset-0 z-[220] grid place-items-center px-3"
       style={{
-        background: 'rgba(2,6,23,0.72)',
+        background: 'rgba(0,0,0,.55)',
         backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
         paddingTop: 'max(0.75rem, env(safe-area-inset-top))',
         paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))',
       }}
@@ -837,14 +1018,19 @@ function DailyWheelModalFrame({ children, onClose, disableClose = false }) {
         initial={{ opacity: 0, scale: 0.96, y: 12 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 12 }}
-        className="relative flex w-full flex-col items-center gap-3 rounded-[22px]"
+        className="relative flex flex-col items-center gap-4 rounded-[24px]"
         style={{
-          maxWidth: 'min(25.5rem, calc(100vw - 1.5rem))',
+          width: 'min(92vw, 32rem)',
+          maxWidth: '32rem',
+          height: 'auto',
           maxHeight: 'calc(100dvh - 1.5rem)',
+          overflowY: 'auto',
           padding: 'clamp(1rem, 4vw, 1.25rem)',
-          border: '1px solid rgba(250,204,21,0.42)',
-          background: 'linear-gradient(180deg, rgba(10,24,58,0.98), rgba(4,10,28,0.98))',
-          boxShadow: '0 24px 80px rgba(0,0,0,0.62), inset 0 0 0 1px rgba(255,255,255,0.06)',
+          border: '1px solid rgba(250,204,21,0.46)',
+          background:
+            'radial-gradient(circle at 50% 8%, rgba(20,90,150,0.28), transparent 42%), linear-gradient(180deg, rgba(5,20,50,0.98), rgba(3,10,29,0.99) 72%, rgba(2,7,21,0.99))',
+          boxShadow:
+            '0 24px 80px rgba(0,0,0,0.64), 0 0 34px rgba(56,189,248,0.16), inset 0 0 0 1px rgba(255,255,255,0.06), inset 0 0 42px rgba(250,204,21,0.05)',
         }}
       >
         <button

@@ -65,6 +65,18 @@ joker_krono_kalkan weight 12, joker_zamani_dondur weight 10,
 joker_kart_degistir weight 8, gift_box weight 5, and diamond_250 weight 2.
 The visual wheel always uses 8 equal segments; probabilities live on the
 server. Closing the once-per-day auto-popup does not consume the free spin.
+Daily Wheel ready popup is a centered responsive modal over a blurred dark
+overlay. The popup uses width min(92vw, 32rem), height auto, a dark navy
+gradient, thin gold border, and a light glow. The wheel is centered at 85% of
+the popup width, max 22rem, aspect-ratio 1/1, with a stationary gold pointer,
+a small unbranded metallic gold center hub, and segment contents that rotate
+with the wheel. The fixed clockwise visual order from the top is diamond_20,
+diamond_60, diamond_100, joker_krono_kalkan, joker_zamani_dondur,
+joker_kart_degistir, gift_box, diamond_250. Diamond slices show a diamond icon
+above 20/60/100/250; joker and Gift Box slices are icon-only. Segment visuals
+must not add visible wrappers, pills, or badges inside slices. Ready copy is
+exactly GÜNLÜK ÇARK HAZIR and Bugünkü ödülünü almak için çevir, with equal
+SONRA and ÇEVİR actions. SONRA only closes the popup and never consumes a spin.
 
 Gift Box contents are selected server-side during the same idempotent claim and
 stored on DailyWheelSpin. Gift Box packages are diamond_50, diamond_70,

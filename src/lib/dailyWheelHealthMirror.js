@@ -84,6 +84,19 @@ joker_zamani_dondur weight: 10
 joker_kart_degistir weight: 8
 gift_box weight: 5
 diamond_250 weight: 2
+Daily Wheel popup visual order from top clockwise
+diamond_20 segmentIndex 0
+diamond_60 segmentIndex 1
+diamond_100 segmentIndex 2
+joker_krono_kalkan segmentIndex 3
+joker_zamani_dondur segmentIndex 4
+joker_kart_degistir segmentIndex 5
+gift_box segmentIndex 6
+diamond_250 segmentIndex 7
+ready popup title GÜNLÜK ÇARK HAZIR
+ready popup subtitle Bugünkü ödülünü almak için çevir
+SONRA does not consume spin
+ÇEVİR starts backend claim only
 GIFT_BOX_REWARD_TABLE
 gift_diamond_50
 gift_diamond_70
