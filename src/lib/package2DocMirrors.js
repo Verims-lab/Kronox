@@ -90,11 +90,11 @@ DailyWheelSpin.user_email + spin_date unless Base44/platform configuration is
 attached.
 DB/entity unique plus code guard is Low risk; code guard only is Medium/P1
 hardening; neither is High. Remaining parallel race risk stays manual proof.
-Daily Wheel result reflects the server reward; when the 7-day streak bonus
-applies it also shows \`7 günlük seri bonusu: +150 elmas\` and
-\`Toplam: +Y elmas\`. Daily Wheel shows \`Tekrar şansını dene!\` and disabled
-\`📺 Reklam İzle ve Tekrar Çevir\` with \`Yakında\` after the free spin is used;
-no fake ad reward flow is active before future rewarded-ad integration.
+Daily Wheel result reflects the server reward with the simplified post-spin UI:
+wheel visible, one backend-selected reward line, and one disabled ad/video
+\`ÇEVİR\` repeat CTA. Old total/streak/retry explanatory result copy is not
+shown, and no fake ad reward flow is active before future rewarded-ad
+integration.
 Home exposes Daily Wheel through the Çark shortcut and one Günlük Görev through
 the Görevler shortcut/modal for active Daily Quest Runtime v1. Runtime owns one canonical code-backed quest:
 solo_level_complete / Solo’da Seviye Geç / Bugün 1 Solo seviyesini tamamla.,

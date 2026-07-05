@@ -100,6 +100,9 @@ SONRA does not consume spin
 spinning state stays in same premium popup/wheel shell
 no separate intermediate spinning-copy screen
 result reveal waits for backend-selected landing animation
+post-spin result screen keeps wheel visible, shows one backend-payload reward line, and shows one disabled ad/video ÇEVİR CTA
+old result copy removed: Toplam, Toplam Elmas, Seri, repeat heading, repeat explanation, visible standalone Yakında
+disabled ad repeat has no fake rewarded-ad grant path and cannot start a spin today
 one continuous spin: fast start, decelerate only near the end, light final bounce
 no slow-fast-slow: no separate steady loop phase before the landing spin
 spin sound/effects synchronized with visible wheel rotation

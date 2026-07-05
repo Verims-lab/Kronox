@@ -164,9 +164,10 @@ Rules:
   content scale (icons/numbers must not be enlarged)
 * localStorage/sessionStorage may only hide the once-per-day auto-popup, never grant rewards
 * closing the auto-popup does not consume the free spin
-* after the free spin is used, the repeat ad-spin CTA is visible but disabled
-  as `Yakında`; there is no fake rewarded-ad grant path until future rewarded-ad
-  integration is implemented
+* after the free spin is used, the result screen is simplified: the wheel stays
+  visible, one backend-payload reward line is shown below it, and the bottom
+  repeat ad-spin CTA is visible as a disabled ad/video `ÇEVİR` button; the old
+  total/streak/retry explanatory result texts are not shown
 * disabled ad repeat is future rewarded-ad integration only; it cannot trigger
   a spin or grant an ad reward today
 
@@ -246,13 +247,20 @@ stored on `GuestProfile`; `linkGuestAccount` copies daily reward history/guards
 to the registered owner key so a guest cannot claim the same UTC-day reward
 again immediately after linking.
 
-Result copy:
+Result screen:
 
 ```text
-+25 Elmas kazandın
-7 günlük seri bonusu: +150 elmas
-Toplam: +200 elmas
+💎 +60 Elmas
+🛡 Kronokalkan
+⏳ Zaman Dondur
+🔄 Kart Değiştir
+🎁 Hediye Kutusu
 ```
+
+The result line uses the backend claim payload (`rewardType`, `rewardId`,
+`rewardAmount`, `jokerRewards`, and Gift Box fields). The result screen does
+not show old `Toplam`, `Toplam Elmas`, `Seri`, repeat-heading, or repeat
+explanation copy.
 
 The Home claimed-state countdown must not show a Diamond icon next to the
 countdown. Use `Yarın hazır` or compact time text such as `11 sa 24 dk`.

@@ -1,5 +1,18 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex547 — Daily Wheel post-spin result simplification:
+//   • DailyWheelCard keeps the wheel visible after the backend-selected landing
+//     animation and replaces the old result card/details with one
+//     backend-payload reward line (Diamonds, Joker, or Gift Box) plus one
+//     bottom disabled ad/video ÇEVİR CTA.
+//   • The disabled repeat CTA is a real disabled button with no click handler;
+//     it cannot start a spin, call fake rewarded ads, grant rewards, or change
+//     ad counters. Reward selection/segment landing remains backend-owned.
+//   • Daily Wheel docs, mirrors, and Health now guard the simplified result
+//     screen, removed old total/streak/retry copy, no fake ad path,
+//     no-Puan/no-Leaderboard, Daily Quest Diamond-only, and unchanged segment
+//     size/orientation contracts.
+//
 // Codex546 — Full architecture/performance cleanup safe pass:
 //   • Root package.json/package-lock.json restore @base44/sdk to the exact
 //     0.8.34 pin required by current security Health/docs; no SDK upgrade or
@@ -277,7 +290,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex546';
+const BUILD_MARKER = 'Codex547';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

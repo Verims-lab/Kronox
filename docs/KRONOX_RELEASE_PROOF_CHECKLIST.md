@@ -556,8 +556,8 @@ Checklist:
       jokers, or Gift Box contents.
 * Market purchase is a Diamond sink; Daily Wheel V2 can be a Diamond source and
   approved joker grant source but must not use `market_purchase`.
-* Daily Wheel result reflects the server reward; when the 7-day streak bonus applies it also shows `7 günlük seri bonusu: +150 elmas` and `Toplam: +Y elmas`.
-* Daily Wheel shows `Tekrar şansını dene!` and disabled `📺 Reklam İzle ve Tekrar Çevir` with `Yakında` after the free spin is used; no fake ad reward flow is active before future rewarded-ad integration.
+* Daily Wheel result reflects the server reward with the simplified post-spin UI: wheel visible, one backend-selected reward line, and one disabled ad/video `ÇEVİR` repeat CTA.
+* Daily Wheel result no longer shows old total/streak/retry explanatory copy; no fake ad reward flow is active before future rewarded-ad integration.
 * Daily Wheel claimed countdown shows `Yarın hazır` or compact time text without a Diamond icon.
 * Admin hard-zero / maintenance reset clears Daily Wheel guard fields without granting duplicate Diamonds, changing Kronox Puan, or affecting leaderboard sorting or rank.
 * Home diamond count updates immediately after a successful wheel claim.
