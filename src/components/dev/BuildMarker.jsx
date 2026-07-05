@@ -1,5 +1,31 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex548 — Daily Wheel post-claim close/reopen flow:
+//   • Closing a completed Daily Wheel result now closes the Home Çark shortcut
+//     sheet as well, returning directly to Home without the old claimed
+//     cooldown card appearing behind the reward result.
+//   • Already-claimed Home Çark opens now reopen the read-only post-win result
+//     screen from cached/refreshed backend lastReward, with a safe
+//     "Bugünkü ödül alındı" fallback for legacy missing-payload rows. This path
+//     never starts a spin, calls claimDailyWheelReward, grants rewards, or adds
+//     a fake ad path.
+//   • Daily Wheel docs, mirrors, and Health now guard the removed cooldown
+//     modal path, direct result-close-to-Home behavior, disabled ÇEVİR repeat
+//     CTA, no-Puan/no-Leaderboard, and Daily Quest Diamond-only contracts.
+//
+// Codex547 — Daily Wheel post-spin result simplification:
+//   • DailyWheelCard keeps the wheel visible after the backend-selected landing
+//     animation and replaces the old result card/details with one
+//     backend-payload reward line (Diamonds, Joker, or Gift Box) plus one
+//     bottom disabled ad/video ÇEVİR CTA.
+//   • The disabled repeat CTA is a real disabled button with no click handler;
+//     it cannot start a spin, call fake rewarded ads, grant rewards, or change
+//     ad counters. Reward selection/segment landing remains backend-owned.
+//   • Daily Wheel docs, mirrors, and Health now guard the simplified result
+//     screen, removed old total/streak/retry copy, no fake ad path,
+//     no-Puan/no-Leaderboard, Daily Quest Diamond-only, and unchanged segment
+//     size/orientation contracts.
+//
 // Codex546 — Full architecture/performance cleanup safe pass:
 //   • Root package.json/package-lock.json restore @base44/sdk to the exact
 //     0.8.34 pin required by current security Health/docs; no SDK upgrade or
@@ -277,7 +303,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex546';
+const BUILD_MARKER = 'Codex548';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

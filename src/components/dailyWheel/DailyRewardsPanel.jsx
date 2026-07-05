@@ -4,7 +4,14 @@ import DailyWheelCard from './DailyWheelCard';
 import { useDailyQuests } from '@/hooks/useDailyQuests';
 import { sounds } from '@/lib/gameSounds';
 
-export default function DailyRewardsPanel({ user, guestProfile, onUserUpdated, onLogin, ariaLabel = 'Günlük Ödüller' }) {
+export default function DailyRewardsPanel({
+  user,
+  guestProfile,
+  onUserUpdated,
+  onLogin,
+  ariaLabel = 'Günlük Ödüller',
+  onDailyWheelResultClose,
+}) {
   return (
     <section
       className="w-full overflow-hidden rounded-[20px] px-3 py-3 font-inter"
@@ -44,6 +51,7 @@ export default function DailyRewardsPanel({ user, guestProfile, onUserUpdated, o
           onUserUpdated={onUserUpdated}
           onLogin={onLogin}
           compact
+          onResultClose={onDailyWheelResultClose}
         />
         <DailyQuestV1Card user={user} guestProfile={guestProfile} onUserUpdated={onUserUpdated} onLogin={onLogin} />
       </div>

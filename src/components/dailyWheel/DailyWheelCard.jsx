@@ -1,14 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Gem, Gift, Loader2, PackageOpen, RotateCw, Sparkles, X } from 'lucide-react';
+import { Gift, Loader2, Play, RotateCw, Sparkles, X } from 'lucide-react';
 import { useDailyWheel } from '@/hooks/useDailyWheel';
 import {
   DAILY_WHEEL_REWARD_SEGMENTS,
   DAILY_WHEEL_VISUAL_SEGMENT_COUNT,
   formatDailyWheelJokerLabel,
+  getDailyWheelSegmentById,
   normalizeDailyWheelJokerRewards,
   normalizeDailyWheelSegmentIndex,
-  summarizeDailyWheelReward,
 } from '@/lib/dailyWheelRewards';
 import { sounds } from '@/lib/gameSounds';
 
@@ -58,13 +58,37 @@ function formatDiamondCount(value) {
   return n.toLocaleString('tr-TR');
 }
 
-export default function DailyWheelCard({ user, guestProfile, onUserUpdated, onLogin, compact = false }) {
-  const [statusModalOpen, setStatusModalOpen] = useState(false);
+export default function DailyWheelCard({
+  user,
+  guestProfile,
+  onUserUpdated,
+  onLogin,
+  compact = false,
+  openClaimedResultOnMount = false,
+  onResultClose,
+}) {
+  const [claimedResultAutoOpened, setClaimedResultAutoOpened] = useState(false);
   const wheel = useDailyWheel({ user, guestProfile, onUserUpdated });
   const claimedLabel = useMemo(
     () => formatCountdown(wheel.wheel?.nextAvailableAt),
     [wheel.wheel?.nextAvailableAt],
   );
+
+  useEffect(() => {
+    if (!openClaimedResultOnMount) return;
+    if (claimedResultAutoOpened) return;
+    if (wheel.status !== 'claimed') return;
+    if (wheel.showResult || wheel.claiming) return;
+    setClaimedResultAutoOpened(true);
+    wheel.openClaimedResult();
+  }, [
+    claimedResultAutoOpened,
+    openClaimedResultOnMount,
+    wheel,
+    wheel.claiming,
+    wheel.showResult,
+    wheel.status,
+  ]);
 
   const handleCardClick = () => {
     sounds.tap();
@@ -80,10 +104,15 @@ export default function DailyWheelCard({ user, guestProfile, onUserUpdated, onLo
       return;
     }
     if (wheel.status === 'claimed') {
-      setStatusModalOpen(true);
+      wheel.openClaimedResult();
       return;
     }
     if (wheel.status === 'error') wheel.refresh();
+  };
+
+  const handleResultClose = () => {
+    wheel.closeResult();
+    onResultClose?.();
   };
 
   return (
@@ -150,14 +179,7 @@ export default function DailyWheelCard({ user, guestProfile, onUserUpdated, onLo
           claiming={wheel.claiming}
           result={wheel.lastResult}
           onSpin={wheel.claim}
-          onClose={wheel.showResult ? wheel.closeResult : wheel.dismissPrompt}
-        />
-      )}
-
-      {statusModalOpen && (
-        <DailyWheelStatusModal
-          nextLabel={claimedLabel}
-          onClose={() => setStatusModalOpen(false)}
+          onClose={wheel.showResult ? handleResultClose : wheel.dismissPrompt}
         />
       )}
     </>
@@ -672,89 +694,92 @@ function fireDailyWheelConfetti(reducedMotion) {
     .catch(() => null);
 }
 
-function GiftBoxRewardSummary({ giftBox }) {
-  const diamonds = Number(giftBox?.diamonds) || 0;
-  const jokers = normalizeDailyWheelJokerRewards(giftBox?.jokers);
-  return (
-    <div className="rounded-xl bg-slate-950/26 px-3 py-2">
-      <p className="mb-1 text-xs font-black uppercase text-amber-100">Hediye Kutusu</p>
-      <div className="flex flex-wrap justify-center gap-1.5">
-        {diamonds > 0 && (
-          <RewardPill icon={Gem} label={`+${formatDiamondCount(diamonds)} Elmas`} />
-        )}
-        {jokers.map((reward) => (
-          <RewardPill
-            key={reward.jokerType}
-            icon={Gift}
-            label={`${reward.quantity} ${formatDailyWheelJokerLabel(reward.jokerType)}`}
-          />
-        ))}
-      </div>
-    </div>
-  );
+function getDailyWheelWonRewardLine(result, jokerRewards = []) {
+  const rewardType = String(result?.rewardType || result?.reward_type || '').trim();
+  const rewardId = String(result?.rewardId || result?.reward_id || '').trim();
+  const segment = getDailyWheelSegmentById(rewardId);
+
+  if (rewardType === 'gift_box' || rewardId === 'gift_box') {
+    return { icon: '🎁', label: 'Hediye Kutusu' };
+  }
+
+  if (result?.fallbackClaimedResult) {
+    return { icon: '✨', label: 'Bugünkü ödül alındı' };
+  }
+
+  if (rewardType === 'joker' || segment?.type === 'joker' || jokerRewards.length > 0) {
+    const jokerType = jokerRewards[0]?.jokerType || segment?.jokerType || '';
+    const label = jokerRewards[0]?.label || formatDailyWheelJokerLabel(jokerType);
+    const icons = {
+      mistake_shield: '🛡',
+      time_freeze: '⏳',
+      card_swap: '🔄',
+    };
+    return { icon: icons[jokerType] || '🎁', label };
+  }
+
+  const rewardAmount = Math.max(0, Math.floor(Number(
+    result?.rewardAmount ??
+    result?.reward_amount ??
+    (rewardId ? segment?.diamondAmount : undefined) ??
+    result?.totalRewardAmount ??
+    result?.total_reward_amount ??
+    0,
+  ) || 0));
+
+  return { icon: '💎', label: `+${formatDiamondCount(rewardAmount)} Elmas` };
 }
 
-function JokerRewardSummary({ rewards }) {
+function DailyWheelWonRewardLine({ rewardLine }) {
   return (
-    <div className="flex flex-wrap justify-center gap-1.5">
-      {normalizeDailyWheelJokerRewards(rewards).map((reward) => (
-        <RewardPill
-          key={reward.jokerType}
-          icon={Gift}
-          label={`${reward.quantity} ${formatDailyWheelJokerLabel(reward.jokerType)}`}
-        />
-      ))}
-    </div>
-  );
-}
-
-function RewardPill({ icon: Icon, label }) {
-  return (
-    <span
-      className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-extrabold text-amber-50"
+    <motion.div
+      initial={{ y: 10, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.34, ease: 'easeOut' }}
+      className="daily-wheel-result-reward-line flex items-center justify-center gap-2 text-center font-inter text-lg font-black text-white"
       style={{
-        background: 'rgba(15,23,42,0.58)',
-        boxShadow: 'inset 0 0 0 1px rgba(250,204,21,0.24)',
+        textShadow: '0 2px 8px rgba(0,0,0,0.62), 0 0 16px rgba(250,204,21,0.18)',
       }}
     >
-      <Icon className="h-3.5 w-3.5 text-amber-200" />
-      {label}
-    </span>
+      <span aria-hidden="true" className="text-2xl leading-none">{rewardLine.icon}</span>
+      <span>{rewardLine.label}</span>
+    </motion.div>
   );
 }
 
 function DisabledAdSpinCta() {
-  // Future rewarded-ad integration only: this visible repeat CTA stays disabled
-  // and cannot start a spin or grant a fake ad reward path.
+  // Future rewarded-ad integration only: this visible repeat CTA stays
+  // disabled and cannot start a spin, decrement counters, or grant a
+  // noFakeAdRewardFlow reward path.
   return (
-    <div
-      className="w-full rounded-2xl px-3 py-3 text-center"
+    <button
+      type="button"
+      disabled
+      aria-disabled="true"
+      aria-label="Reklam entegrasyonu yakında. Şu anda tekrar çevirme devre dışı."
+      className="daily-wheel-disabled-ad-spin-cta flex min-h-16 w-full max-w-[19.5rem] items-center justify-center rounded-xl px-5 py-4 font-inter text-base font-black tracking-[0.24em] text-slate-950"
       style={{
-        background: 'rgba(15,23,42,0.44)',
-        boxShadow: 'inset 0 0 0 1px rgba(148,163,184,0.20)',
+        background: 'linear-gradient(180deg, #ffe66b 0%, #ffc928 52%, #e5a409 100%)',
+        border: '1px solid rgba(255,248,189,0.72)',
+        boxShadow:
+          'inset 0 1px 0 rgba(255,255,255,0.58), 0 12px 28px rgba(0,0,0,0.42), 0 0 20px rgba(250,204,21,0.28)',
+        cursor: 'not-allowed',
+        opacity: 0.92,
       }}
     >
-      <p className="text-sm font-black text-white">Tekrar şansını dene!</p>
-      <button
-        type="button"
-        disabled
-        className="mt-2 min-h-10 w-full rounded-xl px-3 py-2 text-sm font-black"
+      <span
+        aria-hidden="true"
+        className="grid h-9 w-9 place-items-center rounded-lg"
         style={{
-          background: 'linear-gradient(180deg, rgba(148,163,184,0.26), rgba(71,85,105,0.26))',
-          color: '#cbd5e1',
-          boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.10)',
+          background: 'linear-gradient(180deg, rgba(125,211,252,0.72), rgba(56,189,248,0.34))',
+          boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.42), 0 2px 8px rgba(2,6,23,0.28)',
         }}
-        aria-label="Reklam İzle ve Tekrar Çevir Yakında"
       >
-        📺 Reklam İzle ve Tekrar Çevir
-      </button>
-      <p className="mt-1 text-[10px] font-bold text-slate-300/70">
-        Reklamla tekrar çevirme yakında.
-      </p>
-      <span className="mt-2 inline-flex rounded-full bg-amber-300/14 px-2.5 py-1 text-[11px] font-black text-amber-100">
-        Yakında
+        <Play className="h-5 w-5 fill-slate-950 text-slate-950" />
       </span>
-    </div>
+      <span aria-hidden="true" className="mx-5 h-8 w-px bg-amber-950/28" />
+      <span>ÇEVİR</span>
+    </button>
   );
 }
 
@@ -821,14 +846,9 @@ function DailyWheelReadyActions({ claiming, onSpin, onClose }) {
 
 function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClose }) {
   const jokerRewards = useMemo(() => normalizeDailyWheelJokerRewards(result?.jokerRewards), [result?.jokerRewards]);
-  const resultSummary = useMemo(() => summarizeDailyWheelReward({ ...result, jokerRewards }), [jokerRewards, result]);
-  const hasReward = Boolean(result?.rewardId || Number(result?.totalRewardAmount) > 0 || jokerRewards.length || result?.giftBox);
+  const resultRewardLine = useMemo(() => getDailyWheelWonRewardLine(result, jokerRewards), [jokerRewards, result]);
+  const hasReward = Boolean(result?.fallbackClaimedResult || result?.rewardId || Number(result?.totalRewardAmount) > 0 || jokerRewards.length || result?.giftBox);
   const alreadyClaimed = Boolean(result?.alreadyClaimedToday || result?.alreadyClaimed);
-  const updatedDiamondTotal = Number(result?.updatedDiamondTotal);
-  const streakBonusAmount = Number(result?.streakBonusAmount) || 0;
-  const streakBonusText = streakBonusAmount === 150
-    ? '7 günlük seri bonusu: +150 elmas'
-    : `7 günlük seri bonusu: +${formatDiamondCount(streakBonusAmount)} elmas`;
   const [revealReady, setRevealReady] = useState(false);
   const prefersReducedMotion = useReducedMotion();
   const targetRotation = useMemo(
@@ -919,63 +939,14 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
               <DailyWheelReadyActions claiming={spinLocked} onSpin={onSpin} onClose={onClose} />
             </>
           ) : (
-            <>
-              <motion.div
-                initial={{ scale: 0.86, opacity: 0 }}
-                animate={{ scale: [0.96, 1.05, 1], opacity: 1 }}
-                transition={{ duration: 0.46, ease: 'easeOut' }}
-                className="relative w-full overflow-hidden rounded-2xl px-4 py-4 text-center"
-                style={{
-                  border: '1px solid rgba(250,204,21,0.62)',
-                  background: 'linear-gradient(180deg, rgba(250,204,21,0.18), rgba(56,189,248,0.08))',
-                  boxShadow: '0 0 24px rgba(250,204,21,0.22), inset 0 0 0 1px rgba(255,255,255,0.08)',
-                }}
-              >
-                {!prefersReducedMotion && <RewardBurst />}
-                {result?.rewardType === 'gift_box' ? (
-                  <PackageOpen className="mx-auto mb-2 h-8 w-8 text-amber-300" />
-                ) : (
-                  <Sparkles className="mx-auto mb-2 h-8 w-8 text-amber-300" />
-                )}
-                <h2 className="font-inter text-3xl font-black text-white">
-                  {resultSummary.title}
-                </h2>
-                <p className="mt-1 text-sm font-bold text-amber-50/82">
-                  {resultSummary.subtitle}
-                </p>
-                <div
-                  aria-hidden="true"
-                  className="pointer-events-none absolute inset-0"
-                  style={{
-                    background: 'radial-gradient(circle at 50% 20%, rgba(255,255,255,0.18), transparent 48%)',
-                  }}
-                />
-              </motion.div>
-              <div className="space-y-2 rounded-xl bg-amber-300/12 px-3 py-2 text-center">
-                {result?.giftBox && <GiftBoxRewardSummary giftBox={result.giftBox} />}
-                {jokerRewards.length > 0 && <JokerRewardSummary rewards={jokerRewards} />}
-                {streakBonusAmount > 0 && (
-                  <p className="text-sm font-extrabold text-amber-100">
-                    {streakBonusText}
-                  </p>
-                )}
-                {Number(result.totalRewardAmount) > 0 && (
-                  <p className="text-xs font-bold text-amber-50/80">
-                    Toplam: +{formatDiamondCount(result.totalRewardAmount)} elmas
-                  </p>
-                )}
-              </div>
-              {Number.isFinite(updatedDiamondTotal) && (
-                <p className="rounded-full bg-slate-950/38 px-3 py-1.5 text-center text-sm font-extrabold text-amber-100">
-                  Toplam Elmas: <span className="kronox-number">{formatDiamondCount(updatedDiamondTotal)}</span>
-                </p>
-              )}
-              <p className="text-center text-xs font-semibold text-slate-300">
-                Seri: <span className="kronox-number">{Number(result.streakAfter) || 1}</span> gün
-              </p>
+            <div
+              className="daily-wheel-simplified-result flex w-full flex-col items-center pb-2"
+              style={{ gap: 'clamp(3rem, 10vw, 5.25rem)' }}
+            >
+              {!prefersReducedMotion && <RewardBurst />}
+              <DailyWheelWonRewardLine rewardLine={resultRewardLine} />
               <DisabledAdSpinCta />
-              <ModalButton onClick={onClose}>Kapat</ModalButton>
-            </>
+            </div>
           )}
         </>
       ) : alreadyClaimed ? (
@@ -1005,21 +976,6 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
           <DailyWheelReadyActions claiming={claiming} onSpin={onSpin} onClose={onClose} />
         </>
       )}
-    </DailyWheelModalFrame>
-  );
-}
-
-function DailyWheelStatusModal({ nextLabel, onClose }) {
-  return (
-    <DailyWheelModalFrame onClose={onClose}>
-      <Gift className="h-10 w-10 text-amber-300" />
-      <h2 className="text-center font-inter text-xl font-black text-white">Bugünkü ödülünü aldın.</h2>
-      <p className="text-center text-sm font-semibold text-slate-200">
-        Yeni çark yarın hazır olacak.
-      </p>
-      <p className="kronox-number text-center text-xs text-amber-100/85">{nextLabel}</p>
-      <DisabledAdSpinCta />
-      <ModalButton onClick={onClose}>Tamam</ModalButton>
     </DailyWheelModalFrame>
   );
 }

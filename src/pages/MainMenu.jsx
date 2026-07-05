@@ -534,6 +534,8 @@ function HomeShortcutModal({ activeShortcut, user, guestProfile, onClose, onUser
                 guestProfile={guestProfile}
                 onUserUpdated={onUserUpdated}
                 compact
+                openClaimedResultOnMount
+                onResultClose={onClose}
               />
             ) : (
               <DailyQuestV1Card

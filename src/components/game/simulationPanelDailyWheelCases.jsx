@@ -453,24 +453,34 @@ export const EXTRA_TESTS = [
       return pass('Daily Wheel grants/document a +150 Diamond bonus on every 7th consecutive daily spin.', { verification: 'STATIC_CONTRACT' });
     }),
 
-  makeCase('daily_wheel_claimed_passive_countdown',
-    'Claimed Daily Wheel state is passive and shows next availability',
+  makeCase('daily_wheel_claimed_card_passive_countdown',
+    'Claimed Daily Wheel shortcut card stays passive until explicit result reopen',
     () => {
       const missing = missingTokens(dailyWheelCardSource, [
         'formatCountdown',
         'claimedLabel',
         'Yarın hazır',
-        'DailyWheelStatusModal',
-        'Bugünkü ödülünü aldın.',
+        'icon={null} label={claimedLabel',
+        'wheel.openClaimedResult();',
       ]);
-      if (missing.length) {
-        return fail('Claimed Daily Wheel card can look actionable or lacks countdown/status modal.', {
+      const forbidden = forbiddenTokens(dailyWheelCardSource, [
+        'DailyWheelStatusModal',
+        'statusModalOpen',
+        'setStatusModalOpen',
+      ]);
+      const claimedClickIndex = safeStr(dailyWheelCardSource).indexOf("if (wheel.status === 'claimed')");
+      const claimedClickBlock = claimedClickIndex >= 0
+        ? safeStr(dailyWheelCardSource).slice(claimedClickIndex, safeStr(dailyWheelCardSource).indexOf("if (wheel.status === 'error')", claimedClickIndex))
+        : '';
+      const startsNewSpin = claimedClickBlock.includes('wheel.claim()') || claimedClickBlock.includes('claimDailyWheelReward');
+      if (missing.length || forbidden.length || startsNewSpin) {
+        return fail('Claimed Daily Wheel card can reopen the removed cooldown modal or start a duplicate spin instead of the stored result.', {
           verification: 'STATIC_CONTRACT',
           file: 'src/components/dailyWheel/DailyWheelCard.jsx',
-          missing,
+          actual: { missing, forbidden, startsNewSpin },
         });
       }
-      return pass('Claimed Daily Wheel remains visible but passive with tomorrow/countdown status.', { verification: 'STATIC_CONTRACT' });
+      return pass('Claimed Daily Wheel card keeps the plain countdown badge and explicit taps route to stored-result reopen, not the removed cooldown modal.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('daily_wheel_home_countdown_has_no_diamond_icon',
@@ -496,25 +506,34 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('daily_wheel_spin_success_opens_result_modal',
-    'Daily Wheel successful claim always opens a visible reward result',
+    'Daily Wheel successful claim opens the simplified backend-reward result',
     () => {
       const missing = missingTokens(`${dailyWheelHookSource}\n${dailyWheelCardSource}`, [
         'setLastResult(body)',
         'setShowResult(true)',
-        'summarizeDailyWheelReward',
-        'resultSummary.title',
-        'Toplam: +{formatDiamondCount(result.totalRewardAmount)} elmas',
-        'Toplam Elmas',
-        'updatedDiamondTotal',
+        'getDailyWheelWonRewardLine(result, jokerRewards)',
+        'DailyWheelWonRewardLine',
+        'daily-wheel-simplified-result',
+        'daily-wheel-result-reward-line',
+        'DisabledAdSpinCta',
       ]);
-      if (missing.length) {
-        return fail('Daily Wheel claim success can finish without a clear reward modal or updated total.', {
+      const forbidden = forbiddenTokens(dailyWheelCardSource, [
+        'Toplam:',
+        'Toplam Elmas',
+        'Seri:',
+        'Tekrar şansını dene!',
+        'Reklamla tekrar çevirme yakında.',
+        'Reklam İzle ve Tekrar Çevir',
+        '>Yakında<',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Daily Wheel claim success can drift away from the simplified result screen contract.', {
           verification: 'STATIC_CONTRACT',
           files: ['src/hooks/useDailyWheel.js', 'src/components/dailyWheel/DailyWheelCard.jsx'],
-          missing,
+          actual: { missing, forbidden },
         });
       }
-      return pass('Successful Daily Wheel claim stores the result, opens the modal, shows reward text, and displays updated Elmas total.', {
+      return pass('Successful Daily Wheel claim stores the backend result, keeps the wheel visible, and shows only the won reward line plus disabled ad CTA.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
@@ -590,7 +609,7 @@ export const EXTRA_TESTS = [
       const oldSpinSubtitle = 'Ödülün işaretçinin ' + 'altında duracak.';
       const missing = missingTokens(dailyWheelCardSource, [
         '(wheel.showPrompt || wheel.showResult)',
-        'onClose={wheel.showResult ? wheel.closeResult : wheel.dismissPrompt}',
+        'onClose={wheel.showResult ? handleResultClose : wheel.dismissPrompt}',
         'const spinLocked = claiming || (hasReward && !revealReady)',
         'disableClose={spinLocked}',
         'DailyWheelReadyTitle',
@@ -610,6 +629,80 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Daily Wheel spin keeps the approved ready popup title/actions mounted and removes the intermediate spinning copy from runtime UI.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('daily_wheel_completed_result_close_returns_home',
+    'Closing a completed Daily Wheel result closes the Home wheel sheet directly',
+    () => {
+      const combined = `${dailyWheelCardSource}\n${mainMenuSource}`;
+      const missing = missingTokens(combined, [
+        'const handleResultClose = () => {',
+        'wheel.closeResult();',
+        'onResultClose?.();',
+        'onClose={wheel.showResult ? handleResultClose : wheel.dismissPrompt}',
+        'openClaimedResultOnMount',
+        'onResultClose={onClose}',
+      ]);
+      const forbidden = forbiddenTokens(dailyWheelCardSource, [
+        'DailyWheelStatusModal',
+        'statusModalOpen',
+        'setStatusModalOpen',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Completed Daily Wheel result close can leave the Home Çark sheet/cooldown card visible.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['src/components/dailyWheel/DailyWheelCard.jsx', 'src/pages/MainMenu.jsx'],
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('Completed result close dismisses the result and notifies the Home shortcut sheet to close, so the app returns directly to Home.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('daily_wheel_claimed_manual_reopen_uses_stored_result',
+    'Already-claimed Home Daily Wheel taps reopen the stored post-win result screen',
+    () => {
+      const combined = `${dailyWheelHookSource}\n${dailyWheelCardSource}\n${mainMenuSource}`;
+      const missing = missingTokens(combined, [
+        'openClaimedResult',
+        'wheel.openClaimedResult();',
+        'buildClaimResultFromStatus',
+        'sourceStatus?.lastReward',
+        'const refreshedStatus = await refresh().catch(() => null);',
+        'fallbackClaimedResult',
+        'Bugünkü ödül alındı',
+        'result?.fallbackClaimedResult || result?.rewardId',
+        'DailyWheelWonRewardLine',
+        'DisabledAdSpinCta',
+        'openClaimedResultOnMount',
+      ]);
+      const openIndex = safeStr(dailyWheelHookSource).indexOf('const openClaimedResult = useCallback');
+      const openBlock = openIndex >= 0
+        ? safeStr(dailyWheelHookSource).slice(openIndex, safeStr(dailyWheelHookSource).indexOf('return useMemo', openIndex))
+        : '';
+      const forbidden = [
+        ...forbiddenTokens(openBlock, [
+          'invokeDailyWheelFunction(\'claimDailyWheelReward\'',
+          'claimDailyWheelReward(',
+          'applyClaimSuccessBody(',
+          'setClaiming(true)',
+        ]),
+        ...forbiddenTokens(dailyWheelCardSource, [
+          'DailyWheelStatusModal',
+          'statusModalOpen',
+        ]),
+      ];
+      if (missing.length || forbidden.length) {
+        return fail('Already-claimed Daily Wheel can show the removed cooldown card, skip stored reward payload, or trigger a duplicate claim path.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['src/hooks/useDailyWheel.js', 'src/components/dailyWheel/DailyWheelCard.jsx', 'src/pages/MainMenu.jsx'],
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('Already-claimed manual reopen reads cached/refreshed lastReward, falls back safely if old data lacks payload, and renders the same wheel + reward line + disabled ÇEVİR result screen without claiming again.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
@@ -829,24 +922,27 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('daily_wheel_result_uses_backend_reward_amount',
-    'Daily Wheel spin lands on and reveals the backend reward segment',
+    'Daily Wheel spin lands on and reveals the backend reward payload',
     () => {
       const missing = missingTokens(dailyWheelCardSource, [
         'getWheelTargetRotation(result?.rewardSegmentIndex, prefersReducedMotion)',
         'highlightAmount={revealReady ? result.rewardId : null}',
-        'result.totalRewardAmount',
+        'getDailyWheelWonRewardLine(result, jokerRewards)',
+        'result?.rewardAmount',
         'result.rewardId',
         'result?.rewardSegmentIndex',
-        '7 günlük seri bonusu: +150 elmas',
+        'getDailyWheelSegmentById(rewardId)',
+        'formatDailyWheelJokerLabel(jokerType)',
+        'Hediye Kutusu',
       ]);
       if (missing.length) {
-        return fail('Daily Wheel visual result can drift from the backend-selected segment payload.', {
+        return fail('Daily Wheel visual result can drift from the backend-selected reward payload.', {
           verification: 'STATIC_CONTRACT',
           file: 'src/components/dailyWheel/DailyWheelCard.jsx',
           missing,
         });
       }
-      return pass('Wheel landing target and reveal text are both derived from the claim result segment payload.', { verification: 'STATIC_CONTRACT' });
+      return pass('Wheel landing target and simplified reward line are derived from the backend claim payload.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('daily_wheel_gift_box_resolves_server_side',
@@ -858,8 +954,9 @@ export const EXTRA_TESTS = [
         'giftBoxResolvedServerSide',
         'gift_box_reward_id',
         'gift_box_reward_summary',
-        'GiftBoxRewardSummary',
-        'Hediye Kutusu açıldı!',
+        "rewardType === 'gift_box'",
+        "rewardId === 'gift_box'",
+        'Hediye Kutusu',
       ]);
       if (missing.length) {
         return fail('Gift Box reward contents can drift client-side or lose same-day idempotency context.', {
@@ -871,31 +968,48 @@ export const EXTRA_TESTS = [
       return pass('Gift Box package selection is backend-owned, stored on DailyWheelSpin, and rendered from the server result.', { verification: 'STATIC_CONTRACT' });
     }),
 
-  makeCase('daily_wheel_ad_repeat_cta_disabled_yakinda',
-    'Daily Wheel repeat ad spin CTA is visible but disabled as Yakında',
+  makeCase('daily_wheel_ad_repeat_cta_disabled_no_fake_ad',
+    'Daily Wheel repeat ad spin CTA is visible but disabled without fake ad flow',
     () => {
+      const ctaStart = dailyWheelCardSource.indexOf('function DisabledAdSpinCta');
+      const ctaEnd = dailyWheelCardSource.indexOf('function DailyWheelReadyTitle');
+      const ctaSource = ctaStart >= 0 && ctaEnd > ctaStart ? dailyWheelCardSource.slice(ctaStart, ctaEnd) : '';
       const missing = missingTokens(`${dailyWheelCardSource}\n${DAILY_WHEEL_BACKEND_HEALTH_SOURCE}\n${economyRulesSource}`, [
         'DisabledAdSpinCta',
-        'Tekrar şansını dene!',
-        '📺 Reklam İzle ve Tekrar Çevir',
-        'Yakında',
+        'daily-wheel-disabled-ad-spin-cta',
+        '<Play className="h-5 w-5',
+        '<span>ÇEVİR</span>',
+        'aria-disabled="true"',
+        'Reklam entegrasyonu yakında. Şu anda tekrar çevirme devre dışı.',
         'noFakeAdRewardFlow',
         'future rewarded-ad integration',
+      ]);
+      const ctaForbidden = forbiddenTokens(ctaSource, [
+        'onClick',
+        'onSpin',
+        'claim',
+        'rewardedAd',
+        'showRewardedAd',
+        'adSpinReward',
       ]);
       const forbidden = forbiddenTokens(dailyWheelCardSource, [
         'claimAdSpinReward',
         'rewardedAd',
         'showRewardedAd',
         'adSpinReward',
+        'Tekrar şansını dene!',
+        'Reklamla tekrar çevirme yakında.',
+        'Reklam İzle ve Tekrar Çevir',
+        '>Yakında<',
       ]);
-      if (missing.length || forbidden.length) {
+      if (missing.length || ctaForbidden.length || forbidden.length) {
         return fail('Daily Wheel repeat ad CTA can look active or add a fake ad reward path.', {
           verification: 'STATIC_CONTRACT',
           files: ['src/components/dailyWheel/DailyWheelCard.jsx', 'docs/KRONOX_ECONOMY_RULES.md'],
-          actual: { missing, forbidden },
+          actual: { missing, ctaForbidden, forbidden },
         });
       }
-      return pass('Repeat spin ad CTA is disabled, marked Yakında, and has no fake reward flow.', { verification: 'STATIC_CONTRACT' });
+      return pass('Repeat spin ad CTA is disabled, shows the ad/video icon plus ÇEVİR, and has no fake reward flow.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('daily_wheel_sound_safe_existing_infrastructure',
@@ -924,21 +1038,43 @@ export const EXTRA_TESTS = [
       return pass('Daily Wheel attempts optional spin/reveal cues through gameSounds and adds no audio asset dependency.', { verification: 'STATIC_CONTRACT' });
     }),
 
-  makeCase('daily_wheel_already_claimed_does_not_fake_spin',
-    'Already-claimed Daily Wheel state does not fake a spin',
+  makeCase('daily_wheel_already_claimed_no_duplicate_reward',
+    'Already-claimed Daily Wheel reopen never starts a new spin or duplicate reward',
     () => {
-      const alreadyIndex = safeStr(dailyWheelCardSource).indexOf(') : alreadyClaimed ? (');
-      const rewardIndex = safeStr(dailyWheelCardSource).indexOf(') : hasReward ? (');
-      const alreadyBlock = safeStr(dailyWheelCardSource).slice(alreadyIndex, safeStr(dailyWheelCardSource).indexOf(') : (', alreadyIndex));
-      const fakeSpin = alreadyBlock.includes('RewardWheel') || alreadyBlock.includes('Çark ' + 'dönüyor');
-      if (alreadyIndex < 0 || rewardIndex < 0 || alreadyIndex <= rewardIndex || fakeSpin) {
-        return fail('Already-claimed branch can show fake spin UI instead of direct status copy.', {
+      const openIndex = safeStr(dailyWheelHookSource).indexOf('const openClaimedResult = useCallback');
+      const openBlock = openIndex >= 0
+        ? safeStr(dailyWheelHookSource).slice(openIndex, safeStr(dailyWheelHookSource).indexOf('return useMemo', openIndex))
+        : '';
+      const cardClaimedIndex = safeStr(dailyWheelCardSource).indexOf("if (wheel.status === 'claimed')");
+      const cardClaimedBlock = cardClaimedIndex >= 0
+        ? safeStr(dailyWheelCardSource).slice(cardClaimedIndex, safeStr(dailyWheelCardSource).indexOf("if (wheel.status === 'error')", cardClaimedIndex))
+        : '';
+      const missing = missingTokens(openBlock, [
+        'setShowPrompt(false)',
+        'buildClaimResultFromStatus',
+        'setLastResult(reopenedResult)',
+        'setStatus(\'claimed\')',
+        'setShowResult(true)',
+      ]);
+      const forbidden = [
+        ...forbiddenTokens(openBlock, [
+          'claimDailyWheelReward',
+          'applyClaimSuccessBody',
+          'setClaiming(true)',
+        ]),
+        ...forbiddenTokens(cardClaimedBlock, [
+          'wheel.claim()',
+          'claimDailyWheelReward',
+        ]),
+      ];
+      if (missing.length || forbidden.length) {
+        return fail('Already-claimed manual reopen can start a new claim or skip the read-only stored-result state.', {
           verification: 'STATIC_CONTRACT',
-          file: 'src/components/dailyWheel/DailyWheelCard.jsx',
-          actual: { alreadyIndex, rewardIndex, fakeSpin },
+          files: ['src/hooks/useDailyWheel.js', 'src/components/dailyWheel/DailyWheelCard.jsx'],
+          actual: { missing, forbidden },
         });
       }
-      return pass('Already-claimed branch bypasses spin UI and shows the claimed/tomorrow status directly.', { verification: 'STATIC_CONTRACT' });
+      return pass('Already-claimed reopen is read-only: it builds a result from status/lastReward and never calls the claim/reward path.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('daily_wheel_claim_error_visible_recoverable',

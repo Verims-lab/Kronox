@@ -100,6 +100,12 @@ SONRA does not consume spin
 spinning state stays in same premium popup/wheel shell
 no separate intermediate spinning-copy screen
 result reveal waits for backend-selected landing animation
+post-spin result screen keeps wheel visible, shows one backend-payload reward line, and shows one disabled ad/video ÇEVİR CTA
+old result copy removed: Toplam, Toplam Elmas, Seri, repeat heading, repeat explanation, visible standalone Yakında
+disabled ad repeat has no fake rewarded-ad grant path and cannot start a spin today
+completed reward result close returns directly to Home and does not reveal the old Çark / Günlük Çark claimed cooldown sheet
+already-claimed Home Çark manual reopen shows read-only post-win result from stored lastReward or safe Bugünkü ödül alındı fallback
+already-claimed manual reopen does not call claimDailyWheelReward, start a spin, grant a reward, or fake an ad path
 one continuous spin: fast start, decelerate only near the end, light final bounce
 no slow-fast-slow: no separate steady loop phase before the landing spin
 spin sound/effects synchronized with visible wheel rotation

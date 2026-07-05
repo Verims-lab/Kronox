@@ -90,11 +90,17 @@ DailyWheelSpin.user_email + spin_date unless Base44/platform configuration is
 attached.
 DB/entity unique plus code guard is Low risk; code guard only is Medium/P1
 hardening; neither is High. Remaining parallel race risk stays manual proof.
-Daily Wheel result reflects the server reward; when the 7-day streak bonus
-applies it also shows \`7 günlük seri bonusu: +150 elmas\` and
-\`Toplam: +Y elmas\`. Daily Wheel shows \`Tekrar şansını dene!\` and disabled
-\`📺 Reklam İzle ve Tekrar Çevir\` with \`Yakında\` after the free spin is used;
-no fake ad reward flow is active before future rewarded-ad integration.
+Daily Wheel result reflects the server reward with the simplified post-spin UI:
+wheel visible, one backend-selected reward line, and one disabled ad/video
+\`ÇEVİR\` repeat CTA. Old total/streak/retry explanatory result copy is not
+shown, and no fake ad reward flow is active before future rewarded-ad
+integration.
+Closing a completed Daily Wheel result closes the wheel modal and returns
+directly to Home; the old \`Çark\` / \`Günlük Çark\` claimed/cooldown sheet must
+not appear behind it. Already-claimed Home \`Çark\` taps reopen the read-only
+post-win result screen from the stored backend reward payload, or a safe
+\`Bugünkü ödül alındı\` fallback for legacy missing-payload data; no new spin,
+reward, or fake ad path is triggered.
 Home exposes Daily Wheel through the Çark shortcut and one Günlük Görev through
 the Görevler shortcut/modal for active Daily Quest Runtime v1. Runtime owns one canonical code-backed quest:
 solo_level_complete / Solo’da Seviye Geç / Bugün 1 Solo seviyesini tamamla.,
@@ -111,7 +117,8 @@ definition rows on app/Home open. getDailyQuestStatus preserves newly created
 rows if immediate refresh is stale; loading today’s quests does not grant
 Diamonds.
 Daily Wheel claimed countdown shows \`Yarın hazır\` or compact time text
-without a Diamond icon.
+without a Diamond icon only on the compact card, not as a separate cooldown
+popup.
 Admin reset sets \`daily_wheel_last_spin_date\` to the current UTC day, clears Daily Wheel guard fields, and removes target \`DailyWheelSpin\` rows. Retained OnlineMatchResult/DiamondTransaction/DailyWheelSpin rows no longer contain the deleted user.
 Admin reset remains admin-only, previewed, confirmed, and logged; it prevents stale Daily Wheel availability/countdown state without granting duplicate Diamonds, changing Kronox Puan, or affecting leaderboard sorting or rank.
 Admin-only \`Günlük Çark Reset\` appears only on Admin Ekranı, accepts Kronox User ID, calls \`/adminResetDailyWheelState\`, returns 401/403 for unauthenticated or non-admin callers, resets today's Daily Wheel test state only, archives same-day DailyWheelSpin/DiamondTransaction/JokerTransaction idempotency keys to preserve completed reward rows, and does not grant rewards, reverse awarded Diamonds/Jokers, reset Daily Quest, change Kronox Puan, or affect leaderboard.

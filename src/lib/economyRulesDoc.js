@@ -53,8 +53,16 @@ Daily Wheel balance mutation also uses the shared function-level EconomyOperatio
 so a same-player market purchase, Daily Quest claim, or second wheel claim cannot
 overwrite the same Diamond balance without first passing the lock and post-lock
 rechecks. DB/entity unique constraints or live parallel backend proof remain manual.
-Disabled repeat-ad spin is future rewarded-ad integration only; it is Yakında,
-cannot trigger a spin today, and has no fake ad reward path.
+Disabled repeat-ad spin is future rewarded-ad integration only; the post-spin
+result screen keeps the wheel visible, shows one backend-payload reward line,
+and shows one disabled ad/video ÇEVİR CTA. It cannot trigger a spin today and
+has no fake ad reward path.
+Closing a completed reward result closes the Daily Wheel modal and returns
+directly to Home without revealing the old Çark / Günlük Çark countdown sheet.
+Already-claimed manual Çark opens are read-only post-win result reopens from
+the stored backend reward payload, or safe Bugünkü ödül alındı fallback when
+legacy data has no payload; they do not start a spin, grant a reward, or mark
+auto-popup state as a new claim.
 Daily Wheel claim requires an authenticated user or a token-proven completed
 GuestProfile, and guest reward rows use internal guest:<g_owner_key> keys.
 
@@ -93,10 +101,10 @@ joker_zamani_dondur + joker_kart_degistir, and
 joker_krono_kalkan + joker_zamani_dondur. A Gift Box package must not contain
 two separate Diamond rewards or the same joker twice.
 
-After the free spin is used, the repeat ad-spin CTA says Tekrar şansını dene!
-and 📺 Reklam İzle ve Tekrar Çevir, is disabled, and is marked Yakında. Future
-rewarded-ad integration may add up to 5 ad spins/day for 6 total spins with the
-free spin, but no fake rewarded-ad grant flow is active.
+After the free spin is used, the result screen remains simplified: wheel
+visible, backend-selected reward line, and one disabled ad/video ÇEVİR repeat
+CTA. Future rewarded-ad integration may add up to 5 ad spins/day for 6 total
+spins with the free spin, but no fake rewarded-ad grant flow is active.
 
 Admin Ekranı includes a narrow Günlük Çark Reset support tool backed by
 adminResetDailyWheelState. The tool accepts Kronox User ID only, requires
@@ -109,11 +117,12 @@ AdminMaintenanceLog. It does not grant rewards, does not reverse previously
 awarded Diamonds or Jokers, and does not affect Daily Quest, Kronox Puan,
 leaderboard, Solo, Online, profile, or account data.
 
-Result copy reflects the server reward: Diamonds, approved jokers, or Hediye
-Kutusu. When the 7-day streak bonus applies it also shows 7 günlük seri bonusu:
-+150 elmas and Toplam: +Y elmas. The Home
-claimed-state countdown uses Yarın hazır or compact time text such as 11 sa
-24 dk without a Diamond icon.
+Result UI reflects the server reward as one concise backend-payload line:
+Diamonds, approved jokers, or Hediye Kutusu. The old total/streak/retry
+explanatory result texts are not rendered. The Home claimed-state countdown is
+card-only and uses Yarın hazır or compact time text such as 11 sa 24 dk without
+a Diamond icon; the old small claimed/cooldown popup is not part of the current
+Daily Wheel flow.
 
 Home exposes Daily Wheel through the Çark shortcut and Daily Quest Runtime v1
 Günlük Görev through the Görevler shortcut/modal. Runtime owns one canonical code-backed quest: solo_level_complete /

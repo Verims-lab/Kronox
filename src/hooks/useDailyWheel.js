@@ -73,6 +73,14 @@ function userSafeDailyWheelError(err, fallback) {
 
 function buildClaimResultFromStatus(body) {
   const lastReward = body?.lastReward && typeof body.lastReward === 'object' ? body.lastReward : {};
+  const hasStoredReward = Boolean(
+    lastReward.rewardType ||
+    lastReward.rewardId ||
+    lastReward.giftBox ||
+    (Array.isArray(lastReward.jokerRewards) && lastReward.jokerRewards.length) ||
+    Number(lastReward.totalRewardAmount) > 0 ||
+    Number(lastReward.rewardAmount) > 0
+  );
   const totalRewardAmount = Number(lastReward.totalRewardAmount) || 0;
   const rewardAmount = Number(lastReward.rewardAmount) || totalRewardAmount;
   return {
@@ -80,11 +88,12 @@ function buildClaimResultFromStatus(body) {
     available: false,
     alreadyClaimedToday: true,
     alreadyClaimed: true,
+    fallbackClaimedResult: !hasStoredReward,
     serverDate: body?.serverDate,
     dailyWheelAutoPopupResetAt: body?.dailyWheelAutoPopupResetAt || null,
-    rewardType: lastReward.rewardType || 'diamonds',
-    rewardId: lastReward.rewardId || `diamond_${rewardAmount}`,
-    rewardLabel: lastReward.rewardLabel || '',
+    rewardType: lastReward.rewardType || (hasStoredReward ? 'diamonds' : 'claimed_fallback'),
+    rewardId: lastReward.rewardId || (hasStoredReward ? `diamond_${rewardAmount}` : ''),
+    rewardLabel: lastReward.rewardLabel || (hasStoredReward ? '' : 'Bugünkü ödül alındı'),
     rewardSegmentIndex: Number(lastReward.rewardSegmentIndex) || 0,
     rewardSegmentCount: Number(lastReward.rewardSegmentCount) || 8,
     rewardAmount,
@@ -324,6 +333,38 @@ export function useDailyWheel({ user, guestProfile, onUserUpdated } = {}) {
     }
   }, [applyClaimSuccessBody, claiming, dailyWheelPayload, isSignedIn, onUserUpdated, refresh]);
 
+  const openClaimedResult = useCallback(async () => {
+    if (!isSignedIn) {
+      setStatus('sign_in_required');
+      return null;
+    }
+
+    setError('');
+    setShowPrompt(false);
+
+    let sourceStatus = wheel;
+    if (!sourceStatus?.lastReward) {
+      const refreshedStatus = await refresh().catch(() => null);
+      if (refreshedStatus) sourceStatus = refreshedStatus;
+    }
+
+    if (sourceStatus?.available === true && sourceStatus?.alreadyClaimedToday !== true) {
+      setShowResult(false);
+      return null;
+    }
+
+    const reopenedResult = buildClaimResultFromStatus(sourceStatus || {
+      available: false,
+      alreadyClaimedToday: true,
+      serverDate: todayFallbackKey(),
+    });
+
+    setLastResult(reopenedResult);
+    setStatus('claimed');
+    setShowResult(true);
+    return reopenedResult;
+  }, [isSignedIn, refresh, wheel]);
+
   return useMemo(() => ({
     status,
     wheel,
@@ -342,6 +383,7 @@ export function useDailyWheel({ user, guestProfile, onUserUpdated } = {}) {
     shouldAutoOpen: showPrompt,
     closeResult: () => setShowResult(false),
     openResult: () => setShowResult(true),
+    openClaimedResult,
   }), [
     status,
     wheel,
@@ -357,5 +399,6 @@ export function useDailyWheel({ user, guestProfile, onUserUpdated } = {}) {
     claim,
     dismissPrompt,
     markPromptSeen,
+    openClaimedResult,
   ]);
 }
