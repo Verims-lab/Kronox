@@ -57,6 +57,12 @@ Disabled repeat-ad spin is future rewarded-ad integration only; the post-spin
 result screen keeps the wheel visible, shows one backend-payload reward line,
 and shows one disabled ad/video ÇEVİR CTA. It cannot trigger a spin today and
 has no fake ad reward path.
+Closing a completed reward result closes the Daily Wheel modal and returns
+directly to Home without revealing the old Çark / Günlük Çark countdown sheet.
+Already-claimed manual Çark opens are read-only post-win result reopens from
+the stored backend reward payload, or safe Bugünkü ödül alındı fallback when
+legacy data has no payload; they do not start a spin, grant a reward, or mark
+auto-popup state as a new claim.
 Daily Wheel claim requires an authenticated user or a token-proven completed
 GuestProfile, and guest reward rows use internal guest:<g_owner_key> keys.
 
@@ -113,9 +119,10 @@ leaderboard, Solo, Online, profile, or account data.
 
 Result UI reflects the server reward as one concise backend-payload line:
 Diamonds, approved jokers, or Hediye Kutusu. The old total/streak/retry
-explanatory result texts are not rendered. The Home claimed-state countdown
-uses Yarın hazır or compact time text such as 11 sa 24 dk without a Diamond
-icon.
+explanatory result texts are not rendered. The Home claimed-state countdown is
+card-only and uses Yarın hazır or compact time text such as 11 sa 24 dk without
+a Diamond icon; the old small claimed/cooldown popup is not part of the current
+Daily Wheel flow.
 
 Home exposes Daily Wheel through the Çark shortcut and Daily Quest Runtime v1
 Günlük Görev through the Görevler shortcut/modal. Runtime owns one canonical code-backed quest: solo_level_complete /

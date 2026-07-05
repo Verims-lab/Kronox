@@ -58,13 +58,37 @@ function formatDiamondCount(value) {
   return n.toLocaleString('tr-TR');
 }
 
-export default function DailyWheelCard({ user, guestProfile, onUserUpdated, onLogin, compact = false }) {
-  const [statusModalOpen, setStatusModalOpen] = useState(false);
+export default function DailyWheelCard({
+  user,
+  guestProfile,
+  onUserUpdated,
+  onLogin,
+  compact = false,
+  openClaimedResultOnMount = false,
+  onResultClose,
+}) {
+  const [claimedResultAutoOpened, setClaimedResultAutoOpened] = useState(false);
   const wheel = useDailyWheel({ user, guestProfile, onUserUpdated });
   const claimedLabel = useMemo(
     () => formatCountdown(wheel.wheel?.nextAvailableAt),
     [wheel.wheel?.nextAvailableAt],
   );
+
+  useEffect(() => {
+    if (!openClaimedResultOnMount) return;
+    if (claimedResultAutoOpened) return;
+    if (wheel.status !== 'claimed') return;
+    if (wheel.showResult || wheel.claiming) return;
+    setClaimedResultAutoOpened(true);
+    wheel.openClaimedResult();
+  }, [
+    claimedResultAutoOpened,
+    openClaimedResultOnMount,
+    wheel,
+    wheel.claiming,
+    wheel.showResult,
+    wheel.status,
+  ]);
 
   const handleCardClick = () => {
     sounds.tap();
@@ -80,10 +104,15 @@ export default function DailyWheelCard({ user, guestProfile, onUserUpdated, onLo
       return;
     }
     if (wheel.status === 'claimed') {
-      setStatusModalOpen(true);
+      wheel.openClaimedResult();
       return;
     }
     if (wheel.status === 'error') wheel.refresh();
+  };
+
+  const handleResultClose = () => {
+    wheel.closeResult();
+    onResultClose?.();
   };
 
   return (
@@ -150,14 +179,7 @@ export default function DailyWheelCard({ user, guestProfile, onUserUpdated, onLo
           claiming={wheel.claiming}
           result={wheel.lastResult}
           onSpin={wheel.claim}
-          onClose={wheel.showResult ? wheel.closeResult : wheel.dismissPrompt}
-        />
-      )}
-
-      {statusModalOpen && (
-        <DailyWheelStatusModal
-          nextLabel={claimedLabel}
-          onClose={() => setStatusModalOpen(false)}
+          onClose={wheel.showResult ? handleResultClose : wheel.dismissPrompt}
         />
       )}
     </>
@@ -681,6 +703,10 @@ function getDailyWheelWonRewardLine(result, jokerRewards = []) {
     return { icon: '🎁', label: 'Hediye Kutusu' };
   }
 
+  if (result?.fallbackClaimedResult) {
+    return { icon: '✨', label: 'Bugünkü ödül alındı' };
+  }
+
   if (rewardType === 'joker' || segment?.type === 'joker' || jokerRewards.length > 0) {
     const jokerType = jokerRewards[0]?.jokerType || segment?.jokerType || '';
     const label = jokerRewards[0]?.label || formatDailyWheelJokerLabel(jokerType);
@@ -821,7 +847,7 @@ function DailyWheelReadyActions({ claiming, onSpin, onClose }) {
 function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClose }) {
   const jokerRewards = useMemo(() => normalizeDailyWheelJokerRewards(result?.jokerRewards), [result?.jokerRewards]);
   const resultRewardLine = useMemo(() => getDailyWheelWonRewardLine(result, jokerRewards), [jokerRewards, result]);
-  const hasReward = Boolean(result?.rewardId || Number(result?.totalRewardAmount) > 0 || jokerRewards.length || result?.giftBox);
+  const hasReward = Boolean(result?.fallbackClaimedResult || result?.rewardId || Number(result?.totalRewardAmount) > 0 || jokerRewards.length || result?.giftBox);
   const alreadyClaimed = Boolean(result?.alreadyClaimedToday || result?.alreadyClaimed);
   const [revealReady, setRevealReady] = useState(false);
   const prefersReducedMotion = useReducedMotion();
@@ -950,21 +976,6 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
           <DailyWheelReadyActions claiming={claiming} onSpin={onSpin} onClose={onClose} />
         </>
       )}
-    </DailyWheelModalFrame>
-  );
-}
-
-function DailyWheelStatusModal({ nextLabel, onClose }) {
-  return (
-    <DailyWheelModalFrame onClose={onClose}>
-      <Gift className="h-10 w-10 text-amber-300" />
-      <h2 className="text-center font-inter text-xl font-black text-white">Bugünkü ödülünü aldın.</h2>
-      <p className="text-center text-sm font-semibold text-slate-200">
-        Yeni çark yarın hazır olacak.
-      </p>
-      <p className="kronox-number text-center text-xs text-amber-100/85">{nextLabel}</p>
-      <DisabledAdSpinCta />
-      <ModalButton onClick={onClose}>Tamam</ModalButton>
     </DailyWheelModalFrame>
   );
 }

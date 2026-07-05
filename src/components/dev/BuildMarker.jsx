@@ -1,5 +1,18 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex548 — Daily Wheel post-claim close/reopen flow:
+//   • Closing a completed Daily Wheel result now closes the Home Çark shortcut
+//     sheet as well, returning directly to Home without the old claimed
+//     cooldown card appearing behind the reward result.
+//   • Already-claimed Home Çark opens now reopen the read-only post-win result
+//     screen from cached/refreshed backend lastReward, with a safe
+//     "Bugünkü ödül alındı" fallback for legacy missing-payload rows. This path
+//     never starts a spin, calls claimDailyWheelReward, grants rewards, or adds
+//     a fake ad path.
+//   • Daily Wheel docs, mirrors, and Health now guard the removed cooldown
+//     modal path, direct result-close-to-Home behavior, disabled ÇEVİR repeat
+//     CTA, no-Puan/no-Leaderboard, and Daily Quest Diamond-only contracts.
+//
 // Codex547 — Daily Wheel post-spin result simplification:
 //   • DailyWheelCard keeps the wheel visible after the backend-selected landing
 //     animation and replaces the old result card/details with one
@@ -290,7 +303,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex547';
+const BUILD_MARKER = 'Codex548';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

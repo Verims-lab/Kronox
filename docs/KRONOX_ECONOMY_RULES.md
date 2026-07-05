@@ -168,6 +168,12 @@ Rules:
   visible, one backend-payload reward line is shown below it, and the bottom
   repeat ad-spin CTA is visible as a disabled ad/video `ÇEVİR` button; the old
   total/streak/retry explanatory result texts are not shown
+* closing a completed reward result closes the Daily Wheel modal and returns directly to Home; it must not reveal the old `Çark` / `Günlük Çark`
+  countdown sheet behind the result
+* if today's free spin is already claimed and the player manually opens
+  `Çark` from Home, the read-only post-win result screen opens with the stored
+  backend reward payload or a safe `Bugünkü ödül alındı` fallback; it does not
+  start a spin, grant a reward, or mark auto-popup state as a new claim
 * disabled ad repeat is future rewarded-ad integration only; it cannot trigger
   a spin or grant an ad reward today
 
@@ -262,8 +268,10 @@ The result line uses the backend claim payload (`rewardType`, `rewardId`,
 not show old `Toplam`, `Toplam Elmas`, `Seri`, repeat-heading, or repeat
 explanation copy.
 
-The Home claimed-state countdown must not show a Diamond icon next to the
-countdown. Use `Yarın hazır` or compact time text such as `11 sa 24 dk`.
+The Home claimed-state countdown is card-only and must not show a Diamond icon
+next to the countdown. Use `Yarın hazır` or compact time text such as
+`11 sa 24 dk`. The old small claimed/cooldown popup is not part of the current
+Daily Wheel flow; claimed-day manual opens use the read-only result screen.
 
 Dedicated spin ledger:
 
