@@ -183,6 +183,33 @@ export const EXTRA_TESTS = [
       return pass('DailyPage renders the new mobile Daily calendar, task list, and 7-day Gift Box surface.', { verification: 'STATIC_CONTRACT' });
     }),
 
+  makeCase('daily_screen_mobile_width_fit_contract',
+    'Daily screen fits narrow mobile widths without horizontal page panning',
+    () => {
+      const missing = missingTokens(dailyPageSource, [
+        'data-kronox-daily-page-root="true"',
+        'maxWidth: \'100vw\'',
+        'overscrollBehaviorX: \'none\'',
+        'overflow-x-hidden overflow-y-auto',
+        'data-kronox-daily-scroll-frame="true"',
+        'max-w-[min(30rem,100%)]',
+        'data-kronox-daily-calendar-grid="true"',
+        'gridTemplateColumns: \'repeat(7, minmax(0, 1fr))\'',
+        'flex-wrap justify-center',
+        'data-kronox-daily-streak-strip="true"',
+        'min-w-0 flex-1',
+        'w-full min-w-0 max-w-full overflow-hidden rounded-2xl p-3',
+      ]);
+      if (missing.length) {
+        return fail('Daily screen can regress into horizontal overflow on narrow mobile widths.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'src/pages/DailyPage.jsx',
+          missing,
+        });
+      }
+      return pass('DailyPage uses scoped width containment for the header, calendar grid, task rows, legend, and streak strip while preserving vertical scroll.', { verification: 'STATIC_CONTRACT' });
+    }),
+
   makeCase('server_status_creates_three_daily_calendar_rows',
     'getDailyQuestStatus creates/returns exactly 3 Daily Calendar task rows for the server day',
     () => {
@@ -196,7 +223,7 @@ export const EXTRA_TESTS = [
         'computeCurrentStreak',
         'streakRewardReady',
         'templateCycleLength: DAILY_CALENDAR_TEMPLATE_CYCLE_LENGTH',
-        'hintTasksFallbackTo: TASK_TYPES.CORRECT_ANSWER',
+        'hintTasksUse: TASK_TYPES.HINT_USED',
         'legacyCleanupDryRun',
         'definitionRowsIgnoredAtRuntime: true',
       ]);

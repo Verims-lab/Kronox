@@ -561,7 +561,7 @@ export const MOBILE_VISUAL_GUARDRAILS_DOC = `# Kronox Mobile Visual Guardrails
 Status: Active manual visual/platform release gate.
 
 - Verify 320px width, common iPhone widths, Android Chrome widths, tablet, and foldable/resizable layouts.
-- No horizontal page overflow on Home, Game, Solo map, Profile, Settings, Friends, Liderlik, Market, Daily Wheel, Daily Quest Management, Privacy, and Health Center.
+- No horizontal page overflow on Home, Game, Solo map, Profile, Settings, Friends, Liderlik, Market, Daily Calendar / Streak, Daily Wheel, Daily Quest Management, Privacy, and Health Center.
 - Use safe-area padding around top bars, bottom CTAs, sheets, and BottomNav.
 - Touch targets stay reachable and readable with system font scaling.
 - Keyboard focus does not hide form actions or trap scroll.
@@ -571,6 +571,7 @@ Status: Active manual visual/platform release gate.
 - Reduced motion keeps functional feedback without relying on long animations.
 - Loading/error/retry states are local to the affected section when possible.
 - Health Center report actions, case details, copy buttons, clipboard fallback textarea, manual proof details, and raw JSON preview must fit narrow mobile widths without horizontal overflow.
+- Daily Calendar / Streak at /daily must fit narrow mobile widths with no horizontal panning while preserving normal vertical scrolling.
 - Direct URL routes load correctly in installed/standalone and browser modes.
 - Browser/PWA/WebView zoom prevention is web-owned in index.html plus the root app-shell zoom guard; native Android/iOS wrapper files are not edited for this contract.
 - Service worker/cache updates do not leave stale question/runtime bundles after a question-set or function contract change.

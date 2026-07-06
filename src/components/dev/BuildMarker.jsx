@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex557 — Daily Calendar mobile width fit:
+//   • /daily now owns scoped viewport-width containment so header, calendar,
+//     task rows, legend, and streak reward panel fit narrow mobile screens
+//     without horizontal page panning while preserving vertical scroll.
+//   • Calendar columns use minmax(0, 1fr), Daily panels/rows use min-width:0
+//     and max-width bounds, and Health/docs mirror the mobile overflow contract.
+//
 // Codex556 — Solo Hint mechanic:
 //   • Solo Hint / İpucu is separate from Jokers, renders as a hammer button in
 //     the left active-card gutter, and opens a paused reveal popup.
@@ -385,7 +392,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex556';
+const BUILD_MARKER = 'Codex557';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

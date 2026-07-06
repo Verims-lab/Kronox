@@ -78,16 +78,24 @@ export default function DailyPage() {
 
   return (
     <main
-      className="min-h-[100dvh] w-full overflow-x-hidden pb-24 text-white"
+      data-kronox-daily-page-root="true"
+      className="min-h-[100dvh] w-full max-w-full overflow-x-hidden overflow-y-auto text-white"
       style={{
+        boxSizing: 'border-box',
+        maxWidth: '100vw',
+        overscrollBehaviorX: 'none',
         paddingTop: 'calc(env(safe-area-inset-top) + 0.85rem)',
-        paddingLeft: 'calc(env(safe-area-inset-left) + 0.85rem)',
-        paddingRight: 'calc(env(safe-area-inset-right) + 0.85rem)',
+        paddingLeft: 'max(env(safe-area-inset-left), 0.75rem)',
+        paddingRight: 'max(env(safe-area-inset-right), 0.75rem)',
+        paddingBottom: 'calc(env(safe-area-inset-bottom) + 6rem)',
         background:
           'radial-gradient(ellipse at 50% 8%, rgba(42, 145, 245, 0.18), transparent 42%), linear-gradient(180deg, #061225 0%, #0A2346 52%, #061225 100%)',
       }}
     >
-      <header className="mx-auto flex w-full max-w-[30rem] items-center justify-between gap-3">
+      <header
+        data-kronox-daily-header="true"
+        className="mx-auto flex w-full min-w-0 max-w-[min(30rem,100%)] items-center justify-between gap-2"
+      >
         <button
           type="button"
           onClick={() => navigate('/')}
@@ -97,7 +105,7 @@ export default function DailyPage() {
         >
           <ChevronLeft className="h-6 w-6" strokeWidth={2.4} />
         </button>
-        <div className="flex min-w-0 flex-1 items-center gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <span
             className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-amber-200"
             style={{
@@ -122,23 +130,26 @@ export default function DailyPage() {
         <button
           type="button"
           onClick={() => navigate('/market')}
-          className="inline-flex h-11 shrink-0 items-center gap-2 rounded-full px-3 text-sm font-black text-white active:scale-95"
+          className="inline-flex h-11 max-w-[8.5rem] shrink-0 items-center gap-1.5 rounded-full px-2.5 text-sm font-black text-white active:scale-95"
           style={{ background: 'rgba(7,18,38,0.72)', boxShadow: 'inset 0 0 0 1px rgba(250,204,21,0.26)' }}
           aria-label="Elmas mağazası"
         >
           <Gem className="h-5 w-5 fill-yellow-300 text-yellow-300" />
-          <span className="kronox-number">{diamonds.toLocaleString('tr-TR')}</span>
+          <span className="kronox-number min-w-0 truncate">{diamonds.toLocaleString('tr-TR')}</span>
         </button>
       </header>
 
-      <section className="mx-auto mt-4 grid w-full max-w-[30rem] gap-3">
+      <section
+        data-kronox-daily-scroll-frame="true"
+        className="mx-auto mt-4 grid w-full min-w-0 max-w-[min(30rem,100%)] gap-3"
+      >
         <Panel>
-          <div className="mb-3 flex items-center justify-between">
+          <div className="mb-3 flex min-w-0 items-center justify-between gap-2">
             <button type="button" className="grid h-8 w-8 place-items-center rounded-full text-amber-300/70" aria-label="Önceki ay">
               <ChevronLeft className="h-5 w-5" />
             </button>
             <h2
-              className="text-center text-lg font-black text-white"
+              className="min-w-0 truncate text-center text-lg font-black text-white"
               style={{ fontFamily: '"Barlow Condensed", "Inter", sans-serif', letterSpacing: '0.04em' }}
             >
               {monthTitle}
@@ -148,9 +159,16 @@ export default function DailyPage() {
             </button>
           </div>
 
-          <div className="grid grid-cols-7 gap-px overflow-hidden rounded-xl" style={{ border: '1px solid rgba(125,211,252,0.22)' }}>
+          <div
+            data-kronox-daily-calendar-grid="true"
+            className="grid w-full min-w-0 max-w-full overflow-hidden rounded-xl"
+            style={{
+              border: '1px solid rgba(125,211,252,0.22)',
+              gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
+            }}
+          >
             {WEEKDAY_LABELS.map((label) => (
-              <div key={label} className="bg-slate-950/35 py-2 text-center font-inter text-[10px] font-black text-slate-400">
+              <div key={label} className="min-w-0 truncate bg-slate-950/35 px-0.5 py-2 text-center font-inter text-[10px] font-black text-slate-400">
                 {label}
               </div>
             ))}
@@ -161,7 +179,7 @@ export default function DailyPage() {
               <div key={index} className="aspect-square bg-slate-950/20" />
             ))}
           </div>
-          <div className="mt-3 flex justify-center gap-5 font-inter text-[10px] font-semibold text-slate-300">
+          <div className="mt-3 flex min-w-0 flex-wrap justify-center gap-x-3 gap-y-2 font-inter text-[10px] font-semibold text-slate-300">
             <LegendDot tone="done" label="Tamamlandı" />
             <LegendDot tone="today" label="Bugün" />
             <LegendDot tone="future" label="Gelecek Gün" />
@@ -169,16 +187,18 @@ export default function DailyPage() {
         </Panel>
 
         <Panel>
-          <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="mb-3 flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1">
             <h2
-              className="text-base font-black italic text-white"
+              className="min-w-0 text-base font-black italic text-white"
               style={{ fontFamily: '"Barlow Condensed", "Inter", sans-serif', letterSpacing: '0.04em' }}
             >
               BUGÜNKÜ GÖREVLER
             </h2>
-            <span className="inline-flex items-center gap-1 font-inter text-[10px] font-semibold text-slate-400">
-              <Clock3 className="h-3.5 w-3.5" />
-              {resetTimer ? `Görevler ${resetTimer} sonra yenilenecek` : 'UTC gün sonunda yenilenir'}
+            <span className="inline-flex min-w-0 max-w-full items-center gap-1 font-inter text-[10px] font-semibold text-slate-400">
+              <Clock3 className="h-3.5 w-3.5 shrink-0" />
+              <span className="min-w-0 truncate">
+                {resetTimer ? `Görevler ${resetTimer} sonra yenilenecek` : 'UTC gün sonunda yenilenir'}
+              </span>
             </span>
           </div>
 
@@ -201,7 +221,7 @@ export default function DailyPage() {
           )}
 
           {daily.status === 'ready' && (
-            <div className="grid gap-2">
+            <div className="grid min-w-0 gap-2">
               {daily.tasks.slice(0, DAILY_CALENDAR_TASKS_PER_DAY).map((task) => (
                 <TaskRow key={task.id || task.questKey} task={task} />
               ))}
@@ -210,9 +230,9 @@ export default function DailyPage() {
         </Panel>
 
         <Panel>
-          <div className="grid gap-3 sm:grid-cols-[1fr_10rem] sm:items-center">
-            <div>
-              <div className="mb-3 flex items-center gap-2">
+          <div className="grid w-full min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_10rem] sm:items-center">
+            <div className="min-w-0">
+              <div className="mb-3 flex min-w-0 flex-wrap items-center gap-2">
                 <span className="grid h-9 w-9 place-items-center rounded-full text-orange-200" style={{ background: 'rgba(251,146,60,0.16)' }}>
                   <Trophy className="h-5 w-5" />
                 </span>
@@ -226,11 +246,11 @@ export default function DailyPage() {
                   {streakProgress}/{DAILY_STREAK_REWARD_DAYS}
                 </span>
               </div>
-              <div className="flex items-center gap-1.5">
+              <div data-kronox-daily-streak-strip="true" className="flex w-full min-w-0 items-center gap-1 overflow-hidden">
                 {streakSteps.map((step) => (
                   <React.Fragment key={step}>
                     <span
-                      className="grid h-7 w-7 place-items-center rounded-full font-inter text-xs font-black"
+                      className="grid h-6 w-6 shrink-0 place-items-center rounded-full font-inter text-[10px] font-black sm:h-7 sm:w-7 sm:text-xs"
                       style={{
                         color: step <= streakProgress ? '#061225' : '#94a3b8',
                         background: step <= streakProgress ? '#facc15' : 'rgba(15,23,42,0.62)',
@@ -240,7 +260,7 @@ export default function DailyPage() {
                       {step <= streakProgress ? <Check className="h-4 w-4" /> : step}
                     </span>
                     {step < DAILY_STREAK_REWARD_DAYS && (
-                      <span className="h-px min-w-3 flex-1" style={{ background: step < streakProgress ? '#facc15' : 'rgba(148,163,184,0.28)' }} />
+                      <span className="h-px min-w-0 flex-1" style={{ background: step < streakProgress ? '#facc15' : 'rgba(148,163,184,0.28)' }} />
                     )}
                   </React.Fragment>
                 ))}
@@ -250,7 +270,7 @@ export default function DailyPage() {
               </p>
             </div>
 
-            <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(3,7,18,0.34)', boxShadow: 'inset 0 0 0 1px rgba(250,204,21,0.22)' }}>
+            <div className="w-full min-w-0 max-w-full rounded-xl p-3 text-center sm:max-w-[10rem]" style={{ background: 'rgba(3,7,18,0.34)', boxShadow: 'inset 0 0 0 1px rgba(250,204,21,0.22)' }}>
               <p className="mb-2 text-[10px] font-black text-amber-200">{DAILY_STREAK_REWARD_DAYS} GÜNLÜK SERİ ÖDÜLÜ</p>
               <div className="mx-auto grid h-20 w-24 place-items-center rounded-xl" style={{ background: 'radial-gradient(circle, rgba(250,204,21,0.22), transparent 70%)' }}>
                 <Gift className="h-12 w-12 fill-amber-400 text-amber-700" />
@@ -288,7 +308,7 @@ export default function DailyPage() {
 function Panel({ children }) {
   return (
     <section
-      className="rounded-2xl p-3"
+      className="w-full min-w-0 max-w-full overflow-hidden rounded-2xl p-3"
       style={{
         background: 'linear-gradient(180deg, rgba(15,35,73,0.78), rgba(6,18,37,0.82))',
         boxShadow: 'inset 0 0 0 1px rgba(96,165,250,0.32), 0 16px 34px rgba(0,0,0,0.20)',
@@ -305,13 +325,13 @@ function CalendarCell({ day }) {
   const isCurrentMonth = day.inCurrentMonth !== false;
   return (
     <div
-      className="relative grid aspect-square place-items-center bg-slate-950/18 font-inter text-sm font-bold"
+      className="relative grid aspect-square min-w-0 place-items-center bg-slate-950/18 font-inter text-sm font-bold"
       style={{
         color: isCurrentMonth ? '#e5edf9' : 'rgba(148,163,184,0.28)',
       }}
     >
       <span
-        className="grid h-8 w-8 place-items-center rounded-full"
+        className="grid h-[clamp(1.75rem,8vw,2rem)] w-[clamp(1.75rem,8vw,2rem)] place-items-center rounded-full"
         style={{
           color: isToday ? '#fff7d1' : undefined,
           boxShadow: isToday ? '0 0 14px rgba(250,204,21,0.70), inset 0 0 0 2px #facc15' : undefined,
@@ -339,8 +359,8 @@ function LegendDot({ tone, label }) {
       ? { boxShadow: '0 0 10px rgba(250,204,21,0.55), inset 0 0 0 2px #facc15' }
       : { boxShadow: 'inset 0 0 0 1px rgba(125,211,252,0.22)', background: 'rgba(14,165,233,0.10)' };
   return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className="grid h-4 w-4 place-items-center rounded-full" style={style}>
+    <span className="inline-flex min-w-0 items-center gap-1.5 whitespace-nowrap">
+      <span className="grid h-4 w-4 shrink-0 place-items-center rounded-full" style={style}>
         {tone === 'done' && <Check className="h-3 w-3 text-amber-300" />}
       </span>
       {label}
@@ -352,7 +372,7 @@ function TaskRow({ task }) {
   const completed = task.completed === true || task.status === 'completed';
   return (
     <div
-      className="flex items-center gap-3 rounded-xl px-3 py-2"
+      className="flex w-full min-w-0 max-w-full items-center gap-2 overflow-hidden rounded-xl px-2.5 py-2 sm:gap-3 sm:px-3"
       style={{
         background: 'rgba(3,7,18,0.24)',
         boxShadow: 'inset 0 0 0 1px rgba(125,211,252,0.15)',
@@ -372,9 +392,9 @@ function TaskRow({ task }) {
         <p className="truncate font-inter text-sm font-black text-white">{task.title}</p>
         <p className="truncate font-inter text-[11px] font-semibold text-slate-300">{task.description}</p>
       </div>
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
         {task.targetValue > 1 && !completed && (
-          <span className="kronox-number font-inter text-xs font-black text-amber-200">
+          <span className="kronox-number whitespace-nowrap font-inter text-xs font-black text-amber-200">
             {task.progressValue}/{task.targetValue}
           </span>
         )}
