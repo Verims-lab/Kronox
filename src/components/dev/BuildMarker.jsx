@@ -1,5 +1,15 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex553 — Category preference startup gate:
+//   • The app-entry İlgi Alanlarını Seç prompt now waits for active Category
+//     metadata to load successfully; transient load failures fail open instead
+//     of showing the blocking "Kategoriler yüklenemedi" modal.
+//   • Daha Sonra persists an advisory user defer marker so the optional prompt
+//     does not repeat on relaunch, while Profile > Profil Bilgileri remains the
+//     editable Kategori seçimi path.
+//   • Docs, mirrors, and Health now guard the non-blocking category preference
+//     startup contract and the all-active Solo fallback.
+//
 // Codex552 — Question preparation hourglass loader:
 //   • Solo normal question-preparation loading now renders the shared
 //     visual-only Kronox hourglass screen instead of the old spinner/text/back
@@ -347,7 +357,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex552';
+const BUILD_MARKER = 'Codex553';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

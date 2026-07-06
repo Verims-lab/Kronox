@@ -698,11 +698,11 @@ Status: Active product contract.
 - UserCategoryPreference rows are user-scoped Profile Info data.
 - normal users can read/update only their own preference rows.
 - passive Category.status = P/p rows are not selectable.
-- Any authenticated user with fewer than 3 active valid Category preferences sees an optional personalization popup; this applies to new and existing users, can be deferred, and must not block gameplay.
+- Any authenticated user with fewer than 3 active valid Category preferences is eligible for the optional personalization popup only after active Category metadata has loaded successfully; transient Category load failures fail open, the prompt can be deferred, and gameplay must not be blocked.
 - The source of truth is active valid UserCategoryPreference count.
 - Only active categories are selectable and count.
 - Passive or removed Category selections are filtered from UI/save state and are not resaved as active preferences.
-- completing the popup saves UserCategoryPreference rows before marking the user profile onboarding flag complete.
+- completing the popup saves UserCategoryPreference rows before marking the user profile onboarding flag complete; choosing Daha Sonra stores a defer marker so the app-entry prompt does not repeat, while Profile > Profil Bilgileri remains editable.
 - Users can later change selections under Profile > Profil Bilgileri > Kategori seçimi.
 - first-time guest onboarding can load category-selection metadata without login; the allowed public getCategoryMetadata response scope is category_id, name, description, and status from current active Category rows only.
 - getCategoryMetadata is public by design for unauthenticated guest category selection and must not return questions, answers, years, full question-bank rows, user data, admin/internal fields, hidden notes, deleted/passive categories, or stale hardcoded seed arrays.
@@ -880,12 +880,12 @@ selection is not affected by preferences and uses startLobbyGame's persisted
 shared online_question_deck/current_question_id from accepted-roster-reconciled,
 active lobby-selected difficulty-1/2 categories. Waiting-room clients may
 recover from a missed realtime event by polling/refetching the Lobby.
-Any user with fewer than 3 active valid
-Category preferences sees an optional popup, including new and existing users.
-The source of truth is active valid UserCategoryPreference count, only active
-categories are selectable and count, passive or removed Category selections are
-filtered from active UI/save state, completion prevents repeat prompts only while
-the user still has 3 or more active valid preferences, and Users can later change
+Any new or existing user with fewer than 3 active valid Category preferences is
+eligible for the optional popup only after active Category metadata has loaded
+successfully; transient Category load failures fail open and Daha Sonra can
+persist a defer marker. The source of truth is active valid UserCategoryPreference
+count, only active categories are selectable and count, passive or removed Category selections are
+filtered from active UI/save state, and Users can later change
 selections under Profile > Profil Bilgileri > Kategori seçimi. First-time guest onboarding
 loads category metadata without login through current Category rows or
 getCategoryMetadata. The public getCategoryMetadata response contains only
@@ -947,7 +947,7 @@ Status: Implementation tracking doc.
 - Authenticated users with no saved preferences or empty preferences use all active categories for Solo; missing authentication uses the explicit capped guest Solo projection and must not expose raw questions. Insufficient preferences also use all active categories for Solo. Saved preferences target 70% selected user categories plus 30% full eligible pool only when at least 3 active valid preferences are available.
 - This is a soft weighting target with fallback, not hard filtering. The selected-category 70% lane uses selected user categories with difficulty 1 and 2 eligible; the global 30% lane first uses all active categories with difficulty 1, then selected-category shortage or global difficulty-1 shortage fills from the broader active global pool before clean failure.
 - Online question selection is not affected by Solo preferences: startLobbyGame reconciles accepted invite participants, persists a bounded shared online_question_deck/current_question_id on Lobby, selected 100% from active lobby-selected categories with difficulty 1/2 only, and Game reads/refetches that persisted deck instead of the Solo getQuestions buffer.
-- Any authenticated user with fewer than 3 active valid Category preferences sees an optional personalization popup; this applies to new and existing users, can be deferred, and must not block gameplay.
+- Any authenticated user with fewer than 3 active valid Category preferences is eligible for the optional personalization popup only after active Category metadata has loaded successfully; transient Category load failures fail open, the prompt can be deferred, and gameplay must not be blocked.
 - The source of truth is active valid UserCategoryPreference count.
 - Only active categories are selectable and count.
 - Users can later change selections under Profile > Profil Bilgileri > Kategori seçimi.

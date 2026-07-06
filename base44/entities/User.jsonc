@@ -267,6 +267,15 @@
       "format": "date-time",
       "description": "ISO timestamp when the app-open Category preference popup was completed successfully after UserCategoryPreference rows were saved."
     },
+    "category_preferences_onboarding_deferred": {
+      "type": "boolean",
+      "description": "Advisory per-user marker set when the optional app-open Category preference popup is deferred with Daha Sonra. It prevents repeated startup prompts; Profile > Profil Bilgileri remains the editable Category preference surface."
+    },
+    "category_preferences_onboarding_deferred_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when the optional app-open Category preference popup was deferred."
+    },
     "game_invite_notifications_enabled": {
       "type": "boolean",
       "description": "User preference for game-invite push notifications. sendGameInvitePush skips delivery when explicitly false."

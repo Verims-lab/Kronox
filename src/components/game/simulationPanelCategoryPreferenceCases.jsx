@@ -35,6 +35,7 @@ import {
   NO_MAX_CATEGORY_SELECTION_LIMIT,
 } from '@/lib/userCategoryPreferences';
 import {
+  hasDeferredCategoryPreferenceOnboarding,
   getValidCategoryPreferenceCount,
   shouldShowCategoryPreferenceOnboarding,
 } from '@/lib/categoryPreferenceOnboarding';
@@ -588,6 +589,7 @@ export const EXTRA_TESTS = [
         'loadUserCategoryPreferences(user)',
         'filter(isActiveCategory)',
         'getValidActiveSelectedCategoryIds(preferences, categories)',
+        'categoriesLoaded: true',
         'activeCategories.length < MIN_CATEGORY_SELECTION_COUNT',
         'selectedCount >= MIN_CATEGORY_SELECTION_COUNT',
         'En az 3 kategori seçmelisin.',
@@ -606,6 +608,50 @@ export const EXTRA_TESTS = [
       }
       return pass('Popup uses the same active Category source, min-3 rule, and guarded empty-state fallback as Profile Info.', {
         verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('popup_category_load_error_fails_open',
+    'Category metadata loading failures do not open the app-entry popup',
+    () => {
+      const activeCategories = Array.from({ length: 6 }, (_, index) => makeHealthCategory(index + 1));
+      const shouldSkipOnError = shouldShowCategoryPreferenceOnboarding({
+        preferences: [],
+        activeCategories: [],
+        categoriesLoaded: false,
+        categoriesLoadError: true,
+      });
+      const shouldSkipBeforeLoaded = shouldShowCategoryPreferenceOnboarding({
+        preferences: [],
+        activeCategories,
+        categoriesLoaded: false,
+      });
+      const shouldShowWhenLoaded = shouldShowCategoryPreferenceOnboarding({
+        preferences: [],
+        activeCategories,
+        categoriesLoaded: true,
+      });
+      const missing = missingTokens(`${onboardingModalSource}\n${onboardingProfileSource}`, [
+        'categoriesLoadError',
+        'categoriesLoaded',
+        'category preference bootstrap failed',
+        'setNeedsOnboarding(false)',
+        'Kategoriler yüklenemedi. Lütfen tekrar dene.',
+      ]);
+
+      if (shouldSkipOnError || shouldSkipBeforeLoaded || !shouldShowWhenLoaded || missing.length) {
+        return fail('Transient Category metadata failures can still show the optional preference popup as a startup blocker.', {
+          verification: 'HELPER_SIMULATION',
+          files: [
+            'src/lib/categoryPreferenceOnboarding.js',
+            'src/components/settings/CategoryPreferenceOnboardingModal.jsx',
+          ],
+          actual: { shouldSkipOnError, shouldSkipBeforeLoaded, shouldShowWhenLoaded, missing },
+        });
+      }
+      return pass('The app-entry popup waits for loaded active Category metadata and fails open on transient load errors.', {
+        verification: 'HELPER_SIMULATION',
+        actual: { shouldSkipOnError, shouldSkipBeforeLoaded, shouldShowWhenLoaded },
       });
     }),
 
@@ -645,12 +691,63 @@ export const EXTRA_TESTS = [
       });
     }),
 
-  makeCase('popup_trigger_uses_active_valid_count_for_all_users',
-    'Any authenticated user below 3 active valid Category preferences sees the popup',
+  makeCase('popup_defer_persists_and_prevents_repeated_startup_prompt',
+    'Daha Sonra persists a defer marker and keeps Profile Info editable',
+    () => {
+      const activeCategories = Array.from({ length: 6 }, (_, index) => makeHealthCategory(index + 1));
+      const deferredUser = {
+        email: HEALTH_USER_EMAIL,
+        category_preferences_onboarding_deferred: true,
+      };
+      const shouldSkipWithDeferredUser = shouldShowCategoryPreferenceOnboarding({
+        user: deferredUser,
+        preferences: [],
+        activeCategories,
+        categoriesLoaded: true,
+      });
+      const helperRecognizesDeferred = hasDeferredCategoryPreferenceOnboarding(deferredUser);
+      const userSchema = parseJsonSource(userEntitySource);
+      const userProps = userSchema?.properties || {};
+      const missingUserFields = [
+        'category_preferences_onboarding_deferred',
+        'category_preferences_onboarding_deferred_at',
+      ].filter((field) => !Object.prototype.hasOwnProperty.call(userProps, field));
+      const missing = missingTokens(`${onboardingModalSource}\n${onboardingProfileSource}\n${profileEditPageSource}`, [
+        'markCategoryPreferenceOnboardingDeferred(user)',
+        'category_preferences_onboarding_deferred',
+        'category_preferences_onboarding_deferred_at',
+        'onClick={handleDismiss}',
+        'setDismissedForSession(true)',
+        'setNeedsOnboarding(false)',
+        'CategoryPreferencesSection',
+      ]);
+
+      if (shouldSkipWithDeferredUser || !helperRecognizesDeferred || missing.length || missingUserFields.length) {
+        return fail('Daha Sonra may still be session-only or may remove the later Profile Info edit path.', {
+          verification: 'HELPER_SIMULATION',
+          files: [
+            'src/lib/categoryPreferenceOnboarding.js',
+            'src/components/settings/CategoryPreferenceOnboardingModal.jsx',
+            'base44/entities/User.jsonc',
+            'src/pages/ProfileEditPage.jsx',
+          ],
+          actual: { shouldSkipWithDeferredUser, helperRecognizesDeferred, missing, missingUserFields },
+        });
+      }
+      return pass('Daha Sonra stores a user defer marker, prevents repeated app-entry prompts, and leaves Profile Info Kategori seçimi available.', {
+        verification: 'HELPER_SIMULATION',
+      });
+    }),
+
+  makeCase('popup_trigger_uses_active_valid_count_for_all_eligible_users',
+    'Eligible authenticated users below 3 active valid Category preferences see the popup',
     () => {
       const missing = missingTokens(onboardingProfileSource, [
         'getValidCategoryPreferenceCount',
         'getValidActiveSelectedCategoryIds(preferences, activeCategories).size',
+        'categoriesLoadError',
+        'hasDeferredCategoryPreferenceOnboarding(user)',
+        'activeCategoryCount < MIN_CATEGORY_SELECTION_COUNT',
         '< MIN_CATEGORY_SELECTION_COUNT',
       ]);
       const showFunctionStart = onboardingProfileSource.indexOf('export function shouldShowCategoryPreferenceOnboarding');
@@ -666,13 +763,13 @@ export const EXTRA_TESTS = [
         'category_preferences_onboarding_required',
       ]);
       if (missing.length || forbidden.length) {
-        return fail('Popup trigger may still rely on account age or completion flags instead of active valid preference count.', {
+        return fail('Popup trigger may still rely on account age/completion flags or may ignore category load/defer gates.', {
           verification: 'STATIC_CONTRACT',
           file: 'src/lib/categoryPreferenceOnboarding.js',
           actual: { missing, forbidden },
         });
       }
-      return pass('Popup trigger uses active valid Category preference count, so new and existing users below 3 are covered and completion flags cannot bypass the rule.', {
+      return pass('Popup trigger uses active valid Category preference count for loaded, non-deferred users below 3; startup load failures fail open.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
@@ -1024,8 +1121,9 @@ export const EXTRA_TESTS = [
         'Minimum selection count is 3',
         'There is no maximum selection.',
         'optional personalization popup',
-        'new and existing users',
-        'can be deferred',
+        'new or existing user',
+        'transient Category load failures fail open',
+        'defer marker',
         'active valid UserCategoryPreference count',
         'Only active categories are selectable and count',
         'Users can later change selections under Profile > Profil Bilgileri',

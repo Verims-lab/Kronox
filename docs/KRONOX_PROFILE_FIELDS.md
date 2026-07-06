@@ -32,8 +32,10 @@ placeholders after authentication.
   Settings owns privacy/account actions and is not the category preference
   editor.
 * Authenticated users with fewer than 3 active valid Category preferences may
-  see the optional personalization popup; it can be deferred and must not block
-  normal authenticated Solo gameplay.
+  see the optional personalization popup only after active Category metadata
+  loads successfully; transient load failures fail open, `Daha Sonra` can be
+  persisted as a defer marker, and normal authenticated Solo gameplay must not
+  be blocked.
 * Authenticated users with no saved preferences or empty preferences use all
   active categories for Solo; missing authentication uses the explicit capped
   guest Solo projection and must not expose raw questions.

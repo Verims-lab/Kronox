@@ -336,15 +336,16 @@ Rules:
   `Category.status = P/p` rows.
 * Minimum selection count is 3.
 * There is no maximum selection.
-* Any authenticated user with fewer than 3 active valid Category preferences
-  sees the optional personalization popup; this applies to new and existing
-  users, but the popup can be deferred and must not block gameplay.
+* Any authenticated user with fewer than 3 active valid Category preferences is
+  eligible for the optional personalization popup only after active Category
+  metadata has loaded successfully; transient Category load failures fail open,
+  and the popup can be deferred without blocking gameplay.
 * The source of truth is active valid `UserCategoryPreference` count.
 * Only active Categories are selectable and count toward the minimum.
 * Passive or removed Category selections are ignored in UI/save state and must
   not be resaved as active preferences.
-* Onboarding/completion profile flags are advisory only and cannot bypass the
-  below-3 rule.
+* The defer profile flag prevents repeated app-entry prompts after `Daha Sonra`;
+  Profile > Profil Bilgileri remains the editable preference path.
 * Users can later change selections under Profile > Profil Bilgileri >
   `Kategori seçimi`.
 * Authenticated users with no saved preferences or empty preferences use all
