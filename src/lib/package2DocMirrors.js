@@ -137,10 +137,16 @@ deleted user email/key.
 
 PWA push, mobile safe-area, and other runtime proofs remain manual.
 
-## Mağaza Phase 1 Manual Proof
+## Mağaza Store Manual Proof
 Home shows Mağaza top-left with a gold storefront icon, Diamonds center,
-notifications right. Mağaza title is Mağaza and prices are Zaman Dondur 40,
-Kart Değiştir 50, Kronokalkan 60. The Home middle section keeps left Görevler,
+notifications right. Mağaza title is Mağaza and the Store catalog shows
+real-money Diamond packages (360 ELMAS — ₺79,99; 1.100 ELMAS — ₺199,99 with EN
+POPÜLER; 2.400 ELMAS — ₺349,99; 6.200 ELMAS — ₺799,99; 13.000 ELMAS —
+₺1.499,99 with EN İYİ DEĞER), Diamond-spend Joker packages, Diamond-spend Hint
+packages, Diamond-spend Advantage packages, and future KronoClub / Reklamları
+Kaldır sections. Real-money packages show safe unavailable behavior and do not
+grant Diamonds until approved IAP/payment verification exists. The Home middle
+section keeps left Görevler,
 centered transparent hourglass, and right Çark balanced, with a content-free
 mini wheel visual for the Çark shortcut, centered shortcut popups, and CTA
 stack spacing balanced between the hourglass and fixed BottomNav. The primary
@@ -150,11 +156,13 @@ remains Home-owned, and matches the primary CTA dimensions. The Home
 notification panel uses Barlow Condensed bold italic title typography and Inter
 body/empty/error typography.
 Client is not trusted for price; purchase validation is server-authoritative.
-Successful purchases write both \`DiamondTransaction\` and \`JokerTransaction\`
-with market_purchase and the same idempotency key. Runtime explicitly binds
-UserJokerInventory, DiamondTransaction, and JokerTransaction. Double-tap, network retry,
-insufficient Diamonds, and two tabs/devices proof remains manual. Market
-purchase is a Diamond sink; Daily Wheel V2 can be a Diamond source and approved joker grant source. Profile
+Successful Diamond-spend purchases write \`DiamondTransaction\` plus matching
+\`JokerTransaction\` and/or \`HintTransaction\` grant ledgers with
+market_purchase. Runtime explicitly binds UserJokerInventory, UserHintInventory,
+DiamondTransaction, JokerTransaction, and HintTransaction. Double-tap, network
+retry, insufficient Diamonds, and two tabs/devices proof remains manual. Market
+purchase is a Diamond sink; Store purchases do not grant Kronox Puan and do not
+affect Leaderboard. Daily Wheel V2 can be a Diamond source and approved joker grant source. Profile
 Joker Çantası and Solo joker bar must show the purchased balance through the
 shared getUserJokerBalances path. Complete UserJokerInventory rows use a fast
 current-balance read, ensureUserJokerInventory runs only for missing/partial

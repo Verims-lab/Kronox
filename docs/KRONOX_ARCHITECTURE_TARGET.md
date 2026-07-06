@@ -235,13 +235,17 @@ Parity plan:
 - Question bank stays backend-only through compact projections.
 - Daily Wheel V2 rewards remain server-selected and no-Puan/no-leaderboard;
   Daily Quest remains Diamond-only.
-- Mağaza catalog is code-side/static for Phase 1 joker products and may be
-  cached/prefetched for fast open, but purchase remains server-authoritative:
-  the client is never trusted for price, cost, user identity, reward, or target
-  account. `Satın Al` readiness should depend only on auth/user, item data,
-  sufficient Diamonds, item availability, and purchase in-flight state; slow
-  non-critical inventory count refresh or starter self-heal must not silently
-  disable an otherwise valid purchase button.
+- Mağaza catalog is code-side/static for real-money Diamond display packages,
+  Diamond-spend Joker packages, Diamond-spend Hint packages, Diamond-spend
+  Advantage packages, and future KronoClub / Reklamları Kaldır sections. It may
+  be cached/prefetched for fast open, but purchase remains
+  server-authoritative: the client is never trusted for price, cost, user
+  identity, reward, or target account. Real-money packages must not grant
+  Diamonds without approved IAP/payment verification. `Satın Al` readiness
+  should depend only on auth/user, item data, sufficient Diamonds, item
+  availability, and purchase in-flight state; slow non-critical inventory count
+  refresh or starter self-heal must not silently disable an otherwise valid
+  purchase button.
 - Unified Kronox Puan is the only player-facing score source. Solo contributes
   its best-score component; Online contributes `User.online_progress.score`.
   Online winner scoring is exactly `+15`, loser scoring is exactly `-6` before

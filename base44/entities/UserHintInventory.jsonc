@@ -1,0 +1,86 @@
+{
+  "name": "UserHintInventory",
+  "type": "object",
+  "description": "User-owned Hint / Ipucu current balance rows. One logical row should exist per user_email. Mağaza can grant hint packages and advantage-package hint portions through server-side Diamond spend validation. Gameplay hint consumption is not enabled by this schema.",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "description": "Lowercased owner email for registered users. Never use this as public identity."
+    },
+    "quantity": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Current non-negative Hint balance."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when the inventory row was created."
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when the balance was last reconciled."
+    },
+    "last_transaction_id": {
+      "type": "string",
+      "description": "Latest HintTransaction id that established this balance, when available."
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Debug-safe metadata. Must not contain secrets, raw auth tokens, or private profile data."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional free-text description for this Hint inventory row."
+    }
+  },
+  "required": [
+    "user_email",
+    "quantity"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

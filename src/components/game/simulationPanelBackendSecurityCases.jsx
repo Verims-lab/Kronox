@@ -723,7 +723,8 @@ export const EXTRA_TESTS = [
         'base44.auth.me()',
         'const email = normalizeEmail(user?.email)',
         'JOKER_MARKET_PRODUCTS',
-        'const diamondCost = product.price * quantity',
+        'MARKET_DIAMOND_PRODUCTS',
+        'const diamondCost = normalizeDiamondBalance(product.diamondCost)',
         'clientPriceIgnored: true',
         'user_email: email',
       ];
@@ -753,10 +754,11 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('market_purchase_rejects_bad_inputs_and_insufficient_diamonds',
-    'Market purchase validates joker type, quantity, and sufficient Diamonds',
+    'Market purchase validates product id, legacy joker quantity, and sufficient Diamonds',
     () => {
       const required = [
-        'invalid_joker_type',
+        'invalid_product_id',
+        'legacyProductIdFromBody',
         'parsePurchaseQuantity',
         'number <= 0',
         'invalid_quantity',
@@ -774,7 +776,7 @@ export const EXTRA_TESTS = [
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Market purchase rejects invalid joker types, zero/negative quantities, and insufficient Diamonds before successful writes.', {
+      return pass('Market purchase rejects invalid product ids, invalid legacy joker quantities, and insufficient Diamonds before successful writes.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

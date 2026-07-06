@@ -389,15 +389,17 @@ Inventory foundation:
 - duplicate, unknown, or malformed inventory rows must not crash Profile or
   Solo loading; valid known balances are still displayed
 - Profile displays balances under `Joker Çantası`
-- Mağaza Phase 1 sells only Solo jokers with Diamonds:
-  `Zaman Dondur = 40`, `Kart Değiştir = 50`, `Kronokalkan = 60`
+- Mağaza Store sells Solo joker packages with Diamonds, may grant Hint balances
+  through Store-only Hint inventory, and shows real-money Diamond packages only
+  as no-grant display until approved IAP/payment verification exists.
 - Mağaza purchase validates price and sufficient Diamonds server-side through
-  `purchaseJokerWithDiamonds`, writes both Diamond and Joker ledgers with
-  `market_purchase`, and does not change Solo scoring, timer, question
-  selection, or Online mode
+  `purchaseJokerWithDiamonds`, writes Diamond plus matching Joker/Hint ledgers
+  with `market_purchase`, and does not change Solo scoring, timer, question
+  selection, or Online mode.
 - `purchaseJokerWithDiamonds` explicitly binds `UserJokerInventory`,
-  `DiamondTransaction`, and `JokerTransaction`; deployed runtime proof must
-  confirm the Diamond decrease, joker increase, and both ledgers
+  `UserHintInventory`, `DiamondTransaction`, `JokerTransaction`, and
+  `HintTransaction`; deployed runtime proof must confirm the Diamond decrease,
+  inventory increase, and ledgers.
 - purchased jokers appear through the same persistent `UserJokerInventory`
   balances that Solo already reads; using them in Solo still spends through
   `spendUserJoker` and writes `JokerTransaction.reason = solo_use`

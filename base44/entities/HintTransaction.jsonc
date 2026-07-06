@@ -1,0 +1,115 @@
+{
+  "name": "HintTransaction",
+  "type": "object",
+  "description": "Append-only Hint / Ipucu ledger. Mağaza writes market_purchase rows for Hint packages and advantage package Hint portions. Gameplay Hint consumption is intentionally not active in this phase.",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "description": "Lowercased owner email for this transaction. Never expose as public identity."
+    },
+    "quantity_delta": {
+      "type": "number",
+      "description": "Positive for grants/purchases/refunds, negative for future spends. Runtime must reject a resulting negative balance."
+    },
+    "reason": {
+      "type": "string",
+      "enum": [
+        "market_purchase",
+        "admin_adjustment",
+        "refund",
+        "correction",
+        "account_link_merge"
+      ],
+      "description": "Business reason for this Hint balance change."
+    },
+    "source": {
+      "type": "string",
+      "description": "Subsystem that produced the transaction, e.g. market or admin."
+    },
+    "related_entity_type": {
+      "type": "string",
+      "description": "Optional reference type such as market_purchase or admin_adjustment."
+    },
+    "related_entity_id": {
+      "type": "string",
+      "description": "Optional related entity id or purchase idempotency key."
+    },
+    "idempotency_key": {
+      "type": "string",
+      "description": "Durable logical unique idempotency key. Configure platform uniqueness if available; functions still query before write."
+    },
+    "balance_before": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Hint balance before this transaction."
+    },
+    "balance_after": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Hint balance after this transaction."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when the transaction row was created."
+    },
+    "created_by": {
+      "type": "string",
+      "description": "Actor email or system label that created the transaction."
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Debug-safe metadata. Must not contain secrets, raw auth tokens, or private user profile data."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional free-text description for this Hint transaction."
+    }
+  },
+  "required": [
+    "user_email",
+    "quantity_delta",
+    "reason",
+    "source",
+    "idempotency_key",
+    "balance_after",
+    "created_at"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

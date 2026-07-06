@@ -636,8 +636,8 @@ export const EXTRA_TESTS = [
       });
     }),
 
-  makeCase('market_phase_1_health_registered',
-    'Health registers comprehensive Mağaza Phase 1 economy coverage',
+  makeCase('market_store_health_registered',
+    'Health registers comprehensive Mağaza Store economy coverage',
     () => {
       const combined = [
         marketCasesSource,
@@ -651,20 +651,19 @@ export const EXTRA_TESTS = [
       ].map(text).join('\n');
       const missing = missingTokens(combined, [
         'market_health',
-        'Mağaza / Market Health Suite',
+        'Mağaza / Store Health Suite',
         'purchaseJokerWithDiamonds',
-        'Client does not control trusted purchase price',
-        'Successful purchase decreases Diamonds, increases joker balance, and writes both ledgers',
-        'Retry/idempotency contract prevents double-charge and double-grant drift',
-        'Mağaza purchase is a controlled Diamond sink',
-        'Market purchase increases the correct UserJokerInventory joker type only',
-        'Solo joker bar can reflect purchased Market balances',
+        'Real-money package buttons do not grant Diamonds without approved IAP',
+        'Diamond-spend catalog includes Joker, Hint, and Advantage packages',
+        'Diamond-spend purchases are server-side, idempotent, and no-partial by design',
+        'Hint inventory foundation exists but gameplay Hint consumption is not enabled',
+        'Store purchases do not grant Kronox Puan or affect Leaderboard',
+        'Market purchase increases only configured UserJokerInventory joker grants',
         'Market purchase does not trust client price or client identity',
-        'Daily Wheel V2 grants approved rewards without Mağaza purchase semantics',
-        'Online does not use market/joker purchases',
+        'Online, Daily Wheel, and Daily Quest do not use Store purchase semantics',
       ]);
       if (missing.length) {
-        return fail('Market Phase 1 Health coverage is not registered across economy/security/cross-mode suites.', {
+        return fail('Market Store Health coverage is not registered across economy/security/cross-mode suites.', {
           verification: 'STATIC_CONTRACT',
           files: [
             'src/components/game/simulationPanelMarketCases.jsx',
@@ -676,7 +675,7 @@ export const EXTRA_TESTS = [
           missing,
         });
       }
-      return pass('Market Phase 1 Health covers UI placement, server validation, dual ledgers, idempotency, and Diamond/Joker/Solo/Daily Wheel/Online boundaries.', {
+      return pass('Market Store Health covers UI, no-fake-IAP, server validation, ledgers, idempotency, Hint/Joker inventory, and cross-mode boundaries.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

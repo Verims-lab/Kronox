@@ -207,12 +207,14 @@ paths, and reconstructs missing rows from latest JokerTransaction balance_after
 without refunding spent jokers.
 used jokers are not refunded on fail, timeout, or exit.
 
-Mağaza Phase 1 sells only Solo jokers with Diamonds: Zaman Dondur = 40,
-Kart Değiştir = 50, Kronokalkan = 60. Mağaza purchase validates price and
-sufficient Diamonds server-side through purchaseJokerWithDiamonds, writes both
-Diamond and Joker ledgers with market_purchase, and does not change Solo
-scoring, timer, question selection, or Online mode. purchaseJokerWithDiamonds
-explicitly binds UserJokerInventory, DiamondTransaction, and JokerTransaction
+Mağaza Store sells Solo joker packages with Diamonds, may grant Hint balances
+through Store-only Hint inventory, and shows real-money Diamond packages only
+as no-grant display until approved IAP/payment verification exists. Mağaza
+purchase validates price and sufficient Diamonds server-side through
+purchaseJokerWithDiamonds, writes Diamond plus matching Joker/Hint ledgers with
+market_purchase, and does not change Solo scoring, timer, question selection,
+or Online mode. purchaseJokerWithDiamonds explicitly binds UserJokerInventory,
+UserHintInventory, DiamondTransaction, JokerTransaction, and HintTransaction
 in the deployed runtime path and treats starter self-heal as best-effort.
 Purchased jokers appear through the same persistent UserJokerInventory balances
 that Solo already reads; using them in Solo still spends through spendUserJoker,

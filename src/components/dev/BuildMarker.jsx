@@ -1,5 +1,17 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex551 — Store catalog redesign and economy-safe purchase contract:
+//   • MarketPage now uses the dark-blue Store catalog layout with Barlow
+//     Condensed product/pricing typography, vertical product cards, exact
+//     Diamond package display prices, Joker/Hint/Advantage Diamond-spend
+//     sections, and disabled future KronoClub/remove-ads cards.
+//   • Real-money Diamond packages remain display-only until approved IAP or
+//     payment verification exists; no fake client grant path awards Diamonds,
+//     KronoClub, or ad-removal benefits.
+//   • Diamond-spend Store purchases are centralized through server-owned
+//     product ids, trusted backend costs, idempotency, user-owned ledgers, and
+//     no Kronox Puan / leaderboard impact.
+//
 // Codex550 — Home CTA copy, Çark shortcut mini wheel, notification typography:
 //   • Home secondary Online CTA copy now reads ONLINE KAPIŞ while preserving
 //     the existing Home-owned Online route behavior and BottomNav ownership.
@@ -327,7 +339,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex550';
+const BUILD_MARKER = 'Codex551';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

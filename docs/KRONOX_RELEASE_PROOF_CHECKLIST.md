@@ -511,39 +511,56 @@ Checklist:
   typography and Inter body/empty/error typography.
   The Solo CTA direct-starts the resolved current/next Solo level; Online
   remains Home CTA-owned.
-* Mağaza Phase 1 sells only three Solo jokers:
-  `Zaman Dondur = 40` Diamonds, `Kart Değiştir = 50` Diamonds,
-  `Kronokalkan = 60` Diamonds.
-* Mağaza purchase uses `purchaseJokerWithDiamonds`; the client displays price
-  but the backend owns the trusted price table and sufficient-Diamond check.
+* Mağaza displays the expanded Store catalog:
+  real-money Diamond packages (`360 ELMAS — ₺79,99`, `1.100 ELMAS — ₺199,99`,
+  `2.400 ELMAS — ₺349,99`, `6.200 ELMAS — ₺799,99`, `13.000 ELMAS —
+  ₺1.499,99`), Diamond-spend Joker packages, Diamond-spend Hint packages,
+  Diamond-spend Advantage packages, and future KronoClub / Reklamları Kaldır.
+* Real-money package buttons do not grant Diamonds without an approved
+  IAP/payment success path; current safe copy is `Satın alma yakında aktif
+  olacak.`
+* Mağaza Diamond-spend purchases use `purchaseJokerWithDiamonds`; the client
+  displays price but the backend owns the trusted product/price table and
+  sufficient-Diamond check.
 * `purchaseJokerWithDiamonds` explicitly binds `UserJokerInventory`,
-  `DiamondTransaction`, and `JokerTransaction`; missing deployed entity
-  registries must fail safely rather than exposing raw errors.
+  `UserHintInventory`, `DiamondTransaction`, `JokerTransaction`, and
+  `HintTransaction`; missing deployed entity registries must fail safely rather
+  than exposing raw errors.
 * Starter inventory self-heal during purchase is best-effort and must not block
   an otherwise valid purchased joker balance/ledger write.
-* Successful purchase writes both `DiamondTransaction.source = market_purchase`
-  with `direction = spend` and `JokerTransaction.reason = market_purchase`.
+* Successful Diamond-spend purchase writes `DiamondTransaction.source =
+  market_purchase` with `direction = spend` and the matching
+  `JokerTransaction.reason = market_purchase` / `HintTransaction.reason =
+  market_purchase` grant rows.
 * Purchase uses a per-action idempotency key and pending UI guard; live
   double-tap/race proof remains manual unless Base44 unique constraints are
   configured.
 * Insufficient Diamonds must not decrease Diamonds, increase joker balance, or
   write successful purchase ledger rows.
-* Both `DiamondTransaction` and `JokerTransaction` must be present for a
+* Diamond spend and all configured package grant ledgers must be present for a
   completed Mağaza purchase; partial ledger states fail closed and require
   reconciliation.
+* Store purchases do not grant Kronox Puan and do not affect Leaderboard.
 * Non-destructive reconciliation should compare `UserJokerInventory.quantity`
   with `JokerTransaction` summed deltas/latest `balance_after` and report
   mismatches without mutating data.
 * Client is not trusted for price; purchase validation is server-authoritative.
-* Manual Mağaza Phase 1 proof:
+* Manual Mağaza Store proof:
   1. Open Home on mobile browser/PWA.
   2. Confirm Mağaza top-left, Diamonds center, notifications right.
-  3. Open Mağaza and confirm title `Mağaza`.
-  4. Confirm prices: Zaman Dondur 40, Kart Değiştir 50, Kronokalkan 60.
-  5. Buy Zaman Dondur with sufficient Diamonds.
-  6. Confirm Diamonds decrease by 40 and Zaman Dondur increases by 1.
-  7. Confirm both `DiamondTransaction` and `JokerTransaction` exist with
-     `market_purchase` and the same idempotency key.
+  3. Open Mağaza and confirm vertical scroll, requested dark gradient/glow,
+     target-style cards, Barlow Condensed headings/prices/buttons, and no
+     horizontal overflow.
+  4. Confirm all Diamond package amounts/prices/unit prices and badges:
+     360/1.100/2.400/6.200/13.000 ELMAS, EN POPÜLER on 1.100, EN İYİ DEĞER
+     on 13.000.
+  5. Tap a real-money Diamond package and confirm Diamonds are not granted and
+     unavailable copy appears.
+  6. Buy one Joker package with sufficient Diamonds and confirm Diamonds
+     decrease and the matching joker inventory increases.
+  7. Buy one Hint package and one Advantage package with sufficient Diamonds;
+     confirm `UserHintInventory` / `HintTransaction` and all joker grant rows
+     are written as applicable.
   8. Confirm failed purchase copy is safe, e.g.
      `Satın alma tamamlanamadı. Tekrar dene.`
   9. Return to Profile and confirm `Joker Çantası` updated.
