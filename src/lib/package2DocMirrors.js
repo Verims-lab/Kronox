@@ -166,11 +166,14 @@ DiamondTransaction, JokerTransaction, and HintTransaction. Double-tap, network
 retry, insufficient Diamonds, and two tabs/devices proof remains manual. Market
 purchase is a Diamond sink. Mağaza purchase is a Diamond sink; Store purchases do not grant Kronox Puan and do not
 affect Leaderboard. Daily Wheel V2 can be a Diamond source and approved joker grant source. Profile
-Joker Çantası and Solo joker bar must show the purchased balance through the
-shared getUserJokerBalances path. Complete UserJokerInventory rows use a fast
+Joker Çantası shows Kronokalkan, Kart Değiştir, Zaman Dondur, and İpucu as four
+compact cards in one row. Joker cards and the Solo joker bar use the shared
+getUserJokerBalances path; the Profile İpucu card uses read-only
+UserHintInventory.quantity. Complete UserJokerInventory rows use a fast
 current-balance read, ensureUserJokerInventory runs only for missing/partial
-rows or explicit retry, Profile does not scan JokerTransaction to render
-balances, and Mağaza purchase/Solo spend update or invalidate the shared cache.
+rows or explicit retry, Profile does not scan JokerTransaction/HintTransaction
+or call Hint starter/consume mutations to render balances, and Mağaza
+purchase/Solo spend update or invalidate the shared cache.
 Online mode is unaffected and Daily Wheel V2 does not use Mağaza purchase semantics.
 `;
 

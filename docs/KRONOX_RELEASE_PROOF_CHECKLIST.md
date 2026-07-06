@@ -480,13 +480,18 @@ Checklist:
 * Starter grant, Mağaza purchase, Solo spend, Profile, and Solo bar all use the
   same normalized lowercase `user_email` owner convention.
 * Profile displays balances under `Joker Çantası`, not `Envanter`.
-* Profile shows only current balances and does not expose `JokerTransaction`
-  ledger rows to normal users.
+* Profile `Joker Çantası` shows four compact cards in one non-scrolling row:
+  `Kronokalkan`, `Kart Değiştir`, `Zaman Dondur`, and `İpucu`.
+* Profile shows only current balances and does not expose `JokerTransaction` or
+  `HintTransaction` ledger rows to normal users.
 * Profile/Solo/Mağaza use the shared `getUserJokerBalances` path; complete
   `UserJokerInventory` rows render through a fast current-balance read, while
   `ensureUserJokerInventory` runs only for missing/partial rows or explicit
   retry.
 * Profile must not scan or sum `JokerTransaction` rows to display balances.
+* Profile `İpucu` count uses read-only `UserHintInventory.quantity`; Profile
+  must not call `ensureUserHintInventory`, `consumeUserHint`, or any Hint grant
+  mutation from the display path.
 * Profile Joker Çantası has its own loading/error/retry state and must not
   block the rest of Profile.
 * Mağaza purchase and Solo spend must refresh/update the shared joker balance

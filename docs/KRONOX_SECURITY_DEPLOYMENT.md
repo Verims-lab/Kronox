@@ -899,7 +899,8 @@ Joker inventory is user-owned data:
 * Daily Wheel remains separate from Daily Calendar definitions/cleanup
 * Daily Wheel and Daily Calendar are separate
 * normal users must not be able to arbitrarily grant themselves jokers
-* Profile shows only `Joker Çantası` balances, not ledger rows
+* Profile shows only `Joker Çantası` current balances, including separate
+  `İpucu`, not ledger rows
 * Mağaza Store may display Diamond packages, Joker packages, Hint packages,
   Advantage packages, KronoClub future, and Reklamları Kaldır future; it must
   not expose cosmetics, random boxes, score/leaderboard boosts, fake external

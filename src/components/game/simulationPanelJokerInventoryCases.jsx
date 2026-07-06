@@ -11,6 +11,7 @@ import ensureUserJokerInventoryManifestSource from '../../../base44/functions/en
 import spendUserJokerSource from '../../../base44/functions/spendUserJoker/entry.ts?raw';
 import spendUserJokerManifestSource from '../../../base44/functions/spendUserJoker/function.jsonc?raw';
 import jokerInventorySource from '../../lib/jokerInventory.js?raw';
+import hintInventorySource from '../../lib/hintInventory.js?raw';
 import jokerInventorySpendMergeSource from '../../lib/jokerInventorySpendMerge.js?raw';
 import authContextSource from '../../lib/AuthContext.jsx?raw';
 import profilePageSource from '../../pages/ProfilePage.jsx?raw';
@@ -21,6 +22,8 @@ import purchaseJokerWithDiamondsSource from '../../../base44/functions/purchaseJ
 import soloJokerBarSource from './SoloJokerBar.jsx?raw';
 import gameSource from '../../pages/Game.jsx?raw';
 import claimDailyWheelRewardSource from '../../../base44/functions/claimDailyWheelReward/entry.ts?raw';
+import userHintInventoryEntitySource from '../../../base44/entities/UserHintInventory.jsonc?raw';
+import hintTransactionEntitySource from '../../../base44/entities/HintTransaction.jsonc?raw';
 import { runJokerSpendMergeMatrix } from '@/lib/jokerInventorySpendMerge';
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL', NOT_AUTOMATABLE: 'NOT_AUTOMATABLE' };
@@ -488,24 +491,93 @@ export const EXTRA_TESTS = [
       return pass('Profile exposes the user-facing Joker Çantası balance section.', { verification: 'STATIC_CONTRACT' });
     }),
 
-  makeCase('profile_displays_all_three_balances',
-    'Profile displays all three joker balances',
+  makeCase('profile_displays_jokers_and_hint_in_one_row',
+    'Profile Joker Çantası displays three jokers plus İpucu in one row',
     () => {
-      const combined = `${profilePageSource}\n${jokerInventorySource}`;
+      const combined = `${profilePageSource}\n${jokerInventorySource}\n${hintInventorySource}`;
       const missing = missingTokens(combined, [
-        'JOKER_DEFINITIONS.map',
+        'PROFILE_INVENTORY_ITEMS',
+        "kind: 'joker'",
+        "kind: 'hint'",
         'Kronokalkan',
         'Kart Değiştir',
         'Zaman Dondur',
-        'balances?.[joker.type]',
-        'x{count}',
+        'İpucu',
+        'grid-cols-4',
+        'data-kronox-profile-inventory-row="four-items"',
+        'overflow-visible',
+        'min-w-0',
+        'balances?.[item.type]',
+        'hintState.balance',
+        'getUserHintBalance(user, { forceRefresh: jokerReloadKey > 0 })',
+        "x{countUnavailable ? '—' : count}",
       ]);
-      if (missing.length) return fail('Profile does not clearly render all three joker balance counts.', {
+      const forbidden = forbiddenTokens(profilePageSource, [
+        'overflow-x-auto',
+        'overflow-x-scroll',
+        'whitespace-nowrap',
+      ]);
+      if (missing.length || forbidden.length) return fail('Profile does not clearly render three joker counts plus the Hint count in one non-scrolling row.', {
         verification: 'STATIC_CONTRACT',
         file: 'src/pages/ProfilePage.jsx',
-        missing,
+        actual: { missing, forbidden },
       });
-      return pass('Profile renders Kronokalkan, Kart Değiştir, and Zaman Dondur counts.', { verification: 'STATIC_CONTRACT' });
+      return pass('Profile renders Kronokalkan, Kart Değiştir, Zaman Dondur, and İpucu as four compact non-scrolling row cards.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('profile_hint_balance_uses_read_only_current_inventory',
+    'Profile Hint count uses read-only UserHintInventory current balance',
+    () => {
+      const missing = missingTokens(`${profilePageSource}\n${hintInventorySource}\n${userHintInventoryEntitySource}\n${hintTransactionEntitySource}`, [
+        'getUserHintBalance',
+        'readOwnHintInventoryRows',
+        'UserHintInventory.fast_read',
+        'currentBalanceSource: \'UserHintInventory.quantity\'',
+        'ledgerScanned: false',
+        'displayOnlyRead: true',
+        'noInventoryMutation: true',
+        'HintTransaction',
+        'ledger/idempotency audit',
+        'normalizeHintQuantity(result?.hintBalance)',
+      ]);
+      const forbidden = forbiddenTokens(profilePageSource, [
+        'ensureUserHintInventory(',
+        'consumeUserHint(',
+        'UserHintInventory.create',
+        'UserHintInventory.update',
+        'HintTransaction',
+        'STARTER_HINT_QUANTITY',
+        'hintBalance: 3',
+        'balance: 3',
+      ]);
+      if (missing.length || forbidden.length) return fail('Profile Hint card can drift from read-only UserHintInventory balance or mutate/grant inventory.', {
+        verification: 'STATIC_CONTRACT',
+        actual: { missing, forbidden },
+      });
+      return pass('Profile Hint count reads UserHintInventory.quantity through a display-only helper and does not call starter/consume/mutation paths.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('profile_hint_remains_separate_from_joker_inventory',
+    'Profile Hint card remains separate from Joker inventory',
+    () => {
+      const missing = missingTokens(`${profilePageSource}\n${hintInventorySource}\n${jokerInventorySource}`, [
+        "kind: 'hint'",
+        "type: 'hint'",
+        'label: \'İpucu\'',
+        'Hammer',
+        'Solo Hint / İpucu is separate from Joker inventory.',
+        'UserHintInventory',
+        'UserJokerInventory',
+      ]);
+      const forbidden = forbiddenTokens(jokerInventorySource, [
+        "HINT: 'hint'",
+        "İpucu', shortLabel",
+      ]);
+      if (missing.length || forbidden.length) return fail('Hint display is being folded into Joker inventory instead of remaining separate.', {
+        verification: 'STATIC_CONTRACT',
+        actual: { missing, forbidden },
+      });
+      return pass('Profile displays İpucu beside the jokers while keeping Hint state in UserHintInventory, not JOKER_DEFINITIONS.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('profile_does_not_expose_joker_ledger',

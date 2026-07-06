@@ -392,7 +392,8 @@ Inventory foundation:
   `JokerTransaction.balance_after` so spent jokers are not refunded
 - duplicate, unknown, or malformed inventory rows must not crash Profile or
   Solo loading; valid known balances are still displayed
-- Profile displays balances under `Joker Çantası`
+- Profile displays Kronokalkan, Kart Değiştir, Zaman Dondur, and separate
+  `İpucu` balances under `Joker Çantası`
 - Mağaza Store sells Solo joker packages with Diamonds, may grant Hint balances
   through server-owned Hint inventory, and shows real-money Diamond packages
   only as no-grant display until approved IAP/payment verification exists.

@@ -9,21 +9,27 @@ placeholders after authentication.
 * `Seviye` uses the same Solo progress helper as the Solo level path.
 * `Elmas` uses persisted `User.diamonds` through the shared Diamond display
   helper.
-* `Joker Çantası` uses `UserJokerInventory` current balances through
-  `getUserJokerBalances`.
-* `JokerTransaction` is ledger/audit only and is not a Profile render-time
-  balance source.
+* `Joker Çantası` shows Kronokalkan, Kart Değiştir, Zaman Dondur, and
+  `İpucu` as four compact cards in one non-scrolling row.
+* Joker cards use `UserJokerInventory` current balances through
+  `getUserJokerBalances`; the `İpucu` card uses read-only
+  `UserHintInventory.quantity`.
+* `JokerTransaction` and `HintTransaction` are ledger/audit only and are not
+  Profile render-time balance sources.
 
 ## Joker Çantası Performance Contract
 
-* Load all three joker balances through the shared helper path.
+* Load the three joker balances through the shared helper path.
+* Load the separate `İpucu` balance through the canonical Hint current-balance
+  source without granting, consuming, or mutating inventory from Profile.
 * Do not run starter/self-heal on every Profile render.
 * Missing/partial inventory can trigger idempotent self-heal and then refresh.
 * Profile has local Joker loading, safe error, and retry states.
-* Mağaza purchase and Solo spend update/invalidate the shared balance cache.
+* Mağaza purchase and Solo spend update/invalidate shared balance caches.
 * Logout clears cached joker balances so another user cannot see stale counts.
 * Runtime proof remains manual: login, open Profile, confirm fast Joker Çantası
-  load, buy/spend a joker, and confirm Profile/Solo counts stay consistent.
+  load, buy/spend a joker or Hint, and confirm Profile/Solo counts stay
+  consistent.
 
 ## Category Preferences
 

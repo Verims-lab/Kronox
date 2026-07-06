@@ -30,6 +30,7 @@ import {
   normalizeJokerBalances,
   normalizeJokerQuantity,
 } from '@/lib/jokerInventory';
+import { normalizeHintQuantity, setCachedHintBalance } from '@/lib/hintInventory';
 import {
   getMarketCatalogSections,
   getMarketPurchaseReadiness,
@@ -196,7 +197,9 @@ export default function MarketPage() {
       }
       setBalances(normalizeJokerBalances(result.balances));
       if (Number.isFinite(Number(result.hintBalanceAfter))) {
-        setHintBalance(normalizeJokerQuantity(result.hintBalanceAfter));
+        const nextHintBalance = normalizeHintQuantity(result.hintBalanceAfter);
+        setHintBalance(nextHintBalance);
+        setCachedHintBalance(user, nextHintBalance, { queryPath: 'purchaseMarketProductWithDiamonds.mutation_result' });
       }
       updateUserDiamonds(result);
       checkUserAuth?.();

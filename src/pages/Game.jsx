@@ -88,6 +88,7 @@ import {
   ensureUserHintInventory,
   normalizeHintQuantity,
   normalizeHintRevealStage,
+  setCachedHintBalance,
 } from '@/lib/hintInventory';
 import { mergeJokerSpendMutationBalances } from '@/lib/jokerInventorySpendMerge';
 import { getOrderedSoloDeckQuestion, getSoloSeedQuestions } from '@/lib/soloDeckRuntime';
@@ -630,7 +631,11 @@ export default function Game() {
     ensureUserHintInventory({ guestCredentials })
       .then((result) => {
         if (!active) return;
-        setHintBalance(normalizeHintQuantity(result?.hintBalance));
+        const nextHintBalance = normalizeHintQuantity(result?.hintBalance);
+        setHintBalance(nextHintBalance);
+        if (currentUser?.email) {
+          setCachedHintBalance(currentUser, nextHintBalance, { queryPath: 'ensureUserHintInventory.gameplay_result' });
+        }
         setHintError('');
       })
       .catch(() => {
@@ -2351,13 +2356,21 @@ export default function Game() {
         revealStage: nextStage,
       });
       if (response?.ok === false) {
-        setHintBalance(normalizeHintQuantity(response?.hintBalance ?? hintBalance));
+        const fallbackHintBalance = normalizeHintQuantity(response?.hintBalance ?? hintBalance);
+        setHintBalance(fallbackHintBalance);
+        if (currentUser?.email) {
+          setCachedHintBalance(currentUser, fallbackHintBalance, { queryPath: 'consumeUserHint.error_result' });
+        }
         setHintError(response?.error || 'İpucu kullanılamadı.');
         return;
       }
 
       const responseStage = normalizeHintRevealStage(response?.revealStage || nextStage);
-      setHintBalance(normalizeHintQuantity(response?.hintBalance));
+      const nextHintBalance = normalizeHintQuantity(response?.hintBalance);
+      setHintBalance(nextHintBalance);
+      if (currentUser?.email) {
+        setCachedHintBalance(currentUser, nextHintBalance, { queryPath: 'consumeUserHint.mutation_result' });
+      }
       setHintRevealStagesByCard((previous) => ({
         ...previous,
         [currentSoloHintCardKey]: Math.max(

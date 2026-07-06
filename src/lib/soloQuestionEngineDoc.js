@@ -196,7 +196,8 @@ successfully applied.
 
 Solo jokers are user-owned and Solo-only. Solo joker buttons read
 UserJokerInventory and show owned counts for Kronokalkan, Kart Değiştir, and
-Zaman Dondur. A player may use multiple jokers across a Solo level when they
+Zaman Dondur; Profile Joker Çantası also shows the separate İpucu balance from
+UserHintInventory.quantity. A player may use multiple jokers across a Solo level when they
 own enough balance, but only one joker may be used for the current
 question/card decision. Kart Değiştir keeps the same current-card guard for
 the replacement card. Successful Solo use writes a JokerTransaction row with

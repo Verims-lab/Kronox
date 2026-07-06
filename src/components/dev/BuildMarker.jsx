@@ -1,5 +1,14 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex567 — Profile Joker Çantası Hint card:
+//   • Profile Joker Çantası now renders Kronokalkan, Kart Değiştir,
+//     Zaman Dondur, and İpucu as four compact cards in one non-scrolling row.
+//   • İpucu count reads UserHintInventory.quantity through a read-only helper;
+//     Profile does not call Hint starter/consume/grant mutation paths.
+//   • Store/Solo Hint mutations update the shared Hint balance cache, while
+//     docs/mirrors/Health guard Hint/Joker separation and no Puan/leaderboard
+//     impact.
+//
 // Codex566 — Store real-money purchase lock:
 //   • TL/IAP Diamond packages, KronoClub, and Reklamları Kaldır stay visible
 //     but render disabled Yakında buttons with no click handler and no fake
@@ -520,7 +529,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex566';
+const BUILD_MARKER = 'Codex567';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

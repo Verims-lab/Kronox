@@ -750,6 +750,11 @@ Hint balance read-performance contract:
 * `UserHintInventory` is the current-balance source for Solo Hint / İpucu.
 * `HintTransaction` is the ledger/audit trail and must not be summed on Solo
   open.
+* Profile `Joker Çantası` displays `İpucu` beside Kronokalkan, Kart Değiştir,
+  and Zaman Dondur as a separate inventory item in one mobile row.
+* Profile reads the `İpucu` count from `UserHintInventory.quantity` only; the
+  display path is read-only and must not initialize, consume, grant, or mutate
+  Hint inventory.
 * `ensureUserHintInventory` is idempotent and must preserve spent balances; it
   must not refill a user back to 3 on every app open.
 * `consumeUserHint` uses `EconomyOperationLock`, rechecks the
