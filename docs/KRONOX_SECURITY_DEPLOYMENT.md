@@ -856,16 +856,20 @@ Joker inventory is user-owned data:
 * Solo joker usage is spent by `spendUserJoker` using authenticated user
   context, positive-balance validation, `solo_use` ledger rows, and
   idempotency keys
-* Mağaza Phase 1 purchases use `purchaseJokerWithDiamonds`; users purchase
-  only for themselves, the backend owns the trusted joker price table, and
-  sufficient Diamonds are validated server-side
-* successful Mağaza purchases write both `DiamondTransaction` and
-  `JokerTransaction` with `market_purchase`; insufficient Diamonds must not
-  change balances or write successful purchase ledgers
+* Mağaza Store Diamond-spend purchases use `purchaseJokerWithDiamonds`; users
+  purchase only for themselves, the backend owns the trusted Store product/price
+  table, and sufficient Diamonds are validated server-side
+* real-money Store products are display/unavailable unless an approved
+  IAP/payment verification path exists; no fake real-money success path may
+  grant Diamonds or benefits
+* successful Mağaza purchases write `DiamondTransaction` plus matching
+  `JokerTransaction` and/or `HintTransaction` grant rows with `market_purchase`;
+  insufficient Diamonds must not change balances or write successful purchase
+  ledgers
 * `purchaseJokerWithDiamonds` explicitly binds `UserJokerInventory`,
-  `DiamondTransaction`, and `JokerTransaction` in the deployed runtime path,
-  preferring service role while falling back to authenticated current-user
-  entity access for owner-scoped writes
+  `UserHintInventory`, `DiamondTransaction`, `JokerTransaction`, and
+  `HintTransaction` in the deployed runtime path, preferring service role while
+  falling back to authenticated current-user entity access for owner-scoped writes
 * Mağaza purchases are server-authoritative economy actions: the client is not
   trusted for price, cost, user identity, or target account; service-role writes
   stay scoped to the authenticated user
@@ -887,8 +891,10 @@ Joker inventory is user-owned data:
 * Daily Wheel and Daily Quest are separate
 * normal users must not be able to arbitrarily grant themselves jokers
 * Profile shows only `Joker Çantası` balances, not ledger rows
-* Mağaza Phase 1 must not expose bundles, subscriptions, cosmetics, random
-  boxes, ads, external payments, or Online-mode joker purchases
+* Mağaza Store may display Diamond packages, Joker packages, Hint packages,
+  Advantage packages, KronoClub future, and Reklamları Kaldır future; it must
+  not expose cosmetics, random boxes, score/leaderboard boosts, fake external
+  payments, or Online-mode joker usage
 
 ## Admin Maintenance Jobs
 

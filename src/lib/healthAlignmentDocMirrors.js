@@ -234,13 +234,16 @@ bundles require inline AdminUser-backed guards. SimulationPanel source files
 stay in the Health/admin/test-suite path until a separate test-runner migration
 is planned.
 
-Mağaza catalog is code-side/static for Phase 1 joker products and may be
-cached/prefetched for fast open, but purchase remains server-authoritative:
+Mağaza catalog is code-side/static for real-money Diamond display packages,
+Diamond-spend Joker packages, Diamond-spend Hint packages, Diamond-spend
+Advantage packages, and future KronoClub / Reklamları Kaldır sections. It may
+be cached/prefetched for fast open, but purchase remains server-authoritative:
 the client is never trusted for price, cost, user identity, reward, or target
-account. Satın Al readiness should depend only on auth/user, item data,
-sufficient Diamonds, item availability, and purchase in-flight state; slow
-non-critical inventory count refresh or starter self-heal must not silently
-disable an otherwise valid purchase button.
+account. Real-money packages must not grant Diamonds without approved
+IAP/payment verification. Satın Al readiness should depend only on auth/user,
+item data, sufficient Diamonds, item availability, and purchase in-flight state;
+slow non-critical inventory count refresh or starter self-heal must not
+silently disable an otherwise valid purchase button.
 
 Unified Kronox Puan is the only player-facing score source. Solo contributes
 its best-score component; Online contributes User.online_progress.score. Online
@@ -646,10 +649,11 @@ Status: Active product contract.
 - spendUserJoker spends one owned Solo joker using authenticated user context, positive-balance validation, Solo-context validation, deploy-safe UserJokerInventory/JokerTransaction entity fallback, reason solo_use, source solo, quantity_delta -1, safe user-facing errors, and an idempotency key.
 - spendUserJoker uses EconomyOperationLock, post-lock idempotency recheck, and a fresh UserJokerInventory read before decrementing; guided/tutorial joker demos remain tutorial-only and do not spend real inventory.
 - Profile shows only Joker Çantası balances; normal users must not see other users' balances or transaction ledger rows.
-- Mağaza Phase 1 purchases use purchaseJokerWithDiamonds; users purchase only for themselves, backend owns trusted joker prices, sufficient Diamonds are validated server-side, and successful purchases write DiamondTransaction plus JokerTransaction with market_purchase.
+- Mağaza Store Diamond-spend purchases use purchaseJokerWithDiamonds; users purchase only for themselves, backend owns trusted Store product prices, sufficient Diamonds are validated server-side, and successful purchases write DiamondTransaction plus JokerTransaction and/or HintTransaction with market_purchase.
 - Mağaza purchases are server-authoritative economy actions: the client is not trusted for price, cost, user identity, or target account; service-role writes stay scoped to the authenticated user.
 - Mağaza purchase idempotency keys, EconomyOperationLock, refreshed server balance reads, and post-lock ledger rechecks protect double-tap/retry/concurrent request flows; real two-device/backend race proof remains manual unless Base44 uniqueness is proven.
-- Mağaza Phase 1 does not expose bundles, subscriptions, cosmetics, random boxes, ads, external payments, or Online-mode joker purchases.
+- Real-money Store packages are display/unavailable unless approved IAP/payment verification exists; no fake real-money success path grants Diamonds, KronoClub, or ad-removal benefits.
+- Mağaza Store does not expose cosmetics, random boxes, score/leaderboard boosts, real-money fulfillment without approved IAP/payment verification, or Online-mode joker usage.
 - Daily Quest Definition management UI is removed from Profile / Admin Ekranı; runtime no longer depends on Admin-created quest definitions.
 - createDailyQuestDefinition is a Base44 callable with an inline AdminUser-backed guard for active owner/admin rows; normal users and disabled admins are rejected.
 - DailyQuestDefinition title and description are display-only; quest_type plus target_value are the executable logic contract.
@@ -751,10 +755,15 @@ Same-score replay does not add points. Lower-score replay does not add points.
 Better replay adds only the positive score delta. Old completed Solo results
 are not retroactively recalculated.
 
-## Mağaza Phase 1
+## Mağaza Store
 Home shows Mağaza top-left with a gold storefront icon, Diamonds center,
-notifications right. Mağaza title is Mağaza and prices are Zaman Dondur 40,
-Kart Değiştir 50, Kronokalkan 60.
+notifications right. Mağaza title is Mağaza and the Store catalog shows
+real-money Diamond packages (360 ELMAS — ₺79,99; 1.100 ELMAS — ₺199,99 with EN
+POPÜLER; 2.400 ELMAS — ₺349,99; 6.200 ELMAS — ₺799,99; 13.000 ELMAS —
+₺1.499,99 with EN İYİ DEĞER), Diamond-spend Joker packages, Diamond-spend Hint
+packages, Diamond-spend Advantage packages, and future KronoClub / Reklamları
+Kaldır sections. Real-money packages show safe unavailable behavior and do not
+grant Diamonds until approved IAP/payment verification exists.
 Home uses a larger centered transparent local Kronox logo, a larger centered
 transparent hourglass visual balanced between left Görevler and right Çark,
 compact shortcuts with ready badges, centered Görevler/Çark popups, a content-free
@@ -768,14 +777,16 @@ resolved level; the secondary Online CTA remains Home-owned and has the same
 dimensions as the primary CTA.
 Client is not trusted for price; purchase validation is server-authoritative.
 Market open should be fast: Home may idle-prefetch the Market chunk and fast
-UserJokerInventory cache, the static Phase 1 catalog renders immediately, and
+UserJokerInventory cache, the static Store catalog renders immediately, and
 starter inventory self-heal/count refresh is non-critical for Satın Al
 readiness.
-Successful purchase writes both DiamondTransaction and JokerTransaction with
-market_purchase and the same idempotency key. Runtime explicitly binds
-UserJokerInventory, DiamondTransaction, and JokerTransaction. Double-tap, network retry,
-insufficient Diamonds, and two tabs/devices proof remains manual. Market
-purchase is a Diamond sink; Daily Wheel V2 can be a Diamond source and approved joker grant source. Profile
+Successful Diamond-spend purchase writes DiamondTransaction plus matching
+JokerTransaction and/or HintTransaction grant ledgers with market_purchase.
+Runtime explicitly binds UserJokerInventory, UserHintInventory,
+DiamondTransaction, JokerTransaction, and HintTransaction. Double-tap, network
+retry, insufficient Diamonds, and two tabs/devices proof remains manual. Market
+purchase is a Diamond sink; Store purchases do not grant Kronox Puan and do not
+affect Leaderboard. Daily Wheel V2 can be a Diamond source and approved joker grant source. Profile
 Joker Çantası and Solo joker bar must show the purchased balance; Online mode
 is unaffected and Daily Wheel V2 does not use Mağaza purchase semantics.
 

@@ -201,8 +201,8 @@ import * as backendDeployabilityCases from './simulationPanelBackendDeployabilit
 // Mobile gameplay browser drag guard: scoped pull-to-refresh prevention,
 // passive:false touchmove contract, and timeline auto-scroll preservation.
 import * as mobileGameplayGestureCases from './simulationPanelMobileGameplayGestureCases';
-// Mağaza Phase 1: Home entry, server-backed Diamond-to-Solo-joker purchases,
-// ledger writes, idempotency guard, and no Online/Daily Wheel impact.
+// Mağaza Store: catalog visual contract, display-only real-money packages,
+// server-backed Diamond purchases, ledger writes, and no Online/Daily Wheel impact.
 import * as marketCases from './simulationPanelMarketCases';
 // Daily Quest Definition Phase 1: admin-managed template rows, enum-only
 // quest logic, display-only copy, and future progress/reward boundaries.

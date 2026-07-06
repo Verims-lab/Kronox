@@ -598,15 +598,34 @@ adminResetDailyWheelState
 
 ---
 
-# 3B. Mağaza / Joker Purchases
+# 3B. Mağaza / Store Purchases
 
-Mağaza Phase 1 sells only Solo jokers for Diamonds:
+Mağaza displays the expanded Store catalog:
 
 ```text
-Zaman Dondur = 40 Diamonds
-Kart Değiştir = 50 Diamonds
-Kronokalkan = 60 Diamonds
+Real-money Diamond packages (display only until approved IAP/payment exists):
+360 ELMAS — ₺79,99, unit ₺0,22
+1.100 ELMAS — ₺199,99, unit ₺0,18, EN POPÜLER
+2.400 ELMAS — ₺349,99, unit ₺0,15
+6.200 ELMAS — ₺799,99, unit ₺0,13
+13.000 ELMAS — ₺1.499,99, unit ₺0,12, EN İYİ DEĞER
+
+Diamond-spend jokers:
+Kronokalkan 1/5/15 = 60/270/720 Diamonds
+Zamanı Dondur 1/5/15 = 40/180/480 Diamonds
+Kart Değiştir 1/5/15 = 50/225/600 Diamonds
+
+Diamond-spend hints:
+5/15/40 İpucu = 40/100/240 Diamonds
+
+Diamond-spend advantage packages:
+Başlangıç Paketi = 2 Kronokalkan + 2 Kart Değiştir + 2 Zamanı Dondur + 10 İpucu for 250 Diamonds
+Mega Paket = 10 Kronokalkan + 10 Kart Değiştir + 10 Zamanı Dondur + 30 İpucu for 1.000 Diamonds
 ```
+
+KronoClub and Reklamları Kaldır are future real-money sections only. They do
+not grant subscriptions, ad removal, or any benefit until an approved real
+purchase path exists.
 
 Solo move interaction:
 
@@ -620,15 +639,23 @@ Solo move interaction:
 Purchase rules:
 
 * Diamond source/sink balance: Daily Wheel V2 can be a Diamond source and/or an
-  approved joker grant source, while Mağaza purchase is a Diamond sink
-* `purchaseJokerWithDiamonds` owns the trusted price table
+  approved joker grant source, while Mağaza Diamond-spend purchases are Diamond
+  sinks
+* real-money Diamond packages must not grant Diamonds unless a real approved
+  IAP/payment success path exists; current no-IAP behavior is safe unavailable
+  copy: `Satın alma yakında aktif olacak.`
+* `purchaseJokerWithDiamonds` owns the trusted Store product and price table
 * purchase validation is server-authoritative; Client is not trusted for price
   and client-provided price/cost is ignored
 * authenticated user can purchase only for self
 * sufficient `User.diamonds` is validated server-side
 * successful purchase writes `DiamondTransaction.source = market_purchase`
   with `direction = spend`
-* successful purchase writes `JokerTransaction.reason = market_purchase`
+* successful joker grants write `JokerTransaction.reason = market_purchase`
+* successful hint grants write `HintTransaction.reason = market_purchase`
+  and update `UserHintInventory`
+* advantage packages grant every configured joker/hint quantity exactly once
+  or fail without a successful purchase response
 * insufficient Diamonds do not decrease Diamonds, increase joker balance, or
   write successful purchase ledgers
 * purchase uses an idempotency key; double-tap, network retry, and two
@@ -640,6 +667,9 @@ Purchase rules:
 * Partial failure reconciliation: ledger write failure uses best-effort rollback
   of the Diamond and joker balances, but live provider/backend consistency proof
   remains manual
+* Store purchases do not grant Kronox Puan
+* Store purchases do not affect Leaderboard
+* Daily Wheel and Daily Quest behavior is unchanged by Store purchases
 
 Joker balance read-performance contract:
 
@@ -672,10 +702,10 @@ Joker balance read-performance contract:
 The following are not implemented:
 
 * Rewarded ads
-* Real-money purchases
+* Real-money purchase fulfillment / IAP verification
 * Achievement rewards
 * Special event rewards
-* Non-joker spending/cost flows
+* Hint gameplay consumption
 
 Daily Quest / Günün Görevi Runtime v1 is active; only future Daily Quest reward
 sources such as `daily_quest_future` remain inactive until explicitly approved.

@@ -338,11 +338,16 @@ Tutorial:
 * joker demos are tutorial-only
 * tutorial demos do not spend real inventory
 
-Mağaza prices:
+Mağaza Store catalog:
 
-* Zaman Dondur = 40 Diamonds
-* Kart Değiştir = 50 Diamonds
-* Kronokalkan = 60 Diamonds
+* real-money Diamond packages are displayed with fixed prices but do not grant
+  Diamonds until approved IAP/payment verification exists
+* Joker packages: Kronokalkan 1/5/15 = 60/270/720 Diamonds, Zamanı Dondur
+  1/5/15 = 40/180/480 Diamonds, Kart Değiştir 1/5/15 = 50/225/600 Diamonds
+* Hint packages: 5/15/40 İpucu = 40/100/240 Diamonds
+* Advantage packages: Başlangıç Paketi = 250 Diamonds, Mega Paket = 1.000
+  Diamonds
+* Store purchases do not grant Kronox Puan and do not affect Leaderboard
 
 ---
 

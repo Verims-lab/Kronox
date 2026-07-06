@@ -156,15 +156,44 @@ sheet, retrying the same merge, or switching providers must not grant the
 reward again. The reward does not grant Kronox Puan and does not affect
 leaderboard sorting or rank.
 
-## Mağaza / Joker purchases
-Mağaza Phase 1 sells only Solo jokers for Diamonds:
-Zaman Dondur = 40 Diamonds, Kart Değiştir = 50 Diamonds, Kronokalkan = 60 Diamonds.
-Diamond source/sink balance: Daily Wheel V2 can be a Diamond source and/or approved joker grant source, while Mağaza purchase is a Diamond sink.
-purchaseJokerWithDiamonds owns the trusted price table, purchase validation is server-authoritative, Client is not trusted for price, client-provided price/cost is ignored, validates authenticated self-owned user context and sufficient User.diamonds server-side, writes DiamondTransaction.source = market_purchase with direction = spend, and writes JokerTransaction.reason = market_purchase.
-purchaseJokerWithDiamonds explicitly binds UserJokerInventory, DiamondTransaction, and JokerTransaction in the Base44 runtime path; deployed proof must confirm Diamond decrease, joker increase, both ledgers, insufficient-Diamond block, and duplicate tap guard.
-Insufficient Diamonds do not decrease Diamonds, increase joker balance, or write successful purchase ledgers. Purchase uses an idempotency key; double-tap, network retry, and two tabs/devices are guarded by EconomyOperationLock, post-lock idempotency rechecks, and a refreshed server balance; live race proof remains manual.
-Starter inventory repair during purchase is best-effort; a starter self-heal error must not block a valid purchased joker balance and ledger write.
-Partial failure reconciliation: ledger write failure uses best-effort rollback of the Diamond and joker balances, but live provider/backend consistency proof remains manual.
+## Mağaza / Store purchases
+Mağaza displays real-money Diamond packages, Diamond-spend Joker packages,
+Diamond-spend Hint packages, Diamond-spend Advantage packages, and future
+KronoClub / Reklamları Kaldır sections. Real-money Diamond packages are display
+only until an approved IAP/payment success path exists: 360 ELMAS — ₺79,99,
+1.100 ELMAS — ₺199,99 with EN POPÜLER, 2.400 ELMAS — ₺349,99, 6.200 ELMAS —
+₺799,99, and 13.000 ELMAS — ₺1.499,99 with EN İYİ DEĞER. Current no-IAP
+behavior is safe unavailable copy: Satın alma yakında aktif olacak.
+Diamond-spend Joker packages are Kronokalkan 1/5/15 = 60/270/720 Diamonds,
+Zamanı Dondur 1/5/15 = 40/180/480 Diamonds, and Kart Değiştir 1/5/15 =
+50/225/600 Diamonds. Hint packages are 5/15/40 İpucu = 40/100/240 Diamonds.
+Advantage Packages are Başlangıç Paketi = 2 Kronokalkan + 2 Kart Değiştir + 2
+Zamanı Dondur + 10 İpucu for 250 Diamonds and Mega Paket = 10 Kronokalkan + 10
+Kart Değiştir + 10 Zamanı Dondur + 30 İpucu for 1.000 Diamonds. KronoClub and
+Reklamları Kaldır are future/disabled and grant no benefits.
+Diamond source/sink balance: Daily Wheel V2 can be a Diamond source and/or
+approved joker grant source, while Mağaza Diamond-spend purchases are Diamond
+sinks. purchaseJokerWithDiamonds owns the trusted Store product/price table,
+purchase validation is server-authoritative, Client is not trusted for price,
+client-provided price/cost is ignored, validates authenticated self-owned user
+context and sufficient User.diamonds server-side, writes DiamondTransaction.source
+= market_purchase with direction = spend, writes JokerTransaction.reason =
+market_purchase for joker grants, and writes HintTransaction.reason =
+market_purchase / UserHintInventory for hint grants. purchaseJokerWithDiamonds
+explicitly binds UserJokerInventory, UserHintInventory, DiamondTransaction,
+JokerTransaction, and HintTransaction in the Base44 runtime path; deployed proof
+must confirm Diamond decrease, inventory increase, ledgers, insufficient-Diamond
+block, and duplicate tap guard. Store purchases do not grant Kronox Puan and do
+not affect Leaderboard.
+Insufficient Diamonds do not decrease Diamonds, increase inventory balances, or
+write successful purchase ledgers. Purchase uses an idempotency key; double-tap,
+network retry, and two tabs/devices are guarded by EconomyOperationLock,
+post-lock idempotency rechecks, and a refreshed server balance; live race proof
+remains manual. Starter inventory repair during purchase is best-effort; a
+starter self-heal error must not block a valid purchased joker balance and
+ledger write. Partial failure reconciliation: ledger write failure uses
+best-effort rollback of Diamond, joker, and hint balances, but live
+provider/backend consistency proof remains manual.
 Joker balance read-performance contract: UserJokerInventory is the Profile/Solo current-balance source. JokerTransaction is the ledger/audit trail and must not be summed on Profile open. Profile, Solo, and Mağaza use the shared getUserJokerBalances / mutation-result cache path keyed by normalized user email. Complete inventory rows render through a fast current-balance read; missing or partial rows trigger idempotent starter/self-heal. Mağaza purchase and Solo spend must update or invalidate the shared balance cache so Profile and Solo do not show stale counts. spendUserJoker validates Solo context, uses deploy-safe UserJokerInventory/JokerTransaction entity fallback, and returns safe user-facing errors. Normal Solo joker spend uses EconomyOperationLock, rechecks the JokerTransaction idempotency key after the lock, then re-reads UserJokerInventory and refuses to decrement a zero balance. Admin/static reconciliation can compare UserJokerInventory.quantity against JokerTransaction summed deltas and latest balance_after without mutating data. Guest/no-login paths must not query user-owned joker inventory. Live performance proof remains manual: login, open Profile, confirm Joker Çantası loads quickly, purchase/spend a joker, and confirm Profile/Solo counts refresh.
 
 ## Admin reset and account deletion
@@ -173,6 +202,6 @@ Admin reset remains admin-only, previewed, confirmed, and logged; it prevents st
 Retained economy/gameplay rows do not expose the deleted user identity.
 
 Future sources (daily_quest_future, wheel_spin, rewarded_ad, quest_reward,
-real-money purchase, achievement, special_event) are schema-ready but not active
-yet.
+real-money purchase fulfillment, achievement, special_event) are schema-ready
+but not active yet.
 `;

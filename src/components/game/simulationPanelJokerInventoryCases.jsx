@@ -1,7 +1,7 @@
 // Kronox Health Center — Joker Inventory contracts.
 //
 // Scope: user-owned joker balance foundation, starter grant idempotency,
-// Profile Joker Çantası display, Phase 2 Solo spending, and Mağaza Phase 1 boundaries.
+// Profile Joker Çantası display, Phase 2 Solo spending, and Mağaza catalog boundaries.
 
 import userJokerInventoryEntitySource from '../../../base44/entities/UserJokerInventory.jsonc?raw';
 import jokerTransactionEntitySource from '../../../base44/entities/JokerTransaction.jsonc?raw';
@@ -57,7 +57,7 @@ function makeCase(id, name, run, options = {}) {
     name,
     critical: options.critical ?? true,
     actionType: options.actionType || ACTION_TYPES.CODE_FIX,
-    nextStep: options.nextStep || 'Keep joker inventory user-owned, idempotent, ledger-backed, Solo-only for usage, and Mağaza limited to Phase 1 joker purchases.',
+    nextStep: options.nextStep || 'Keep joker inventory user-owned, idempotent, ledger-backed, Solo-only for usage, and Mağaza Diamond purchases server-authoritative.',
     ...options,
     run,
   };
@@ -567,60 +567,61 @@ export const EXTRA_TESTS = [
       return pass('Daily Wheel V2 approved joker rewards write UserJokerInventory/JokerTransaction through the server claim path.', { verification: 'STATIC_CONTRACT' });
     }),
 
-  makeCase('market_phase_1_joker_only_boundary',
-    'Mağaza Phase 1 is active only for Solo joker purchases',
+  makeCase('market_catalog_joker_boundary',
+    'Mağaza catalog keeps joker purchases server-owned inside expanded Store',
     () => {
       const missing = missingTokens(`${mainMenuSource}\n${marketPageSource}\n${marketSource}\n${purchaseJokerWithDiamondsSource}`, [
         'showMarket',
         'Mağaza',
         'MARKET_JOKER_PRODUCTS',
+        'MARKET_HINT_PRODUCTS',
+        'MARKET_ADVANTAGE_PRODUCTS',
         'Kronokalkan',
         'Kart Değiştir',
-        'Zaman Dondur',
+        'Zamanı Dondur',
         'market_purchase',
         'purchaseJokerWithDiamonds',
         'DiamondTransaction',
         'JokerTransaction',
       ]);
       const forbidden = forbiddenTokens(marketPageSource, [
-        'subscription',
         'abonelik',
         'avatar',
         'cosmetic',
         'random_box',
         'loot',
-        'external payment',
+        'client-side grant',
       ]);
-      if (missing.length || forbidden.length) return fail('Mağaza Phase 1 boundary is missing or includes non-joker products.', {
+      if (missing.length || forbidden.length) return fail('Mağaza expanded catalog boundary is missing or can client-grant non-owned products.', {
         verification: 'STATIC_CONTRACT',
         actual: { missing, forbidden },
       });
-      return pass('Mağaza is active only for the three Solo joker purchases and remains separate from Profile ledger details.', { verification: 'STATIC_CONTRACT' });
+      return pass('Mağaza exposes expanded product sections while keeping joker grants server-owned through JokerTransaction/UserJokerInventory.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('market_purchase_increases_correct_joker_type_only',
-    'Market purchase increases the correct UserJokerInventory joker type only',
+    'Market purchase increases only configured UserJokerInventory joker grants',
     () => {
       const missing = missingTokens(purchaseJokerWithDiamondsSource, [
-        'const jokerType = normalizeJokerType(body?.jokerType || body?.joker_type)',
-        'const inventory = await findInventory(base44, email, jokerType)',
-        'const jokerAfter = jokerBefore + quantity',
+        'normalizeJokerGrants(product)',
+        'MARKET_DIAMOND_PRODUCTS',
+        'for (const [jokerType, quantity] of jokerEntries)',
+        'const after = before + quantity',
         'joker_type: jokerType',
-        'quantity: jokerAfter',
-        'quantity_delta: quantity',
+        'quantity: after',
+        'quantity_delta: grant.quantity',
       ]);
       const forbidden = forbiddenTokens(purchaseJokerWithDiamondsSource, [
-        'for (const jokerType of JOKER_TYPES) {\n    const inventory',
         'quantity: jokerAfter,\n      mistake_shield',
         'quantity: jokerAfter,\n      card_swap',
         'quantity: jokerAfter,\n      time_freeze',
       ]);
-      if (missing.length || forbidden.length) return fail('Market purchase may not be scoped to the purchased joker type.', {
+      if (missing.length || forbidden.length) return fail('Market purchase may grant joker types outside the configured product grant map.', {
         verification: 'STATIC_CONTRACT',
         file: 'base44/functions/purchaseJokerWithDiamonds/entry.ts',
         actual: { missing, forbidden },
       });
-      return pass('Market purchase finds/upserts only the purchased joker_type and writes a matching positive ledger delta.', { verification: 'STATIC_CONTRACT' });
+      return pass('Market purchase iterates only the product grant map and writes matching positive joker ledger deltas.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('joker_transaction_reasons_remain_distinct',
@@ -670,7 +671,7 @@ export const EXTRA_TESTS = [
     'Market-purchased jokers can appear in Profile and Solo joker bar',
     () => {
       const missing = missingTokens(`${marketPageSource}\n${profilePageSource}\n${soloJokerBarSource}\n${gameSource}`, [
-        'setBalances(nextBalances)',
+        'setBalances(normalizeJokerBalances(result.balances))',
         'Joker Çantası',
         'getUserJokerBalances(user, { ensureStarter: false, forceRefresh: jokerReloadKey > 0 })',
         'ensureStarterJokers(user, { forceEnsure: true, forceRefresh: jokerReloadKey > 0 })',
