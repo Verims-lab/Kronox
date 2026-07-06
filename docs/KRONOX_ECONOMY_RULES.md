@@ -145,6 +145,12 @@ Rules:
 * claim requires an authenticated user or a token-proven completed GuestProfile
 * one free claim per player per UTC server day
 * reward is selected server-side by `claimDailyWheelReward`
+* when a free spin is available and the daily auto-popup is eligible, Home
+  opens the full Daily Wheel modal after player and wheel state are resolved;
+  it must not open the old compact `Çark` / `Günlük Çark` / `Hazır!` card
+* manual Home `Çark` taps open the full Daily Wheel modal when a spin is
+  available, and open the read-only post-win result when today is already
+  claimed
 * UI animates to the backend-selected 8-slice segment
 * the spinning state stays inside the same premium popup/wheel shell and must
   not show a separate intermediate spinning-copy screen
@@ -158,7 +164,9 @@ Rules:
   sound/effects never continue after the wheel has visually stopped
 * celebration cues (confetti/glow, haptic, reward sound) and the result copy
   reveal only after the wheel visually stops (the landing animation completes)
-* spin timers, sound, and effects are cleaned up on close/unmount/error
+* spin timers, sound, confetti/glow, haptics, and effect callbacks are cleaned
+  up or ignored on close/unmount/error so no hidden overlay, delayed burst, or
+  second spin remains after returning Home
 * visual polish may improve wheel/icon quality but must not change reward
   mapping, segment order/size, pointer alignment, or the reduced `0.8` segment
   content scale (icons/numbers must not be enlarged)
@@ -166,10 +174,13 @@ Rules:
 * closing the auto-popup does not consume the free spin
 * after the free spin is used, the result screen is simplified: the wheel stays
   visible, one backend-payload reward line is shown below it, and the bottom
-  repeat ad-spin CTA is visible as a disabled ad/video `ÇEVİR` button; the old
-  total/streak/retry explanatory result texts are not shown
-* closing a completed reward result closes the Daily Wheel modal and returns directly to Home; it must not reveal the old `Çark` / `Günlük Çark`
-  countdown sheet behind the result
+  repeat ad-spin CTA is visible as a disabled, subdued ad/video `ÇEVİR`
+  control with smaller `Yakında` subtext; the old total/streak/retry
+  explanatory result texts are not shown
+* closing a completed reward result closes the Daily Wheel modal and returns
+  directly to usable Home; it must not reveal the old `Çark` / `Günlük Çark`
+  countdown sheet behind the result and must not leave an invisible backdrop
+  blocking Home buttons
 * if today's free spin is already claimed and the player manually opens
   `Çark` from Home, the read-only post-win result screen opens with the stored
   backend reward payload or a safe `Bugünkü ödül alındı` fallback; it does not
@@ -268,10 +279,11 @@ The result line uses the backend claim payload (`rewardType`, `rewardId`,
 not show old `Toplam`, `Toplam Elmas`, `Seri`, repeat-heading, or repeat
 explanation copy.
 
-The Home claimed-state countdown is card-only and must not show a Diamond icon
-next to the countdown. Use `Yarın hazır` or compact time text such as
-`11 sa 24 dk`. The old small claimed/cooldown popup is not part of the current
-Daily Wheel flow; claimed-day manual opens use the read-only result screen.
+Home claimed-day manual opens use the read-only result screen, not a countdown
+mini-card. Any embedded legacy launcher countdown outside the current Home flow
+must remain plain text if it is ever reused, with no Diamond icon beside the
+time. The old small claimed/cooldown popup is not part of the current Daily
+Wheel flow.
 
 Dedicated spin ledger:
 

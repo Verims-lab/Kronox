@@ -535,7 +535,7 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(`${dailyWheelHookSource}\n${dailyWheelCardSource}`, [
         'setLastResult(body)',
         'setShowResult(true)',
-        'getDailyWheelWonRewardLine(result, jokerRewards)',
+        'getDailyWheelWonRewardLine(displayResult, jokerRewards)',
         'DailyWheelWonRewardLine',
         'daily-wheel-simplified-result',
         'daily-wheel-result-reward-line',
@@ -548,7 +548,6 @@ export const EXTRA_TESTS = [
         'Tekrar şansını dene!',
         'Reklamla tekrar çevirme yakında.',
         'Reklam İzle ve Tekrar Çevir',
-        '>Yakında<',
       ]);
       if (missing.length || forbidden.length) {
         return fail('Daily Wheel claim success can drift away from the simplified result screen contract.', {
@@ -632,14 +631,14 @@ export const EXTRA_TESTS = [
       const oldSpinTitle = 'Çark ' + 'dönüyor...';
       const oldSpinSubtitle = 'Ödülün işaretçinin ' + 'altında duracak.';
       const missing = missingTokens(dailyWheelCardSource, [
-        '(wheel.showPrompt || wheel.showResult)',
-        'onClose={wheel.showResult ? handleResultClose : wheel.dismissPrompt}',
-        'const spinLocked = claiming || (hasReward && !revealReady)',
+        '(forceModalOpen || wheel.showPrompt || wheel.showResult)',
+        'onClose={modalCloseHandler}',
+        'const spinLocked = claiming || (hasReward && !readOnlyResult && !revealReady)',
         'disableClose={spinLocked}',
         'DailyWheelReadyTitle',
         'DailyWheelReadyActions claiming={spinLocked}',
         "const wheelPhase = isLanding ? 'landing' : 'idle'",
-        'highlightAmount={revealReady ? result.rewardId : null}',
+        'highlightAmount={revealReady ? displayResult?.rewardId : null}',
       ]);
       const forbidden = forbiddenTokens(dailyWheelCardSource, [
         oldSpinTitle,
@@ -665,7 +664,11 @@ export const EXTRA_TESTS = [
         'const handleResultClose = () => {',
         'wheel.closeResult();',
         'onResultClose?.();',
-        'onClose={wheel.showResult ? handleResultClose : wheel.dismissPrompt}',
+        'const modalCloseHandler = (forceModalOpen || wheel.showResult)',
+        'onClose={modalCloseHandler}',
+        'renderLauncher={false}',
+        'forceModalOpen',
+        'openAvailableResultOnMount',
         'openClaimedResultOnMount',
         'onResultClose={onClose}',
       ]);
@@ -681,7 +684,42 @@ export const EXTRA_TESTS = [
           actual: { missing, forbidden },
         });
       }
-      return pass('Completed result close dismisses the result and notifies the Home shortcut sheet to close, so the app returns directly to Home.', {
+      return pass('Completed result close dismisses the result and Home opens ready/claimed wheel states directly without the extra compact sheet.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('daily_wheel_home_shortcut_uses_full_modal_not_legacy_card',
+    'Home ÇARK shortcut opens the full Daily Wheel modal and cannot show the legacy mini card',
+    () => {
+      const modalStart = safeStr(mainMenuSource).indexOf('function HomeShortcutModal');
+      const modalSource = modalStart >= 0 ? safeStr(mainMenuSource).slice(modalStart) : '';
+      const wheelBranchStart = modalSource.indexOf('if (isWheel)');
+      const wheelBranchEnd = modalSource.indexOf('return (', wheelBranchStart);
+      const wheelBranch = wheelBranchStart >= 0 && wheelBranchEnd > wheelBranchStart
+        ? modalSource.slice(wheelBranchStart, wheelBranchEnd)
+        : '';
+      const missing = missingTokens(wheelBranch, [
+        'if (isWheel)',
+        'renderLauncher={false}',
+        'forceModalOpen',
+        'openAvailableResultOnMount',
+        'openClaimedResultOnMount',
+      ]);
+      const forbidden = forbiddenTokens(wheelBranch, [
+        'compact',
+        '<motion.div',
+        '<h2',
+        'DailyQuestV1Card',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Home ÇARK can still route through the old compact Günlük Çark / Hazır card instead of the full wheel modal.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['src/pages/MainMenu.jsx', 'src/components/dailyWheel/DailyWheelCard.jsx'],
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('Home ÇARK mounts the full Daily Wheel modal controller directly for loading, available, claimed, and error states; the compact mini-card branch is not reachable from Home.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
@@ -698,7 +736,7 @@ export const EXTRA_TESTS = [
         'const refreshedStatus = await refresh().catch(() => null);',
         'fallbackClaimedResult',
         'Bugünkü ödül alındı',
-        'result?.fallbackClaimedResult || result?.rewardId',
+        'displayResult?.fallbackClaimedResult || displayResult?.rewardId',
         'DailyWheelWonRewardLine',
         'DisabledAdSpinCta',
         'openClaimedResultOnMount',
@@ -726,7 +764,7 @@ export const EXTRA_TESTS = [
           actual: { missing, forbidden },
         });
       }
-      return pass('Already-claimed manual reopen reads cached/refreshed lastReward, falls back safely if old data lacks payload, and renders the same wheel + reward line + disabled ÇEVİR result screen without claiming again.', {
+      return pass('Already-claimed manual reopen reads cached/refreshed lastReward, falls back safely if old data lacks payload, and renders the same wheel + reward line + disabled future-repeat result screen without claiming again.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
@@ -829,8 +867,8 @@ export const EXTRA_TESTS = [
       ]);
       const runtimeMissing = missingTokens(`${dailyWheelCardSource}\n${dailyWheelRewardsSource}`, [
         'WHEEL_REWARD_SLICES = DAILY_WHEEL_REWARD_SEGMENTS',
-        'getWheelTargetRotation(result?.rewardSegmentIndex, prefersReducedMotion)',
-        'highlightAmount={revealReady ? result.rewardId : null}',
+        'getWheelTargetRotation(displayResult?.rewardSegmentIndex, prefersReducedMotion)',
+        'highlightAmount={revealReady ? displayResult?.rewardId : null}',
       ]);
       if (missing.length || runtimeMissing.length) {
         return fail('Daily Wheel visible slices can drift from the backend reward ID/segment index mapping.', {
@@ -852,7 +890,7 @@ export const EXTRA_TESTS = [
         'WHEEL_REDUCED_MOTION_DURATION_MS = 900',
         'WHEEL_SPIN_DURATION_SECONDS',
         'useReducedMotion',
-        'const spinLocked = claiming || (hasReward && !revealReady)',
+        'const spinLocked = claiming || (hasReward && !readOnlyResult && !revealReady)',
         'disableClose={spinLocked}',
         'DailyWheelReadyActions claiming={spinLocked}',
         'setRevealReady(true)',
@@ -913,7 +951,7 @@ export const EXTRA_TESTS = [
     'Daily Wheel sounds/ticks track the visible spin and celebration fires only when the wheel stops',
     () => {
       const missing = missingTokens(dailyWheelCardSource, [
-        'if (!hasReward) return undefined',
+        'if (!hasReward || readOnlyResult) return undefined',
         'sounds.wheelSpinStart?.()',
         'sounds.wheelTick?.()',
         // Ticks widen as the wheel decelerates (audio in step with rotation).
@@ -921,7 +959,7 @@ export const EXTRA_TESTS = [
         'const gap = 70 + (progress * progress * 290)',
         'const revealId = window.setTimeout(() => {',
         'setRevealReady(true)',
-        'fireDailyWheelConfetti(prefersReducedMotion)',
+        'fireDailyWheelConfetti(prefersReducedMotion, isActiveSession)',
         'window.navigator?.vibrate?.(28)',
         'sounds.rewardReveal?.()',
         // All timers cleaned up on close/unmount so no sound outlives the wheel.
@@ -949,12 +987,12 @@ export const EXTRA_TESTS = [
     'Daily Wheel spin lands on and reveals the backend reward payload',
     () => {
       const missing = missingTokens(dailyWheelCardSource, [
-        'getWheelTargetRotation(result?.rewardSegmentIndex, prefersReducedMotion)',
-        'highlightAmount={revealReady ? result.rewardId : null}',
-        'getDailyWheelWonRewardLine(result, jokerRewards)',
-        'result?.rewardAmount',
-        'result.rewardId',
-        'result?.rewardSegmentIndex',
+        'getWheelTargetRotation(displayResult?.rewardSegmentIndex, prefersReducedMotion)',
+        'highlightAmount={revealReady ? displayResult?.rewardId : null}',
+        'getDailyWheelWonRewardLine(displayResult, jokerRewards)',
+        'displayResult?.rewardAmount',
+        'displayResult?.rewardId',
+        'displayResult?.rewardSegmentIndex',
         'getDailyWheelSegmentById(rewardId)',
         'formatDailyWheelJokerLabel(jokerType)',
         'Hediye Kutusu',
@@ -1001,8 +1039,12 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(`${dailyWheelCardSource}\n${DAILY_WHEEL_BACKEND_HEALTH_SOURCE}\n${economyRulesSource}`, [
         'DisabledAdSpinCta',
         'daily-wheel-disabled-ad-spin-cta',
-        '<Play className="h-5 w-5',
+        'RewardedVideoIcon',
         '<span>ÇEVİR</span>',
+        'Yakında',
+        'text-[10px]',
+        'tracking-[0.18em]',
+        'text-slate-300',
         'aria-disabled="true"',
         'Reklam entegrasyonu yakında. Şu anda tekrar çevirme devre dışı.',
         'noFakeAdRewardFlow',
@@ -1024,7 +1066,6 @@ export const EXTRA_TESTS = [
         'Tekrar şansını dene!',
         'Reklamla tekrar çevirme yakında.',
         'Reklam İzle ve Tekrar Çevir',
-        '>Yakında<',
       ]);
       if (missing.length || ctaForbidden.length || forbidden.length) {
         return fail('Daily Wheel repeat ad CTA can look active or add a fake ad reward path.', {
@@ -1033,7 +1074,37 @@ export const EXTRA_TESTS = [
           actual: { missing, ctaForbidden, forbidden },
         });
       }
-      return pass('Repeat spin ad CTA is disabled, shows the ad/video icon plus ÇEVİR, and has no fake reward flow.', { verification: 'STATIC_CONTRACT' });
+      return pass('Repeat spin ad CTA is disabled, visually subdued, keeps ÇEVİR as the main label with small Yakında subtext, and has no fake reward flow.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('daily_wheel_result_close_cancels_stale_effect_callbacks',
+    'Daily Wheel close cancels or ignores stale result effects and leaves no hidden overlay',
+    () => {
+      const missing = missingTokens(dailyWheelCardSource, [
+        'effectSessionRef',
+        'isActiveSession',
+        'stopDailyWheelConfetti',
+        'dailyWheelConfettiInstance?.reset?.()',
+        'forceModalOpen',
+        'handleModalClose',
+        'effectSessionRef.current += 1',
+        'timers.forEach((id) => window.clearTimeout(id))',
+        'return resultModal ? <>{resultModal}</> : null;',
+      ]);
+      const forbidden = forbiddenTokens(dailyWheelCardSource, [
+        'setTimeout(() => onClose',
+        'setTimeout(onClose',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Daily Wheel close can still leave stale timers/confetti or an invisible modal path after result close.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'src/components/dailyWheel/DailyWheelCard.jsx',
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('Daily Wheel result close invalidates the active effect session, clears timers/confetti, and the Home shortcut unmounts the modal instead of leaving a hidden overlay.', {
+        verification: 'STATIC_CONTRACT',
+      });
     }),
 
   makeCase('daily_wheel_sound_safe_existing_infrastructure',

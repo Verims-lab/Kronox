@@ -527,9 +527,29 @@ function HomeCTA({ variant, label, primaryLabel, secondaryLabel, onClick, ariaLa
 function HomeShortcutModal({ activeShortcut, user, guestProfile, onClose, onUserUpdated }) {
   const isWheel = activeShortcut === 'wheel';
   const isQuests = activeShortcut === 'quests';
+  if (isWheel) {
+    return (
+      <AnimatePresence>
+        {isWheel && (
+          <DailyWheelCard
+            key="home-wheel-direct"
+            user={user}
+            guestProfile={guestProfile}
+            onUserUpdated={onUserUpdated}
+            renderLauncher={false}
+            forceModalOpen
+            openAvailableResultOnMount
+            openClaimedResultOnMount
+            onResultClose={onClose}
+          />
+        )}
+      </AnimatePresence>
+    );
+  }
+
   return (
     <AnimatePresence>
-      {(isWheel || isQuests) && (
+      {isQuests && (
         <motion.div
           className="fixed inset-0 z-[140] flex items-center justify-center bg-slate-950/58 px-4 py-6 backdrop-blur-sm"
           initial={{ opacity: 0 }}
@@ -537,7 +557,7 @@ function HomeShortcutModal({ activeShortcut, user, guestProfile, onClose, onUser
           exit={{ opacity: 0 }}
           role="dialog"
           aria-modal="true"
-          aria-label={isWheel ? 'Çark' : 'Görevler'}
+          aria-label="Görevler"
           onClick={onClose}
         >
           <motion.div
@@ -556,7 +576,7 @@ function HomeShortcutModal({ activeShortcut, user, guestProfile, onClose, onUser
             }}
           >
             <div className="mb-3 flex items-center justify-between gap-3">
-              <h2 className="font-inter text-sm font-black text-white">{isWheel ? 'Çark' : 'Görevler'}</h2>
+              <h2 className="font-inter text-sm font-black text-white">Görevler</h2>
               <button
                 type="button"
                 onClick={onClose}
@@ -567,22 +587,11 @@ function HomeShortcutModal({ activeShortcut, user, guestProfile, onClose, onUser
                 <X className="h-4 w-4" strokeWidth={2.4} />
               </button>
             </div>
-            {isWheel ? (
-              <DailyWheelCard
-                user={user}
-                guestProfile={guestProfile}
-                onUserUpdated={onUserUpdated}
-                compact
-                openClaimedResultOnMount
-                onResultClose={onClose}
-              />
-            ) : (
-              <DailyQuestV1Card
-                user={user}
-                guestProfile={guestProfile}
-                onUserUpdated={onUserUpdated}
-              />
-            )}
+            <DailyQuestV1Card
+              user={user}
+              guestProfile={guestProfile}
+              onUserUpdated={onUserUpdated}
+            />
           </motion.div>
         </motion.div>
       )}
