@@ -1,22 +1,21 @@
-// Kronox Health Center — Daily Quest canonical runtime/template contracts.
+// Kronox Health Center — Daily Calendar definition/cleanup boundary.
 //
-// Scope: the current Daily Quest model is code-owned runtime progress, not an
-// Admin Ekranı definition manager. Legacy DailyQuestDefinition rows/functions
-// may remain for historical/manual cleanup paths, but runtime must ignore them
-// to prevent duplicate/empty DB definition bloat.
+// Scope: active Daily runtime is code-owned Daily Calendar/Streak. Legacy
+// DailyQuestDefinition rows can exist only for historical/admin cleanup paths
+// and must never drive the runtime UI or task assignment.
 
-import profilePageSource from '../../pages/ProfilePage.jsx?raw';
 import adminPageSource from '../../pages/AdminPage.jsx?raw';
 import appSource from '../../App.jsx?raw';
 import dailyQuestGatewaySource from '../../lib/dbGateway/dailyQuestGateway.js?raw';
+import dailyCalendarSource from '../../lib/dailyCalendar.js?raw';
 import dailyQuestEntitySource from '../../../base44/entities/DailyQuestDefinition.jsonc?raw';
 import dailyQuestProgressEntitySource from '../../../base44/entities/UserDailyQuestProgress.jsonc?raw';
+import diamondTransactionEntitySource from '../../../base44/entities/DiamondTransaction.jsonc?raw';
 import getDailyQuestStatusSource from '../../../base44/functions/getDailyQuestStatus/entry.ts?raw';
 import recordDailyQuestProgressSource from '../../../base44/functions/recordDailyQuestProgress/entry.ts?raw';
 import claimDailyQuestRewardSource from '../../../base44/functions/claimDailyQuestReward/entry.ts?raw';
+import cleanupLegacyDailyQuestsSource from '../../../base44/functions/cleanupLegacyDailyQuests/entry.ts?raw';
 import createDailyQuestDefinitionSource from '../../../base44/functions/createDailyQuestDefinition/entry.ts?raw';
-import dailyWheelFunctionSource from '../../../base44/functions/claimDailyWheelReward/entry.ts?raw';
-import gameSource from '../../pages/Game.jsx?raw';
 import {
   RELEASE_PROOF_CHECKLIST_DOC as releaseProofSource,
   SECURITY_DEPLOYMENT_DOC as securitySource,
@@ -58,370 +57,227 @@ function makeCase(id, name, run, options = {}) {
     name,
     critical: options.critical ?? true,
     actionType: options.actionType || ACTION_TYPES.CODE_FIX,
-    nextStep: options.nextStep || 'Keep Daily Quest Runtime v1 code-owned, Solo-completion-only, Diamond-only, and independent from legacy definition rows.',
+    nextStep: options.nextStep || 'Keep Daily Calendar/Streak code-owned and keep legacy definitions cleanup-only.',
     ...options,
     run,
   };
 }
 
 const docsCombined = `${releaseProofSource}\n${dbArchitectureSource}\n${securitySource}\n${soloEngineDocSource}`;
-const runtimeSources = `${dailyQuestGatewaySource}\n${getDailyQuestStatusSource}\n${recordDailyQuestProgressSource}\n${claimDailyQuestRewardSource}`;
-const definitionBoundarySources = `${dailyQuestEntitySource}\n${dailyQuestGatewaySource}\n${createDailyQuestDefinitionSource}\n${docsCombined}`;
-const adminMountSources = `${profilePageSource}\n${adminPageSource}\n${appSource}`;
+const runtimeSources = `${dailyCalendarSource}\n${dailyQuestGatewaySource}\n${getDailyQuestStatusSource}\n${recordDailyQuestProgressSource}\n${claimDailyQuestRewardSource}`;
 
 export const EXTRA_SUITES = [
   { id: SUITE_ID, name: SUITE_NAME, critical: true, color: '#38bdf8' },
 ];
 
 export const EXTRA_TESTS = [
-  makeCase('entity_exists',
-    'Daily Quest no longer depends on active DB definition rows',
+  makeCase('legacy_definition_entity_is_cleanup_only',
+    'DailyQuestDefinition is legacy/admin-only and ignored by active runtime',
     () => {
-      const missing = missingTokens(`${definitionBoundarySources}\n${runtimeSources}`, [
-        'DailyQuestDefinition (legacy/admin-only; runtime ignores definition rows)',
-        '"name": "DailyQuestDefinition"',
-        'Legacy/admin-only Daily Quest template definitions',
+      const missing = missingTokens(`${dailyQuestEntitySource}\n${dailyQuestGatewaySource}\n${docsCombined}`, [
+        'DailyQuestDefinition',
+        'legacy/admin-only',
+        'new Daily Calendar runtime ignores definition rows',
         'adminDefinitionRowsIgnoredAtRuntime: true',
-        'definitionRowsIgnoredAtRuntime: true',
-        "seedMode: 'code_canonical_no_definition_seed'",
+        'definitionRowsIgnoredAtRuntime',
+        'cleanupLegacyDailyQuests',
       ]);
       const forbidden = forbiddenTokens(getDailyQuestStatusSource, [
-        'ensureDefaultDefinitions(base44)',
+        'ensureDefaultDefinitions',
+        'DailyQuestDefinition.create',
         "filter({ status: 'active' }",
-        "created_by: 'system:daily_quest_runtime_seed'",
       ]);
       if (missing.length || forbidden.length) {
-        return fail('Daily Quest runtime can still depend on active DailyQuestDefinition rows or seed DB bloat.', {
+        return fail('DailyQuestDefinition can still drive or seed runtime assignments.', {
           verification: 'STATIC_CONTRACT',
-          files: [
-            'src/lib/dbGateway/dailyQuestGateway.js',
-            'base44/functions/getDailyQuestStatus/entry.ts',
-            'base44/entities/DailyQuestDefinition.jsonc',
-          ],
           actual: { missing, forbidden },
         });
       }
-      return pass('Legacy DailyQuestDefinition is documented as non-runtime while getDailyQuestStatus uses the code-owned canonical quest.', { verification: 'STATIC_CONTRACT' });
+      return pass('DailyQuestDefinition remains documented for historical cleanup only; runtime ignores definition rows.', { verification: 'STATIC_CONTRACT' });
     }),
 
-  makeCase('schema_core_fields_exist',
-    'Canonical runtime template has explicit logic and reward fields',
+  makeCase('new_template_cycle_is_code_owned',
+    'New Daily task definitions are centralized in the code-owned 9-day cycle',
     () => {
-      const missing = missingTokens(`${dailyQuestGatewaySource}\n${getDailyQuestStatusSource}\n${dailyQuestProgressEntitySource}`, [
-        'DAILY_QUEST_DEFINITION_CONTRACT',
-        'canonicalQuestKey',
-        'canonicalQuestType',
-        'canonicalTitle',
-        'canonicalDescription',
-        'solo_level_completion_only',
-        'quest_type',
-        'target_value',
-        'reward_diamonds',
+      const missing = missingTokens(`${dailyCalendarSource}\n${dailyQuestGatewaySource}`, [
+        'DAILY_TASK_TEMPLATE_CYCLE',
+        'DAILY_CALENDAR_TEMPLATE_CYCLE_LENGTH = 9',
+        'DAILY_CALENDAR_TASKS_PER_DAY = 3',
+        'daily_wheel_claim',
         'solo_level_complete',
-        'Solo’da Seviye Geç',
-        'Bugün 1 Solo seviyesini tamamla.',
-        'target_value: 1',
-        'reward_diamonds: 20',
-      ]);
-      if (missing.length) {
-        return fail('Canonical Daily Quest runtime template contract is incomplete.', {
-          verification: 'STATIC_CONTRACT',
-          files: ['src/lib/dbGateway/dailyQuestGateway.js', 'base44/functions/getDailyQuestStatus/entry.ts'],
-          missing,
-        });
-      }
-      return pass('Daily Quest Runtime v1 exposes a single canonical Solo completion template with explicit target/reward fields.', { verification: 'STATIC_CONTRACT' });
-    }),
-
-  makeCase('supported_quest_type_enum',
-    'Supported active quest_type enum is Solo level completion only',
-    () => {
-      const missing = missingTokens(`${dailyQuestGatewaySource}\n${getDailyQuestStatusSource}\n${recordDailyQuestProgressSource}`, [
-        'DAILY_QUEST_V1_TYPES',
-        "'solo_level_complete'",
-        'QUEST_TYPES',
-        'normalizeQuestType',
-        'unsupported_daily_quest_event',
-      ]);
-      if (missing.length) {
-        return fail('Daily Quest active enum can drift away from Solo level completion only.', {
-          verification: 'STATIC_CONTRACT',
-          actual: { missing },
-        });
-      }
-      return pass('Daily Quest Runtime v1 supports only solo_level_complete as the active executable quest type.', { verification: 'STATIC_CONTRACT' });
-    }),
-
-  makeCase('title_description_display_only',
-    'title/description are display-only',
-    () => {
-      const missing = missingTokens(`${dailyQuestGatewaySource}\n${dailyQuestProgressEntitySource}\n${docsCombined}`, [
-        'Display-only',
-        'title',
-        'description',
-        'textIsNeverParsedIntoLogic',
+        'consecutive_correct_4',
+        'joker_used',
+        'time_freeze_joker_used',
+        'jokerless_solo_level_complete',
+        'profile_complete',
+        'correct_answer',
+        'friend_invite_sent',
+        'friend_added',
+        'textIsNeverParsedIntoLogic: true',
         'quest_type + target_value',
       ]);
-      if (missing.length) return fail('Daily Quest display copy boundary is not explicit.', { verification: 'STATIC_CONTRACT', missing });
-      return pass('Daily Quest copy is display-only; executable logic is carried by quest_type + target_value.', { verification: 'STATIC_CONTRACT' });
-    }),
-
-  makeCase('text_is_not_parsed_into_logic',
-    'Daily Quest text is not parsed into executable logic',
-    () => {
-      const required = [
-        'textIsNeverParsedIntoLogic',
-        'noRegexParser',
-        'noAiParser',
-        'noNlpParser',
-        'noArbitraryScripts',
-        'quest_type + target_value',
-      ];
-      const forbidden = [
+      const forbidden = forbiddenTokens(runtimeSources, [
         'parseQuestText',
         'interpretQuestText',
         'eval(',
         'new Function',
-        'openai',
         'gpt',
         'nlpParse',
-      ];
-      const missing = missingTokens(`${dailyQuestGatewaySource}\n${docsCombined}`, required);
-      const foundForbidden = forbiddenTokens(runtimeSources, forbidden);
-      if (missing.length || foundForbidden.length) {
-        return fail('Daily Quest text may become executable or the no-parser contract is missing.', {
-          verification: 'STATIC_CONTRACT',
-          actual: { missing, foundForbidden },
-        });
-      }
-      return pass('Daily Quest runtime uses explicit enum/target fields and has no text/AI/NLP parser path.', { verification: 'STATIC_CONTRACT' });
-    }),
-
-  makeCase('reward_is_diamonds_only',
-    'Daily Quest reward is Diamonds only',
-    () => {
-      const missing = missingTokens(`${runtimeSources}\n${dailyQuestProgressEntitySource}\n${docsCombined}`, [
-        'reward_diamonds',
-        'daily_quest_reward',
-        'Diamonds only',
-        'does not grant Kronox Puan',
-      ]);
-      const forbidden = forbiddenTokens(runtimeSources, [
-        'reward_puan',
-        'kronox_puan_reward',
-        'puan_reward',
-        'leaderboard_delta',
       ]);
       if (missing.length || forbidden.length) {
-        return fail('Daily Quest can drift away from Diamonds-only rewards.', {
+        return fail('New Daily templates can drift back to DB/free-text parser behavior.', {
           verification: 'STATIC_CONTRACT',
           actual: { missing, forbidden },
         });
       }
-      return pass('Daily Quest Runtime v1 grants Diamonds only through daily_quest_reward.', { verification: 'STATIC_CONTRACT' });
+      return pass('Daily task templates are explicit code-owned event contracts, not DB/free-text logic.', { verification: 'STATIC_CONTRACT' });
     }),
 
-  makeCase('no_kronox_puan_or_leaderboard_impact',
-    'Daily Quest does not grant Kronox Puan or affect leaderboard',
+  makeCase('progress_schema_supports_calendar_tasks',
+    'UserDailyQuestProgress schema supports Daily Calendar rows and zero per-task rewards',
     () => {
-      const missing = missingTokens(`${runtimeSources}\n${docsCombined}`, [
-        'noKronoxPuan',
-        'noLeaderboardImpact',
-        'does not grant Kronox Puan',
-        'does not affect leaderboard',
+      const missing = missingTokens(dailyQuestProgressEntitySource, [
+        '"name": "UserDailyQuestProgress"',
+        'Daily Calendar/Streak v1',
+        'daily_calendar:*',
+        '"daily_wheel_claim"',
+        '"solo_level_complete"',
+        '"consecutive_correct_4"',
+        '"joker_used"',
+        '"time_freeze_joker_used"',
+        '"jokerless_solo_level_complete"',
+        '"profile_complete"',
+        '"correct_answer"',
+        '"friend_invite_sent"',
+        '"friend_added"',
+        '"reward_diamonds"',
+        '"minimum": 0',
+        '"idempotency_key"',
       ]);
-      const forbidden = forbiddenTokens(runtimeSources, [
-        'kronox_puan_total',
-        'total_kronox_score',
-        'SoloLeaderboardEntry',
-        'levelScore',
+      if (missing.length) {
+        return fail('UserDailyQuestProgress schema lacks the new Daily Calendar task/event contract.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'base44/entities/UserDailyQuestProgress.jsonc',
+          missing,
+        });
+      }
+      return pass('UserDailyQuestProgress supports 3 Daily Calendar rows/day, event task types, and zero per-task Diamond rewards.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('streak_reward_schema_and_claim_source',
+    'DiamondTransaction supports the Daily Calendar streak reward source',
+    () => {
+      const missing = missingTokens(`${diamondTransactionEntitySource}\n${claimDailyQuestRewardSource}`, [
+        '"daily_calendar_streak_reward"',
+        'Daily Calendar 7-day Gift Box claims write daily_calendar_streak_reward',
+        'DAILY_STREAK_REWARD_DIAMONDS = 200',
+        'source: DAILY_CALENDAR_REWARD_SOURCE',
+        "direction: 'earn'",
+        'clientRewardIgnored: true',
+        'noKronoxPuan: true',
+        'noLeaderboardImpact: true',
+      ]);
+      if (missing.length) {
+        return fail('Daily Calendar streak reward ledger/schema source is incomplete.', {
+          verification: 'STATIC_CONTRACT',
+          missing,
+        });
+      }
+      return pass('Gift Box reward has a dedicated DiamondTransaction source and server-side 200-Diamond claim path.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('legacy_cleanup_function_safe_scope',
+    'Legacy cleanup function is admin-gated, dry-run by default, and scoped to legacy daily quest data',
+    () => {
+      const missing = missingTokens(cleanupLegacyDailyQuestsSource, [
+        'cleanupLegacyDailyQuests',
+        'requireAdmin',
+        'AdminUser',
+        "mode: 'dry_run'",
+        'DELETE_LEGACY_DAILY_QUESTS',
+        'legacyDefinitionRows',
+        'legacyProgressRows',
+        'daily_calendar:',
+        'protectedEntities',
+        'DailyWheelSpin',
+        'DiamondTransaction',
+        'UserJokerInventory',
+        'Friendship',
+      ]);
+      const forbidden = forbiddenTokens(cleanupLegacyDailyQuestsSource, [
+        'User.delete',
+        'GuestProfile.delete',
+        'DiamondTransaction.delete',
+        'DailyWheelSpin.delete',
+        'Friendship.delete',
       ]);
       if (missing.length || forbidden.length) {
-        return fail('Daily Quest runtime can affect Puan/leaderboard.', {
+        return fail('Legacy Daily Quest cleanup can delete broad data or lacks dry-run/admin safeguards.', {
           verification: 'STATIC_CONTRACT',
+          file: 'base44/functions/cleanupLegacyDailyQuests/entry.ts',
           actual: { missing, forbidden },
         });
       }
-      return pass('Daily Quest Runtime v1 is disconnected from Kronox Puan and leaderboard writes.', { verification: 'STATIC_CONTRACT' });
+      return pass('cleanupLegacyDailyQuests provides the required dry-run/delete path without touching unrelated systems.', { verification: 'STATIC_CONTRACT' });
     }),
 
-  makeCase('admin_ui_removed_from_admin_page',
-    'Daily Quest admin monitor/add UI is not mounted in Admin Ekranı',
-    () => {
-      const missing = missingTokens(adminMountSources, [
-        'Admin Ekranı',
-        "navigate('/admin')",
-        'path="/admin"',
-        'const isAdmin = parsedAdminStatus',
-        'if (!isAdmin)',
-        'QuestionAnalyticsReportTool',
-        'ResetUserProgressTool',
-        'PullToRefresh',
-      ]);
-      const forbidden = forbiddenTokens(adminPageSource, [
-        "import DailyQuestDefinitionManager",
-        '<DailyQuestDefinitionManager />',
-        'Günlük Görev Yönetimi',
-        'questTypeOptions',
-        'statusOptions',
-      ]);
-      if (missing.length || forbidden.length) {
-        return fail('Admin Ekranı either lost its gate/tools or restored removed Daily Quest manager UI.', {
-          verification: 'STATIC_CONTRACT',
-          actual: { missing, forbidden },
-        });
-      }
-      return pass('Admin Ekranı remains gated and does not mount Daily Quest monitor/add UI.', { verification: 'STATIC_CONTRACT' });
-    }),
-
-  makeCase('legacy_definition_backend_guarded_not_runtime_ui',
-    'Legacy definition callable remains guarded and outside runtime UI',
+  makeCase('legacy_definition_callable_guarded_not_runtime_ui',
+    'Old definition callable remains AdminUser-guarded and unmounted from runtime/Admin UI',
     () => {
       const missing = missingTokens(createDailyQuestDefinitionSource, [
         'requireAdmin(base44)',
         'asServiceRole?.entities?.AdminUser',
         "value === 'owner' || value === 'admin'",
-        'isActiveStatus',
-        'Admin yetkisi gerekli.',
       ]);
-      const forbidden = forbiddenTokens(`${adminPageSource}\n${getDailyQuestStatusSource}\n${recordDailyQuestProgressSource}`, [
-        '<DailyQuestDefinitionManager />',
-        'listDailyQuestDefinitions',
-        'createDailyQuestDefinition',
-        'ensureSeedDefinitions(',
+      const forbidden = forbiddenTokens(`${adminPageSource}\n${appSource}\n${runtimeSources}`, [
+        '<DailyQuestDefinitionManager',
+        'Günlük Görev Yönetimi',
+        'listDailyQuestDefinitions()',
+        'seedDailyQuestDefinitions(',
       ]);
       if (missing.length || forbidden.length) {
-        return fail('Legacy definition callable can leak into runtime/Admin UI or lose AdminUser guard.', {
+        return fail('Legacy definition tools can leak into runtime or lose admin guard.', {
           verification: 'STATIC_CONTRACT',
           actual: { missing, forbidden },
         });
       }
-      return pass('Legacy definition callable is AdminUser-guarded and not used by runtime or mounted Admin UI.', { verification: 'STATIC_CONTRACT' });
+      return pass('Legacy definition callable is still guarded, while active runtime/Admin UI does not mount old definition management.', { verification: 'STATIC_CONTRACT' });
     }),
 
-  makeCase('duplicate_definitions_grouped_and_warned',
-    'Runtime ignores duplicate DailyQuestDefinition rows instead of creating or deleting them',
+  makeCase('docs_state_replacement_not_parallel_runtime',
+    'Docs state that legacy Daily Quest was replaced, not run in parallel',
     () => {
-      const missing = missingTokens(`${runtimeSources}\n${docsCombined}`, [
-        'definitionRowsIgnoredAtRuntime: true',
-        "seedMode: 'code_canonical_no_definition_seed'",
-        'duplicate/empty DB definition',
-        'manual cleanup',
+      const missing = missingTokens(docsCombined, [
+        'legacy Daily Quest',
+        'replaced by Daily Calendar / Streak',
+        'Home GÜNLÜK shortcut',
+        'cleanupLegacyDailyQuests',
+        'daily_calendar_streak_reward',
+        '200 Diamonds',
       ]);
-      const forbidden = forbiddenTokens(getDailyQuestStatusSource, [
-        'deleteDailyQuestDefinition',
-        '.delete(',
-        'autoDeleteDuplicates',
-        'ensureSeedDefinitions(',
-        'DailyQuestDefinition.create',
-      ]);
-      if (missing.length || forbidden.length) {
-        return fail('Daily Quest runtime may create/delete definition rows or hide duplicate-definition bloat.', {
-          verification: 'STATIC_CONTRACT',
-          actual: { missing, forbidden },
-        });
-      }
-      return pass('Runtime ignores stale/duplicate definition rows, creates no definition rows on app open, and leaves cleanup manual.', { verification: 'STATIC_CONTRACT' });
-    }),
-
-  makeCase('runtime_progress_contract_documented_separate',
-    'UserDailyQuestProgress runtime contract is documented separately from templates',
-    () => {
-      const missing = missingTokens(`${runtimeSources}\n${dailyQuestProgressEntitySource}\n${docsCombined}`, [
-        'UserDailyQuestProgress',
+      const forbidden = forbiddenTokens(docsCombined, [
         'Daily Quest Runtime v1 is active',
-        'daily_quest_reward',
-        'one claim per quest per UTC day',
-        'claimDailyQuestReward',
-      ]);
-      const activeProgressEntity = safeStr(dailyQuestProgressEntitySource).includes('"name": "UserDailyQuestProgress"');
-      const definitionMixedProgressEntity = safeStr(dailyQuestEntitySource).includes('"name": "UserDailyQuestProgress"');
-      if (missing.length || !activeProgressEntity || definitionMixedProgressEntity) {
-        return fail('Runtime progress/claim contract is missing or mixed into DailyQuestDefinition.', {
-          verification: 'STATIC_CONTRACT',
-          actual: { missing, activeProgressEntity, definitionMixedProgressEntity },
-        });
-      }
-      return pass('User progress/claim is active in UserDailyQuestProgress and remains separate from legacy templates.', { verification: 'STATIC_CONTRACT' });
-    }),
-
-  makeCase('daily_wheel_remains_separate',
-    'Daily Wheel remains separate from Daily Quest runtime',
-    () => {
-      const missing = missingTokens(`${docsCombined}\n${dailyWheelFunctionSource}`, [
-        'Daily Wheel remains separate from Daily Quest definitions',
-        'daily_wheel:<playerKey>:<YYYY-MM-DD>',
+        'Home Görevler Daily Quest copy is',
         'daily_quest_reward:<playerKey>:<YYYY-MM-DD>:<quest_key>',
       ]);
-      const forbidden = forbiddenTokens(`${getDailyQuestStatusSource}\n${recordDailyQuestProgressSource}\n${claimDailyQuestRewardSource}`, [
-        'DailyWheelSpin',
-        'claimDailyWheelReward',
-        'daily_wheel_last_claim_date',
-      ]);
       if (missing.length || forbidden.length) {
-        return fail('Daily Quest runtime can conflict with Daily Wheel state.', {
+        return fail('Docs still imply old Daily Quest runtime is active or omit cleanup/replacement contract.', {
           verification: 'STATIC_CONTRACT',
           actual: { missing, forbidden },
         });
       }
-      return pass('Daily Quest runtime is separate from Daily Wheel fields and claim function.', { verification: 'STATIC_CONTRACT' });
-    }),
-
-  makeCase('market_and_joker_inventory_unaffected',
-    'Mağaza and Solo joker inventory remain unaffected',
-    () => {
-      const forbidden = forbiddenTokens(runtimeSources, [
-        'purchaseJokerWithDiamonds',
-        'JokerTransaction',
-        'UserJokerInventory',
-        'market_purchase',
-      ]);
-      if (forbidden.length) {
-        return fail('Daily Quest runtime can affect Mağaza/Joker inventory contracts.', {
-          verification: 'STATIC_CONTRACT',
-          actual: { forbidden },
-        });
-      }
-      return pass('Daily Quest runtime does not touch Mağaza or Joker inventory paths.', { verification: 'STATIC_CONTRACT' });
-    }),
-
-  makeCase('solo_runtime_uses_separate_progress_function',
-    'Solo runtime progress uses the separate Daily Quest runtime function',
-    () => {
-      const missing = missingTokens(`${gameSource}\n${recordDailyQuestProgressSource}`, [
-        'recordDailyQuestProgress',
-        "recordDailyQuestSoloEvent('solo_level_complete'",
-        "questType: 'solo_level_complete'",
-        'passed: true',
-      ]);
-      const forbidden = forbiddenTokens(gameSource, [
-        'DailyQuestDefinition',
-        'createDailyQuestDefinition',
-        'daily_quest_reward',
-        "eventType: 'start_solo_attempt'",
-        "recordDailyQuestSoloEvent('correct_cards'",
-        "recordDailyQuestSoloEvent('complete_solo_level'",
-        "recordDailyQuestSoloEvent('use_joker'",
-      ]);
-      if (missing.length || forbidden.length) {
-        return fail('Solo runtime Daily Quest wiring can mix definition/admin/claim concerns.', {
-          verification: 'STATIC_CONTRACT',
-          file: 'src/pages/Game.jsx',
-          actual: { missing, forbidden },
-        });
-      }
-      return pass('Solo runtime records progress through recordDailyQuestProgress and does not touch definition/admin/claim internals.', { verification: 'STATIC_CONTRACT' });
+      return pass('Docs describe the Daily Calendar replacement and scoped legacy cleanup path.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('runtime_no_definition_bloat_proof_manual',
-    'Runtime DB definition-bloat proof remains manual',
+    'Legacy definition cleanup/live DB proof remains manual',
     () => notAutomatable(
-      'Static Health verifies runtime no longer reads/seeds DailyQuestDefinition rows. Live proof still requires opening Home with stale duplicate definition rows present and confirming getDailyQuestStatus creates/returns only one UserDailyQuestProgress row without creating DailyQuestDefinition rows.',
+      'Static Health verifies runtime ignores old DailyQuestDefinition rows and cleanupLegacyDailyQuests is scoped. Live proof still requires admin dry-run counts and, after explicit approval, production cleanup execution in Base44.',
       {
         verification: 'BACKEND_RUNTIME_PROBE',
         actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE,
-        nextStep: 'In deployed Base44, keep duplicate legacy DailyQuestDefinition rows, open Home, then verify no new definition rows are created and only the canonical solo_level_complete progress row is active.',
+        nextStep: 'Run cleanupLegacyDailyQuests dry_run in Base44 Admin, verify counts, then use DELETE_LEGACY_DAILY_QUESTS only for legacy Daily Quest rows.',
       },
     ),
-    { critical: true, actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, runtimeProofRequired: true }),
+    { critical: false, actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, runtimeProofRequired: true }),
 ];

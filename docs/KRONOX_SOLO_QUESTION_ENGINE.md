@@ -411,38 +411,31 @@ Inventory foundation:
   `UserJokerInventory`/`JokerTransaction` entity fallback, and returns safe
   user-facing errors without changing scoring, timer, deck order, or Online
 
-## Daily Quest Runtime V1
+## Daily Calendar / Streak
 
-Daily Quest Runtime v1 is Solo-completion focused:
-- `UserDailyQuestProgress` tracks 1 canonical user/day quest per UTC day
-- the canonical quest is `solo_level_complete`
-- Home copy is `Solo’da Seviye Geç` / `Bugün 1 Solo seviyesini tamamla.`
-- the target is 1 successful Solo level completion and the reward is 20 Diamonds
-- runtime ignores stale/duplicate `DailyQuestDefinition` rows and does not seed
-  definition rows on Home/app open
-- `getDailyQuestStatus` is authenticated but not admin-only, and preserves
-  newly created progress rows if an immediate Base44 refresh is stale
-- loading or ensuring today’s quests does not grant Diamonds;
-  `claimDailyQuestReward` remains the only reward path
-- completing progress alone does not grant Diamonds; completed and unclaimed
-  quests expose the `Al` claim action
-- Home Daily Quest copy is `Günlük Görevleri Yap, Elmasları Kazan!`
-- Solo progress is measured only by successful `solo_level_complete`
-- Solo start/open, failed, abandoned, correct-card, and joker-use events do not
-  progress the Daily Quest
-- `reward_diamonds` is the only reward field; Daily Quest does not grant
-  Kronox Puan and does not affect leaderboard
-- Daily Quest does not grant Kronox Puan and has no leaderboard impact
-- Daily Quest grants diamonds only through `claimDailyQuestReward`
-- `claimDailyQuestReward` writes `DiamondTransaction.source = daily_quest_reward`
-  updates visible `User.diamonds`, returns `diamondBalanceAfter`, marks the row
-  claimed, and blocks duplicate claims
-- `getDailyQuestStatus`, `recordDailyQuestProgress`, and
-  `claimDailyQuestReward` explicitly bind `UserDailyQuestProgress` in their
-  Base44 runtime functions
-- one claim per quest per UTC day is enforced by progress status and the
-  `daily_quest_reward` idempotency key
-- `daily_quest_last_claim_date` and `daily_quest_next_available_at` are User
+The legacy Solo-only Daily Quest runtime is replaced by Daily Calendar /
+Streak:
+
+- Home uses the `GÜNLÜK` calendar shortcut to open `/daily`; it is not a
+  BottomNav item.
+- `UserDailyQuestProgress` stores 3 `daily_calendar:*` task rows per UTC server
+  day from the 9-day rotating task template cycle.
+- Solo emits real-event progress for level completion, correct answers,
+  consecutive-correct-4, joker usage, Time Freeze usage, and jokerless level
+  completion.
+- Daily Wheel and Friends emit their own event progress; Solo does not fake
+  those tasks.
+- Hint tasks fall back to `5 soruyu doğru cevapla` until a real Hint-consume
+  event exists, so the Daily Calendar never creates an impossible task.
+- `recordDailyQuestProgress` is idempotent and never grants Diamonds.
+- A day is complete only after all 3 task rows are complete; missing a UTC day
+  breaks the computed streak.
+- `claimDailyQuestReward` grants only the 7-day Gift Box and writes
+  `DiamondTransaction.source = daily_calendar_streak_reward` for exactly 200
+  Diamonds.
+- Daily Calendar does not grant Kronox Puan and does not affect Leaderboard.
+- `cleanupLegacyDailyQuests` is the admin-gated dry-run/delete path for old
+  DailyQuestDefinition and non-`daily_calendar:*` progress rows.
   summary/availability fields, not the sole idempotency source
 - Online mode does not increment Daily Quest progress
 - Daily Wheel, Mağaza, Solo joker inventory, scoring, timer, and question

@@ -47,9 +47,9 @@ export function getSoloProgressScore(user, options = {}) {
  *       (solo_progress.totalSoloScore) AND the materialized kronox_puan_total.
  *     • Online result finalization writes online_progress?.score (winner +15,
  *       loser -6, no speed bonus) AND the SAME materialized kronox_puan_total.
- *     • Daily Quest is Diamond-only. Daily Wheel V2 can grant Diamonds,
- *       approved jokers, or Gift Box rewards. Neither writes Kronox Puan, so
- *       they never affect this visible score or the leaderboard.
+ *     • Daily Calendar / Streak is Diamond-only. Daily Wheel V2 can grant
+ *       Diamonds, approved jokers, or Gift Box rewards. Neither writes Kronox
+ *       Puan, so they never affect this visible score or the leaderboard.
  *
  * Preferred read = the materialized projection (kronox_puan_total). The
  * leaderboard reads this materialized value rather than recomputing from full

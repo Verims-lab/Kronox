@@ -371,6 +371,7 @@ export default function Game() {
   const soloQuestionShownAtRef = useRef(new Map());
   const soloReplacementQuestionIdsRef = useRef(new Set());
   const soloDailyQuestCompletionRecordedRef = useRef(null);
+  const soloDailyQuestCorrectStreakRef = useRef(0);
   const [currentUserLoaded, setCurrentUserLoaded] = useState(false);
   const [soloCategoryPreferenceState, setSoloCategoryPreferenceState] = useState({
     status: 'idle',
@@ -915,6 +916,7 @@ export default function Game() {
     soloQuestionShownAtRef.current = new Map();
     soloReplacementQuestionIdsRef.current = new Set();
     soloDailyQuestCompletionRecordedRef.current = null;
+    soloDailyQuestCorrectStreakRef.current = 0;
     setUsedJokerType(null);
     setGuidedTutorialJokerDemoUsedByCard({});
     setGuidedTutorialPopup(null);
@@ -1172,6 +1174,7 @@ export default function Game() {
       mode: 'solo',
       amount: 1,
       eventId,
+      ...metadata,
       metadata: {
         ...metadata,
         soloAttemptId,
@@ -1198,6 +1201,10 @@ export default function Game() {
   const handleSoloQuestionAnswered = useCallback((event) => {
     if (!isSoloLevelMode || !event?.question) return;
     const questionId = String(event.question.id);
+    const nextDailyCorrectStreak = event.isCorrect
+      ? soloDailyQuestCorrectStreakRef.current + 1
+      : 0;
+    soloDailyQuestCorrectStreakRef.current = nextDailyCorrectStreak;
     const shownAt = soloQuestionShownAtRef.current.get(questionId);
     const responseTimeMs = shownAt ? Math.max(0, Date.now() - shownAt) : undefined;
     const nextMistakeNumber = event.isCorrect
@@ -1214,11 +1221,29 @@ export default function Game() {
         hasWon: Boolean(event.hasWon),
       },
     });
+    if (event.isCorrect) {
+      const correctEventId = `${soloAttemptId || 'solo_attempt'}:correct_answer:${questionId}`;
+      recordDailyQuestSoloEvent('correct_answer', correctEventId, {
+        questType: 'correct_answer',
+        questionId,
+        isCorrect: true,
+      });
+      if (nextDailyCorrectStreak >= 4) {
+        const streakEventId = `${soloAttemptId || 'solo_attempt'}:consecutive_correct_4:${questionId}`;
+        recordDailyQuestSoloEvent('consecutive_correct_4', streakEventId, {
+          questType: 'consecutive_correct_4',
+          questionId,
+          consecutiveCorrect: nextDailyCorrectStreak,
+        });
+      }
+    }
   }, [
     isSoloLevelMode,
     mistakeCount,
     mistakeShieldActive,
     recordSoloQuestionAnalyticsEvent,
+    recordDailyQuestSoloEvent,
+    soloAttemptId,
   ]);
 
   useEffect(() => {
@@ -1844,6 +1869,46 @@ export default function Game() {
         return false;
       }
       setSoloJokerBalancesFromSpendResponse(response);
+      recordDailyQuestProgress({
+        eventType: 'joker_used',
+        mode: 'joker',
+        amount: 1,
+        eventId: response?.transactionId || idempotencyKey,
+        idempotencyKey,
+        transactionId: response?.transactionId,
+        metadata: {
+          source: 'Game.jsx',
+          soloAttemptId,
+          soloLevelNumber: soloLevel?.levelNumber,
+          questionId: relatedQuestionId,
+          decisionKey,
+          uiJokerType: jokerType,
+          jokerType: inventoryType,
+        },
+      }).catch((error) => {
+        debugLog('[Game] daily joker task progress failed:', error?.message || error);
+      });
+      if (inventoryType === 'time_freeze') {
+        recordDailyQuestProgress({
+          eventType: 'time_freeze_joker_used',
+          mode: 'joker',
+          amount: 1,
+          eventId: response?.transactionId || idempotencyKey,
+          idempotencyKey,
+          transactionId: response?.transactionId,
+          metadata: {
+            source: 'Game.jsx',
+            soloAttemptId,
+            soloLevelNumber: soloLevel?.levelNumber,
+            questionId: relatedQuestionId,
+            decisionKey,
+            uiJokerType: jokerType,
+            jokerType: inventoryType,
+          },
+        }).catch((error) => {
+          debugLog('[Game] daily time-freeze task progress failed:', error?.message || error);
+        });
+      }
       setJokerError('');
       return true;
     } catch {
@@ -2190,6 +2255,17 @@ export default function Game() {
           cardsCompleted: cardTarget,
           elapsedSeconds: elapsed,
         });
+        const jokerlessCompletionEventId = `${soloAttemptId || 'solo_attempt'}:jokerless_solo_level_complete:${soloLevel?.levelNumber || 1}`;
+        const jokerUsedThisAttempt = soloJokerUsedByDecisionKeyRef.current.size > 0;
+        if (!jokerUsedThisAttempt) {
+          recordDailyQuestSoloEvent('jokerless_solo_level_complete', jokerlessCompletionEventId, {
+            questType: 'jokerless_solo_level_complete',
+            passed: true,
+            jokerUsed: false,
+            cardsCompleted: cardTarget,
+            elapsedSeconds: elapsed,
+          });
+        }
       }
       return;
     }

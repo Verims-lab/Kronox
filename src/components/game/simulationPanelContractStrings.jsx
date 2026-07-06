@@ -677,10 +677,10 @@ export const userEntitySource = `
     "last_daily_diamond_reward_date": {},
     "economy_updated_at": {},
     "daily_quest_last_claim_date": {
-      "description": "UTC YYYY-MM-DD key for latest Daily Quest Runtime v1 reward claim. Daily Quest grants diamonds only, does not grant Kronox Puan, and has no leaderboard impact."
+      "description": "Legacy UTC YYYY-MM-DD guard for Daily reward claim compatibility. Active Daily Calendar streak claims use daily_calendar_* fields and daily_calendar_streak_reward."
     },
     "daily_quest_next_available_at": {
-      "description": "ISO UTC timestamp for Daily Quest Runtime v1 reset/availability. Daily Quest grants diamonds only and uses daily_quest_reward."
+      "description": "ISO UTC timestamp for next Daily Calendar task availability/reset. Daily Calendar grants Diamonds only and does not affect Kronox Puan or Leaderboard."
     },
     "solo_progress": {
       "properties": {
@@ -741,6 +741,7 @@ export const diamondTransactionEntitySource = `
         "daily_login",
         "daily_wheel",
         "market_purchase",
+        "daily_calendar_streak_reward",
         "daily_quest_reward",
         "daily_quest_future",
         "wheel_spin_future",

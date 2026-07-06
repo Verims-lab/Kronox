@@ -1,0 +1,4 @@
+{
+  "name": "cleanupLegacyDailyQuests",
+  "entry": "entry.ts"
+}

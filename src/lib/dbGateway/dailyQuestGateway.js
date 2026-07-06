@@ -1,29 +1,45 @@
 import { base44 } from '@/api/base44Client';
+import {
+  DAILY_CALENDAR_RUNTIME_VERSION,
+  DAILY_CALENDAR_TASKS_PER_DAY,
+  DAILY_CALENDAR_TEMPLATE_CYCLE_LENGTH,
+  DAILY_STREAK_REWARD_DIAMONDS,
+  DAILY_STREAK_REWARD_DAYS,
+  DAILY_TASK_TYPES,
+} from '@/lib/dailyCalendar';
 
-export const DAILY_QUEST_V1_TYPES = Object.freeze([
-  'solo_level_complete',
-]);
+export const DAILY_QUEST_V1_TYPES = Object.freeze(Object.values(DAILY_TASK_TYPES));
 
 export const DAILY_QUEST_TYPE_LABELS = Object.freeze({
+  daily_wheel_claim: 'Çark çevir',
   solo_level_complete: 'Solo seviyesi tamamla',
+  consecutive_correct_4: 'Üst üste 4 doğru cevap',
+  joker_used: 'Joker kullan',
+  time_freeze_joker_used: 'Zamanı Dondur jokeri kullan',
+  jokerless_solo_level_complete: 'Jokersiz seviye tamamla',
+  profile_complete: 'Profilini tamamla',
+  correct_answer: 'Doğru cevap',
+  friend_invite_sent: 'Arkadaş daveti gönder',
+  friend_added: 'Arkadaş ekle',
 });
 
 export const DAILY_QUEST_DEFINITION_CONTRACT = Object.freeze({
-  entity: 'DailyQuestDefinition (legacy/admin-only; runtime ignores definition rows)',
+  entity: 'DailyQuestDefinition (legacy/admin-only; new Daily Calendar runtime ignores definition rows)',
   progressEntity: 'UserDailyQuestProgress',
   statusFunction: 'getDailyQuestStatus',
   progressFunction: 'recordDailyQuestProgress',
   claimFunction: 'claimDailyQuestReward',
-  canonicalQuestKey: 'solo_level_complete',
-  canonicalQuestType: 'solo_level_complete',
-  canonicalTitle: 'Solo’da Seviye Geç',
-  canonicalDescription: 'Bugün 1 Solo seviyesini tamamla.',
+  legacyCleanupFunction: 'cleanupLegacyDailyQuests',
+  canonicalQuestKey: 'daily_calendar:*',
+  canonicalQuestType: 'daily_calendar_event_task',
+  canonicalTitle: 'GÜNLÜK',
+  canonicalDescription: 'Serini koru, ödülünü kazan!',
   executableLogicFields: ['quest_type', 'target_value', 'quest_date'],
   logicContract: 'quest_type + target_value',
-  progressMode: 'solo_level_completion_only',
-  rewardField: 'reward_diamonds',
-  rewardKind: 'Diamonds only',
-  rewardKindNote: 'Daily Quest Runtime v1 reward is Diamonds only; it does not grant Kronox Puan and has no leaderboard impact.',
+  progressMode: 'real_event_based_daily_calendar_tasks',
+  rewardField: 'streak_reward_diamonds',
+  rewardKind: '7-day Gift Box Diamonds only',
+  rewardKindNote: 'Daily Calendar streak reward grants exactly 200 Diamonds server-side/idempotently; it does not grant Kronox Puan and has no leaderboard impact.',
   diamondsOnly: true,
   noKronoxPuan: true,
   noLeaderboardImpact: true,
@@ -33,12 +49,16 @@ export const DAILY_QUEST_DEFINITION_CONTRACT = Object.freeze({
   noAiParser: true,
   noNlpParser: true,
   noArbitraryScripts: true,
-  runtimeVersion: 'daily-quest-runtime-v1-solo-level-complete',
-  transactionSource: 'daily_quest_reward',
+  runtimeVersion: DAILY_CALENDAR_RUNTIME_VERSION,
+  transactionSource: 'daily_calendar_streak_reward',
   dayBoundary: 'UTC',
+  tasksPerDay: DAILY_CALENDAR_TASKS_PER_DAY,
+  templateCycleLength: DAILY_CALENDAR_TEMPLATE_CYCLE_LENGTH,
+  streakRewardDays: DAILY_STREAK_REWARD_DAYS,
+  streakRewardDiamonds: DAILY_STREAK_REWARD_DIAMONDS,
   logicalUniqueKey: 'quest_key + quest_date + player_key',
   adminDefinitionRowsIgnoredAtRuntime: true,
-  duplicateCleanupMode: 'manual_after_backup_no_runtime_dependency',
+  duplicateCleanupMode: 'cleanupLegacyDailyQuests dry-run first; destructive delete requires explicit admin confirmation',
 });
 
 function unwrapFunctionResponse(response) {
@@ -107,14 +127,14 @@ export async function getDailyQuestStatus(payload = {}) {
   try {
     response = await base44.functions.invoke('getDailyQuestStatus', payload);
   } catch (error) {
-    const safe = safeRuntimeError(error, 'Görevler yenilenemedi. Tekrar dene.');
+    const safe = safeRuntimeError(error, 'Günlük yenilenemedi. Tekrar dene.');
     const wrapped = new Error(safe);
     wrapped.body = unwrapInvokeError(error);
     throw wrapped;
   }
   const body = unwrapFunctionResponse(response);
   if (body?.ok === false) {
-    throw new Error(safeRuntimeError(body, 'Görevler yenilenemedi. Tekrar dene.'));
+    throw new Error(safeRuntimeError(body, 'Günlük yenilenemedi. Tekrar dene.'));
   }
   return body;
 }
@@ -149,6 +169,27 @@ export async function claimDailyQuestReward(payload = {}) {
   const body = unwrapFunctionResponse(response);
   if (body?.ok === false) {
     const error = new Error(safeRuntimeError(body, 'Ödül alınamadı. Tekrar dene.'));
+    error.body = body;
+    throw error;
+  }
+  return body;
+}
+
+export async function cleanupLegacyDailyQuestData(payload = {}) {
+  let response;
+  try {
+    response = await base44.functions.invoke('cleanupLegacyDailyQuests', {
+      mode: 'dry_run',
+      ...payload,
+    });
+  } catch (error) {
+    const wrapped = new Error(safeRuntimeError(error, 'Eski günlük görev temizliği hazırlanamadı.'));
+    wrapped.body = unwrapInvokeError(error);
+    throw wrapped;
+  }
+  const body = unwrapFunctionResponse(response);
+  if (body?.ok === false) {
+    const error = new Error(body?.error || 'Eski günlük görev temizliği hazırlanamadı.');
     error.body = body;
     throw error;
   }

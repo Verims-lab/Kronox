@@ -61,6 +61,8 @@ import recordDailyQuestProgressSource from '../../../base44/functions/recordDail
 import recordDailyQuestProgressManifestSource from '../../../base44/functions/recordDailyQuestProgress/function.jsonc?raw';
 import claimDailyQuestRewardSource from '../../../base44/functions/claimDailyQuestReward/entry.ts?raw';
 import claimDailyQuestRewardManifestSource from '../../../base44/functions/claimDailyQuestReward/function.jsonc?raw';
+import cleanupLegacyDailyQuestsSource from '../../../base44/functions/cleanupLegacyDailyQuests/entry.ts?raw';
+import cleanupLegacyDailyQuestsManifestSource from '../../../base44/functions/cleanupLegacyDailyQuests/function.jsonc?raw';
 import cleanupGatewaySource from '../../lib/dbGateway/cleanupGateway.js?raw';
 import scoringGatewaySource from '../../lib/dbGateway/scoringGateway.js?raw';
 import economyGatewaySource from '../../lib/dbGateway/economyGateway.js?raw';
@@ -101,6 +103,7 @@ const KNOWN_BACKEND_FUNCTIONS = new Set([
   'getDailyQuestStatus',
   'recordDailyQuestProgress',
   'claimDailyQuestReward',
+  'cleanupLegacyDailyQuests',
   'findLobbyByCode',
   'startLobbyGame',
   'updateLobbyGameState',
@@ -273,6 +276,7 @@ export const EXTRA_TESTS = [
         getDailyQuestStatusManifestSource,
         recordDailyQuestProgressManifestSource,
         claimDailyQuestRewardManifestSource,
+        cleanupLegacyDailyQuestsManifestSource,
       ].map(text).join('\n');
       const sourceCombined = [
         createGuestProfileSource,
@@ -721,7 +725,7 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('daily_quest_runtime_backend_functions_deployable_contract',
-    'Daily Quest runtime backend functions are registered and deployable',
+    'Daily Calendar runtime backend functions are registered and deployable',
     () => {
       const combined = [
         getDailyQuestStatusSource,
@@ -730,26 +734,32 @@ export const EXTRA_TESTS = [
         recordDailyQuestProgressManifestSource,
         claimDailyQuestRewardSource,
         claimDailyQuestRewardManifestSource,
+        cleanupLegacyDailyQuestsSource,
+        cleanupLegacyDailyQuestsManifestSource,
         dailyQuestGatewaySource,
       ].join('\n');
       const missing = missingTokens(combined, [
         '"name": "getDailyQuestStatus"',
         '"name": "recordDailyQuestProgress"',
         '"name": "claimDailyQuestReward"',
+        '"name": "cleanupLegacyDailyQuests"',
         "base44.functions.invoke('getDailyQuestStatus'",
         "base44.functions.invoke('recordDailyQuestProgress'",
         "base44.functions.invoke('claimDailyQuestReward'",
+        "base44.functions.invoke('cleanupLegacyDailyQuests'",
         'createClientFromRequest',
         'Deno.serve',
         'base44.auth.me()',
-        'entities.UserDailyQuestProgress',
-        'CANONICAL_DAILY_QUEST',
+        'entities?.UserDailyQuestProgress',
+        'DAILY_CALENDAR_TASKS_PER_DAY = 3',
+        'DAILY_STREAK_REWARD_DIAMONDS = 200',
         'definitionRowsIgnoredAtRuntime',
         'solo_level_complete',
         'entities.DiamondTransaction',
-        'daily_quest_reward',
+        'daily_calendar_streak_reward',
+        'DELETE_LEGACY_DAILY_QUESTS',
       ]);
-      const forbidden = forbiddenTokens(`${getDailyQuestStatusSource}\n${recordDailyQuestProgressSource}\n${claimDailyQuestRewardSource}`, [
+      const forbidden = forbiddenTokens(`${getDailyQuestStatusSource}\n${recordDailyQuestProgressSource}\n${claimDailyQuestRewardSource}\n${cleanupLegacyDailyQuestsSource}`, [
         "from './_shared",
         "from '../_shared",
         'file://' + '/src/_shared',
@@ -757,19 +767,20 @@ export const EXTRA_TESTS = [
         'SoloLeaderboardEntry',
       ]);
       if (missing.length || forbidden.length) {
-        return fail('Daily Quest runtime functions are not clearly registered/deployable or can drift into score/leaderboard writes.', {
+        return fail('Daily Calendar runtime functions are not clearly registered/deployable or can drift into score/leaderboard writes.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           files: [
             'base44/functions/getDailyQuestStatus/entry.ts',
             'base44/functions/recordDailyQuestProgress/entry.ts',
             'base44/functions/claimDailyQuestReward/entry.ts',
+            'base44/functions/cleanupLegacyDailyQuests/entry.ts',
             'src/lib/dbGateway/dailyQuestGateway.js',
           ],
           actual: { missing, forbidden },
         });
       }
-      return pass('Daily Quest runtime functions are registered callable Base44 functions with no broken local imports and Diamond-only claim source.', {
+      return pass('Daily Calendar runtime and legacy cleanup functions are registered callable Base44 functions with no broken local imports and Diamond-only claim source.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
       });

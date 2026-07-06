@@ -203,7 +203,7 @@ Current entities audited:
 | `GuestProfile` | App-owned portable guest identity and pre-link snapshot. | First-open guest identity, guided onboarding state, guest Solo progress sync, guest leaderboard projection, completed-guest Daily Wheel/Daily Quest balance/guards, account-link source. | Source for guest identity plus pre-link guest Diamonds/reward guards; guest progress/economy fields are merge inputs until linked. | Public-by-design `createGuestProfile`, token-proven `sync_progress`, Daily Wheel/Daily Quest guest paths, `linkGuestAccount`, onboarding/Profile/Login UI. | Raw guest token is client-only; DB stores hash. Public creation rejects trusted request fields and uses throttle monitoring. Server writes require `guest_id + token` proof. Row becomes `linked` once and must not link to another account. | Unique `guest_id`; unique `username`; `status`; `linked_user_email`; `last_seen_at`; monitor `metadata.guestCreationSourceHash`. | Abandon old guest rows by policy later; never hard-delete active guest progress/economy without retention approval. | Keep/additive. | Manual Base44 proof that raw token is absent, public creation throttles abuse, linked row cannot be relinked, and guest reward guards survive account linking. |
 | `GuestCreationThrottle` | Privacy-safe throttle and monitoring rows for public guest creation. | `createGuestProfile` increments hour/day buckets before creating new GuestProfile rows. | Operational bloat-control read model, not identity source. | `createGuestProfile` service-role only; admin review/cleanup later. | Must store only `source_hash`, bucket counters, and debug-safe metadata. No raw IP, raw headers, raw guest token, auth headers, provider credentials, profile fields, or full request bodies. Missing entity/runtime metadata should fail open for onboarding but become manual release risk. | Unique/logical `throttle_key`; `source_hash + bucket`; `granularity + bucket`; `last_seen_at`. | Trim/archive old buckets after short operational retention, e.g. 30-90 days. | Keep/additive. | Manual probe that repeated public create spam writes hashed throttle rows or receives safe 429. |
 | `AccountLinkTransaction` | Guest-to-authenticated account linking audit/idempotency row. | `linkGuestAccount` writes one row per idempotency key and stores compact merge summary. | Audit/read model; not current balance source. | `linkGuestAccount` only. | Admin-only RLS; no raw token, provider secret, auth header, or full request body. | Unique `idempotency_key`; `guest_id`; `linked_user_email`; `created_at`. | Retain for support/audit; archive later by economy/account retention policy. | Keep/additive. | Manual duplicate-link retry proof. |
-| `DiamondTransaction` | Diamond ledger/idempotency audit. | `diamondEconomy` grants starter/daily; Daily Wheel claim writes `daily_wheel`; Mağaza joker purchase writes `market_purchase`; Daily Quest claim writes `daily_quest_reward`; account linking writes `account_link_merge`; admin reset may reset/delete/adjust rows. | Audit/ledger; `User.diamonds` is registered balance source and `GuestProfile.diamonds` is completed guest pre-link balance source. | Client helper writes starter/daily through user RLS; Daily Wheel/admin reset/purchase/Daily Quest claim service-role. Guest reward rows use internal `guest:<g_owner_key>` keys, not public identity. `purchaseJokerWithDiamonds` validates price and sufficient Diamonds server-side. `claimDailyQuestReward` reads reward from `UserDailyQuestProgress`, not the client. Ledger helpers re-check `user_email + idempotency_key` before create and confirm the row by idempotency key after create. | Logical idempotency key is not declared unique in repo; there is no repo-proven atomic upsert. Function-level guard only is Medium/P1 hardening, and true parallel duplicate proof remains platform/manual. Client must never be trusted for purchase price/cost or Daily Quest reward amount. | Unique `idempotency_key`; `user_email + created_at`; `user_email + source`; `source + created_at`; `owner_key + created_at`. | Retain for audit. Archive old rows after finance/economy retention policy. | Keep but harden. | N/A. |
+| `DiamondTransaction` | Diamond ledger/idempotency audit. | `diamondEconomy` grants starter/daily; Daily Wheel claim writes `daily_wheel`; Mağaza joker purchase writes `market_purchase`; Daily Calendar 7-day Gift Box claim writes `daily_calendar_streak_reward` for exactly 200 Diamonds; legacy `daily_quest_reward` rows may remain historical; account linking writes `account_link_merge`; admin reset may reset/delete/adjust rows. | Audit/ledger; `User.diamonds` is registered balance source and `GuestProfile.diamonds` is completed guest pre-link balance source. | Client helper writes starter/daily through user RLS; Daily Wheel/admin reset/purchase/Daily Calendar claim service-role. Guest reward rows use internal `guest:<g_owner_key>` keys, not public identity. `purchaseJokerWithDiamonds` validates price and sufficient Diamonds server-side. `claimDailyQuestReward` derives 7-day streak readiness from `UserDailyQuestProgress`, never from client reward amount. Ledger helpers re-check `user_email + idempotency_key` before create and confirm the row by idempotency key after create. | Logical idempotency key is not declared unique in repo; there is no repo-proven atomic upsert. Function-level guard only is Medium/P1 hardening, and true parallel duplicate proof remains platform/manual. Client must never be trusted for purchase price/cost or Daily Calendar reward amount. | Unique `idempotency_key`; `user_email + created_at`; `user_email + source`; `source + created_at`; `owner_key + created_at`. | Retain for audit. Archive old rows after finance/economy retention policy. | Keep but harden. | N/A. |
 
 Profile/Solo joker balance reads must use the shared `getUserJokerBalances`
 helper. The fast path reads all current `UserJokerInventory` balances for the
@@ -232,61 +232,42 @@ remains a live backend manual gate.
 
 Daily Reward Wheel V2 uses active `daily_wheel_*` User/GuestProfile guard
 fields plus `daily_wheel:<playerKey>:<YYYY-MM-DD>`. Home exposes Daily Wheel
-through the `Çark` shortcut and Daily Quest Runtime v1 through the `Görevler`
-shortcut.
-Daily Wheel and Daily Quest are separate
-reward systems: Daily Wheel uses `daily_wheel` and may write
-`DiamondTransaction` for Diamond portions or `JokerTransaction.reason =
-daily_wheel` / `UserJokerInventory` for approved joker portions, while Daily
-Quest claims use `daily_quest_reward` and
-`daily_quest_reward:<playerKey>:<YYYY-MM-DD>:<quest_key>` idempotency.
-`daily_quest_last_claim_date` and `daily_quest_next_available_at` are active
-User/GuestProfile summary/availability fields, but duplicate-claim prevention
-is row/transaction based, not field-only.
-One claim per quest per UTC day is enforced by `UserDailyQuestProgress` status
-and the `daily_quest_reward` ledger idempotency key.
-Daily Wheel remains separate from Daily Quest definitions.
-Daily Wheel and Daily Quest are separate.
+through the `Çark` shortcut and Daily Calendar / Streak through the Home
+`GÜNLÜK` shortcut. Günlük is not a BottomNav item.
 
-Daily Quest Runtime v1 is active. Runtime shows 1 canonical daily quest per UTC
-day from code, not from `DailyQuestDefinition`: `solo_level_complete` /
-`Solo’da Seviye Geç` / `Bugün 1 Solo seviyesini tamamla.`, target 1, reward 20
-Diamonds. `title` and `description` remain display-only and are never parsed by
-regex, AI/NLP, free text, or scripts. The executable progress contract is
-strictly `solo_level_complete + target_value`.
-Günlük Görev no longer requires active `DailyQuestDefinition` rows. Runtime
-status/progress functions do not seed definition rows on fresh DBs or app/Home
-open; stale duplicate definitions are ignored by runtime and must not duplicate
-Home quests or rewards. This stops duplicate/empty DB definition bloat at
-runtime; stale legacy rows require manual cleanup after backup/operator approval.
-Legacy Admin definition list/create paths are not mounted in app UI. Existing
-duplicate definition rows are not auto-deleted. Manual cleanup should keep a DB
-backup and deactivate/delete stale duplicate definition rows only after explicit
-operator approval.
-`getDailyQuestStatus` is authenticated user-owned runtime, not admin-only. It
-creates/fetches only the current user's `UserDailyQuestProgress` rows and keeps
-newly created rows as the response fallback if Base44 read-after-write refresh
-lags. Missing/stale definitions are ignored, not a function failure.
-Loading or ensuring today’s quests does not grant Diamonds;
-`claimDailyQuestReward` remains the only reward path.
-Completing progress alone does not grant Diamonds; completed and unclaimed
-quests expose the `Al` claim action.
-The Home user-facing Daily Quest line is
-`Günlük Görevleri Yap, Elmasları Kazan!`.
-`UserDailyQuestProgress` tracks the selected user/day progress row, copied
-`target_value`, copied `reward_diamonds`, `status`, `completed_at`, and
-`claimed_at`. Older same-day extra rows from the previous 3-quest design are
-retained but UI/runtime display only the selected primary quest. Claim grants
-diamonds only through `DiamondTransaction.source = daily_quest_reward`, updates
-visible `User.diamonds`, returns `diamondBalanceAfter`, and then marks the row
-claimed. The runtime backend functions explicitly bind `UserDailyQuestProgress`
-for status, progress, and claim deployability; Daily Quest does not grant
-Kronox Puan and has no leaderboard impact.
-Daily Quest does not affect leaderboard.
-Future versions may expand to multiple quests again if Home UI is redesigned.
+Daily Wheel and Daily Calendar are separate reward systems: Daily Wheel uses
+`daily_wheel` and may write `DiamondTransaction` for Diamond portions or
+`JokerTransaction.reason = daily_wheel` / `UserJokerInventory` for approved
+joker portions, while Daily Calendar 7-day Gift Box claims use
+`daily_calendar_streak_reward` and
+`daily_calendar_streak:<playerKey>:<streak_anchor_date>:<claim_number>:200`
+idempotency. `daily_calendar_*` User/GuestProfile fields are summary fields;
+duplicate-claim prevention is ledger/lock based, not field-only.
+
+Daily Calendar / Streak replaced the old one-quest runtime. getDailyQuestStatus
+creates/fetches exactly 3 code-owned `UserDailyQuestProgress` rows per UTC
+server day with `quest_key` prefixed by `daily_calendar:*`; the 9-day rotating
+task template cycle is explicit code, not `DailyQuestDefinition` data. Task
+progress is real-event-based and idempotent. Per-task `reward_diamonds` is 0;
+progress alone never grants Diamonds. A day is complete only when all 3 rows
+are complete, and missing a UTC day breaks the computed streak.
+
+claimDailyQuestReward is the only Daily Calendar reward path. It requires the
+7-day streak reward to be ready, grants exactly 200 Diamonds server-side,
+writes `DiamondTransaction.source = daily_calendar_streak_reward`, updates
+visible `User.diamonds` or completed-guest `GuestProfile.diamonds`, and does
+not grant Kronox Puan or affect Leaderboard.
+
+`DailyQuestDefinition` is legacy/admin-only. Runtime status/progress functions
+do not read, create, seed, or select definition rows. `cleanupLegacyDailyQuests`
+is AdminUser-gated, defaults to dry-run, requires
+`DELETE_LEGACY_DAILY_QUESTS` for destructive deletion, and only targets legacy
+Daily Quest definitions plus non-`daily_calendar:*` progress rows. It must not
+touch Daily Wheel, economy, profile, Solo, Online, Leaderboard, Store, Friends,
+or account data.
 | `DailyWheelSpin` | Daily Reward Wheel V2 claim ledger, reward selection, Gift Box package, and streak audit. | `getDailyWheelStatus` reads current day; `claimDailyWheelReward` creates a server-backed claim and updates `User.diamonds` / completed-guest `GuestProfile.diamonds` for Diamond portions, plus `UserJokerInventory` / `JokerTransaction.reason = daily_wheel` for approved joker portions; `adminResetDailyWheelState` clears only today's test guard/idempotency state by Kronox User ID. | Audit/idempotency for Daily Wheel; `DailyWheelSpin` stores reward_type/reward_id/reward_segment_index, Gift Box contents, and the claimed day. `User.diamonds` / `GuestProfile.diamonds` remain Diamond balance sources; `UserJokerInventory` remains joker balance source. | Backend service-role functions only for claim/admin reset; user/admin read by RLS. Claim uses `daily_wheel:<playerKey>:<YYYY-MM-DD>`, checks existing spin by key/date, reserves a spin row, re-reads canonical same-player/same-day spin, re-checks the User/GuestProfile guard, re-checks `DiamondTransaction` for Diamond portions, and uses `JokerTransaction` idempotency keys for joker portions. Admin reset requires active AdminUser owner/admin, accepts Kronox User ID only, archives same-day DailyWheelSpin/DiamondTransaction/JokerTransaction idempotency keys, and sets `daily_wheel_auto_popup_reset_at`; it does not reverse rewards, grant rewards, affect Daily Quest, Kronox Puan, or leaderboard. | Unique idempotency is not guaranteed in repo schema; there is no repo-proven atomic upsert. Function-level guard only is Medium/P1 hardening, and race proof needs platform unique key or live parallel probe. | Unique `idempotency_key`; unique `user_email + spin_date`; `owner_key + spin_date`; `user_email + claimed_at`; `spin_date`; `reward_id`; `reward_type`. | Retain/anonymize on account deletion; admin test reset archives today's blocking wheel keys while preserving completed reward rows; archive old rows after retention policy. | Keep/additive. | N/A. |
-| `DailyQuestDefinition` | Legacy/admin-only Daily Quest template rows. Runtime v1 ignores them. | No app UI is mounted for list/create. Legacy callable remains guarded for historical/manual cleanup paths only. | Historical/manual cleanup only; not active runtime. | `base44/functions/createDailyQuestDefinition/entry.ts`, `src/lib/dbGateway/dailyQuestGateway.js`. | Admin-only callable guard uses `AdminUser` active owner/admin. Runtime status/progress functions must not read, create, seed, or select definition rows. | Unique `quest_key` where platform supports it; `status`; `sort_order`; `created_at`. | Stale duplicate rows require manual cleanup after backup/operator approval; no runtime auto-delete is enabled. | Keep/additive until data cleanup/migration plan. | Prove runtime Home/status calls do not create duplicate definitions; legacy callable auth proof remains manual if used. |
-| `UserDailyQuestProgress` | Player-owned Daily Quest Runtime v1 per-day progress. | `getDailyQuestStatus` ensures 1 canonical `solo_level_complete` UTC-day row; `recordDailyQuestProgress` increments only passed Solo level completion; `claimDailyQuestReward` marks rows claimed and grants Diamonds. | Yes for daily quest progress/claim state. | `base44/functions/getDailyQuestStatus`, `recordDailyQuestProgress`, `claimDailyQuestReward`, `src/lib/dbGateway/dailyQuestGateway.js`, `DailyRewardsPanel`, `Game.jsx`. | Registered users are owned by normalized email; completed guests use internal `guest:<g_owner_key>` after `guest_id + guest_token` proof. Users/guests cannot claim another player's progress or control reward amount. | Unique `idempotency_key`; `user_email + quest_date + quest_key`; `owner_key + quest_date + quest_key`; `user_email + quest_date`; `status + quest_date`. | Retain for audit; archive old rows after retention policy. | Keep/additive. | Runtime two-account/RLS, guest-token, and duplicate-claim race proof remain manual. |
+| `DailyQuestDefinition` | Legacy/admin-only Daily Quest template rows. Daily Calendar runtime ignores them. | No app UI is mounted for list/create. Legacy callable remains guarded for historical/manual cleanup paths only; `cleanupLegacyDailyQuests` handles dry-run/delete. | Historical/manual cleanup only; not active runtime. | `base44/functions/createDailyQuestDefinition/entry.ts`, `base44/functions/cleanupLegacyDailyQuests/entry.ts`, `src/lib/dbGateway/dailyQuestGateway.js`. | Admin-only callable guard uses `AdminUser` active owner/admin. Runtime status/progress functions must not read, create, seed, or select definition rows. Cleanup must not delete unrelated data. | Unique `quest_key` where platform supports it; `status`; `sort_order`; `created_at`. | Stale duplicate rows require admin dry-run counts and explicit confirmation before deletion. | Keep/additive until production cleanup is approved. | Prove runtime Home/status calls do not create duplicate definitions; cleanup dry-run/delete proof remains manual. |
+| `UserDailyQuestProgress` | Player-owned Daily Calendar / Streak per-day task progress. | `getDailyQuestStatus` ensures 3 `daily_calendar:*` UTC-day task rows; `recordDailyQuestProgress` increments only verified/idempotent real events; `claimDailyQuestReward` grants only the 7-day Gift Box through `daily_calendar_streak_reward`. | Yes for daily task progress, calendar completion, and streak reward readiness. | `base44/functions/getDailyQuestStatus`, `recordDailyQuestProgress`, `claimDailyQuestReward`, `cleanupLegacyDailyQuests`, `src/lib/dbGateway/dailyQuestGateway.js`, `DailyPage`, `Game.jsx`, `useDailyWheel`, `friendsApi`. | Registered users are owned by normalized email; completed guests use internal `guest:<g_owner_key>` after `guest_id + guest_token` proof. Users/guests cannot claim another player's progress or control reward amount. | Unique `idempotency_key`; `user_email + quest_date + quest_key`; `owner_key + quest_date + quest_key`; `user_email + quest_date`; `status + quest_date`. | Retain calendar rows for history/streak audit; cleanup deletes only legacy non-`daily_calendar:*` rows after confirmation. | Keep/additive. | Runtime two-account/RLS, guest-token, duplicate-claim race, and cleanup count proof remain manual. |
 | `OnlineMatchResult` | Per-user online score audit/idempotency. | `applyOnlineResult` creates/checks row before visible score write. | Audit/idempotency; `User.online_progress` is visible score source. | Client helper creates via entity SDK; reads own rows; admin can update/delete. | Logical idempotency key not declared unique in repo. Client-side per-user application means opponent disconnect recovery is limited. | Unique `idempotency_key`; unique `lobby_id + player_email`; `lobby_id`; `player_email + applied_at`. | Retain for audit/reconciliation. Archive after long retention. | Keep but move write authority backend-side. | N/A. |
 | `Lobby` | Authoritative online lobby/game state. | Lobby create/join/start, realtime sync, waiting room, online game state updates, bounded shared Online question deck. | Yes for online match state. | `LobbyRoom`, `useLobbySync`, `useWaitingRoomSync`, service functions (`findLobbyByCode`, `startLobbyGame`, `updateLobbyGameState`, `acceptGameInvite`). | RLS lets host update; backend service functions also validate host/player. `startLobbyGame` writes `online_question_deck` before gameplay so all participants read the same selected-category difficulty-1/2 deck; `updateLobbyGameState` rejects next-question IDs outside the persisted deck when present. Embedded `players` array makes member lookup hard. | Unique `code`; `host_email + status`; `status + last_activity_at`; `status + updated_at`; `started_at`; `completed_at`; possible `players.email` limitation. | Mark stale waiting lobbies `cancelled`; preserve finished/audit rows. | Keep but refactor projections. | N/A. |
 | `GameInvite` | Pending/actionable online invite lifecycle. | Notification center, header, in-app toast, Online pending list, accept/decline/open, push function. | Yes for invite lifecycle. | `inviteApi`, `useNotificationCenter`, `acceptGameInvite`, `sendGameInvitePush`, `dataRetention`. | Read/update by sender/recipient/admin. Toast dismissal must not mutate row. | `to_email + status + expires_at`; `from_email + status`; `lobby_id`; `status + expires_at`; `to_email + status`. | Pending past `expires_at` -> `expired`; completed/cancelled retained then archived. | Keep. | N/A. |

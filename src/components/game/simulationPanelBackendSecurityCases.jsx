@@ -812,18 +812,21 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('daily_quest_runtime_claim_is_user_bound_and_server_rewarded',
-    'Daily Quest runtime claim is user-bound, server-rewarded, and Diamond-only',
+    'Daily Calendar streak claim is user-bound, server-rewarded, and Diamond-only',
     () => {
       const combined = `${recordDailyQuestProgressSource}\n${claimDailyQuestRewardSource}`;
       const required = [
         'base44.auth.me()',
-        'normalizeEmail(user?.email)',
-        'normalizeEmail(row?.user_email) === email',
-        'mode !== \'solo\'',
-        'non_solo_mode',
-        'rewardDiamonds = Math.max(1, normalizeNumber(progress.reward_diamonds, 1))',
+        'resolveDailyCalendarPlayer',
+        'guestPlayerKey',
+        'rawGuestTokenServerStored: false',
+        'eventSourceIsVerified',
+        'buildProgressEventKey',
+        'noDiamondGrantDuringProgress: true',
+        'DAILY_STREAK_REWARD_DIAMONDS = 200',
         'findDiamondTransaction',
-        'daily_quest_reward',
+        'daily_calendar_streak_reward',
+        'withEconomyLock',
         "direction: 'earn'",
         'clientRewardIgnored: true',
         'noKronoxPuan: true',
@@ -842,7 +845,7 @@ export const EXTRA_TESTS = [
       ]);
       const missing = missingTokens(combined, required);
       if (missing.length || forbidden.length) {
-        return fail('Daily Quest runtime can trust client identity/reward values or affect Puan/leaderboard.', {
+        return fail('Daily Calendar runtime can trust client identity/reward values or affect Puan/leaderboard.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           files: [
@@ -853,7 +856,7 @@ export const EXTRA_TESTS = [
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Daily Quest progress/claim uses authenticated ownership, server-row rewards, daily_quest_reward ledger, and no Puan/leaderboard writes.', {
+      return pass('Daily Calendar progress/claim uses authenticated or completed-guest ownership, verified events, daily_calendar_streak_reward ledger, and no Puan/leaderboard writes.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

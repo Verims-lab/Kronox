@@ -78,7 +78,8 @@ Parity plan:
 - Guest/profile correctness remains backend-verified in background and must
   patch shared auth state when authoritative data arrives.
 - Daily Wheel V2 remains server-authoritative for weighted Diamonds, approved
-  Solo jokers, and Gift Box rewards; Daily Quest remains Diamond-only.
+  Solo jokers, and Gift Box rewards; Daily Calendar / Streak remains
+  Diamond-only.
   Home may show loading/cached status while post-paint refresh completes.
 - Low-end Android/WebView startup timing remains a manual release proof gate.
 
@@ -234,7 +235,7 @@ Parity plan:
 - Service-role writes stay inside Base44 functions.
 - Question bank stays backend-only through compact projections.
 - Daily Wheel V2 rewards remain server-selected and no-Puan/no-leaderboard;
-  Daily Quest remains Diamond-only.
+  Daily Calendar / Streak remains Diamond-only.
 - Mağaza catalog is code-side/static for real-money Diamond display packages,
   Diamond-spend Joker packages, Diamond-spend Hint packages, Diamond-spend
   Advantage packages, and future KronoClub / Reklamları Kaldır sections. It may

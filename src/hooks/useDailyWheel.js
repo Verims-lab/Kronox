@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { KRONOX_BUILD_MARKER } from '@/components/dev/BuildMarker';
 import { claimDailyWheelReward, getDailyWheelStatus } from '@/lib/dbGateway/economyGateway';
+import { recordDailyQuestProgress } from '@/lib/dbGateway/dailyQuestGateway';
 import { getCompletedGuestCredentialsPayload } from '@/lib/guestProfile';
 import { normalizeDailyWheelJokerRewards } from '@/lib/dailyWheelRewards';
+import { invalidateDailyQuestStatusCache } from '@/hooks/useDailyQuests';
 
 function normalizeFunctionBody(response) {
   return response?.data || response || {};
@@ -268,7 +270,20 @@ export function useDailyWheel({ user, guestProfile, onUserUpdated } = {}) {
     setWheel(claimedWheelStatus);
     setStatus('claimed');
     if (body.userPatch && typeof onUserUpdated === 'function') onUserUpdated(body.userPatch);
-  }, [dailyWheelCacheKey, markPromptSeen, onUserUpdated]);
+    recordDailyQuestProgress({
+      ...dailyWheelPayload,
+      eventType: 'daily_wheel_claim',
+      mode: 'daily_wheel',
+      amount: 1,
+      eventId: body?.idempotencyKey || body?.serverDate || todayFallbackKey(),
+      metadata: {
+        source: 'useDailyWheel',
+        buildMarker: KRONOX_BUILD_MARKER,
+      },
+    })
+      .then(() => invalidateDailyQuestStatusCache())
+      .catch(() => null);
+  }, [dailyWheelCacheKey, dailyWheelPayload, markPromptSeen, onUserUpdated]);
 
   const claim = useCallback(async () => {
     if (claiming) return null;

@@ -578,16 +578,18 @@ Daily Wheel:
   update `UserJokerInventory`; Gift Box package contents are stored on
   `DailyWheelSpin`
 
-Daily Quest:
+Daily Calendar / Streak:
 
-* canonical runtime quest: `solo_level_complete`
-* user state: `UserDailyQuestProgress`
+* runtime tasks: 3 `daily_calendar:*` `UserDailyQuestProgress` rows per UTC day
+* template cycle: 9-day rotating code-owned cycle
+* progress: real-event-based and idempotent
 * claim function: `claimDailyQuestReward`
-* ledger source: `daily_quest_reward`
-* grants Diamonds only
+* ledger source: `daily_calendar_streak_reward`
+* 7-day Gift Box reward: exactly 200 Diamonds
 * grants no Kronox Puan
 * no leaderboard impact
 * separate from Daily Wheel
+* legacy cleanup: `cleanupLegacyDailyQuests` dry-run first
 * completed guests use token-proven `GuestProfile` and `GuestProfile.diamonds`
   before linking
 * stale/duplicate `DailyQuestDefinition` rows are ignored by runtime and not

@@ -1,25 +1,60 @@
 /* global Deno */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 
-const QUEST_TYPES = [
-  'solo_level_complete',
-] as const;
-const LEGACY_COMPLETION_EVENT_TYPES = new Set(['complete_solo_level']);
-const DAILY_QUEST_RUNTIME_VERSION = 'daily-quest-runtime-v1-solo-level-complete';
-const DAILY_QUESTS_PER_DAY = 1;
+const DAILY_CALENDAR_RUNTIME_VERSION = 'daily-calendar-streak-v1';
+const DAILY_CALENDAR_TASKS_PER_DAY = 3;
+const DAILY_CALENDAR_TEMPLATE_CYCLE_LENGTH = 9;
+const DAILY_TEMPLATE_EPOCH_DATE = '2026-07-06';
+const DAY_MS = 24 * 60 * 60 * 1000;
 const GUEST_ID_PREFIX = 'guest_';
-const CANONICAL_DAILY_QUEST = {
-  id: 'system:daily_quest:solo_level_complete:v1',
-  quest_definition_id: 'system:daily_quest:solo_level_complete:v1',
-  quest_key: 'solo_level_complete',
-  title: 'Solo’da Seviye Geç',
-  description: 'Bugün 1 Solo seviyesini tamamla.',
-  quest_type: 'solo_level_complete',
-  target_value: 1,
-  reward_diamonds: 20,
-  status: 'active',
-  sort_order: 10,
+
+const TASK_TYPES = {
+  DAILY_WHEEL_CLAIM: 'daily_wheel_claim',
+  SOLO_LEVEL_COMPLETE: 'solo_level_complete',
+  CONSECUTIVE_CORRECT_4: 'consecutive_correct_4',
+  JOKER_USED: 'joker_used',
+  TIME_FREEZE_JOKER_USED: 'time_freeze_joker_used',
+  JOKERLESS_LEVEL_COMPLETE: 'jokerless_solo_level_complete',
+  PROFILE_COMPLETE: 'profile_complete',
+  CORRECT_ANSWER: 'correct_answer',
+  FRIEND_INVITE_SENT: 'friend_invite_sent',
+  FRIEND_ADDED: 'friend_added',
 } as const;
+
+const LEGACY_EVENT_ALIASES: Record<string, string> = {
+  complete_solo_level: TASK_TYPES.SOLO_LEVEL_COMPLETE,
+  use_joker: TASK_TYPES.JOKER_USED,
+  daily_wheel: TASK_TYPES.DAILY_WHEEL_CLAIM,
+};
+
+const TASK_LIBRARY: Record<string, any> = {
+  wheel: { key: 'wheel', title: 'Çark çevir', description: 'Günlük çarkı 1 kez çevir.', questType: TASK_TYPES.DAILY_WHEEL_CLAIM, targetValue: 1, icon: 'wheel' },
+  level1: { key: 'level1', title: '1 seviye tamamla', description: 'Herhangi bir modda 1 seviye tamamla.', questType: TASK_TYPES.SOLO_LEVEL_COMPLETE, targetValue: 1, icon: 'level' },
+  level2: { key: 'level2', title: '2 seviye tamamla', description: 'Herhangi bir modda 2 seviye tamamla.', questType: TASK_TYPES.SOLO_LEVEL_COMPLETE, targetValue: 2, icon: 'level' },
+  level3: { key: 'level3', title: '3 seviye tamamla', description: 'Herhangi bir modda 3 seviye tamamla.', questType: TASK_TYPES.SOLO_LEVEL_COMPLETE, targetValue: 3, icon: 'level' },
+  correct4: { key: 'correct4', title: 'Üst üste 4 doğru cevap ver', description: 'Bir oyun içinde 4 doğru cevabı seri yap.', questType: TASK_TYPES.CONSECUTIVE_CORRECT_4, targetValue: 1, icon: 'star' },
+  correct5: { key: 'correct5', title: '5 soruyu doğru cevapla', description: 'Bugün toplam 5 doğru cevap ver.', questType: TASK_TYPES.CORRECT_ANSWER, targetValue: 5, icon: 'star' },
+  joker1: { key: 'joker1', title: '1 joker kullan', description: 'Herhangi bir jokeri 1 kez kullan.', questType: TASK_TYPES.JOKER_USED, targetValue: 1, icon: 'shield', requiresRegisteredUser: true },
+  joker2: { key: 'joker2', title: '2 joker kullan', description: 'Herhangi bir jokeri 2 kez kullan.', questType: TASK_TYPES.JOKER_USED, targetValue: 2, icon: 'shield', requiresRegisteredUser: true },
+  timeFreeze: { key: 'timeFreeze', title: 'Zamanı Dondur jokerini kullan', description: 'Zamanı Dondur jokerini 1 kez kullan.', questType: TASK_TYPES.TIME_FREEZE_JOKER_USED, targetValue: 1, icon: 'freeze', requiresRegisteredUser: true },
+  jokerless: { key: 'jokerless', title: 'Jokersiz seviye tamamla', description: 'Bir seviyeyi joker kullanmadan tamamla.', questType: TASK_TYPES.JOKERLESS_LEVEL_COMPLETE, targetValue: 1, icon: 'star' },
+  profile: { key: 'profile', title: 'Profilini tamamla', description: 'Profil bilgilerini tamamla.', questType: TASK_TYPES.PROFILE_COMPLETE, targetValue: 1, icon: 'profile' },
+  friendInvite: { key: 'friendInvite', title: 'Arkadaşını davet et', description: 'Bir arkadaşına davet gönder.', questType: TASK_TYPES.FRIEND_INVITE_SENT, targetValue: 1, icon: 'friends', requiresRegisteredUser: true },
+  friendAdd: { key: 'friendAdd', title: '1 arkadaş ekle', description: 'Bir arkadaş bağlantısı oluştur.', questType: TASK_TYPES.FRIEND_ADDED, targetValue: 1, icon: 'friends', requiresRegisteredUser: true },
+};
+
+const DAILY_TASK_TEMPLATE_CYCLE = [
+  ['wheel', 'level2', 'joker1'],
+  ['wheel', 'correct4', 'level1'],
+  ['wheel', 'jokerless', 'profile'],
+  ['wheel', 'joker1', 'level2'],
+  ['wheel', 'hintFallback', 'friendInvite'],
+  ['wheel', 'friendAdd', 'timeFreeze'],
+  ['wheel', 'friendAdd', 'level2'],
+  ['wheel', 'hintFallback', 'level3'],
+  ['wheel', 'joker2', 'level3'],
+];
+const SAFE_GUEST_FALLBACKS = ['correct5', 'level1'];
 
 function json(payload: unknown, status = 200) {
   return Response.json(payload, { status });
@@ -29,44 +64,28 @@ function normalizeEmail(value: unknown) {
   return String(value || '').trim().toLowerCase();
 }
 
-function normalizeQuestType(value: unknown) {
-  const text = String(value || '').trim();
-  if (LEGACY_COMPLETION_EVENT_TYPES.has(text)) return 'solo_level_complete';
-  return QUEST_TYPES.includes(text as typeof QUEST_TYPES[number]) ? text : '';
-}
-
-function normalizeQuestKey(value: unknown) {
-  return String(value || '')
-    .trim()
-    .toLowerCase()
-    .replace(/[\s-]+/g, '_')
-    .replace(/[^a-z0-9_]/g, '')
-    .replace(/_+/g, '_')
-    .replace(/^_+|_+$/g, '')
-    .slice(0, 80);
-}
-
-function isCanonicalQuestRow(row: any) {
-  return String(row?.quest_key || '') === CANONICAL_DAILY_QUEST.quest_key ||
-    String(row?.quest_type || '') === CANONICAL_DAILY_QUEST.quest_type;
-}
-
 function normalizeNumber(value: unknown, fallback = 0) {
   const number = Number(value);
-  return Number.isFinite(number) ? Math.floor(number) : fallback;
+  return Number.isFinite(number) ? Math.max(0, Math.floor(number)) : fallback;
+}
+
+function rowId(row: any) {
+  return row?.id || row?._id || null;
 }
 
 function utcDateKey(now = new Date()) {
   return now.toISOString().slice(0, 10);
 }
 
-function buildAssignmentKey(email: string, dateKey: string, questKey: string) {
-  return `daily_quest:${email}:${dateKey}:${questKey}`;
+function dateKeyMillis(dateKey: string) {
+  const ms = Date.parse(`${String(dateKey || '').slice(0, 10)}T00:00:00.000Z`);
+  return Number.isFinite(ms) ? ms : Date.parse(`${DAILY_TEMPLATE_EPOCH_DATE}T00:00:00.000Z`);
 }
 
-function buildProgressEventKey(email: string, dateKey: string, questKey: string, eventType: string, eventId: string) {
-  const safeEventId = String(eventId || 'event').trim().replace(/[^a-zA-Z0-9_.:@-]/g, '_').slice(0, 160);
-  return `daily_quest_progress:${email}:${dateKey}:${questKey}:${eventType}:${safeEventId}`;
+function getCycleDay(dateKey: string) {
+  const diff = Math.floor((dateKeyMillis(dateKey) - dateKeyMillis(DAILY_TEMPLATE_EPOCH_DATE)) / DAY_MS);
+  return ((diff % DAILY_CALENDAR_TEMPLATE_CYCLE_LENGTH) + DAILY_CALENDAR_TEMPLATE_CYCLE_LENGTH) %
+    DAILY_CALENDAR_TEMPLATE_CYCLE_LENGTH + 1;
 }
 
 function safeCredentialText(value: unknown, maxLength = 180) {
@@ -84,30 +103,23 @@ function normalizeGuestToken(value: unknown) {
   return safeCredentialText(value, 220);
 }
 
-function rowId(row: any) {
-  return row?.id || row?._id || null;
-}
-
-function ownerKeyFromEmail(rawEmail: unknown) {
-  const email = normalizeEmail(rawEmail);
-  if (!email) return '';
+function ownerKeyFromText(prefix: string, rawValue: unknown) {
+  const value = String(rawValue || '').trim().toLowerCase();
+  if (!value) return '';
   let hash = 2166136261;
-  for (let i = 0; i < email.length; i += 1) {
-    hash ^= email.charCodeAt(i);
+  for (let i = 0; i < value.length; i += 1) {
+    hash ^= value.charCodeAt(i);
     hash = Math.imul(hash, 16777619);
   }
-  return `u_${(hash >>> 0).toString(36)}`;
+  return `${prefix}_${(hash >>> 0).toString(36)}`;
 }
 
-function ownerKeyFromGuestId(rawGuestId: unknown) {
-  const guestId = String(rawGuestId || '').trim().toLowerCase();
-  if (!guestId) return '';
-  let hash = 2166136261;
-  for (let i = 0; i < guestId.length; i += 1) {
-    hash ^= guestId.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return `g_${(hash >>> 0).toString(36)}`;
+function ownerKeyFromEmail(value: unknown) {
+  return ownerKeyFromText('u', normalizeEmail(value));
+}
+
+function ownerKeyFromGuestId(value: unknown) {
+  return ownerKeyFromText('g', value);
 }
 
 function guestPlayerKey(guestId: string) {
@@ -140,6 +152,14 @@ function isGuestProfileComplete(row: any) {
   return Boolean(profileCompleted && categoryCompleted);
 }
 
+function isProfileComplete(row: any, isGuest: boolean) {
+  if (isGuest) return isGuestProfileComplete(row);
+  return Boolean(
+    row?.profile_setup_completed_at ||
+    (String(row?.username || '').trim() && String(row?.gender || '').trim() && String(row?.age_group || '').trim())
+  );
+}
+
 async function findGuestProfile(base44: any, guestId: string) {
   const entity = base44?.asServiceRole?.entities?.GuestProfile || base44?.entities?.GuestProfile;
   if (!entity?.filter || !guestId) return null;
@@ -147,24 +167,16 @@ async function findGuestProfile(base44: any, guestId: string) {
   return Array.isArray(rows) && rows.length ? rows[0] : null;
 }
 
-async function resolveDailyQuestPlayer(base44: any, body: any) {
+async function resolveDailyCalendarPlayer(base44: any, body: any) {
   const user = await base44.auth.me().catch(() => null);
-  const email = normalizeEmail(user?.email) || normalizeEmail(user?.user_email);
+  const email = normalizeEmail(user?.email || user?.user_email);
   if (email && rowId(user)) {
-    return {
-      ok: true,
-      isGuest: false,
-      row: user,
-      playerKey: email,
-      ownerKey: ownerKeyFromEmail(email),
-      response: null,
-    };
+    return { ok: true, isGuest: false, row: user, rowId: rowId(user), playerKey: email, ownerKey: ownerKeyFromEmail(email), response: null };
   }
-
   const guestId = normalizeGuestId(body?.guest_id);
   const guestToken = normalizeGuestToken(body?.guest_token);
   if (!guestId || !guestToken) {
-    return { ok: false, response: json({ ok: false, code: 'unauthenticated', error: 'Günlük görev ilerlemesi için profilini tamamlamalısın.' }, 401) };
+    return { ok: false, response: json({ ok: false, code: 'unauthenticated', error: 'Günlük ilerleme için profilini tamamlamalısın.' }, 401) };
   }
   const guest = await findGuestProfile(base44, guestId);
   const expectedHash = String(guest?.guest_token_hash || '');
@@ -173,193 +185,207 @@ async function resolveDailyQuestPlayer(base44: any, body: any) {
     return { ok: false, response: json({ ok: false, code: 'invalid_guest_token', error: 'Misafir oturumu doğrulanamadı.' }, 401) };
   }
   if (String(guest?.status || '') === 'linked' || !isGuestProfileComplete(guest)) {
-    return { ok: false, response: json({ ok: false, code: 'guest_profile_incomplete', error: 'Günlük görev ilerlemesi için profilini tamamlamalısın.' }, 403) };
+    return { ok: false, response: json({ ok: false, code: 'guest_profile_incomplete', error: 'Günlük ilerleme için profilini tamamlamalısın.' }, 403) };
   }
-  return {
-    ok: true,
-    isGuest: true,
-    row: guest,
-    playerKey: guestPlayerKey(guestId),
-    ownerKey: ownerKeyFromGuestId(guestId),
-    response: null,
-  };
+  return { ok: true, isGuest: true, row: guest, rowId: rowId(guest), playerKey: guestPlayerKey(guestId), ownerKey: ownerKeyFromGuestId(guestId), response: null };
 }
 
-function publicProgress(row: any) {
-  const targetValue = Math.max(1, normalizeNumber(row?.target_value, 1));
-  const progressValue = Math.max(0, Math.min(targetValue, normalizeNumber(row?.progress_value, 0)));
-  return {
-    id: row?.id || null,
-    questKey: String(row?.quest_key || ''),
-    questDate: String(row?.quest_date || ''),
-    title: String(row?.title || row?.quest_key || ''),
-    description: String(row?.description || ''),
-    questType: normalizeQuestType(row?.quest_type),
-    progressValue,
-    targetValue,
-    rewardDiamonds: Math.max(1, normalizeNumber(row?.reward_diamonds, 1)),
-    status: String(row?.status || (progressValue >= targetValue ? 'completed' : 'active')),
-    completedAt: row?.completed_at || null,
-    claimedAt: row?.claimed_at || null,
-  };
+function normalizeEventType(value: unknown) {
+  const text = String(value || '').trim();
+  return LEGACY_EVENT_ALIASES[text] || (Object.values(TASK_TYPES).includes(text as any) ? text : '');
 }
 
-function publicDefinition(row: any) {
-  return {
-    id: row?.id || row?.quest_definition_id || CANONICAL_DAILY_QUEST.quest_definition_id,
-    quest_key: normalizeQuestKey(row?.quest_key),
-    title: String(row?.title || ''),
-    description: String(row?.description || ''),
-    quest_type: normalizeQuestType(row?.quest_type),
-    target_value: Math.max(1, normalizeNumber(row?.target_value, 1)),
-    reward_diamonds: Math.max(1, normalizeNumber(row?.reward_diamonds, 1)),
-    sort_order: normalizeNumber(row?.sort_order, 0),
-    created_at: row?.created_at || row?.created_date || '',
-  };
+function progressEntity(base44: any, player: any = null) {
+  const serviceEntity = base44?.asServiceRole?.entities?.UserDailyQuestProgress || null;
+  const authEntity = base44?.entities?.UserDailyQuestProgress || null;
+  return player?.isGuest ? serviceEntity : (authEntity || serviceEntity);
 }
 
-function canonicalDefinitionSort(a: any, b: any) {
-  const orderA = normalizeNumber(a?.sort_order, 0);
-  const orderB = normalizeNumber(b?.sort_order, 0);
-  if (orderA !== orderB) return orderA - orderB;
-  const createdA = Date.parse(String(a?.created_at || a?.created_date || ''));
-  const createdB = Date.parse(String(b?.created_at || b?.created_date || ''));
-  if (Number.isFinite(createdA) && Number.isFinite(createdB) && createdA !== createdB) {
-    return createdA - createdB;
-  }
-  return String(a?.id || '').localeCompare(String(b?.id || ''), 'tr');
+function resolveTaskTemplates(dateKey: string, player: any) {
+  const cycleDay = getCycleDay(dateKey);
+  const usedQuestTypes = new Set<string>();
+  const profileComplete = isProfileComplete(player?.row, player?.isGuest === true);
+  return (DAILY_TASK_TEMPLATE_CYCLE[cycleDay - 1] || DAILY_TASK_TEMPLATE_CYCLE[0]).map((templateKey, index) => {
+    let key = templateKey;
+    let fallbackReason = '';
+    if (key === 'profile' && profileComplete) {
+      key = 'correct5';
+      fallbackReason = 'profile_already_complete';
+    }
+    if (key === 'hintFallback') {
+      key = 'correct5';
+      fallbackReason = 'hint_gameplay_consumption_not_active';
+    }
+    let task = TASK_LIBRARY[key] || TASK_LIBRARY.correct5;
+    if (task.requiresRegisteredUser && player?.isGuest) {
+      fallbackReason = `${task.key}_requires_registered_user`;
+      const fallbackKey = SAFE_GUEST_FALLBACKS.find((candidate) => {
+        const fallbackTask = TASK_LIBRARY[candidate];
+        return fallbackTask && !usedQuestTypes.has(fallbackTask.questType);
+      }) || 'correct5';
+      task = TASK_LIBRARY[fallbackKey];
+    }
+    usedQuestTypes.add(task.questType);
+    return { ...task, slot: index + 1, cycleDay, questKey: `daily_calendar:d${cycleDay}:s${index + 1}:${task.key}`, fallbackReason };
+  });
 }
 
-function dedupeDefinitionsByQuestKey(rows: any[] = []) {
-  const grouped = new Map<string, any[]>();
-  for (const row of rows || []) {
-    const definition = publicDefinition(row);
-    if (!definition.id || !definition.quest_key || !definition.quest_type) continue;
-    if (!grouped.has(definition.quest_key)) grouped.set(definition.quest_key, []);
-    grouped.get(definition.quest_key)?.push(definition);
+function isDailyCalendarRow(row: any) {
+  return String(row?.quest_key || '').startsWith('daily_calendar:') ||
+    String(row?.metadata?.runtimeVersion || '') === DAILY_CALENDAR_RUNTIME_VERSION;
+}
+
+function buildAssignmentKey(playerKey: string, dateKey: string, questKey: string) {
+  return `daily_calendar:${playerKey}:${dateKey}:${questKey}`;
+}
+
+function buildProgressEventKey(playerKey: string, dateKey: string, questKey: string, eventType: string, eventId: string) {
+  const safeEventId = String(eventId || 'event').trim().replace(/[^a-zA-Z0-9_.:@-]/g, '_').slice(0, 180);
+  return `daily_calendar_progress:${playerKey}:${dateKey}:${questKey}:${eventType}:${safeEventId}`;
+}
+
+async function readRowsForDate(base44: any, player: any, dateKey: string) {
+  const entity = progressEntity(base44, player);
+  if (!entity?.filter) return [];
+  const rows = await entity.filter({ user_email: player.playerKey, quest_date: dateKey }, 'created_at', 30).catch(() => []);
+  return Array.isArray(rows) ? rows.filter(isDailyCalendarRow) : [];
+}
+
+async function findProgressByAssignment(base44: any, player: any, dateKey: string, questKey: string) {
+  const entity = progressEntity(base44, player);
+  if (!entity?.filter) return null;
+  const idempotencyKey = buildAssignmentKey(player.playerKey, dateKey, questKey);
+  const [byKey, byQuest] = await Promise.all([
+    entity.filter({ user_email: player.playerKey, idempotency_key: idempotencyKey }, '-created_at', 1).catch(() => []),
+    entity.filter({ user_email: player.playerKey, quest_date: dateKey, quest_key: questKey }, '-created_at', 1).catch(() => []),
+  ]);
+  return [...(Array.isArray(byKey) ? byKey : []), ...(Array.isArray(byQuest) ? byQuest : [])]
+    .find((row: any) => rowId(row)) || null;
+}
+
+async function createProgressRow(base44: any, player: any, dateKey: string, task: any) {
+  const entity = progressEntity(base44, player);
+  if (!entity?.create) return null;
+  const existing = await findProgressByAssignment(base44, player, dateKey, task.questKey);
+  if (existing) return existing;
+  const timestamp = new Date().toISOString();
+  return entity.create({
+    user_email: player.playerKey,
+    owner_key: player.ownerKey,
+    player_type: player.isGuest ? 'guest' : 'registered',
+    quest_definition_id: `system:${task.questKey}`,
+    quest_key: task.questKey,
+    quest_date: dateKey,
+    title: task.title,
+    description: task.description,
+    quest_type: task.questType,
+    progress_value: 0,
+    target_value: Math.max(1, normalizeNumber(task.targetValue, 1)),
+    reward_diamonds: 0,
+    status: 'active',
+    completed_at: null,
+    claimed_at: null,
+    idempotency_key: buildAssignmentKey(player.playerKey, dateKey, task.questKey),
+    metadata: {
+      runtimeVersion: DAILY_CALENDAR_RUNTIME_VERSION,
+      slot: task.slot,
+      cycleDay: task.cycleDay,
+      icon: task.icon,
+      fallbackReason: task.fallbackReason || '',
+      serverDayBoundary: 'UTC',
+      taskCompletionSource: 'real_event_based',
+      rewardSource: 'daily_calendar_streak_reward',
+      rawGuestTokenServerStored: false,
+      noKronoxPuan: true,
+      noLeaderboardImpact: true,
+    },
+    created_at: timestamp,
+    updated_at: timestamp,
+  }).catch(async () => findProgressByAssignment(base44, player, dateKey, task.questKey));
+}
+
+async function ensureTodayTasks(base44: any, player: any, dateKey: string) {
+  const tasks = resolveTaskTemplates(dateKey, player).slice(0, DAILY_CALENDAR_TASKS_PER_DAY);
+  const rows = await readRowsForDate(base44, player, dateKey);
+  const byQuestKey = new Map(rows.map((row: any) => [String(row?.quest_key || ''), row]));
+  for (const task of tasks) {
+    if (byQuestKey.has(task.questKey)) continue;
+    const created = await createProgressRow(base44, player, dateKey, task);
+    if (created) byQuestKey.set(task.questKey, created);
   }
-  const definitions: any[] = [];
-  for (const groupRows of grouped.values()) {
-    const sorted = [...groupRows].sort(canonicalDefinitionSort);
-    const primary = sorted[0];
-    definitions.push({
-      ...primary,
-      duplicate_count: sorted.length - 1,
-      duplicate_ids: sorted.slice(1).map((row) => row.id).filter(Boolean),
-      canonical_definition_id: primary.id,
-    });
-  }
-  return definitions.sort(canonicalDefinitionSort);
+  const refreshed = await readRowsForDate(base44, player, dateKey);
+  const refreshedByKey = new Map(refreshed.map((row: any) => [String(row?.quest_key || ''), row]));
+  return tasks.map((task) => refreshedByKey.get(task.questKey) || byQuestKey.get(task.questKey)).filter(Boolean);
 }
 
 function boundedEventKeys(metadata: any) {
   const keys = metadata?.progress_event_keys;
-  return Array.isArray(keys) ? keys.map((key) => String(key)).slice(-80) : [];
+  return Array.isArray(keys) ? keys.map((key) => String(key)).slice(-120) : [];
 }
 
-function progressEntity(base44: any, player: any = null) {
-  // Runtime/deployability contract: Daily Quest progress explicitly binds
-  // entities.UserDailyQuestProgress while retaining the service-role fallback.
-  const authEntity = base44?.entities ? base44.entities.UserDailyQuestProgress : null;
-  const serviceEntity = base44?.asServiceRole?.entities ? base44.asServiceRole.entities.UserDailyQuestProgress : null;
-  return player?.isGuest ? serviceEntity : (authEntity || serviceEntity);
+function publicTask(row: any) {
+  const targetValue = Math.max(1, normalizeNumber(row?.target_value, 1));
+  const progressValue = Math.min(targetValue, normalizeNumber(row?.progress_value, 0));
+  return {
+    id: rowId(row),
+    questKey: String(row?.quest_key || ''),
+    questDate: String(row?.quest_date || ''),
+    title: String(row?.title || ''),
+    description: String(row?.description || ''),
+    questType: String(row?.quest_type || ''),
+    progressValue,
+    targetValue,
+    status: progressValue >= targetValue ? 'completed' : String(row?.status || 'active'),
+    completed: progressValue >= targetValue || String(row?.status || '') === 'completed',
+    completedAt: row?.completed_at || null,
+    icon: String(row?.metadata?.icon || 'star'),
+  };
 }
 
-function progressEntitySource(base44: any, player: any = null) {
-  if (player?.isGuest) return 'service_role_guest';
-  return base44?.entities?.UserDailyQuestProgress ? 'auth_user' : 'service_role_fallback';
-}
-
-async function readTodayRows(base44: any, player: any, dateKey: string) {
-  const entity = progressEntity(base44, player);
-  if (!entity?.filter) return [];
-  const rows = await entity
-    .filter({ user_email: player.playerKey, quest_date: dateKey }, 'created_at', 20)
-    .catch(() => []);
-  return Array.isArray(rows) ? rows : [];
-}
-
-async function findProgressByAssignment(base44: any, player: any, dateKey: string, questKey: string, idempotencyKey: string) {
-  const entity = progressEntity(base44, player);
-  if (!entity?.filter) return null;
-  const [byKey, byQuest] = await Promise.all([
-    entity
-      .filter({ user_email: player.playerKey, idempotency_key: idempotencyKey }, '-created_at', 1)
-      .catch(() => []),
-    entity
-      .filter({ user_email: player.playerKey, quest_date: dateKey, quest_key: questKey }, '-created_at', 1)
-      .catch(() => []),
-  ]);
-  return [...(Array.isArray(byKey) ? byKey : []), ...(Array.isArray(byQuest) ? byQuest : [])]
-    .find((row: any) => row?.id) || null;
-}
-
-async function createProgressRow(base44: any, player: any, dateKey: string, definition: any) {
-  const entity = progressEntity(base44, player);
-  if (!entity?.create) return null;
-  const timestamp = new Date().toISOString();
-  const idempotencyKey = buildAssignmentKey(player.playerKey, dateKey, String(definition.quest_key || ''));
-  const existing = await findProgressByAssignment(base44, player, dateKey, String(definition.quest_key || ''), idempotencyKey);
-  if (existing) return existing;
-  try {
-    return await entity.create({
-      user_email: player.playerKey,
-      owner_key: player.ownerKey,
-      player_type: player.isGuest ? 'guest' : 'registered',
-      quest_definition_id: definition.quest_definition_id || definition.id || CANONICAL_DAILY_QUEST.quest_definition_id,
-      quest_key: String(definition.quest_key || ''),
-      quest_date: dateKey,
-      title: String(definition.title || ''),
-      description: String(definition.description || ''),
-      quest_type: normalizeQuestType(definition.quest_type),
-      progress_value: 0,
-      target_value: Math.max(1, normalizeNumber(definition.target_value, 1)),
-      reward_diamonds: Math.max(1, normalizeNumber(definition.reward_diamonds, 1)),
-      status: 'active',
-      completed_at: null,
-      claimed_at: null,
-      idempotency_key: idempotencyKey,
-      metadata: {
-        runtimeVersion: DAILY_QUEST_RUNTIME_VERSION,
-        serverDayBoundary: 'UTC',
-        guestProfileQuest: player.isGuest,
-        rawGuestTokenServerStored: false,
-        sourceDefinitionStatus: 'code_canonical',
-        definitionRowsIgnoredAtRuntime: true,
-        progressTrigger: 'solo_level_completion_only',
-      },
-      created_at: timestamp,
-      updated_at: timestamp,
-    });
-  } catch (error) {
-    console.error('[recordDailyQuestProgress] progress create failed', {
-      code: error?.code || 'progress_create_failed',
-      questKey: definition.quest_key,
-      message: error?.message || 'unknown',
-    });
-    return await findProgressByAssignment(base44, player, dateKey, String(definition.quest_key || ''), idempotencyKey);
+async function eventSourceIsVerified(base44: any, player: any, body: any, eventType: string, dateKey: string) {
+  if (eventType === TASK_TYPES.DAILY_WHEEL_CLAIM) {
+    const entity = base44?.asServiceRole?.entities?.DailyWheelSpin || base44?.entities?.DailyWheelSpin;
+    if (!entity?.filter) return { ok: false, reason: 'daily_wheel_spin_entity_missing' };
+    const rows = await entity.filter({ user_email: player.playerKey, spin_date: dateKey }, '-claimed_at', 3).catch(() => []);
+    return Array.isArray(rows) && rows.some((row: any) => rowId(row))
+      ? { ok: true, reason: 'daily_wheel_spin_verified' }
+      : { ok: false, reason: 'daily_wheel_not_claimed' };
   }
-}
 
-async function ensureTodayDailyQuests(base44: any, player: any, dateKey: string) {
-  const definitions = [publicDefinition(CANONICAL_DAILY_QUEST)];
-  const selectedDefinitions = definitions.slice(0, DAILY_QUESTS_PER_DAY);
-  const selectedQuestKeys = new Set(selectedDefinitions.map((definition: any) => String(definition.quest_key || '')));
-  let rows = await readTodayRows(base44, player, dateKey);
-  const keys = new Set(rows.filter(isCanonicalQuestRow).map((row: any) => String(row?.quest_key || '')));
-  for (const definition of selectedDefinitions) {
-    if (rows.filter(isCanonicalQuestRow).length >= DAILY_QUESTS_PER_DAY) break;
-    if (keys.has(String(definition.quest_key || ''))) continue;
-    const created = await createProgressRow(base44, player, dateKey, definition);
-    if (created?.id) {
-      rows.push(created);
-      keys.add(String(definition.quest_key || ''));
+  if (eventType === TASK_TYPES.JOKER_USED || eventType === TASK_TYPES.TIME_FREEZE_JOKER_USED) {
+    if (player.isGuest) return { ok: false, reason: 'guest_joker_task_disabled' };
+    const entity = base44?.asServiceRole?.entities?.JokerTransaction || base44?.entities?.JokerTransaction;
+    if (!entity?.filter) return { ok: false, reason: 'joker_transaction_entity_missing' };
+    const idempotencyKey = String(body?.idempotencyKey || body?.idempotency_key || '').trim();
+    const transactionId = String(body?.transactionId || body?.transaction_id || '').trim();
+    const filters: Record<string, unknown>[] = [];
+    if (idempotencyKey) filters.push({ user_email: player.playerKey, idempotency_key: idempotencyKey });
+    if (transactionId) filters.push({ user_email: player.playerKey, id: transactionId });
+    if (!filters.length) return { ok: false, reason: 'joker_ledger_key_missing' };
+    for (const filter of filters) {
+      const rows = await entity.filter(filter, '-created_at', 3).catch(() => []);
+      const match = Array.isArray(rows)
+        ? rows.find((row: any) => rowId(row) && (eventType !== TASK_TYPES.TIME_FREEZE_JOKER_USED || String(row?.joker_type || '') === 'time_freeze'))
+        : null;
+      if (match) return { ok: true, reason: 'joker_transaction_verified' };
     }
+    return { ok: false, reason: 'joker_transaction_not_found' };
   }
-  const refreshedRows = await readTodayRows(base44, player, dateKey);
-  return (refreshedRows.length ? refreshedRows : rows)
-    .filter((row: any) => selectedQuestKeys.has(String(row?.quest_key || '')) || isCanonicalQuestRow(row))
-    .slice(0, DAILY_QUESTS_PER_DAY);
+
+  if (eventType === TASK_TYPES.FRIEND_INVITE_SENT || eventType === TASK_TYPES.FRIEND_ADDED) {
+    if (player.isGuest) return { ok: false, reason: 'guest_friend_task_disabled' };
+    const requestId = String(body?.requestId || body?.request_id || body?.eventId || body?.event_id || '').trim();
+    if (!requestId) return { ok: false, reason: 'friend_request_id_missing' };
+    return { ok: true, reason: 'friend_event_from_backend_success' };
+  }
+
+  if (eventType === TASK_TYPES.JOKERLESS_LEVEL_COMPLETE && body?.jokerUsed === true) {
+    return { ok: false, reason: 'joker_used_in_attempt' };
+  }
+  if ((eventType === TASK_TYPES.SOLO_LEVEL_COMPLETE || eventType === TASK_TYPES.JOKERLESS_LEVEL_COMPLETE) && body?.passed === false) {
+    return { ok: false, reason: 'solo_level_not_passed' };
+  }
+  return { ok: true, reason: 'gameplay_event' };
 }
 
 Deno.serve(async (req: Request) => {
@@ -370,21 +396,15 @@ Deno.serve(async (req: Request) => {
 
     const base44 = createClientFromRequest(req);
     const body = await req.json().catch(() => ({}));
-    const player = await resolveDailyQuestPlayer(base44, body);
+    const player = await resolveDailyCalendarPlayer(base44, body);
     if (!player.ok) return player.response;
-    const mode = String(body?.mode || '').trim().toLowerCase();
-    if (mode !== 'solo') {
-      return json({ ok: true, skipped: true, reason: 'non_solo_mode', updated: [], onlineModeExcluded: true });
-    }
-    const requestedEventType = String(body?.eventType || body?.quest_type || body?.questType || '').trim();
-    const eventType = normalizeQuestType(requestedEventType);
+
+    const eventType = normalizeEventType(body?.eventType || body?.quest_type || body?.questType);
     if (!eventType) {
       return json({
         ok: true,
         skipped: true,
-        reason: 'unsupported_daily_quest_event',
-        requestedEventType,
-        supportedEventType: CANONICAL_DAILY_QUEST.quest_type,
+        reason: 'unsupported_daily_calendar_event',
         updated: [],
         noDiamondGrantDuringProgress: true,
         noKronoxPuan: true,
@@ -393,83 +413,91 @@ Deno.serve(async (req: Request) => {
     }
 
     const dateKey = utcDateKey();
-    const rows = await ensureTodayDailyQuests(base44, player, dateKey);
-    const amount = Math.max(1, Math.min(25, normalizeNumber(body?.amount, 1)));
-    const baseEventId = String(body?.eventId || body?.event_id || body?.idempotencyKey || '').trim();
+    const verification = await eventSourceIsVerified(base44, player, body, eventType, dateKey);
+    if (!verification.ok) {
+      return json({
+        ok: true,
+        skipped: true,
+        reason: verification.reason,
+        eventType,
+        updated: [],
+        noDiamondGrantDuringProgress: true,
+      });
+    }
+
+    const rows = await ensureTodayTasks(base44, player, dateKey);
+    const entity = progressEntity(base44, player);
+    const baseEventId = String(body?.eventId || body?.event_id || body?.idempotencyKey || body?.idempotency_key || body?.transactionId || body?.requestId || '').trim();
+    const amount = Math.max(1, Math.min(10, normalizeNumber(body?.amount, 1)));
     const updates: any[] = [];
 
     for (const row of rows) {
-      if (normalizeQuestType(row?.quest_type) !== eventType) continue;
-      if (String(row?.status || '') === 'claimed' || row?.claimed_at) {
-        updates.push({ questKey: row?.quest_key, skipped: true, reason: 'already_claimed' });
+      if (String(row?.quest_type || '') !== eventType) continue;
+      const targetValue = Math.max(1, normalizeNumber(row?.target_value, 1));
+      const currentProgress = Math.min(targetValue, normalizeNumber(row?.progress_value, 0));
+      if (currentProgress >= targetValue || String(row?.status || '') === 'completed') {
+        updates.push({ questKey: row?.quest_key, skipped: true, reason: 'already_completed' });
         continue;
       }
-
       const eventKey = buildProgressEventKey(player.playerKey, dateKey, String(row?.quest_key || ''), eventType, baseEventId || `${Date.now()}`);
       const metadata = row?.metadata && typeof row.metadata === 'object' ? row.metadata : {};
       const eventKeys = boundedEventKeys(metadata);
       if (eventKeys.includes(eventKey)) {
-        updates.push({ questKey: row?.quest_key, skipped: true, reason: 'duplicate_event', eventKey });
+        updates.push({ questKey: row?.quest_key, skipped: true, reason: 'duplicate_event' });
         continue;
       }
-
-      const targetValue = Math.max(1, normalizeNumber(row?.target_value, 1));
-      const currentProgress = Math.max(0, Math.min(targetValue, normalizeNumber(row?.progress_value, 0)));
-      const nextProgress = Math.min(targetValue, currentProgress + amount);
-      const completedNow = currentProgress < targetValue && nextProgress >= targetValue;
-      const timestamp = new Date().toISOString();
-      const nextStatus = nextProgress >= targetValue ? 'completed' : 'active';
-      const entity = progressEntity(base44, player);
-      if (!entity?.update) {
+      if (!entity?.update || !rowId(row)) {
         updates.push({ questKey: row?.quest_key, skipped: true, reason: 'progress_update_unavailable' });
         continue;
       }
-      const updated = await entity.update(row.id, {
+      const nextProgress = Math.min(targetValue, currentProgress + amount);
+      const timestamp = new Date().toISOString();
+      const completedNow = currentProgress < targetValue && nextProgress >= targetValue;
+      const updated = await entity.update(rowId(row), {
         progress_value: nextProgress,
-        status: nextStatus,
+        status: nextProgress >= targetValue ? 'completed' : 'active',
         completed_at: row?.completed_at || (completedNow ? timestamp : null),
         updated_at: timestamp,
         last_event_key: eventKey,
         metadata: {
           ...metadata,
-          runtimeVersion: DAILY_QUEST_RUNTIME_VERSION,
-          progress_event_keys: [...eventKeys, eventKey].slice(-80),
+          runtimeVersion: DAILY_CALENDAR_RUNTIME_VERSION,
+          progress_event_keys: [...eventKeys, eventKey].slice(-120),
           lastEventType: eventType,
           lastEventId: baseEventId || null,
-          lastMode: 'solo',
-          progressTrigger: 'solo_level_completion_only',
+          lastMode: String(body?.mode || ''),
+          lastVerificationReason: verification.reason,
+          noDiamondGrantDuringProgress: true,
         },
       });
-      updates.push(publicProgress(updated));
+      updates.push(publicTask(updated));
     }
 
-    const refreshedRows = await ensureTodayDailyQuests(base44, player, dateKey);
-    const responseRows = refreshedRows.length ? refreshedRows : rows;
+    const refreshedRows = await ensureTodayTasks(base44, player, dateKey);
     return json({
       ok: true,
+      runtimeVersion: DAILY_CALENDAR_RUNTIME_VERSION,
       eventType,
-      mode: 'solo',
+      mode: String(body?.mode || ''),
       playerType: player.isGuest ? 'guest' : 'registered',
       guestProfile: player.isGuest,
       serverDate: dateKey,
-      progressEntitySource: progressEntitySource(base44, player),
       updated: updates,
-      dailyQuestLimit: DAILY_QUESTS_PER_DAY,
-      quests: responseRows.slice(0, DAILY_QUESTS_PER_DAY).map(publicProgress),
-      canonicalQuestKey: CANONICAL_DAILY_QUEST.quest_key,
-      canonicalQuestType: CANONICAL_DAILY_QUEST.quest_type,
-      definitionRowsIgnoredAtRuntime: true,
+      tasks: refreshedRows.map(publicTask).slice(0, DAILY_CALENDAR_TASKS_PER_DAY),
+      quests: refreshedRows.map(publicTask).slice(0, DAILY_CALENDAR_TASKS_PER_DAY),
+      eventVerifiedBy: verification.reason,
       noDiamondGrantDuringProgress: true,
-      grantsDiamondsOnlyOnClaim: true,
+      grantsDiamondsOnlyOnStreakClaim: true,
       noKronoxPuan: true,
       noLeaderboardImpact: true,
+      rawGuestTokenServerStored: false,
     });
   } catch (error) {
     console.error('[recordDailyQuestProgress] failed', error?.message || error);
     return json({
       ok: false,
-      code: 'daily_quest_progress_failed',
-      error: 'Günlük görev ilerlemesi kaydedilemedi.',
+      code: 'daily_calendar_progress_failed',
+      error: 'Günlük ilerleme kaydedilemedi.',
     }, 500);
   }
 });

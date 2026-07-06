@@ -24,51 +24,11 @@ const DAILY_QUEST_DISPLAY_ONLY_CONTRACT = Object.freeze({
 const RUNTIME_PROGRESS_CONTRACT = Object.freeze({
   runtimeEntity: 'UserDailyQuestProgress',
   runtimeStatusValues: ['active', 'completed', 'claimed'],
-  rewardSource: 'daily_quest_reward',
-  oneClaimPerQuestPerUtcDay: true,
+  legacyRewardSource: 'daily_quest_reward',
+  activeRuntime: 'daily_calendar_streak_reward',
+  legacyDefinitionRowsIgnoredAtRuntime: true,
 });
-const DEFAULT_DEFINITIONS = [
-  {
-    quest_key: 'start_1_solo_attempt',
-    title: 'Solo’ya Başla',
-    description: 'Bugün 1 Solo oyunu başlat.',
-    quest_type: 'start_solo_attempt',
-    target_value: 1,
-    reward_diamonds: 20,
-    status: 'active',
-    sort_order: 10,
-  },
-  {
-    quest_key: 'correct_5_cards',
-    title: '5 Kart Doğru Yerleştir',
-    description: 'Bugün 5 kartı doğru yerleştir.',
-    quest_type: 'correct_cards',
-    target_value: 5,
-    reward_diamonds: 30,
-    status: 'active',
-    sort_order: 20,
-  },
-  {
-    quest_key: 'complete_1_solo_level',
-    title: '1 Level Tamamla',
-    description: 'Bugün 1 Solo level tamamla.',
-    quest_type: 'complete_solo_level',
-    target_value: 1,
-    reward_diamonds: 50,
-    status: 'active',
-    sort_order: 30,
-  },
-  {
-    quest_key: 'use_1_joker',
-    title: '1 Joker Kullan',
-    description: 'Bugün 1 joker kullan.',
-    quest_type: 'use_joker',
-    target_value: 1,
-    reward_diamonds: 20,
-    status: 'active',
-    sort_order: 40,
-  },
-] as const;
+const DEFAULT_DEFINITIONS = [] as const;
 
 
 function json(payload: unknown, status = 200) {

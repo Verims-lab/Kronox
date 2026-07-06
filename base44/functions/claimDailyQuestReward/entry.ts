@@ -1,10 +1,12 @@
 /* global Deno */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 
-const DAILY_QUEST_REWARD_SOURCE = 'daily_quest_reward';
-const RELATED_ENTITY_TYPE = 'daily_quest';
-const CANONICAL_DAILY_QUEST_KEY = 'solo_level_complete';
-const CANONICAL_DAILY_QUEST_TYPE = 'solo_level_complete';
+const DAILY_CALENDAR_RUNTIME_VERSION = 'daily-calendar-streak-v1';
+const DAILY_CALENDAR_TASKS_PER_DAY = 3;
+const DAILY_STREAK_REWARD_DAYS = 7;
+const DAILY_STREAK_REWARD_DIAMONDS = 200;
+const DAILY_CALENDAR_REWARD_SOURCE = 'daily_calendar_streak_reward';
+const RELATED_ENTITY_TYPE = 'daily_calendar_streak_reward';
 const DAY_MS = 24 * 60 * 60 * 1000;
 const GUEST_ID_PREFIX = 'guest_';
 const ECONOMY_LOCK_TTL_MS = 8_000;
@@ -23,19 +25,6 @@ function normalizeNumber(value: unknown, fallback = 0) {
   return Number.isFinite(number) ? Math.max(0, Math.floor(number)) : fallback;
 }
 
-function utcDateKey(now = new Date()) {
-  return now.toISOString().slice(0, 10);
-}
-
-function nextUtcMidnightIso(dateKey: string) {
-  const start = Date.parse(`${dateKey}T00:00:00.000Z`);
-  return new Date(start + DAY_MS).toISOString();
-}
-
-function buildClaimIdempotencyKey(email: string, dateKey: string, questKey: string) {
-  return `daily_quest_reward:${email}:${dateKey}:${questKey}`;
-}
-
 function rowId(row: any) {
   return row?.id || row?._id || null;
 }
@@ -44,134 +33,18 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-function safeLockText(value: unknown, maxLength = 220) {
-  const text = String(value || '').trim();
-  return text ? text.slice(0, maxLength) : '';
+function utcDateKey(now = new Date()) {
+  return now.toISOString().slice(0, 10);
 }
 
-function isSameRow(a: any, b: any) {
-  const left = rowId(a);
-  const right = rowId(b);
-  if (left && right) return left === right;
-  return Boolean(a?.operation_id && b?.operation_id && a.operation_id === b.operation_id && a.actor_key === b.actor_key);
+function addDays(dateKey: string, amount: number) {
+  const ms = Date.parse(`${dateKey}T00:00:00.000Z`);
+  return new Date(ms + amount * DAY_MS).toISOString().slice(0, 10);
 }
 
-function economyOperationLockEntity(base44: any) {
-  const serviceEntity = base44?.asServiceRole?.entities ? base44.asServiceRole.entities.EconomyOperationLock : null;
-  const authEntity = base44?.entities ? base44.entities.EconomyOperationLock : null;
-  return serviceEntity || authEntity;
-}
-
-function buildEconomyLockKey(actorKey: string) {
-  return `economy:user:${actorKey}`;
-}
-
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function isActiveEconomyLock(row: any, nowMs: number) {
-  if (String(row?.status || '') !== 'active') return false;
-  const expiresMs = Date.parse(String(row?.expires_at || ''));
-  return Number.isFinite(expiresMs) ? expiresMs > nowMs : true;
-}
-
-function selectCanonicalEconomyLock(rows: any[], nowMs: number) {
-  return rows
-    .filter((row) => isActiveEconomyLock(row, nowMs))
-    .sort((a, b) => {
-      const acquiredDiff = Date.parse(String(a?.acquired_at || '')) - Date.parse(String(b?.acquired_at || ''));
-      if (Number.isFinite(acquiredDiff) && acquiredDiff !== 0) return acquiredDiff;
-      return String(rowId(a) || a?.operation_id || '').localeCompare(String(rowId(b) || b?.operation_id || ''));
-    })[0] || null;
-}
-
-async function findEconomyLocks(base44: any, lockKey: string) {
-  const entity = economyOperationLockEntity(base44);
-  if (!entity?.filter) return [];
-  const rows = await entity.filter({ lock_key: lockKey }, '-acquired_at', 25).catch(() => []);
-  return Array.isArray(rows) ? rows : [];
-}
-
-async function markExpiredEconomyLocks(base44: any, lockKey: string, nowMs: number) {
-  const entity = economyOperationLockEntity(base44);
-  if (!entity?.update) return;
-  const now = new Date(nowMs).toISOString();
-  const rows = await findEconomyLocks(base44, lockKey);
-  await Promise.all(rows
-    .filter((row) => String(row?.status || '') === 'active')
-    .filter((row) => {
-      const expiresMs = Date.parse(String(row?.expires_at || ''));
-      return Number.isFinite(expiresMs) && expiresMs <= nowMs;
-    })
-    .map((row) => entity.update(rowId(row), {
-      status: 'stale',
-      released_at: now,
-      metadata: {
-        ...(row?.metadata && typeof row.metadata === 'object' ? row.metadata : {}),
-        staleRecovery: true,
-      },
-    }).catch(() => null)));
-}
-
-async function releaseEconomyOperationLock(base44: any, lock: any, status = 'released') {
-  const entity = economyOperationLockEntity(base44);
-  const id = rowId(lock);
-  if (!entity?.update || !id) return;
-  await entity.update(id, {
-    status,
-    released_at: nowIso(),
-  }).catch(() => null);
-}
-
-async function acquireEconomyOperationLock(base44: any, lockKey: string, context: Record<string, unknown>) {
-  const entity = economyOperationLockEntity(base44);
-  if (!entity?.filter || !entity?.create || !entity?.update) {
-    return { ok: false, code: 'economy_lock_unavailable', lock: null };
-  }
-  const now = nowIso();
-  const nowMs = Date.parse(now);
-  await markExpiredEconomyLocks(base44, lockKey, nowMs);
-  const existing = selectCanonicalEconomyLock(await findEconomyLocks(base44, lockKey), nowMs);
-  if (existing) return { ok: false, code: 'economy_operation_in_progress', lock: existing };
-
-  const created = await entity.create({
-    lock_key: lockKey,
-    actor_key: safeLockText(context.actorKey),
-    operation_scope: safeLockText(context.operationScope, 80),
-    operation_id: safeLockText(context.operationId),
-    status: 'active',
-    acquired_at: now,
-    expires_at: new Date(nowMs + ECONOMY_LOCK_TTL_MS).toISOString(),
-    metadata: {
-      phase: 'economy_parallel_race_guard_phase_1',
-      ttlMs: ECONOMY_LOCK_TTL_MS,
-      ...(context.metadata && typeof context.metadata === 'object' ? context.metadata : {}),
-    },
-  });
-  await sleep(ECONOMY_LOCK_SETTLE_MS);
-  const canonical = selectCanonicalEconomyLock(await findEconomyLocks(base44, lockKey), Date.now());
-  if (!isSameRow(canonical, created)) {
-    await releaseEconomyOperationLock(base44, created, 'released');
-    return { ok: false, code: 'economy_operation_in_progress', lock: canonical };
-  }
-  return { ok: true, code: 'locked', lock: created };
-}
-
-async function withEconomyOperationLock(base44: any, lockKey: string, context: Record<string, unknown>, callback: () => Promise<Response>) {
-  const lockResult = await acquireEconomyOperationLock(base44, lockKey, context);
-  if (!lockResult.ok) {
-    return json({
-      ok: false,
-      code: lockResult.code,
-      error: 'Ekonomi işlemi işleniyor. Lütfen tekrar dene.',
-    }, 409);
-  }
-  try {
-    return await callback();
-  } finally {
-    await releaseEconomyOperationLock(base44, lockResult.lock);
-  }
+function nextUtcMidnightIso(dateKey: string) {
+  const ms = Date.parse(`${dateKey}T00:00:00.000Z`);
+  return new Date(ms + DAY_MS).toISOString();
 }
 
 function safeCredentialText(value: unknown, maxLength = 180) {
@@ -189,26 +62,23 @@ function normalizeGuestToken(value: unknown) {
   return safeCredentialText(value, 220);
 }
 
-function ownerKeyFromEmail(rawEmail: unknown) {
-  const email = normalizeEmail(rawEmail);
-  if (!email) return '';
+function ownerKeyFromText(prefix: string, rawValue: unknown) {
+  const value = String(rawValue || '').trim().toLowerCase();
+  if (!value) return '';
   let hash = 2166136261;
-  for (let i = 0; i < email.length; i += 1) {
-    hash ^= email.charCodeAt(i);
+  for (let i = 0; i < value.length; i += 1) {
+    hash ^= value.charCodeAt(i);
     hash = Math.imul(hash, 16777619);
   }
-  return `u_${(hash >>> 0).toString(36)}`;
+  return `${prefix}_${(hash >>> 0).toString(36)}`;
 }
 
-function ownerKeyFromGuestId(rawGuestId: unknown) {
-  const guestId = String(rawGuestId || '').trim().toLowerCase();
-  if (!guestId) return '';
-  let hash = 2166136261;
-  for (let i = 0; i < guestId.length; i += 1) {
-    hash ^= guestId.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return `g_${(hash >>> 0).toString(36)}`;
+function ownerKeyFromEmail(value: unknown) {
+  return ownerKeyFromText('u', normalizeEmail(value));
+}
+
+function ownerKeyFromGuestId(value: unknown) {
+  return ownerKeyFromText('g', value);
 }
 
 function guestPlayerKey(guestId: string) {
@@ -248,25 +118,16 @@ async function findGuestProfile(base44: any, guestId: string) {
   return Array.isArray(rows) && rows.length ? rows[0] : null;
 }
 
-async function resolveDailyQuestPlayer(base44: any, body: any) {
+async function resolveDailyCalendarPlayer(base44: any, body: any) {
   const user = await base44.auth.me().catch(() => null);
-  const email = normalizeEmail(user?.email) || normalizeEmail(user?.user_email);
+  const email = normalizeEmail(user?.email || user?.user_email);
   if (email && rowId(user)) {
-    return {
-      ok: true,
-      isGuest: false,
-      row: user,
-      rowId: rowId(user),
-      playerKey: email,
-      ownerKey: ownerKeyFromEmail(email),
-      response: null,
-    };
+    return { ok: true, isGuest: false, row: user, rowId: rowId(user), playerKey: email, ownerKey: ownerKeyFromEmail(email), response: null };
   }
-
   const guestId = normalizeGuestId(body?.guest_id);
   const guestToken = normalizeGuestToken(body?.guest_token);
   if (!guestId || !guestToken) {
-    return { ok: false, response: json({ ok: false, code: 'unauthenticated', error: 'Günlük görev ödülü için profilini tamamlamalısın.' }, 401) };
+    return { ok: false, response: json({ ok: false, code: 'unauthenticated', error: 'Günlük ödül için profilini tamamlamalısın.' }, 401) };
   }
   const guest = await findGuestProfile(base44, guestId);
   const expectedHash = String(guest?.guest_token_hash || '');
@@ -275,30 +136,35 @@ async function resolveDailyQuestPlayer(base44: any, body: any) {
     return { ok: false, response: json({ ok: false, code: 'invalid_guest_token', error: 'Misafir oturumu doğrulanamadı.' }, 401) };
   }
   if (String(guest?.status || '') === 'linked' || !isGuestProfileComplete(guest)) {
-    return { ok: false, response: json({ ok: false, code: 'guest_profile_incomplete', error: 'Günlük görev ödülü için profilini tamamlamalısın.' }, 403) };
+    return { ok: false, response: json({ ok: false, code: 'guest_profile_incomplete', error: 'Günlük ödül için profilini tamamlamalısın.' }, 403) };
   }
-  return {
-    ok: true,
-    isGuest: true,
-    row: guest,
-    rowId: rowId(guest),
-    playerKey: guestPlayerKey(guestId),
-    ownerKey: ownerKeyFromGuestId(guestId),
-    response: null,
-  };
+  return { ok: true, isGuest: true, row: guest, rowId: rowId(guest), playerKey: guestPlayerKey(guestId), ownerKey: ownerKeyFromGuestId(guestId), response: null };
 }
 
 function progressEntity(base44: any, player: any = null) {
-  // Runtime/deployability contract: Daily Quest claim binds
-  // entities.UserDailyQuestProgress. The progress row's RLS update rule is
-  // owner-scoped (data.user_email == user.email) with NO admin clause, so
-  // updates must run as the authenticated owner. We therefore prefer the
-  // authenticated-user client (which satisfies owner RLS) and only fall back
-  // to the service-role client when the auth client is unavailable. This
-  // mirrors recordDailyQuestProgress, the proven working progress writer.
-  const authEntity = base44?.entities ? base44.entities.UserDailyQuestProgress : null;
-  const serviceEntity = base44?.asServiceRole?.entities ? base44.asServiceRole.entities.UserDailyQuestProgress : null;
+  const serviceEntity = base44?.asServiceRole?.entities?.UserDailyQuestProgress || null;
+  const authEntity = base44?.entities?.UserDailyQuestProgress || null;
   return player?.isGuest ? serviceEntity : (authEntity || serviceEntity);
+}
+
+function playerEntity(base44: any, player: any) {
+  if (player?.isGuest) return base44?.asServiceRole?.entities?.GuestProfile || base44?.entities?.GuestProfile || null;
+  return base44?.asServiceRole?.entities?.User || base44?.entities?.User || null;
+}
+
+function diamondTransactionEntity(base44: any, player: any = null) {
+  const serviceEntity = base44?.asServiceRole?.entities?.DiamondTransaction || null;
+  const authEntity = base44?.entities?.DiamondTransaction || null;
+  return player?.isGuest ? serviceEntity : (authEntity || serviceEntity);
+}
+
+function economyOperationLockEntity(base44: any) {
+  return base44?.asServiceRole?.entities?.EconomyOperationLock || base44?.entities?.EconomyOperationLock || null;
+}
+
+function isDailyCalendarRow(row: any) {
+  return String(row?.quest_key || '').startsWith('daily_calendar:') ||
+    String(row?.metadata?.runtimeVersion || '') === DAILY_CALENDAR_RUNTIME_VERSION;
 }
 
 function publicProgress(row: any) {
@@ -308,141 +174,178 @@ function publicProgress(row: any) {
     id: rowId(row),
     questKey: String(row?.quest_key || ''),
     questDate: String(row?.quest_date || ''),
-    title: String(row?.title || row?.quest_key || ''),
-    description: String(row?.description || ''),
     questType: String(row?.quest_type || ''),
     progressValue,
     targetValue,
-    rewardDiamonds: Math.max(1, normalizeNumber(row?.reward_diamonds, 1)),
-    status: String(row?.status || (progressValue >= targetValue ? 'completed' : 'active')),
-    completedAt: row?.completed_at || null,
-    claimedAt: row?.claimed_at || null,
+    completed: progressValue >= targetValue || String(row?.status || '') === 'completed',
   };
 }
 
-function isCanonicalDailyQuest(row: any) {
-  return String(row?.quest_key || '') === CANONICAL_DAILY_QUEST_KEY ||
-    String(row?.quest_type || '') === CANONICAL_DAILY_QUEST_TYPE;
+function isDayCompleted(rows: any[] = []) {
+  const calendarRows = rows.filter(isDailyCalendarRow);
+  if (calendarRows.length < DAILY_CALENDAR_TASKS_PER_DAY) return false;
+  return calendarRows.slice(0, DAILY_CALENDAR_TASKS_PER_DAY).every((row) => publicProgress(row).completed);
 }
 
-function isProgressRowOwnedByPlayer(row: any, player: any) {
-  const email = normalizeEmail(player?.row?.email) || normalizeEmail(player?.row?.user_email);
-  if (!player?.isGuest && email) return normalizeEmail(row?.user_email) === email;
-  return normalizeEmail(row?.user_email) === player.playerKey;
+function groupRowsByDate(rows: any[] = []) {
+  const grouped = new Map<string, any[]>();
+  for (const row of rows) {
+    const key = String(row?.quest_date || '').slice(0, 10);
+    if (!key) continue;
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key)?.push(row);
+  }
+  return grouped;
 }
 
-async function findProgressById(base44: any, player: any, progressId: string) {
+async function readPlayerCalendarRows(base44: any, player: any, limit = 420) {
   const entity = progressEntity(base44, player);
-  if (!entity || !progressId) return null;
-  if (typeof entity.get === 'function') {
-    const row = await entity.get(progressId).catch(() => null);
-    if (rowId(row) && isProgressRowOwnedByPlayer(row, player)) return row;
-  }
-  if (typeof entity.filter === 'function') {
-    for (const field of ['id', '_id']) {
-      const rows = await entity.filter({ [field]: progressId }, '-created_at', 1).catch(() => []);
-      const row = Array.isArray(rows) && rows.length ? rows[0] : null;
-      if (rowId(row) && isProgressRowOwnedByPlayer(row, player)) return row;
-    }
-  }
-  return null;
+  if (!entity?.filter) return [];
+  const rows = await entity.filter({ user_email: player.playerKey }, '-quest_date', limit).catch(() => []);
+  return Array.isArray(rows) ? rows.filter(isDailyCalendarRow) : [];
 }
 
-async function findProgress(base44: any, player: any, body: any) {
-  const progressId = String(body?.progressId || body?.progress_id || '').trim();
-  if (progressId) {
-    const row = await findProgressById(base44, player, progressId);
-    if (rowId(row)) return row;
+function computeCurrentStreak(groupedRows: Map<string, any[]>, serverDate: string) {
+  const todayCompleted = isDayCompleted(groupedRows.get(serverDate) || []);
+  let cursor = todayCompleted ? serverDate : addDays(serverDate, -1);
+  let streak = 0;
+  while (isDayCompleted(groupedRows.get(cursor) || [])) {
+    streak += 1;
+    cursor = addDays(cursor, -1);
+    if (streak > 365) break;
   }
-  const questKey = String(body?.questKey || body?.quest_key || '').trim();
-  const questDate = String(body?.questDate || body?.quest_date || utcDateKey()).slice(0, 10);
-  if (!questKey) return null;
-  const rows = await progressEntity(base44, player)
-    .filter({ user_email: player.playerKey, quest_date: questDate, quest_key: questKey }, '-created_at', 1)
-    .catch(() => []);
-  const row = Array.isArray(rows) && rows.length ? rows[0] : null;
-  return rowId(row) && isProgressRowOwnedByPlayer(row, player) ? row : null;
+  return { todayCompleted, currentStreak: streak };
 }
 
-function diamondTransactionEntity(base44: any, player: any = null) {
-  // DiamondTransaction RLS create is owner-scoped
-  // (created_by_id == user.id AND data.user_email == user.email) with NO admin
-  // clause, so the ledger row must be created by the authenticated owner.
-  // Prefer the auth client; fall back to service role only if unavailable.
-  const authEntity = base44?.entities ? base44.entities.DiamondTransaction : null;
-  const serviceEntity = base44?.asServiceRole?.entities ? base44.asServiceRole.entities.DiamondTransaction : null;
-  return player?.isGuest ? serviceEntity : (authEntity || serviceEntity);
+function buildRewardState(player: any, groupedRows: Map<string, any[]>, serverDate: string) {
+  const { todayCompleted, currentStreak } = computeCurrentStreak(groupedRows, serverDate);
+  const streakAnchorDate = currentStreak > 0 ? addDays(todayCompleted ? serverDate : addDays(serverDate, -1), -(currentStreak - 1)) : serverDate;
+  const storedAnchor = String(player.row?.daily_calendar_streak_anchor_date || '');
+  const storedClaimCount = storedAnchor === streakAnchorDate
+    ? normalizeNumber(player.row?.daily_calendar_streak_reward_claim_count, 0)
+    : 0;
+  const earnedRewardCount = Math.floor(currentStreak / DAILY_STREAK_REWARD_DAYS);
+  const ready = currentStreak >= DAILY_STREAK_REWARD_DAYS && earnedRewardCount > storedClaimCount;
+  const claimNumber = storedClaimCount + 1;
+  const cycleId = `daily_calendar_streak:${player.playerKey}:${streakAnchorDate}:${claimNumber}`;
+  const idempotencyKey = `${cycleId}:${DAILY_STREAK_REWARD_DIAMONDS}`;
+  return {
+    todayCompleted,
+    currentStreak,
+    streakAnchorDate,
+    storedClaimCount,
+    earnedRewardCount,
+    ready,
+    claimNumber,
+    cycleId,
+    idempotencyKey,
+  };
 }
 
 async function findDiamondTransaction(base44: any, player: any, idempotencyKey: string) {
-  const rows = await diamondTransactionEntity(base44, player)
-    .filter({ user_email: player.playerKey, idempotency_key: idempotencyKey }, '-created_at', 1)
-    .catch(() => []);
+  const entity = diamondTransactionEntity(base44, player);
+  if (!entity?.filter) return null;
+  const rows = await entity.filter({ user_email: player.playerKey, idempotency_key: idempotencyKey }, '-created_at', 1).catch(() => []);
   return Array.isArray(rows) && rows.length ? rows[0] : null;
 }
 
 async function createDiamondTransaction(base44: any, player: any, payload: Record<string, unknown>) {
-  const email = normalizeEmail(payload.user_email);
-  const idempotencyKey = String(payload.idempotency_key || '').trim();
-  if (!email || !idempotencyKey) return null;
-  const existing = await findDiamondTransaction(base44, player, idempotencyKey);
+  const existing = await findDiamondTransaction(base44, player, String(payload.idempotency_key || ''));
   if (existing) return existing;
-  const created = await diamondTransactionEntity(base44, player).create({
-    ...payload,
-    user_email: email,
-    idempotency_key: idempotencyKey,
-  });
-  const confirmed = await findDiamondTransaction(base44, player, idempotencyKey);
-  return confirmed || created;
+  const entity = diamondTransactionEntity(base44, player);
+  if (!entity?.create) return null;
+  await entity.create(payload);
+  return await findDiamondTransaction(base44, player, String(payload.idempotency_key || ''));
 }
 
-async function markProgressClaimed(base44: any, player: any, row: any, claimedAt: string, tx: any) {
-  const id = rowId(row);
-  if (!id) return row;
-  if (String(row?.status || '') === 'claimed' && row?.claimed_at) return row;
-  return progressEntity(base44, player).update(id, {
-    status: 'claimed',
-    claimed_at: claimedAt,
-    updated_at: claimedAt,
+async function updateDailyCalendarPlayer(base44: any, player: any, patch: Record<string, unknown>) {
+  const entity = playerEntity(base44, player);
+  if (!entity?.update || !player?.rowId) return null;
+  return entity.update(player.rowId, patch);
+}
+
+function safeLockText(value: unknown, maxLength = 220) {
+  const text = String(value || '').trim();
+  return text ? text.slice(0, maxLength) : '';
+}
+
+function buildEconomyLockKey(actorKey: string) {
+  return `economy:user:${actorKey}`;
+}
+
+function isActiveLock(row: any, nowMs: number) {
+  if (String(row?.status || '') !== 'active') return false;
+  const expiresMs = Date.parse(String(row?.expires_at || ''));
+  return Number.isFinite(expiresMs) ? expiresMs > nowMs : true;
+}
+
+async function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function withEconomyLock(base44: any, lockKey: string, context: Record<string, unknown>, callback: () => Promise<Response>) {
+  const entity = economyOperationLockEntity(base44);
+  if (!entity?.filter || !entity?.create || !entity?.update) return callback();
+  const now = nowIso();
+  const nowMs = Date.parse(now);
+  const existingRows = await entity.filter({ lock_key: lockKey }, '-acquired_at', 20).catch(() => []);
+  const active = Array.isArray(existingRows) ? existingRows.find((row: any) => isActiveLock(row, nowMs)) : null;
+  if (active) {
+    return json({ ok: false, code: 'economy_operation_in_progress', error: 'Ekonomi işlemi işleniyor. Lütfen tekrar dene.' }, 409);
+  }
+  const lock = await entity.create({
+    lock_key: lockKey,
+    actor_key: safeLockText(context.actorKey),
+    operation_scope: 'daily_calendar_streak_claim',
+    operation_id: safeLockText(context.operationId),
+    status: 'active',
+    acquired_at: now,
+    expires_at: new Date(nowMs + ECONOMY_LOCK_TTL_MS).toISOString(),
     metadata: {
-      ...(row?.metadata && typeof row.metadata === 'object' ? row.metadata : {}),
-      claimTransactionId: tx?.id || null,
-      claimSource: DAILY_QUEST_REWARD_SOURCE,
-      noKronoxPuan: true,
-      noLeaderboardImpact: true,
-      guestProfileQuest: player?.isGuest === true,
-      rawGuestTokenServerStored: false,
+      runtimeVersion: DAILY_CALENDAR_RUNTIME_VERSION,
+      ttlMs: ECONOMY_LOCK_TTL_MS,
     },
-  });
-}
-
-async function updateDailyQuestPlayer(base44: any, player: any, patch: Record<string, unknown>) {
-  if (!player?.rowId) return null;
-  if (player.isGuest) {
-    const entity = base44?.asServiceRole?.entities?.GuestProfile || base44?.entities?.GuestProfile;
-    return entity?.update?.(player.rowId, {
-      ...patch,
-      last_seen_at: String(patch.economy_updated_at || new Date().toISOString()),
-      metadata: {
-        ...(player.row?.metadata && typeof player.row.metadata === 'object' ? player.row.metadata : {}),
-        guestDailyQuestEnabled: true,
-        rawGuestTokenServerStored: false,
-      },
-    });
+  }).catch(() => null);
+  await sleep(ECONOMY_LOCK_SETTLE_MS);
+  try {
+    return await callback();
+  } finally {
+    if (rowId(lock)) {
+      await entity.update(rowId(lock), { status: 'released', released_at: nowIso() }).catch(() => null);
+    }
   }
-  return base44.asServiceRole.entities.User.update(player.rowId, patch);
 }
 
-async function reconcileVisibleDiamondBalance(base44: any, player: any, balanceAfter: number, timestamp: string) {
-  const currentBalance = normalizeNumber(player?.row?.diamonds, 0);
-  const nextBalance = Math.max(currentBalance, balanceAfter);
-  if (player?.rowId && nextBalance !== currentBalance) {
-    await updateDailyQuestPlayer(base44, player, {
-      diamonds: nextBalance,
+function claimResponse(player: any, tx: any, rewardState: any, balanceAfter: number, alreadyClaimed: boolean, timestamp: string) {
+  return {
+    ok: true,
+    alreadyClaimed,
+    source: DAILY_CALENDAR_REWARD_SOURCE,
+    rewardDiamonds: DAILY_STREAK_REWARD_DIAMONDS,
+    diamondBalanceAfter: balanceAfter,
+    idempotencyKey: rewardState.idempotencyKey,
+    transactionId: rowId(tx),
+    streakRewardCycleId: rewardState.cycleId,
+    currentStreak: rewardState.currentStreak,
+    claimNumber: rewardState.claimNumber,
+    playerType: player.isGuest ? 'guest' : 'registered',
+    guestProfile: player.isGuest,
+    userPatch: {
+      diamonds: balanceAfter,
+      daily_calendar_current_streak: rewardState.currentStreak,
+      daily_calendar_streak_anchor_date: rewardState.streakAnchorDate,
+      daily_calendar_streak_reward_claim_count: rewardState.claimNumber,
+      daily_calendar_last_reward_claim_at: timestamp,
+      daily_quest_last_claim_at: timestamp,
+      daily_quest_last_claim_date: utcDateKey(),
+      daily_quest_next_available_at: nextUtcMidnightIso(utcDateKey()),
       economy_updated_at: timestamp,
-    }).catch(() => null);
-  }
-  return nextBalance;
+    },
+    grantsDiamondsOnly: true,
+    noKronoxPuan: true,
+    noLeaderboardImpact: true,
+    rawGuestTokenServerStored: false,
+  };
 }
 
 Deno.serve(async (req: Request) => {
@@ -453,211 +356,83 @@ Deno.serve(async (req: Request) => {
 
     const base44 = createClientFromRequest(req);
     const body = await req.json().catch(() => ({}));
-    const player = await resolveDailyQuestPlayer(base44, body);
+    const player = await resolveDailyCalendarPlayer(base44, body);
     if (!player.ok) return player.response;
-    const progressStore = progressEntity(base44, player);
-    if (!progressStore?.filter || !progressStore?.update) {
-      return json({ ok: false, code: 'daily_quest_entities_missing', error: 'Günlük görev kayıtları hazır değil.' }, 500);
-    }
-    let progress = await findProgress(base44, player, body);
-    if (!rowId(progress)) {
-      return json({ ok: false, code: 'daily_quest_not_found', error: 'Günlük görev bulunamadı.' }, 404);
+
+    const serverDate = utcDateKey();
+    const groupedRows = groupRowsByDate(await readPlayerCalendarRows(base44, player));
+    const rewardState = buildRewardState(player, groupedRows, serverDate);
+    if (!rewardState.ready) {
+      return json({
+        ok: false,
+        code: 'daily_calendar_streak_not_ready',
+        error: 'Hediye Kutusu için 7 günlük seri tamamlanmalı.',
+        currentStreak: rewardState.currentStreak,
+        requiredStreak: DAILY_STREAK_REWARD_DAYS,
+      }, 409);
     }
 
-    const questDate = String(progress.quest_date || '').slice(0, 10);
-    const todayKey = utcDateKey();
-    if (questDate !== todayKey) {
-      return json({ ok: false, code: 'daily_quest_not_claimable_today', error: 'Bu görev bugün için alınamaz.' }, 409);
-    }
-    if (!isCanonicalDailyQuest(progress)) {
-      return json({ ok: false, code: 'daily_quest_legacy_not_claimable', error: 'Bu görev artık geçerli değil.' }, 409);
-    }
-
-    const targetValue = Math.max(1, normalizeNumber(progress.target_value, 1));
-    const progressValue = Math.min(targetValue, normalizeNumber(progress.progress_value, 0));
-    const progressStatus = String(progress.status || '');
-    if (progressStatus !== 'completed' && progressStatus !== 'claimed') {
-      return json({ ok: false, code: 'daily_quest_not_completed', error: 'Görev henüz tamamlanmadı.' }, 409);
-    }
-    if (progressValue < targetValue) {
-      return json({ ok: false, code: 'daily_quest_not_completed', error: 'Görev henüz tamamlanmadı.' }, 409);
-    }
-
-    const rewardDiamonds = Math.max(1, normalizeNumber(progress.reward_diamonds, 1));
-    const idempotencyKey = buildClaimIdempotencyKey(player.playerKey, questDate, String(progress.quest_key || rowId(progress)));
-    const existingTx = await findDiamondTransaction(base44, player, idempotencyKey);
-    const timestamp = new Date().toISOString();
-    const nextAvailableAt = nextUtcMidnightIso(todayKey);
-    const latestRow = player.isGuest
-      ? (await findGuestProfile(base44, String(player.row?.guest_id || '')).catch(() => player.row)) || player.row
-      : await base44.auth.me().catch(() => player.row);
-    const latestPlayer = { ...player, row: latestRow || player.row, rowId: rowId(latestRow) || player.rowId };
-
+    const existingTx = await findDiamondTransaction(base44, player, rewardState.idempotencyKey);
+    const timestamp = nowIso();
     if (existingTx) {
-      const claimedProgress = await markProgressClaimed(base44, latestPlayer, progress, progress.claimed_at || existingTx.created_at || timestamp, existingTx);
-      const diamondBalanceAfter = await reconcileVisibleDiamondBalance(
-        base44,
-        latestPlayer,
-        normalizeNumber(existingTx.balance_after ?? latestPlayer.row?.diamonds),
-        timestamp,
-      );
-      return json({
-        ok: true,
-        alreadyClaimed: true,
-        source: DAILY_QUEST_REWARD_SOURCE,
-        quest: publicProgress(claimedProgress),
-        rewardDiamonds: normalizeNumber(existingTx.amount, rewardDiamonds),
-        diamondBalanceAfter,
-        questStatus: 'claimed',
-        idempotencyKey,
-        transactionId: existingTx.id || null,
-        playerType: latestPlayer.isGuest ? 'guest' : 'registered',
-        guestProfile: latestPlayer.isGuest,
-        userPatch: {
-          diamonds: diamondBalanceAfter,
-          daily_quest_last_claim_at: claimedProgress.claimed_at || existingTx.created_at || timestamp,
-          daily_quest_last_claim_date: questDate,
-          daily_quest_next_available_at: nextAvailableAt,
-        },
-      });
+      const balanceAfter = Math.max(normalizeNumber(existingTx.balance_after), normalizeNumber(player.row?.diamonds));
+      await updateDailyCalendarPlayer(base44, player, claimResponse(player, existingTx, rewardState, balanceAfter, true, timestamp).userPatch).catch(() => null);
+      return json(claimResponse(player, existingTx, rewardState, balanceAfter, true, timestamp));
     }
 
-    if (String(progress.status || '') === 'claimed' || progress.claimed_at) {
-      return json({ ok: false, code: 'daily_quest_already_claimed', error: 'Bu görev ödülü zaten alındı.' }, 409);
-    }
-
-    return await withEconomyOperationLock(base44, buildEconomyLockKey(player.playerKey), {
+    return await withEconomyLock(base44, buildEconomyLockKey(player.playerKey), {
       actorKey: player.playerKey,
-      operationScope: 'daily_quest_claim',
-      operationId: idempotencyKey,
-      metadata: {
-        questKey: progress.quest_key,
-        questDate,
-        playerType: latestPlayer.isGuest ? 'guest' : 'registered',
-      },
+      operationId: rewardState.idempotencyKey,
     }, async () => {
-    const postLockTx = await findDiamondTransaction(base44, latestPlayer, idempotencyKey);
-    if (postLockTx) {
-      const claimedProgress = await markProgressClaimed(base44, latestPlayer, progress, progress.claimed_at || postLockTx.created_at || timestamp, postLockTx);
-      const diamondBalanceAfter = await reconcileVisibleDiamondBalance(
-        base44,
-        latestPlayer,
-        normalizeNumber(postLockTx.balance_after ?? latestPlayer.row?.diamonds),
-        timestamp,
-      );
-      return json({
-        ok: true,
-        alreadyClaimed: true,
-        source: DAILY_QUEST_REWARD_SOURCE,
-        quest: publicProgress(claimedProgress),
-        rewardDiamonds: normalizeNumber(postLockTx.amount, rewardDiamonds),
-        diamondBalanceAfter,
-        questStatus: 'claimed',
-        idempotencyKey,
-        transactionId: postLockTx.id || null,
-        playerType: latestPlayer.isGuest ? 'guest' : 'registered',
-        guestProfile: latestPlayer.isGuest,
-        userPatch: {
-          diamonds: diamondBalanceAfter,
-          daily_quest_last_claim_at: claimedProgress.claimed_at || postLockTx.created_at || timestamp,
-          daily_quest_last_claim_date: questDate,
-          daily_quest_next_available_at: nextAvailableAt,
+      const postLockExisting = await findDiamondTransaction(base44, player, rewardState.idempotencyKey);
+      if (postLockExisting) {
+        const balanceAfter = Math.max(normalizeNumber(postLockExisting.balance_after), normalizeNumber(player.row?.diamonds));
+        await updateDailyCalendarPlayer(base44, player, claimResponse(player, postLockExisting, rewardState, balanceAfter, true, timestamp).userPatch).catch(() => null);
+        return json(claimResponse(player, postLockExisting, rewardState, balanceAfter, true, timestamp));
+      }
+
+      const balanceBefore = normalizeNumber(player.row?.diamonds, 0);
+      const balanceAfter = balanceBefore + DAILY_STREAK_REWARD_DIAMONDS;
+      const tx = await createDiamondTransaction(base44, player, {
+        user_email: player.playerKey,
+        owner_key: player.ownerKey,
+        player_type: player.isGuest ? 'guest' : 'registered',
+        amount: DAILY_STREAK_REWARD_DIAMONDS,
+        balance_before: balanceBefore,
+        balance_after: balanceAfter,
+        source: DAILY_CALENDAR_REWARD_SOURCE,
+        direction: 'earn',
+        related_entity_type: RELATED_ENTITY_TYPE,
+        related_entity_id: rewardState.cycleId,
+        idempotency_key: rewardState.idempotencyKey,
+        metadata: {
+          runtimeVersion: DAILY_CALENDAR_RUNTIME_VERSION,
+          rewardCycleId: rewardState.cycleId,
+          streakAnchorDate: rewardState.streakAnchorDate,
+          streakDaysRequired: DAILY_STREAK_REWARD_DAYS,
+          currentStreak: rewardState.currentStreak,
+          claimNumber: rewardState.claimNumber,
+          rewardDiamonds: DAILY_STREAK_REWARD_DIAMONDS,
+          clientRewardIgnored: true,
+          grantsDiamondsOnly: true,
+          noKronoxPuan: true,
+          noLeaderboardImpact: true,
+          rawGuestTokenServerStored: false,
         },
+        created_at: timestamp,
+        description: DAILY_CALENDAR_REWARD_SOURCE,
       });
-    }
-
-    const lockedRow = latestPlayer.isGuest
-      ? (await findGuestProfile(base44, String(latestPlayer.row?.guest_id || '')).catch(() => latestPlayer.row)) || latestPlayer.row
-      : await base44.auth.me().catch(() => latestPlayer.row);
-    const lockedPlayer = { ...latestPlayer, row: lockedRow || latestPlayer.row, rowId: rowId(lockedRow) || latestPlayer.rowId };
-    const lockedProgress = rowId(progress)
-      ? (await findProgressById(base44, lockedPlayer, rowId(progress)).catch(() => null)) || progress
-      : progress;
-    if (String(lockedProgress.status || '') === 'claimed' || lockedProgress.claimed_at) {
-      return json({ ok: false, code: 'daily_quest_already_claimed', error: 'Bu görev ödülü zaten alındı.' }, 409);
-    }
-    if (!isCanonicalDailyQuest(lockedProgress)) {
-      return json({ ok: false, code: 'daily_quest_legacy_not_claimable', error: 'Bu görev artık geçerli değil.' }, 409);
-    }
-    const lockedTargetValue = Math.max(1, normalizeNumber(lockedProgress.target_value, 1));
-    const lockedProgressValue = Math.min(lockedTargetValue, normalizeNumber(lockedProgress.progress_value, 0));
-    if (String(lockedProgress.status || '') !== 'completed' || lockedProgressValue < lockedTargetValue) {
-      return json({ ok: false, code: 'daily_quest_not_completed', error: 'Görev henüz tamamlanmadı.' }, 409);
-    }
-
-    const balanceBefore = normalizeNumber(lockedPlayer.row?.diamonds, 0);
-    const balanceAfter = balanceBefore + rewardDiamonds;
-    const claimCount = normalizeNumber(lockedPlayer.row?.daily_quest_claim_count, 0) + 1;
-    const userPatch = {
-      diamonds: balanceAfter,
-      daily_quest_last_claim_at: timestamp,
-      daily_quest_last_claim_date: questDate,
-      daily_quest_next_available_at: nextAvailableAt,
-      daily_quest_claim_count: claimCount,
-      economy_updated_at: timestamp,
-    };
-
-    const tx = await createDiamondTransaction(base44, lockedPlayer, {
-      user_email: lockedPlayer.playerKey,
-      owner_key: lockedPlayer.ownerKey,
-      player_type: lockedPlayer.isGuest ? 'guest' : 'registered',
-      amount: rewardDiamonds,
-      balance_before: balanceBefore,
-      balance_after: balanceAfter,
-      source: DAILY_QUEST_REWARD_SOURCE,
-      direction: 'earn',
-      related_entity_type: RELATED_ENTITY_TYPE,
-      related_entity_id: rowId(lockedProgress),
-      idempotency_key: idempotencyKey,
-      metadata: {
-        questProgressId: rowId(lockedProgress),
-        questKey: lockedProgress.quest_key,
-        questDate,
-        questType: lockedProgress.quest_type,
-        source: DAILY_QUEST_REWARD_SOURCE,
-        grantsDiamondsOnly: true,
-        noKronoxPuan: true,
-        noLeaderboardImpact: true,
-        clientRewardIgnored: true,
-        playerType: lockedPlayer.isGuest ? 'guest' : 'registered',
-        guestProfileReward: lockedPlayer.isGuest,
-        rawGuestTokenServerStored: false,
-      },
-      created_at: timestamp,
-      description: 'daily_quest_reward',
-    });
-    if (!tx) throw new Error('daily_quest_reward_transaction_missing');
-
-    await updateDailyQuestPlayer(base44, lockedPlayer, userPatch);
-
-    // Mark the quest claimed only after the reward grant succeeded.
-    const claimedProgress = await markProgressClaimed(base44, lockedPlayer, lockedProgress, timestamp, tx);
-
-    return json({
-      ok: true,
-      alreadyClaimed: false,
-      source: DAILY_QUEST_REWARD_SOURCE,
-      quest: publicProgress(claimedProgress),
-      rewardDiamonds,
-      diamondBalanceBefore: balanceBefore,
-      diamondBalanceAfter: balanceAfter,
-      questStatus: 'claimed',
-      idempotencyKey,
-      transactionId: tx?.id || null,
-      userPatch,
-      playerType: lockedPlayer.isGuest ? 'guest' : 'registered',
-      guestProfile: lockedPlayer.isGuest,
-      grantsDiamondsOnly: true,
-      noKronoxPuan: true,
-      noLeaderboardImpact: true,
-    });
+      if (!tx) throw new Error('daily_calendar_streak_reward_transaction_missing');
+      const response = claimResponse(player, tx, rewardState, balanceAfter, false, timestamp);
+      await updateDailyCalendarPlayer(base44, player, response.userPatch);
+      return json(response);
     });
   } catch (error) {
     console.error('[claimDailyQuestReward] failed', error?.message || error);
     return json({
       ok: false,
-      code: 'daily_quest_claim_failed',
-      error: 'Ödül alınamadı. Tekrar dene.',
+      code: 'daily_calendar_streak_claim_failed',
+      error: 'Hediye Kutusu alınamadı. Tekrar dene.',
     }, 500);
   }
 });

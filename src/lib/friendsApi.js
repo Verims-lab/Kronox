@@ -9,6 +9,7 @@ import { getSafePublicUsernameLabel } from '@/lib/publicIdentity';
 import { getPresenceLookupKeyForEmail } from '@/lib/presence';
 import { normalizeSafePublicUsernameInput } from '@/lib/guestProfile';
 import { pickPublicAvatarFields } from '@/lib/avatarOptions';
+import { recordDailyQuestProgress } from '@/lib/dbGateway/dailyQuestGateway';
 
 export const USERNAME_NOT_FOUND_MESSAGE = 'Kronox’ta bu kullanıcı adıyla biri yok.';
 export const OPEN_INVITE_EXISTS_MESSAGE = 'Bu kişiye gönderilmiş açık davet var.';
@@ -231,6 +232,20 @@ export async function sendFriendRequest({ me = null, target = '', toEmail = '' }
   if (data.emailSent === false && data.emailError) {
     console.warn('[friendsApi] friend-request email not delivered:', data.emailError, 'marker=email_failed');
   }
+  const requestId = String(data.requestId || data.request_id || data.friendRequestId || data.id || '').trim();
+  if (requestId) {
+    recordDailyQuestProgress({
+      eventType: 'friend_invite_sent',
+      mode: 'friends',
+      amount: 1,
+      eventId: requestId,
+      requestId,
+      metadata: {
+        source: 'friendsApi.sendFriendRequest',
+        inputKind: parsed.kind,
+      },
+    }).catch(() => null);
+  }
   return data;
 }
 
@@ -274,6 +289,16 @@ export async function acceptIncomingRequest(requestOrId) {
     console.error('[friendsApi] acceptFriendRequest backend error', data);
     throw new Error('Arkadaşlık isteği kabul edilemedi. Lütfen tekrar dene.');
   }
+  recordDailyQuestProgress({
+    eventType: 'friend_added',
+    mode: 'friends',
+    amount: 1,
+    eventId: requestId,
+    requestId,
+    metadata: {
+      source: 'friendsApi.acceptIncomingRequest',
+    },
+  }).catch(() => null);
   return data;
 }
 

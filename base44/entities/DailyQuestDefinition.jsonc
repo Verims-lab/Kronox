@@ -1,12 +1,12 @@
 {
   "name": "DailyQuestDefinition",
   "type": "object",
-  "description": "Legacy/admin-only Daily Quest template definitions. Current Runtime v1 ignores these rows and assigns the canonical solo_level_complete UserDailyQuestProgress row from code to avoid duplicate-definition DB bloat. Definitions do not grant rewards by themselves; claimDailyQuestReward grants diamonds only through daily_quest_reward. Daily Quest does not grant Kronox Puan and has no leaderboard impact.",
+  "description": "Legacy/admin-only Daily Quest template definitions. Current Daily Calendar/Streak Runtime v1 ignores these rows and assigns 3 daily_calendar:* UserDailyQuestProgress task rows from code to avoid duplicate-definition DB bloat. Definitions do not grant rewards. claimDailyQuestReward now grants only the 7-day Gift Box through daily_calendar_streak_reward. Daily Calendar grants Diamonds only and has no Kronox Puan or leaderboard impact.",
   "properties": {
     "quest_key": {
       "type": "string",
       "pattern": "^[a-z0-9_]+$",
-      "description": "Legacy stable machine-readable key. Current runtime canonical key is solo_level_complete and does not require a DailyQuestDefinition row."
+      "description": "Legacy stable machine-readable key. Current runtime task keys are daily_calendar:* and do not require DailyQuestDefinition rows."
     },
     "title": {
       "type": "string",
@@ -21,13 +21,22 @@
     "quest_type": {
       "type": "string",
       "enum": [
+        "daily_wheel_claim",
         "solo_level_complete",
+        "consecutive_correct_4",
+        "joker_used",
+        "time_freeze_joker_used",
+        "jokerless_solo_level_complete",
+        "profile_complete",
+        "correct_answer",
+        "friend_invite_sent",
+        "friend_added",
         "start_solo_attempt",
         "correct_cards",
         "complete_solo_level",
         "use_joker"
       ],
-      "description": "Legacy template logic type. Runtime v1 progresses only solo_level_complete from code; old values are retained for historical rows."
+      "description": "Legacy template logic type. Runtime v1 progresses code-owned Daily Calendar tasks from real event types; old values are retained for historical rows."
     },
     "target_value": {
       "type": "integer",

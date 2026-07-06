@@ -337,20 +337,41 @@
     "daily_quest_last_claim_at": {
       "type": "string",
       "format": "date-time",
-      "description": "ISO timestamp for the latest server-backed Daily Quest Runtime v1 reward claim. Separate from Daily Wheel guard fields so quest rewards cannot conflict with wheel spins."
+      "description": "Legacy compatibility timestamp for the latest Daily reward claim. Active Daily Calendar Gift Box claims use daily_calendar_* fields and DiamondTransaction source daily_calendar_streak_reward."
     },
     "daily_quest_last_claim_date": {
       "type": "string",
-      "description": "UTC YYYY-MM-DD key for the latest Daily Quest Runtime v1 reward claim. Actual duplicate-claim idempotency uses UserDailyQuestProgress + DiamondTransaction daily_quest_reward keys, not this field alone."
+      "description": "Legacy compatibility UTC YYYY-MM-DD guard. Active Daily Calendar duplicate-claim idempotency uses UserDailyQuestProgress daily_calendar:* rows plus DiamondTransaction daily_calendar_streak_reward keys, not this field alone."
     },
     "daily_quest_next_available_at": {
       "type": "string",
       "format": "date-time",
-      "description": "ISO UTC timestamp for next Daily Quest availability/reset. Daily Quest grants diamonds only, does not grant Kronox Puan, and has no leaderboard impact."
+      "description": "ISO UTC timestamp for next Daily Calendar server-day availability/reset. Daily Calendar grants Diamonds only, does not grant Kronox Puan, and has no leaderboard impact."
     },
     "daily_quest_claim_count": {
       "type": "number",
-      "description": "Count of successful server-backed Daily Quest reward claims. Daily Quest claims write DiamondTransaction source daily_quest_reward."
+      "description": "Legacy count of successful server-backed Daily Quest reward claims. Daily Calendar streak claims use daily_calendar_streak_reward and daily_calendar_* fields."
+    },
+    "daily_calendar_current_streak": {
+      "type": "number",
+      "description": "Current UTC Daily Calendar completed-day streak. Derived from UserDailyQuestProgress daily_calendar:* task rows."
+    },
+    "daily_calendar_last_completed_date": {
+      "type": "string",
+      "description": "Latest UTC YYYY-MM-DD Daily Calendar day whose 3 tasks were completed."
+    },
+    "daily_calendar_streak_anchor_date": {
+      "type": "string",
+      "description": "UTC YYYY-MM-DD first day of the current Daily Calendar streak reward window."
+    },
+    "daily_calendar_streak_reward_claim_count": {
+      "type": "number",
+      "description": "Number of 7-day Daily Calendar Gift Box rewards claimed within the current streak anchor."
+    },
+    "daily_calendar_last_reward_claim_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Latest server-side Daily Calendar 7-day Gift Box claim timestamp. Claims write DiamondTransaction source daily_calendar_streak_reward."
     },
     "economy_updated_at": {
       "type": "string",

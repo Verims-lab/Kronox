@@ -681,7 +681,7 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('daily_quest_definition_health_registered',
-    'Health registers Daily Quest canonical runtime coverage',
+    'Health registers Daily Calendar/Streak runtime coverage',
     () => {
       const combined = [
         dailyQuestDefinitionCasesSource,
@@ -698,17 +698,24 @@ export const EXTRA_TESTS = [
         'Daily Quest Runtime Health Suite',
         'DailyQuestDefinition',
         'UserDailyQuestProgress',
+        'Daily Calendar / Streak',
+        'Home GÜNLÜK shortcut',
+        'DAILY_CALENDAR_TASKS_PER_DAY = 3',
+        'DAILY_CALENDAR_TEMPLATE_CYCLE_LENGTH = 9',
+        'DAILY_STREAK_REWARD_DIAMONDS = 200',
+        'DailyPage',
+        'cleanupLegacyDailyQuests',
         'claimDailyQuestReward',
-        'daily_quest_reward',
-        'solo_level_complete',
-        'Solo’da Seviye Geç',
-        'Bugün 1 Solo seviyesini tamamla.',
+        'daily_calendar_streak_reward',
+        'daily_wheel_claim',
+        'consecutive_correct_4',
+        'jokerless_solo_level_complete',
+        'friend_invite_sent',
         'definitionRowsIgnoredAtRuntime',
-        'solo_level_completion_only',
-        'reward_diamonds',
+        'reward_diamonds: 0',
         'no Kronox Puan',
-        'no leaderboard impact',
-        'Görevler',
+        'does not affect Leaderboard',
+        'GÜNLÜK',
         'Çark',
       ]);
       if (missing.length) {
@@ -725,7 +732,7 @@ export const EXTRA_TESTS = [
           missing,
         });
       }
-      return pass('Daily Quest Health covers admin definitions plus runtime progress, claim, panel, and no-Puan/leaderboard boundaries.', {
+      return pass('Daily Calendar Health covers legacy cleanup, runtime task generation, event progress, route UI, streak claim, and no-Puan/leaderboard boundaries.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

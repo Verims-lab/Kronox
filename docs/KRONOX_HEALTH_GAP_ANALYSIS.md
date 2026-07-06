@@ -34,7 +34,7 @@ fallback polling/refetch.
 | Notifications | Executable merge helpers cover stale empty fetches | Does not prove push delivery or service worker behavior on real devices |
 | Online presence / player selection | Confirms PlayerPresence owner binding, GuestProfile token proof for guest heartbeat, 75s TTL/25s heartbeat/12s visible refresh, accepted-friend lookup, backend-owned player selection, username-only labels, opaque target refs, and offline fallback | Does not prove deployed function freshness, two-device heartbeat timing, or live non-friend invite delivery |
 | Solo records | Confirms backend context and copy | Does not prove production data has multi-user records |
-| Economy | Confirms idempotency guards, Daily Wheel V2 no-Puan weighted reward rules, Daily Quest Diamond-only rules, and function-level economy lock/recheck guards | Does not prove DB uniqueness or two-device race safety |
+| Economy | Confirms idempotency guards, Daily Wheel V2 no-Puan weighted reward rules, Daily Calendar / Streak Diamond-only rules, and function-level economy lock/recheck guards | Does not prove DB uniqueness or two-device race safety |
 | Leaderboard privacy | Confirms sanitized public payload shape | Does not prove live RLS prevents direct entity reads |
 | Questions | Confirms no raw client `Question.list` gameplay fallback | Does not prove deployed function is current |
 
@@ -80,7 +80,7 @@ fallback polling/refetch.
 - Added Security Pass 2 coverage for `EconomyOperationLock`, post-lock
   idempotency/balance/inventory rechecks, Market purchase negative-balance
   protection, Solo joker non-negative spend protection, Daily Wheel V2 weighted
-  reward serialization, and Daily Quest Diamond-only claim serialization.
+  reward serialization, and Daily Calendar / Streak Diamond-only claim serialization.
   DB unique/index proof and live
   two-device economy races remain manual gates.
 - Added Security Pass 3 coverage for accessible loading/status semantics,
@@ -149,8 +149,8 @@ fallback polling/refetch.
 | Global profile avatar propagation | Static UI/projection checks for shared renderer usage, safe avatar quartet, bundled icon categories, leaderboard/friends/Online/lobby/invite/header propagation, and no private avatar payload fields | Manual visual proof across leaderboard, friends, player select, lobby, invites, header, uploaded photo fallback, and guest/linked profiles |
 | Mağaza open / purchase readiness | Static Market checks for idle chunk/cache warm-up, fast inventory read before starter self-heal, explicit purchase-readiness helper, and backend server-price/idempotency/lock guards | Manual low-end mobile proof for first open/reopen, sufficient/insufficient Diamond CTA state, purchase success, and double-tap/retry behavior |
 | Liderlik open / score projection performance | Static Leaderboard checks for idle chunk/snapshot warm-up, projection-only `getSoloLeaderboard` fast mode, cached rows during refetch, deferred friend enrichment, bounded repair, and materialized score reads | Manual low-end mobile proof for cold/repeat BottomNav opens, deployed Base44 latency, DB index/sort behavior, exact rank at scale, and post-score-change refresh |
-| App startup / Home first render | Static startup fast-path checks for direct Home shell import, cached GuestProfile repeat launch, post-paint AuthContext maintenance, deferred presence/invite/category modules, idle Market/Liderlik warm-up, and delayed Daily Wheel/Daily Quest status refresh | Manual Android/WebView proof for cold/repeat app launch, splash duration, dark-loader duration, first Home paint, and deployed Base44 latency |
-| Daily Quest Diamond-only | Static runtime/backend checks | Two-device claim race proof |
+| App startup / Home first render | Static startup fast-path checks for direct Home shell import, cached GuestProfile repeat launch, post-paint AuthContext maintenance, deferred presence/invite/category modules, idle Market/Liderlik warm-up, and delayed Daily Wheel/Daily Calendar status refresh | Manual Android/WebView proof for cold/repeat app launch, splash duration, dark-loader duration, first Home paint, and deployed Base44 latency |
+| Daily Calendar / Streak Diamond-only | Static runtime/backend checks | Two-device claim race proof |
 | Leaderboard username-only | Static public payload checks | RLS/BOLA live probe |
 | Online category isolation | Static start/Game/Health mirror checks | Live lobby start with Solo preferences set differently |
 | No raw Question.list gameplay fallback | Static source checks | Deployed `getQuestions` marker proof |

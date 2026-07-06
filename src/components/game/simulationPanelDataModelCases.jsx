@@ -222,7 +222,7 @@ export const EXTRA_TESTS = [
     { actionType: ACTION_TYPES.CODE_FIX, nextStep: 'Restore safe retention helpers and rerun cleanup_retention_health/data_model_health.' }),
 
   makeCase('db_architecture_health', 'daily_quest_runtime_progress_schema_active',
-    'Daily Quest Runtime v1 uses UserDailyQuestProgress plus reserved User guard fields',
+    'Daily Calendar uses UserDailyQuestProgress plus Daily Calendar summary fields',
     () => {
       const scannedSources = [
         userEntitySource,
@@ -236,6 +236,9 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(scannedSources, [
         'daily_quest_last_claim_date',
         'daily_quest_next_available_at',
+        'daily_calendar_current_streak',
+        'daily_calendar_streak_anchor_date',
+        'daily_calendar_streak_reward_claim_count',
         '"name": "UserDailyQuestProgress"',
         '"quest_date"',
         '"progress_value"',
@@ -244,18 +247,18 @@ export const EXTRA_TESTS = [
         '"claimed_at"',
       ]);
       if (missing.length) {
-        return fail('Daily Quest Runtime v1 progress schema or reserved User guard fields are incomplete.', {
+        return fail('Daily Calendar progress schema or reserved summary fields are incomplete.', {
           verification: 'STATIC_CONTRACT',
           actionType: ACTION_TYPES.CODE_FIX,
           actual: { missing },
         });
       }
-      return pass('Daily Quest Runtime v1 has UserDailyQuestProgress rows plus separate daily_quest_* User guard fields.', {
+      return pass('Daily Calendar has UserDailyQuestProgress task rows plus separate daily_calendar_* summary fields.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
       });
     },
-    { actionType: ACTION_TYPES.CODE_FIX, nextStep: 'Keep Daily Quest rewards server-backed and separate from Daily Wheel fields.' }),
+    { actionType: ACTION_TYPES.CODE_FIX, nextStep: 'Keep Daily Calendar rewards server-backed and separate from Daily Wheel fields.' }),
 
   makeCase('db_architecture_health', 'schema_docs_exist',
     'Data model and scoring docs are registered as architecture references',

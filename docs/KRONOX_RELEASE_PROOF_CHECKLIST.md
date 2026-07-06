@@ -399,25 +399,25 @@ Checklist:
   `idempotency_key` after create; this is function-level guard only.
 * DiamondTransaction risk classification is Low only with DB/entity unique plus
   code guard; Medium/P1 hardening with code guard only; High if neither exists.
-* Home shows compact `Görevler` and `Çark` shortcuts above the primary
-  `OYNA` / dynamic `Seviye X` Solo CTA; tapping them opens centered Daily Quest and Daily Wheel
-  popups without rendering an expanded `Günlük Ödüller` panel on first Home
-  render.
+* Home shows compact `GÜNLÜK` and `Çark` shortcuts above the primary
+  `OYNA` / dynamic `Seviye X` Solo CTA; tapping `GÜNLÜK` opens `/daily`, and
+  tapping `Çark` opens the Daily Wheel popup without rendering an expanded
+  `Günlük Ödüller` panel on first Home render.
 * Home logo and hourglass visuals use local `/assets/ui/` PNG assets on the
   dark blue background; neither is wrapped in a visible card/panel/container or
   hotlinked from a remote URL. The middle section stays balanced as left
-  `Görevler` / centered transparent hourglass / right `Çark`, with equal
+  `GÜNLÜK` / centered transparent hourglass / right `Çark`, with equal
   visual spacing from hourglass-to-Solo and Online-to-BottomNav.
 * Daily Wheel claim requires authenticated user context or token-proven
   completed GuestProfile.
 * Daily Wheel V2 grants server-selected Diamonds, approved Solo jokers, or Gift
   Box rewards only; it never grants Kronox Puan and never affects leaderboard.
-* Daily Quest Runtime v1 grants diamonds only through the server-backed
-  `claimDailyQuestReward` path.
-* Daily Wheel and Daily Quest use separate guard fields/idempotency keys:
+* Daily Calendar / Streak grants Diamonds only through the server-backed
+  `claimDailyQuestReward` 7-day Gift Box path.
+* Daily Wheel and Daily Calendar use separate guard fields/idempotency keys:
   `daily_wheel:<playerKey>:<YYYY-MM-DD>` and
-  `daily_quest_reward:<playerKey>:<YYYY-MM-DD>:<quest_key>` /
-  `User.daily_quest_*` or `GuestProfile.daily_quest_*`.
+  `daily_calendar_streak:<playerKey>:<streak_anchor_date>:<claim_number>:200`
+  / `User.daily_calendar_*` or `GuestProfile.daily_calendar_*`.
 * Daily Wheel is separate from the existing +20 daily login reward.
 * Daily Wheel has one free claim per UTC server day.
 * Daily Wheel reward is selected server-side by `claimDailyWheelReward`.
@@ -504,7 +504,7 @@ Checklist:
 * Home shows the Mağaza entry at top-left with a gold storefront icon, Diamond
   count top-center, and notifications top-right.
 * Home shows the larger centered transparent Kronox logo, larger centered local
-  hourglass visual with no visible wrapper/background block, compact `Görevler`
+  hourglass visual with no visible wrapper/background block, compact `GÜNLÜK`
   / `Çark` shortcuts with ready badges, centered shortcut popups, and large
   `OYNA` / dynamic `Seviye X` and `ONLINE KAPIŞ` CTAs with equal dimensions
   balanced above BottomNav. The `Çark` shortcut uses a simplified mini wheel
@@ -592,62 +592,44 @@ Checklist:
   only; attach Base44 unique constraint proof or live parallel-run evidence
   before marking release-ready.
 
-## Daily Quest Runtime v1
+## Daily Calendar / Streak
 
-* Daily Quest Runtime v1 is active.
-* The only active quest is code-owned:
-  `quest_key = solo_level_complete`,
-  `quest_type = solo_level_complete`,
-  title `Solo’da Seviye Geç`,
-  description `Bugün 1 Solo seviyesini tamamla.`,
-  `target_value = 1`, and `reward_diamonds = 20`.
-* `UserDailyQuestProgress` exists as the user-owned per-day progress table.
-* `getDailyQuestStatus` ensures exactly 1 canonical Daily Quest per UTC day for
-  each authenticated user or token-proven completed guest.
-* Runtime no longer reads, requires, creates, seeds, or selects active
-  `DailyQuestDefinition` rows. Stale/duplicate definition rows are ignored by
-  runtime and must not duplicate Home quests or rewards.
-* Profile / `Admin Ekranı` does not show `Günlük Görev Yönetimi`; admins cannot
-  add or monitor Daily Quest definitions through app UI.
-* Legacy `DailyQuestDefinition` rows/functions may remain for historical/manual
-  cleanup only. Manual cleanup should keep backups and deactivate/delete stale
-  duplicate definition rows only after explicit operator confirmation.
-* Older same-day rows from the prior multi-event/definition-backed model are
-  retained but the Home `Görevler` flow displays only the canonical
-  `solo_level_complete` quest.
-* Loading or ensuring today’s quests does not grant Diamonds;
-  `claimDailyQuestReward` remains the only reward path.
-* Completing progress alone does not grant Diamonds; completed and unclaimed
-  quests must show an `Al` claim action.
-* The Home `Görevler` Daily Quest copy is
-  `Günlük Görevleri Yap, Elmasları Kazan!`.
-* `recordDailyQuestProgress` updates only `solo_level_complete`, emitted after a
-  passed Solo level completion. Solo start/open, failed, abandoned, correct-card,
-  and joker-use events do not progress the Daily Quest.
-* `claimDailyQuestReward` requires completed status, uses the reward copied in
-  the progress row, writes `DiamondTransaction.source = daily_quest_reward`,
-  updates the visible `User.diamonds` or completed-guest `GuestProfile.diamonds`
-  balance, returns `diamondBalanceAfter`, and marks the row claimed.
-* `getDailyQuestStatus`, `recordDailyQuestProgress`, and
-  `claimDailyQuestReward` explicitly bind `UserDailyQuestProgress` in their
-  Base44 runtime functions for deployability.
-* One claim per quest per UTC day is enforced by `UserDailyQuestProgress` status
-  plus the `daily_quest_reward:<playerKey>:<YYYY-MM-DD>:<quest_key>` idempotency
-  key; duplicate claim must not grant Diamonds twice.
-* Daily Quest does not grant Kronox Puan and has no leaderboard impact.
-* Daily Quest grants diamonds only.
-* Active User summary fields are `daily_quest_last_claim_date` and
-  `daily_quest_next_available_at`.
-* Daily Wheel remains separate from Daily Quest definitions, and Mağaza /
-  Joker Inventory / Solo joker spending remain unaffected.
-* Daily Wheel and Daily Quest are separate.
-* Manual proof: open Home, see compact `Görevler` and `Çark` shortcuts, open
-  `Görevler`, confirm one `Günlük Görev` with `Solo’da Seviye Geç`, open
-  `Çark`, confirm Daily Wheel, complete a Solo level successfully, claim the
-  completed quest, confirm
-  Diamonds increase, confirm one `daily_quest_reward` DiamondTransaction exists,
-  retry duplicate claim, confirm no Kronox Puan/leaderboard change, and confirm
-  Online mode does not progress quests.
+* Legacy Daily Quest Runtime v1 is replaced by Daily Calendar / Streak.
+* Home shows a calendar-icon `GÜNLÜK` shortcut that opens `/daily`; `Günlük` is
+  not added to BottomNav.
+* `getDailyQuestStatus` ensures exactly 3 `daily_calendar:*`
+  `UserDailyQuestProgress` rows per UTC server day for each authenticated user
+  or token-proven completed guest.
+* The 9-day rotating task template cycle exists in code. Day 3 uses
+  `Profilini tamamla` only while the profile is incomplete, otherwise it falls
+  back to `5 soruyu doğru cevapla`. Hint tasks fall back to `5 soruyu doğru
+  cevapla` until a real Hint-consumption event exists.
+* Daily page proof: current month calendar appears, today has a yellow ring,
+  completed days have checks, future days are not completed, today shows 3
+  tasks, and Zaman Serisi shows 7-day Gift Box progress.
+* Task completion is real-event-based and idempotent. Daily Wheel progress must
+  follow a successful wheel claim, Solo level/correct/jokerless tasks must
+  follow valid gameplay events, Joker tasks must follow successful
+  JokerTransaction-backed usage, and friend tasks must follow friends API
+  success events.
+* Per-task progress does not grant Diamonds. A day is complete only when all 3
+  task rows are complete. Missing a UTC day breaks the computed streak.
+* `claimDailyQuestReward` grants only the 7-day Gift Box, writes
+  `DiamondTransaction.source = daily_calendar_streak_reward`, grants exactly
+  200 Diamonds, updates visible `User.diamonds` or completed-guest
+  `GuestProfile.diamonds`, and is idempotent.
+* Daily Calendar does not grant Kronox Puan and does not affect Leaderboard.
+* `DailyQuestDefinition` is legacy/admin-only. `cleanupLegacyDailyQuests`
+  defaults to dry-run and requires `DELETE_LEGACY_DAILY_QUESTS` for destructive
+  deletion of only legacy Daily Quest definition/progress rows.
+* Daily Wheel remains separate from Daily Calendar, and Mağaza / Joker
+  Inventory / Solo joker spending remain unaffected.
+* Manual proof: open Home, see compact `GÜNLÜK` and `Çark` shortcuts, open
+  `/daily`, confirm current month calendar and exactly 3 tasks, complete
+  relevant real events, confirm completed task/day checkmarks, reach 7/7,
+  claim Gift Box, confirm exactly one `daily_calendar_streak_reward`
+  DiamondTransaction for 200 Diamonds, retry duplicate claim, and confirm no
+  Kronox Puan/Leaderboard change.
 
 ---
 

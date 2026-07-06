@@ -204,11 +204,11 @@ import * as mobileGameplayGestureCases from './simulationPanelMobileGameplayGest
 // Mağaza Store: catalog visual contract, display-only real-money packages,
 // server-backed Diamond purchases, ledger writes, and no Online/Daily Wheel impact.
 import * as marketCases from './simulationPanelMarketCases';
-// Daily Quest Definition Phase 1: admin-managed template rows, enum-only
-// quest logic, display-only copy, and future progress/reward boundaries.
+// Daily Calendar definition boundary: legacy definition rows are cleanup-only;
+// active task templates are code-owned and event-based.
 import * as dailyQuestDefinitionCases from './simulationPanelDailyQuestDefinitionCases';
-// Daily Quest Runtime v1: user-owned UTC daily progress, Solo completion only,
-// Diamond-only claim flow, and Home Görevler shortcut/modal surface.
+// Daily Calendar / Streak runtime: user-owned UTC daily_calendar task rows,
+// Diamond-only 7-day Gift Box claim flow, and Home GÜNLÜK route surface.
 import * as dailyQuestRuntimeCases from './simulationPanelDailyQuestRuntimeCases';
 // iOS/mobile compatibility: scoped pull-to-refresh, independent tab stacks,
 // and Kronox bottom-sheet selectors for preference/admin selection controls.

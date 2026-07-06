@@ -126,23 +126,25 @@ card-only and uses Yarın hazır or compact time text such as 11 sa 24 dk withou
 a Diamond icon; the old small claimed/cooldown popup is not part of the current
 Daily Wheel flow.
 
-Home exposes Daily Wheel through the Çark shortcut and Daily Quest Runtime v1
-Günlük Görev through the Görevler shortcut/modal. Runtime owns one canonical code-backed quest: solo_level_complete /
-Solo’da Seviye Geç / Bugün 1 Solo seviyesini tamamla., target 1, reward 20
-Diamonds. UserDailyQuestProgress stores 1 selected UTC-day player quest.
-Runtime ignores stale or duplicate DailyQuestDefinition rows and does not seed
-definition rows on app/Home open. getDailyQuestStatus is
-authenticated-or-completed-guest but not admin-only and preserves newly created
-progress rows if immediate refresh is stale.
-claimDailyQuestReward grants diamonds only, writes DiamondTransaction.source =
-daily_quest_reward with direction = earn, uses
-daily_quest_reward:<playerKey>:<YYYY-MM-DD>:<questKey>, and uses
-User.daily_quest_* / GuestProfile.daily_quest_* fields instead of Daily Wheel fields. Home copy says
-"Günlük Görevleri Yap, Elmasları Kazan!" and runtime backend functions
-explicitly bind UserDailyQuestProgress. Daily Quest does not grant Kronox Puan
-and has no leaderboard impact. Completed guests can see, progress, and claim
-Daily Quest rewards through guest_id + guest_token proof; guest rewards persist
-on GuestProfile.diamonds.
+Home exposes Daily Wheel through the Çark shortcut and the Daily Calendar /
+Streak through the Home GÜNLÜK shortcut. Daily Calendar creates 3
+daily_calendar:* UserDailyQuestProgress rows per UTC server day from a 9-day
+rotating task template cycle. Task progress is real-event-based and idempotent;
+recordDailyQuestProgress does not grant Diamonds. claimDailyQuestReward grants
+only the 7-day Gift Box, writes DiamondTransaction.source =
+daily_calendar_streak_reward with direction = earn, grants exactly 200
+Diamonds, uses a daily_calendar_streak:<playerKey>:<streak_anchor_date>:<claim_number>:200
+idempotency key, and updates User.daily_calendar_* /
+GuestProfile.daily_calendar_* fields instead of Daily Wheel fields. Daily
+Calendar does not grant Kronox Puan and does not affect Leaderboard. Completed
+guests can see, progress, and claim Daily Calendar rewards through guest_id +
+guest_token proof; guest rewards persist on GuestProfile.diamonds.
+
+Legacy DailyQuestDefinition rows are ignored by the active runtime. The
+admin-gated cleanupLegacyDailyQuests path defaults to dry_run and only deletes
+legacy Daily Quest definition/progress rows after explicit
+DELETE_LEGACY_DAILY_QUESTS confirmation; it must not delete Daily Wheel,
+economy, profile, Solo, Online, Leaderboard, Store, Friends, or account data.
 
 First authenticated entry grants +100 once. Same-day daily login grants +20 once.
 First-day total: \`120\` Diamonds. This combines starter 100 Diamonds plus
