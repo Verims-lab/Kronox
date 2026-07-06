@@ -11,6 +11,7 @@ import {
 } from '@/lib/userCategoryPreferences';
 import {
   markCategoryPreferenceOnboardingCompleted,
+  markCategoryPreferenceOnboardingDeferred,
   shouldShowCategoryPreferenceOnboarding,
 } from '@/lib/categoryPreferenceOnboarding';
 
@@ -64,14 +65,17 @@ export default function CategoryPreferenceOnboardingModal({ user, disabled = fal
         setActiveCategories(categories);
         setSelectedIds(selected);
         setNeedsOnboarding(shouldShowCategoryPreferenceOnboarding({
+          user,
           preferences,
           activeCategories: categories,
+          categoriesLoaded: true,
         }));
-      } catch {
+      } catch (err) {
         if (!cancelled) {
+          console.warn('[CategoryPreferenceOnboardingModal] category preference bootstrap failed', err?.message || err);
           setActiveCategories([]);
           setSelectedIds(new Set());
-          setNeedsOnboarding(true);
+          setNeedsOnboarding(false);
           setError('Kategoriler yüklenemedi. Lütfen tekrar dene.');
         }
       } finally {
@@ -128,9 +132,25 @@ export default function CategoryPreferenceOnboardingModal({ user, disabled = fal
     }
   };
 
+  const handleDismiss = async () => {
+    setDismissedForSession(true);
+    setNeedsOnboarding(false);
+    setError('');
+    setValidation('');
+    try {
+      await markCategoryPreferenceOnboardingDeferred(user);
+      onCompleted?.();
+    } catch (err) {
+      console.warn('[CategoryPreferenceOnboardingModal] category preference defer failed', err?.message || err);
+    }
+  };
+
   const handleRetry = () => {
     setError('');
     setValidation('');
+    setActiveCategories([]);
+    setSelectedIds(new Set());
+    setNeedsOnboarding(false);
     setReloadKey((value) => value + 1);
   };
 
@@ -281,7 +301,7 @@ export default function CategoryPreferenceOnboardingModal({ user, disabled = fal
               {setupUnavailable ? (
                 <button
                   type="button"
-                  onClick={() => setDismissedForSession(true)}
+                  onClick={handleDismiss}
                   className="min-h-11 w-full rounded-xl border border-border/45 px-4 py-3 font-inter text-sm font-black text-foreground"
                 >
                   Daha Sonra
@@ -304,7 +324,7 @@ export default function CategoryPreferenceOnboardingModal({ user, disabled = fal
                   </button>
                   <button
                     type="button"
-                    onClick={() => setDismissedForSession(true)}
+                    onClick={handleDismiss}
                     className="min-h-11 w-full rounded-xl border border-border/45 px-4 py-3 font-inter text-sm font-black text-foreground"
                   >
                     Daha Sonra

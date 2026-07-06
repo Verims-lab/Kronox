@@ -188,7 +188,9 @@ Checklist:
   old hardcoded seed-category lists must not exclude newer active categories
   from Solo runtime projection.
 * First Solo start in a fresh browser attempts online `getQuestions` before any
-  offline fallback and shows `Sorular hazırlanıyor...` while pending.
+  offline fallback and shows the visual-only Kronox hourglass preparation
+  screen while pending. The loader must not add artificial wait or a minimum
+  display duration; gameplay starts as soon as the deck is ready.
 * Solo starts use the authenticated minimal `getQuestions` projection; no-auth
   gameplay projection calls return 401 before question loading.
 * Empty local question cache alone must not show `İnternet bağlantısı yok`.

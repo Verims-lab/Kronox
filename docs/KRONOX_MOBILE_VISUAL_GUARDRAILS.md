@@ -60,6 +60,11 @@ checks that source code and static Health cannot honestly prove alone.
   (`online_question_deck` + `current_question_id`), not on the Solo
   `getQuestions`/cache path. A missing Online deck should show retry/back-to-lobby
   recovery rather than an indefinite question-loading screen.
+* Solo/Online question preparation uses the shared visual-only Kronox hourglass
+  loader for normal preparation. The loader must be lightweight, safe-area
+  aware, and must not add artificial wait, minimum display duration, or block
+  gameplay start. Retry/back controls belong only to recovery/error fallback
+  states, not the normal preparation visual.
 
 ## PWA
 

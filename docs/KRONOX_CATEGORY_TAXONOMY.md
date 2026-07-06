@@ -155,6 +155,9 @@ Category preferences are optional personalization, not a gameplay gate:
   global fallback lane prefers difficulty 1 and broadens safely if short
 * Settings save validation may still require 3 selections, but that validation
   must remain separate from Solo question loading
+* app-entry category preference prompts wait for active Category metadata to
+  load successfully; transient metadata failures fail open and do not block
+  gameplay
 * guided guest onboarding recommends at least 3 category selections after the
   first Solo level, but fewer selections or skip must not block Ana Sayfa; an
   empty guest category list means all active categories remain eligible

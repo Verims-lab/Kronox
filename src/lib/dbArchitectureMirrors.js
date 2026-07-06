@@ -55,7 +55,7 @@ Category preference status:
 - Profile > Profil Bilgileri Kategori seçimi reads active Category rows.
 - Category interests are stored in UserCategoryPreference rows scoped to user_email.
 - Minimum selection count is 3. There is no maximum selection.
-- Any authenticated user with fewer than 3 active valid Category preferences sees an optional personalization popup; this applies to new and existing users, can be deferred, and must not block gameplay.
+- Any authenticated new or existing user with fewer than 3 active valid Category preferences is eligible for the optional personalization popup only after active Category metadata has loaded successfully; transient Category load failures fail open, the prompt can be deferred, and gameplay must not be blocked.
 - The source of truth is active valid UserCategoryPreference count.
 - Only active categories are selectable and count.
 - Passive or removed Category selections are ignored in UI/save state and must not be resaved as active preferences.
