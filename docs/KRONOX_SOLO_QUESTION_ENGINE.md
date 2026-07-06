@@ -40,7 +40,11 @@ is an authenticated bounded server attempt candidate buffer; first-time guest
 Solo uses only the explicit capped `guest_gameplay_runtime` minimal projection.
 Admin/full-bank diagnostics still require AdminUser authorization. Empty
 local question cache is not an offline condition by itself. While the first
-fetch is pending, the user sees a loading state such as `Sorular hazırlanıyor...`.
+fetch is pending, the user sees the shared visual-only Kronox hourglass
+preparation screen. This screen is only a loading visual replacement: it must
+not add artificial wait, minimum display duration, or block gameplay start once
+the deck is ready. The old spinner/text/back-button preparation screen is not
+used for normal question preparation.
 
 The offline/no-cache screen is reserved for known offline state, a failed online
 fetch, and no usable local cache. Online data failures use a question-load retry

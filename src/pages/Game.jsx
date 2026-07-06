@@ -32,6 +32,7 @@ import GameOverTimer from '@/components/game/GameOverTimer';
 import GameLayout from '@/components/game/GameLayout';
 import SoloQuestionDebugPanel from '@/components/game/SoloQuestionDebugPanel';
 import OnlineGameBootstrapFallback from '@/components/game/OnlineGameBootstrapFallback';
+import QuestionPreparationLoading from '@/components/game/QuestionPreparationLoading';
 import GameBootstrapDiagnostics, { isDiagnosticsEnabled } from '@/components/game/GameBootstrapDiagnostics';
 import GameRenderErrorBoundary from '@/components/game/GameRenderErrorBoundary';
 import { useAuth } from '@/lib/AuthContext';
@@ -2814,16 +2815,8 @@ export default function Game() {
   if (!isOnline) {
     if (isLoading && !isGameReadyEarly) return (
       <>{diagnosticsOverlay}
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center space-y-4 px-6">
-          <div role="status" aria-live="polite" aria-label="Sorular hazırlanıyor">
-            <Loader2 className="w-10 h-10 text-muted-foreground mx-auto animate-spin" aria-hidden="true" />
-            <p className="font-inter text-sm text-muted-foreground">Sorular hazırlanıyor...</p>
-            <p className="font-inter text-xs text-muted-foreground/60">İlk yüklemede biraz sürebilir...</p>
-          </div>
-          <Button onClick={() => navigate('/')} variant="outline" size="sm">Geri Dön</Button>
-        </div>
-      </div></>
+      <QuestionPreparationLoading />
+      </>
     );
 
     if (isError && !isGameReadyEarly) return (

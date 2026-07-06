@@ -32,8 +32,12 @@ first-time guest Solo uses only the explicit capped guest_gameplay_runtime
 minimal projection.
 Admin/full-bank diagnostics still require AdminUser authorization. Empty
 local question cache is not an offline condition. While the first fetch is
-pending, the UI shows Sorular hazırlanıyor...; the offline/no-cache screen is
-reserved for known offline state plus failed online fetch plus no usable cache.
+pending, the UI shows the shared visual-only Kronox hourglass preparation
+screen; it must not add artificial wait, minimum display duration, or block
+gameplay start once the deck is ready. The old spinner/text/back-button
+preparation screen is not used for normal question preparation. The
+offline/no-cache screen is reserved for known offline state plus failed online
+fetch plus no usable cache.
 Tekrar Dene clears the transient error and re-fetches online before cache fallback.
 Question-set replacements invalidate stale local question cache by version, and
 direct /game access without Solo launch state returns the user to Home/Solo

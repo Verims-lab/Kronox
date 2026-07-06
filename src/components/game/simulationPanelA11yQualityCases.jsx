@@ -14,6 +14,7 @@ import profileEditPageSource from '../../pages/ProfileEditPage.jsx?raw';
 import onboardingPageSource from '../../pages/OnboardingPage.jsx?raw';
 import gamePageSource from '../../pages/Game.jsx?raw';
 import onlineBootstrapSource from './OnlineGameBootstrapFallback.jsx?raw';
+import questionPreparationLoadingSource from './QuestionPreparationLoading.jsx?raw';
 import gameSettingsModalSource from './SettingsModal.jsx?raw';
 import friendSelectModalSource from '../lobby/FriendSelectModal.jsx?raw';
 import createLobbyInvitePanelSource from '../lobby/CreateLobbyInvitePanel.jsx?raw';
@@ -116,13 +117,13 @@ export const EXTRA_TESTS = [
         },
         {
           label: 'Game question bootstrap',
-          source: gamePageSource,
-          tokens: ['aria-label="Sorular hazırlanıyor"', 'role="status"', 'aria-hidden="true"'],
+          source: `${gamePageSource}\n${questionPreparationLoadingSource}`,
+          tokens: ['QuestionPreparationLoading', 'role="status"', 'aria-live="polite"', 'aria-label={ariaLabel}', 'aria-hidden="true"'],
         },
         {
           label: 'OnlineGameBootstrapFallback',
-          source: onlineBootstrapSource,
-          tokens: ['aria-label={message}', 'role="status"', 'aria-live="polite"'],
+          source: `${onlineBootstrapSource}\n${questionPreparationLoadingSource}`,
+          tokens: ['QuestionPreparationLoading', 'ariaLabel={message}', 'role="status"', 'aria-live="polite"'],
         },
         {
           label: 'Onboarding loading/category loading',
@@ -153,6 +154,55 @@ export const EXTRA_TESTS = [
         actionType: ACTION_TYPES.CODE_FIX,
       });
     },
+  ),
+
+  makeCase(
+    'question_preparation_hourglass_loader_visual_only',
+    'Solo/Online question preparation uses visual-only hourglass loader with no artificial delay',
+    () => {
+      const runtimeSource = `${gamePageSource}\n${onlineBootstrapSource}\n${questionPreparationLoadingSource}`;
+      const missing = missingTokens(runtimeSource, [
+        'QuestionPreparationLoading',
+        'QUESTION_PREPARATION_HOURGLASS_SRC',
+        '/assets/ui/kronox-hourglass-home.png',
+        'QUESTION_PREPARATION_LOADING_CONTRACT',
+        'noArtificialDelay',
+        'noMinimumDisplayDuration',
+        'doesNotBlockGameplayStart',
+        'useReducedMotion',
+        'min-h-[100dvh]',
+        'object-contain',
+      ]);
+      const oldPreparationCopy = [
+        'Sorular haz' + 'ırlanıyor...',
+        'İlk yüklemede biraz ' + 'sürebilir',
+        'aria-label="Sorular haz' + 'ırlanıyor"',
+      ];
+      const forbidden = oldPreparationCopy.filter((token) => runtimeSource.includes(token));
+      const loaderTimerForbidden = [
+        'setTimeout',
+        'setInterval',
+        'requestAnimationFrame',
+      ].filter((token) => questionPreparationLoadingSource.includes(token));
+      if (missing.length || forbidden.length || loaderTimerForbidden.length) {
+        return fail('Question preparation loading can regress to text-heavy UI or artificial visual timing.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          files: [
+            'src/components/game/QuestionPreparationLoading.jsx',
+            'src/pages/Game.jsx',
+            'src/components/game/OnlineGameBootstrapFallback.jsx',
+          ],
+          actual: { missing, forbidden, loaderTimerForbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Normal question preparation uses the shared visual-only hourglass loader, with reduced-motion support and no loader-owned timers or old text panel.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+      });
+    },
+    { critical: true, actionType: ACTION_TYPES.CODE_FIX },
   ),
 
   makeCase(

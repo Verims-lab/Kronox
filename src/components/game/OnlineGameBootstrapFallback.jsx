@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import QuestionPreparationLoading from '@/components/game/QuestionPreparationLoading';
 
 /**
  * Codex083 — Defensive fallback shown while /game is waiting for its first
@@ -12,10 +13,10 @@ import { Button } from '@/components/ui/button';
  * "black/loading screen" on the host while Player 2 entered fine via the
  * subscription path.
  *
- * This component keeps showing the spinner for the first ~3 seconds (so the
- * normal happy path is visually unchanged), then surfaces a "Tekrar Dene"
- * manual recovery button that triggers a fresh Lobby.get and/or a fresh
- * questions fetch. It also gives the user a way back home.
+ * This component keeps showing the shared visual-only hourglass loader for the
+ * first ~3 seconds (without delaying gameplay start), then surfaces a
+ * "Tekrar Dene" manual recovery button that triggers a fresh Lobby.get and/or
+ * a fresh questions fetch. It also gives the user a way back home.
  *
  * It is UI-only — no gameplay or sync authority logic lives here.
  */
@@ -63,6 +64,10 @@ export default function OnlineGameBootstrapFallback({
     }
   };
 
+  if (!showRetry) {
+    return <QuestionPreparationLoading ariaLabel={message} />;
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-6">
       <div className="text-center space-y-4 max-w-sm">
@@ -70,36 +75,29 @@ export default function OnlineGameBootstrapFallback({
           <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto" aria-hidden="true" />
           <p className="font-inter text-foreground">{message}</p>
         </div>
-        {showRetry && (
-          <>
-            <p className="font-inter text-xs text-muted-foreground">
-              Bağlantı uzun sürüyor. Lütfen tekrar dene.
-            </p>
-            <div className="flex flex-col gap-2">
-              <Button
-                onClick={handleRetry}
-                disabled={busy || (!canRetryLobby && !canRetryQuestions)}
-                className="w-full"
-              >
-                {busy ? (
-                  <span className="inline-flex items-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> Yenileniyor…
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-2">
-                    <RefreshCw className="w-4 h-4" aria-hidden="true" /> Tekrar Dene
-                  </span>
-                )}
-              </Button>
-              <Button onClick={onBackHome} variant="outline" className="w-full">
-                Ana Menüye Dön
-              </Button>
-            </div>
-          </>
-        )}
-        {!showRetry && (
-          <Button onClick={onBackHome} variant="outline">Geri Dön</Button>
-        )}
+        <p className="font-inter text-xs text-muted-foreground">
+          Bağlantı uzun sürüyor. Lütfen tekrar dene.
+        </p>
+        <div className="flex flex-col gap-2">
+          <Button
+            onClick={handleRetry}
+            disabled={busy || (!canRetryLobby && !canRetryQuestions)}
+            className="w-full"
+          >
+            {busy ? (
+              <span className="inline-flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> Yenileniyor…
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-2">
+                <RefreshCw className="w-4 h-4" aria-hidden="true" /> Tekrar Dene
+              </span>
+            )}
+          </Button>
+          <Button onClick={onBackHome} variant="outline" className="w-full">
+            Ana Menüye Dön
+          </Button>
+        </div>
       </div>
     </div>
   );
