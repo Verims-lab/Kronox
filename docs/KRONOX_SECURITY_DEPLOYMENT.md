@@ -856,6 +856,14 @@ Joker inventory is user-owned data:
 * Solo joker usage is spent by `spendUserJoker` using authenticated user
   context, positive-balance validation, `solo_use` ledger rows, and
   idempotency keys
+* Solo Hint / İpucu is a separate consumable inventory: `ensureUserHintInventory`
+  initializes exactly 3 starter Hints once for authenticated and token-proven
+  completed guests, and `consumeUserHint` spends one Hint server-side with
+  `HintTransaction.reason = solo_use`, `source = solo_hint`, `EconomyOperationLock`,
+  and idempotency re-checks
+* Hint use never writes `JokerTransaction`, never grants Kronox Puan, never
+  affects Leaderboard, and must not expose answer-year/question-bank payloads or
+  internal guest actor keys in public UI/API responses
 * Mağaza Store Diamond-spend purchases use `purchaseJokerWithDiamonds`; users
   purchase only for themselves, the backend owns the trusted Store product/price
   table, and sufficient Diamonds are validated server-side

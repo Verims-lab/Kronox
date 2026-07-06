@@ -1,11 +1,11 @@
 {
   "name": "HintTransaction",
   "type": "object",
-  "description": "Append-only Hint / Ipucu ledger. Mağaza writes market_purchase rows for Hint packages and advantage package Hint portions. Gameplay Hint consumption is intentionally not active in this phase.",
+  "description": "Append-only Hint / Ipucu ledger. Mağaza writes market_purchase rows for Hint packages and advantage package Hint portions. Solo writes starter_grant rows for first-time three-Hint initialization and solo_use rows for server-confirmed Hint reveal spends.",
   "properties": {
     "user_email": {
       "type": "string",
-      "description": "Lowercased owner email for this transaction. Never expose as public identity."
+      "description": "Lowercased owner email for registered users or internal guest:<g_owner_key> actor key for completed guests. Never expose as public identity."
     },
     "quantity_delta": {
       "type": "number",
@@ -14,6 +14,8 @@
     "reason": {
       "type": "string",
       "enum": [
+        "starter_grant",
+        "solo_use",
         "market_purchase",
         "admin_adjustment",
         "refund",

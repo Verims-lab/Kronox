@@ -198,7 +198,22 @@ starter self-heal error must not block a valid purchased joker balance and
 ledger write. Partial failure reconciliation: ledger write failure uses
 best-effort rollback of Diamond, joker, and hint balances, but live
 provider/backend consistency proof remains manual.
+Hint gameplay consumption is active only for Solo Hint / İpucu: each player
+gets exactly 3 starter Hints once through ensureUserHintInventory, consumeUserHint
+spends one Hint server-side with HintTransaction.reason = solo_use and source =
+solo_hint, and double-tap/retry paths use idempotency plus EconomyOperationLock.
+Hint use is separate from Joker use, can satisfy Daily hint_used after the
+ledger row exists, and never grants Kronox Puan or affects Leaderboard.
 Joker balance read-performance contract: UserJokerInventory is the Profile/Solo current-balance source. JokerTransaction is the ledger/audit trail and must not be summed on Profile open. Profile, Solo, and Mağaza use the shared getUserJokerBalances / mutation-result cache path keyed by normalized user email. Complete inventory rows render through a fast current-balance read; missing or partial rows trigger idempotent starter/self-heal. Mağaza purchase and Solo spend must update or invalidate the shared balance cache so Profile and Solo do not show stale counts. spendUserJoker validates Solo context, uses deploy-safe UserJokerInventory/JokerTransaction entity fallback, and returns safe user-facing errors. Normal Solo joker spend uses EconomyOperationLock, rechecks the JokerTransaction idempotency key after the lock, then re-reads UserJokerInventory and refuses to decrement a zero balance. Admin/static reconciliation can compare UserJokerInventory.quantity against JokerTransaction summed deltas and latest balance_after without mutating data. Guest/no-login paths must not query user-owned joker inventory. Live performance proof remains manual: login, open Profile, confirm Joker Çantası loads quickly, purchase/spend a joker, and confirm Profile/Solo counts refresh.
+Hint balance read-performance contract: UserHintInventory is the current-balance
+source for Solo Hint / İpucu. HintTransaction is the ledger/audit trail and must
+not be summed on Solo open. ensureUserHintInventory is idempotent and must
+preserve spent balances; it must not refill a user back to 3 on every app open.
+consumeUserHint uses EconomyOperationLock, rechecks the HintTransaction
+idempotency key after the lock, decrements one Hint, and returns a sanitized
+balance response. Completed guests use token-proven internal guest:<g_owner_key>
+actor keys only through backend functions; public UI/export must not expose
+these keys.
 
 ## Admin reset and account deletion
 Admin reset sets \`daily_wheel_last_spin_date\` to the current UTC day, clears Daily Wheel guard fields, and removes target \`DailyWheelSpin\` rows. Retained OnlineMatchResult/DiamondTransaction/DailyWheelSpin rows no longer contain the deleted user.

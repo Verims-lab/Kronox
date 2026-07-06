@@ -656,7 +656,7 @@ export const EXTRA_TESTS = [
         'Real-money package buttons do not grant Diamonds without approved IAP',
         'Diamond-spend catalog includes Joker, Hint, and Advantage packages',
         'Diamond-spend purchases are server-side, idempotent, and no-partial by design',
-        'Hint inventory foundation exists but gameplay Hint consumption is not enabled',
+        'Hint inventory foundation exists and Solo gameplay Hint consumption is server-owned',
         'Store purchases do not grant Kronox Puan or affect Leaderboard',
         'Market purchase increases only configured UserJokerInventory joker grants',
         'Market purchase does not trust client price or client identity',

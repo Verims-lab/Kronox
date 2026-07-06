@@ -8,6 +8,7 @@ import Timeline from './Timeline.jsx';
 import TurnTimer from './TurnTimer.jsx';
 import SoloLevelTimer from './SoloLevelTimer.jsx';
 import SoloJokerBar from './SoloJokerBar.jsx';
+import SoloHintButton from './SoloHintButton.jsx';
 import OnlineTurnIndicator from './OnlineTurnIndicator.jsx';
 import OnlineScoreboard from './OnlineScoreboard.jsx';
 import TutorialHandPointer from './TutorialHandPointer.jsx';
@@ -222,6 +223,7 @@ export default function GameLayout({
   soloLevelElapsedSeconds,
   soloLevelTimerFrozen = false,
   soloJokers: rawSoloJokers = null,
+  soloHint = null,
   balances = null,
   beginnerPlacementHintZone,
   guidedDragHintActive = false,
@@ -309,6 +311,13 @@ export default function GameLayout({
     currentQuestion &&
     !winner
   );
+  const showSoloQuestionHintRail = Boolean(
+    !isOnline &&
+    soloHint?.enabled &&
+    currentQuestion &&
+    !winner
+  );
+  const showSoloQuestionSideRails = showSoloQuestionJokerRail || showSoloQuestionHintRail;
   const isSoloKronokalkanActive = Boolean(
     !isOnline &&
     soloJokers?.mistakeShieldActive &&
@@ -319,19 +328,20 @@ export default function GameLayout({
   return (
     <div
       ref={gameplayRootRef}
-      className={`kx-viewport-lock kronox-gameplay-root flex flex-col ${isDragging ? 'kronox-game-drag-lock' : ''} ${showSoloQuestionJokerRail ? 'kronox-solo-joker-right-layout' : ''}`}
+      className={`kx-viewport-lock kronox-gameplay-root flex flex-col ${isDragging ? 'kronox-game-drag-lock' : ''} ${showSoloQuestionSideRails ? 'kronox-solo-joker-right-layout' : ''}`}
       data-kronox-gameplay-root="true"
       data-kronox-solo-joker-right-layout={showSoloQuestionJokerRail ? 'true' : undefined}
+      data-kronox-solo-hint-left-layout={showSoloQuestionHintRail ? 'true' : undefined}
       style={{
         minHeight: '100dvh',
-        '--solo-game-scale': showSoloQuestionJokerRail ? '1' : undefined,
-        '--solo-joker-rail-width': showSoloQuestionJokerRail ? 'clamp(58px, 16vw, 76px)' : undefined,
-        '--solo-active-question-card-width': showSoloQuestionJokerRail ? 'clamp(156px, 40vw, 184px)' : undefined,
-        '--solo-active-question-card-height': showSoloQuestionJokerRail ? 'clamp(252px, 33vh, 292px)' : undefined,
-        '--solo-timeline-card-width': showSoloQuestionJokerRail ? 'clamp(80px, 21vw, 94px)' : undefined,
-        '--solo-timeline-card-height': showSoloQuestionJokerRail ? 'clamp(112px, 14.25vh, 126px)' : undefined,
-        '--solo-timeline-card-line-offset': showSoloQuestionJokerRail ? 'clamp(56px, 7.125vh, 63px)' : undefined,
-        '--solo-timeline-panel-padding-y': showSoloQuestionJokerRail ? 'clamp(0.55rem, 1.2vh, 0.85rem)' : undefined,
+        '--solo-game-scale': showSoloQuestionSideRails ? '1' : undefined,
+        '--solo-joker-rail-width': showSoloQuestionSideRails ? 'clamp(58px, 16vw, 76px)' : undefined,
+        '--solo-active-question-card-width': showSoloQuestionSideRails ? 'clamp(156px, 40vw, 184px)' : undefined,
+        '--solo-active-question-card-height': showSoloQuestionSideRails ? 'clamp(252px, 33vh, 292px)' : undefined,
+        '--solo-timeline-card-width': showSoloQuestionSideRails ? 'clamp(80px, 21vw, 94px)' : undefined,
+        '--solo-timeline-card-height': showSoloQuestionSideRails ? 'clamp(112px, 14.25vh, 126px)' : undefined,
+        '--solo-timeline-card-line-offset': showSoloQuestionSideRails ? 'clamp(56px, 7.125vh, 63px)' : undefined,
+        '--solo-timeline-panel-padding-y': showSoloQuestionSideRails ? 'clamp(0.55rem, 1.2vh, 0.85rem)' : undefined,
         backgroundColor: '#061225',
         backgroundImage: `
           radial-gradient(
@@ -564,6 +574,7 @@ export default function GameLayout({
       <div
         className="flex-shrink-0 flex flex-col items-center px-3 py-1 gap-1"
         data-kronox-solo-question-joker-row={showSoloQuestionJokerRail ? 'true' : undefined}
+        data-kronox-solo-question-hint-row={showSoloQuestionHintRail ? 'true' : undefined}
       >
         {/* Instruction text — online uses OnlineTurnIndicator above instead */}
         {!isOnline && isMyTurn && !winner && currentQuestion && !feedback ? (
@@ -579,13 +590,30 @@ export default function GameLayout({
 
         {currentQuestion && !winner ? (
           <div
-            className={showSoloQuestionJokerRail ? 'grid w-full items-center' : 'flex w-full items-center justify-center'}
+            className={showSoloQuestionSideRails ? 'grid w-full items-center' : 'flex w-full items-center justify-center'}
             data-kronox-solo-question-card-and-jokers={showSoloQuestionJokerRail ? 'true' : undefined}
-            style={showSoloQuestionJokerRail ? {
+            data-kronox-solo-question-card-and-hint={showSoloQuestionHintRail ? 'true' : undefined}
+            style={showSoloQuestionSideRails ? {
               gridTemplateColumns: 'minmax(var(--solo-joker-rail-width,64px), 1fr) auto minmax(var(--solo-joker-rail-width,64px), 1fr)',
               columnGap: 'clamp(8px,2.4vw,14px)',
             } : undefined}
           >
+            {showSoloQuestionHintRail && (
+              <div
+                data-kronox-solo-hint-gutter-center="true"
+                style={{ gridColumn: 1, justifySelf: 'center' }}
+              >
+                <SoloHintButton
+                  enabled={Boolean(soloHint?.enabled) && !winner && !isOnline && Boolean(currentQuestion)}
+                  balance={soloHint?.balance}
+                  loading={soloHint?.loading}
+                  pending={soloHint?.pending}
+                  disabled={Boolean(soloHint?.disabled) || !isMyTurn || Boolean(feedback) || interactionPaused || isDragging}
+                  revealStage={soloHint?.revealStage}
+                  onOpen={soloHint?.onOpen}
+                />
+              </div>
+            )}
             <motion.div
               className="relative rounded-2xl"
               data-kx-active-turn={isOnline && isMyTurn && !feedback ? 'true' : 'false'}
@@ -601,7 +629,7 @@ export default function GameLayout({
               } : { duration: 0.25 }}
               style={{
                 willChange: 'box-shadow',
-                ...(showSoloQuestionJokerRail ? { gridColumn: 2, justifySelf: 'center' } : null),
+                ...(showSoloQuestionSideRails ? { gridColumn: 2, justifySelf: 'center' } : null),
               }}
             >
               {/* Active-turn green aura — behind card, never above it. Codex095 */}

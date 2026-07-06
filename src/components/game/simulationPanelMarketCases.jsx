@@ -13,6 +13,8 @@ import marketSource from '../../lib/market.js?raw';
 import economyGatewaySource from '../../lib/dbGateway/economyGateway.js?raw';
 import purchaseJokerWithDiamondsSource from '../../../base44/functions/purchaseJokerWithDiamonds/entry.ts?raw';
 import purchaseJokerWithDiamondsManifestSource from '../../../base44/functions/purchaseJokerWithDiamonds/function.jsonc?raw';
+import ensureUserHintInventorySource from '../../../base44/functions/ensureUserHintInventory/entry.ts?raw';
+import consumeUserHintSource from '../../../base44/functions/consumeUserHint/entry.ts?raw';
 import diamondTransactionEntitySource from '../../../base44/entities/DiamondTransaction.jsonc?raw';
 import jokerTransactionEntitySource from '../../../base44/entities/JokerTransaction.jsonc?raw';
 import userHintInventoryEntitySource from '../../../base44/entities/UserHintInventory.jsonc?raw';
@@ -277,26 +279,28 @@ export const EXTRA_TESTS = [
       return pass('Backend validates auth/balance, uses economy locks/idempotency checks, and rolls back best-effort on ledger failure.', { verification: 'STATIC_CONTRACT' });
     }),
 
-  makeCase('hint_inventory_foundation_exists_without_gameplay_consumption',
-    'Hint inventory foundation exists but gameplay Hint consumption is not enabled',
+  makeCase('hint_inventory_foundation_exists_and_gameplay_consumption_is_server_owned',
+    'Hint inventory foundation exists and Solo gameplay Hint consumption is server-owned',
     () => {
-      const missing = missingTokens(`${userHintInventoryEntitySource}\n${hintTransactionEntitySource}\n${purchaseJokerWithDiamondsSource}`, [
+      const missing = missingTokens(`${userHintInventoryEntitySource}\n${hintTransactionEntitySource}\n${purchaseJokerWithDiamondsSource}\n${ensureUserHintInventorySource}\n${consumeUserHintSource}`, [
         '"name": "UserHintInventory"',
         '"name": "HintTransaction"',
         'hintInventoryEntity',
         'hintTransactionEntity',
         'Hint inventory',
-        'Gameplay Hint consumption is intentionally not active',
+        'starter_grant',
+        'solo_use',
+        'STARTER_QUANTITY = 3',
+        'consumeUserHint',
+        'privateActorKeyReturned: false',
+        'noKronoxPuan: true',
+        'noLeaderboardImpact: true',
       ]);
-      const forbidden = forbiddenTokens(marketPageSource, [
-        'consumeHint',
-        'spendHint',
-      ]);
-      if (missing.length || forbidden.length) return fail('Hint inventory foundation is missing or gameplay consumption leaked into this Store task.', {
+      if (missing.length) return fail('Hint inventory foundation or server-owned gameplay consumption contract is incomplete.', {
         verification: 'STATIC_CONTRACT',
-        actual: { missing, forbidden },
+        actual: { missing },
       });
-      return pass('Hint inventory/ledger exists for Store grants only, with gameplay consumption left untouched.', { verification: 'STATIC_CONTRACT' });
+      return pass('Hint inventory/ledger supports Store grants plus server-owned Solo starter/consume paths without Kronox Puan or leaderboard impact.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('future_kronoclub_remove_ads_disabled',

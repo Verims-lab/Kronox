@@ -16,6 +16,7 @@ export const DAILY_QUEST_TYPE_LABELS = Object.freeze({
   consecutive_correct_4: 'Üst üste 4 doğru cevap',
   joker_used: 'Joker kullan',
   time_freeze_joker_used: 'Zamanı Dondur jokeri kullan',
+  hint_used: 'İpucu kullan',
   jokerless_solo_level_complete: 'Jokersiz seviye tamamla',
   profile_complete: 'Profilini tamamla',
   correct_answer: 'Doğru cevap',

@@ -10,8 +10,8 @@ checks that source code and static Health cannot honestly prove alone.
 * Verify 320px width, common iPhone widths, Android Chrome widths, tablet, and
   foldable/resizable layouts.
 * No horizontal page overflow on Home, Game, Solo map, Profile, Settings,
-  Friends, Liderlik, Market, Daily Wheel, Daily Quest Management, Privacy, and
-  Health Center.
+  Friends, Liderlik, Market, Daily Calendar / Streak, Daily Wheel, Daily Quest
+  Management, Privacy, and Health Center.
 * Use safe-area padding around top bars, bottom CTAs, sheets, and BottomNav.
 * Touch targets stay reachable and readable with system font scaling.
 * Keyboard focus does not hide form actions or trap scroll.
@@ -29,6 +29,10 @@ checks that source code and static Health cannot honestly prove alone.
 * Health Center report actions, case details, copy buttons, clipboard fallback
   textarea, manual proof details, and raw JSON preview must fit 320px-class
   mobile widths without horizontal page overflow.
+* Daily Calendar / Streak at `/daily` must fit 320px-class screens with no
+  horizontal panning: header, month calendar, legend, task rows, and streak
+  reward panel all shrink within the viewport while normal vertical scrolling
+  remains available.
 * First-time guest onboarding uses the actual Solo gameplay surface for the
   guided first level. The guidance overlay must not capture drag/drop touches,
   must fit small portrait screens, and must resume cleanly if the app closes

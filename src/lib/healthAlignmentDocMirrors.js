@@ -561,7 +561,7 @@ export const MOBILE_VISUAL_GUARDRAILS_DOC = `# Kronox Mobile Visual Guardrails
 Status: Active manual visual/platform release gate.
 
 - Verify 320px width, common iPhone widths, Android Chrome widths, tablet, and foldable/resizable layouts.
-- No horizontal page overflow on Home, Game, Solo map, Profile, Settings, Friends, Liderlik, Market, Daily Wheel, Daily Quest Management, Privacy, and Health Center.
+- No horizontal page overflow on Home, Game, Solo map, Profile, Settings, Friends, Liderlik, Market, Daily Calendar / Streak, Daily Wheel, Daily Quest Management, Privacy, and Health Center.
 - Use safe-area padding around top bars, bottom CTAs, sheets, and BottomNav.
 - Touch targets stay reachable and readable with system font scaling.
 - Keyboard focus does not hide form actions or trap scroll.
@@ -571,6 +571,7 @@ Status: Active manual visual/platform release gate.
 - Reduced motion keeps functional feedback without relying on long animations.
 - Loading/error/retry states are local to the affected section when possible.
 - Health Center report actions, case details, copy buttons, clipboard fallback textarea, manual proof details, and raw JSON preview must fit narrow mobile widths without horizontal overflow.
+- Daily Calendar / Streak at /daily must fit narrow mobile widths with no horizontal panning while preserving normal vertical scrolling.
 - Direct URL routes load correctly in installed/standalone and browser modes.
 - Browser/PWA/WebView zoom prevention is web-owned in index.html plus the root app-shell zoom guard; native Android/iOS wrapper files are not edited for this contract.
 - Service worker/cache updates do not leave stale question/runtime bundles after a question-set or function contract change.
@@ -650,6 +651,7 @@ Status: Active product contract.
 - spendUserJoker uses EconomyOperationLock, post-lock idempotency recheck, and a fresh UserJokerInventory read before decrementing; guided/tutorial joker demos remain tutorial-only and do not spend real inventory.
 - Profile shows only Joker Çantası balances; normal users must not see other users' balances or transaction ledger rows.
 - Mağaza Store Diamond-spend purchases use purchaseJokerWithDiamonds; users purchase only for themselves, backend owns trusted Store product prices, sufficient Diamonds are validated server-side, and successful purchases write DiamondTransaction plus JokerTransaction and/or HintTransaction with market_purchase.
+- Solo Hint / İpucu is separate from Joker: ensureUserHintInventory initializes exactly 3 starter Hints once for authenticated and token-proven completed guests, consumeUserHint spends one Hint server-side with HintTransaction.reason = solo_use, source = solo_hint, EconomyOperationLock, and idempotency re-checks, and responses do not expose actor keys, raw guest IDs/tokens, answer years, or the full question bank. Hint use can satisfy Daily hint_used after the ledger row exists, but never counts as Joker use, grants Kronox Puan, or affects leaderboard.
 - Mağaza purchases are server-authoritative economy actions: the client is not trusted for price, cost, user identity, or target account; service-role writes stay scoped to the authenticated user.
 - Mağaza purchase idempotency keys, EconomyOperationLock, refreshed server balance reads, and post-lock ledger rechecks protect double-tap/retry/concurrent request flows; real two-device/backend race proof remains manual unless Base44 uniqueness is proven.
 - Real-money Store packages are display/unavailable unless approved IAP/payment verification exists; no fake real-money success path grants Diamonds, KronoClub, or ad-removal benefits.
@@ -797,9 +799,10 @@ Günlük is not a BottomNav item. getDailyQuestStatus creates or returns exactly
 3 UserDailyQuestProgress daily_calendar:* rows for the UTC server day from a
 9-day rotating task template cycle. Day 3 uses Profilini tamamla only while
 the profile is incomplete; otherwise it falls back to 5 soruyu doğru cevapla.
-Hint tasks fall back to 5 soruyu doğru cevapla until a real Hint-consumption
-event exists. Registered-only friend/joker tasks fall back for completed
-guests when needed so the runtime never creates impossible active tasks.
+İpucu kullan tasks use the real hint_used event and must verify a matching
+HintTransaction.reason = solo_use row before progress advances.
+Registered-only friend/joker tasks fall back for completed guests when needed
+so the runtime never creates impossible active tasks.
 
 The Daily page shows the current month calendar, today with a yellow ring,
 completed days with checks, future days uncompleted, today’s 3 tasks, and a

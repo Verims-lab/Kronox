@@ -602,8 +602,8 @@ Checklist:
   or token-proven completed guest.
 * The 9-day rotating task template cycle exists in code. Day 3 uses
   `Profilini tamamla` only while the profile is incomplete, otherwise it falls
-  back to `5 soruyu doğru cevapla`. Hint tasks fall back to `5 soruyu doğru
-  cevapla` until a real Hint-consumption event exists.
+  back to `5 soruyu doğru cevapla`. Hint tasks use the real `hint_used` event
+  and require a matching `HintTransaction.reason = solo_use` row.
 * Daily page proof: current month calendar appears, today has a yellow ring,
   completed days have checks, future days are not completed, today shows 3
   tasks, and Zaman Serisi shows 7-day Gift Box progress.

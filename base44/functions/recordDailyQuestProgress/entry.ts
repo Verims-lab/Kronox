@@ -14,6 +14,7 @@ const TASK_TYPES = {
   CONSECUTIVE_CORRECT_4: 'consecutive_correct_4',
   JOKER_USED: 'joker_used',
   TIME_FREEZE_JOKER_USED: 'time_freeze_joker_used',
+  HINT_USED: 'hint_used',
   JOKERLESS_LEVEL_COMPLETE: 'jokerless_solo_level_complete',
   PROFILE_COMPLETE: 'profile_complete',
   CORRECT_ANSWER: 'correct_answer',
@@ -24,6 +25,7 @@ const TASK_TYPES = {
 const LEGACY_EVENT_ALIASES: Record<string, string> = {
   complete_solo_level: TASK_TYPES.SOLO_LEVEL_COMPLETE,
   use_joker: TASK_TYPES.JOKER_USED,
+  use_hint: TASK_TYPES.HINT_USED,
   daily_wheel: TASK_TYPES.DAILY_WHEEL_CLAIM,
 };
 
@@ -37,6 +39,7 @@ const TASK_LIBRARY: Record<string, any> = {
   joker1: { key: 'joker1', title: '1 joker kullan', description: 'Herhangi bir jokeri 1 kez kullan.', questType: TASK_TYPES.JOKER_USED, targetValue: 1, icon: 'shield', requiresRegisteredUser: true },
   joker2: { key: 'joker2', title: '2 joker kullan', description: 'Herhangi bir jokeri 2 kez kullan.', questType: TASK_TYPES.JOKER_USED, targetValue: 2, icon: 'shield', requiresRegisteredUser: true },
   timeFreeze: { key: 'timeFreeze', title: 'Zamanı Dondur jokerini kullan', description: 'Zamanı Dondur jokerini 1 kez kullan.', questType: TASK_TYPES.TIME_FREEZE_JOKER_USED, targetValue: 1, icon: 'freeze', requiresRegisteredUser: true },
+  hint: { key: 'hint', title: 'İpucu kullan', description: 'Solo’da 1 ipucu kullan.', questType: TASK_TYPES.HINT_USED, targetValue: 1, icon: 'hint' },
   jokerless: { key: 'jokerless', title: 'Jokersiz seviye tamamla', description: 'Bir seviyeyi joker kullanmadan tamamla.', questType: TASK_TYPES.JOKERLESS_LEVEL_COMPLETE, targetValue: 1, icon: 'star' },
   profile: { key: 'profile', title: 'Profilini tamamla', description: 'Profil bilgilerini tamamla.', questType: TASK_TYPES.PROFILE_COMPLETE, targetValue: 1, icon: 'profile' },
   friendInvite: { key: 'friendInvite', title: 'Arkadaşını davet et', description: 'Bir arkadaşına davet gönder.', questType: TASK_TYPES.FRIEND_INVITE_SENT, targetValue: 1, icon: 'friends', requiresRegisteredUser: true },
@@ -48,10 +51,10 @@ const DAILY_TASK_TEMPLATE_CYCLE = [
   ['wheel', 'correct4', 'level1'],
   ['wheel', 'jokerless', 'profile'],
   ['wheel', 'joker1', 'level2'],
-  ['wheel', 'hintFallback', 'friendInvite'],
+  ['wheel', 'hint', 'friendInvite'],
   ['wheel', 'friendAdd', 'timeFreeze'],
   ['wheel', 'friendAdd', 'level2'],
-  ['wheel', 'hintFallback', 'level3'],
+  ['wheel', 'hint', 'level3'],
   ['wheel', 'joker2', 'level3'],
 ];
 const SAFE_GUEST_FALLBACKS = ['correct5', 'level1'];
@@ -212,10 +215,6 @@ function resolveTaskTemplates(dateKey: string, player: any) {
       key = 'correct5';
       fallbackReason = 'profile_already_complete';
     }
-    if (key === 'hintFallback') {
-      key = 'correct5';
-      fallbackReason = 'hint_gameplay_consumption_not_active';
-    }
     let task = TASK_LIBRARY[key] || TASK_LIBRARY.correct5;
     if (task.requiresRegisteredUser && player?.isGuest) {
       fallbackReason = `${task.key}_requires_registered_user`;
@@ -370,6 +369,25 @@ async function eventSourceIsVerified(base44: any, player: any, body: any, eventT
       if (match) return { ok: true, reason: 'joker_transaction_verified' };
     }
     return { ok: false, reason: 'joker_transaction_not_found' };
+  }
+
+  if (eventType === TASK_TYPES.HINT_USED) {
+    const entity = base44?.asServiceRole?.entities?.HintTransaction || base44?.entities?.HintTransaction;
+    if (!entity?.filter) return { ok: false, reason: 'hint_transaction_entity_missing' };
+    const idempotencyKey = String(body?.idempotencyKey || body?.idempotency_key || '').trim();
+    const transactionId = String(body?.transactionId || body?.transaction_id || '').trim();
+    const filters: Record<string, unknown>[] = [];
+    if (idempotencyKey) filters.push({ user_email: player.playerKey, idempotency_key: idempotencyKey });
+    if (transactionId) filters.push({ user_email: player.playerKey, id: transactionId });
+    if (!filters.length) return { ok: false, reason: 'hint_ledger_key_missing' };
+    for (const filter of filters) {
+      const rows = await entity.filter(filter, '-created_at', 3).catch(() => []);
+      const match = Array.isArray(rows)
+        ? rows.find((row: any) => rowId(row) && String(row?.reason || '') === 'solo_use')
+        : null;
+      if (match) return { ok: true, reason: 'hint_transaction_verified' };
+    }
+    return { ok: false, reason: 'hint_transaction_not_found' };
   }
 
   if (eventType === TASK_TYPES.FRIEND_INVITE_SENT || eventType === TASK_TYPES.FRIEND_ADDED) {

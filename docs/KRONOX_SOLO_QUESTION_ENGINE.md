@@ -394,8 +394,8 @@ Inventory foundation:
   Solo loading; valid known balances are still displayed
 - Profile displays balances under `Joker Çantası`
 - Mağaza Store sells Solo joker packages with Diamonds, may grant Hint balances
-  through Store-only Hint inventory, and shows real-money Diamond packages only
-  as no-grant display until approved IAP/payment verification exists.
+  through server-owned Hint inventory, and shows real-money Diamond packages
+  only as no-grant display until approved IAP/payment verification exists.
 - Mağaza purchase validates price and sufficient Diamonds server-side through
   `purchaseJokerWithDiamonds`, writes Diamond plus matching Joker/Hint ledgers
   with `market_purchase`, and does not change Solo scoring, timer, question
@@ -410,6 +410,14 @@ Inventory foundation:
 - `spendUserJoker` is Solo-context-only, uses deploy-safe
   `UserJokerInventory`/`JokerTransaction` entity fallback, and returns safe
   user-facing errors without changing scoring, timer, deck order, or Online
+- Solo Hint / İpucu is separate from Joker. `ensureUserHintInventory`
+  initializes exactly 3 starter Hints once for authenticated and token-proven
+  completed guest players, while `consumeUserHint` spends one Hint with
+  `HintTransaction.reason = solo_use`, `source = solo_hint`, and an
+  idempotency key. Hint use opens a left-card hammer popup, pauses the effective
+  Solo timer, reveals only the active card year in 1/3, 2/3, and full stages,
+  can satisfy Daily `hint_used`, and does not count as Joker use, change scoring,
+  grant Kronox Puan, affect leaderboard, or expose the full question bank.
 
 ## Daily Calendar / Streak
 
@@ -425,8 +433,9 @@ Streak:
   completion.
 - Daily Wheel and Friends emit their own event progress; Solo does not fake
   those tasks.
-- Hint tasks fall back to `5 soruyu doğru cevapla` until a real Hint-consume
-  event exists, so the Daily Calendar never creates an impossible task.
+- Hint tasks use the real `hint_used` event and require a matching
+  `HintTransaction.reason = solo_use` row, so opening the popup or a failed
+  consume cannot complete the task.
 - `recordDailyQuestProgress` is idempotent and never grants Diamonds.
 - A day is complete only after all 3 task rows are complete; missing a UTC day
   breaks the computed streak.
