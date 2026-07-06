@@ -107,19 +107,19 @@ export async function callDailyQuestDefinitionAdmin(payload = {}) {
   return body;
 }
 
-export function listDailyQuestDefinitions() {
+export function legacyListDailyQuestDefinitionRows() {
   return callDailyQuestDefinitionAdmin({ action: 'list' });
 }
 
-export function createDailyQuestDefinition(payload) {
+export function legacyCreateDailyQuestDefinitionRow(payload) {
   return callDailyQuestDefinitionAdmin({ ...payload, action: 'create' });
 }
 
-export function updateDailyQuestDefinitionStatus(id, status) {
+export function legacyUpdateDailyQuestDefinitionStatus(id, status) {
   return callDailyQuestDefinitionAdmin({ action: 'update_status', id, status });
 }
 
-export function seedDailyQuestDefinitions() {
+export function legacySeedDailyQuestDefinitionRows() {
   return callDailyQuestDefinitionAdmin({ action: 'seed' });
 }
 

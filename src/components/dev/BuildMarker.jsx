@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex558 — MR9DOLSC Health alignment:
+//   • Daily Calendar cache helpers, schema mirrors, legacy cleanup scope, and
+//     DailyQuestDefinition legacy helper names now match current contracts.
+//   • Store/Diamond/Daily Wheel/Joker/category Health checks were retargeted
+//     away from stale scan ranges while preserving no-fake-IAP, no-Puan, and
+//     no-leaderboard guarantees.
+//   • Root @base44/sdk is exact-pinned to 0.8.34 in package and lockfile.
+//
 // Codex557 — Daily Calendar mobile width fit:
 //   • /daily now owns scoped viewport-width containment so header, calendar,
 //     task rows, legend, and streak reward panel fit narrow mobile screens
@@ -392,7 +400,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex557';
+const BUILD_MARKER = 'Codex558';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

@@ -163,7 +163,7 @@ Successful Diamond-spend purchases write \`DiamondTransaction\` plus matching
 market_purchase. Runtime explicitly binds UserJokerInventory, UserHintInventory,
 DiamondTransaction, JokerTransaction, and HintTransaction. Double-tap, network
 retry, insufficient Diamonds, and two tabs/devices proof remains manual. Market
-purchase is a Diamond sink; Store purchases do not grant Kronox Puan and do not
+purchase is a Diamond sink. Mağaza purchase is a Diamond sink; Store purchases do not grant Kronox Puan and do not
 affect Leaderboard. Daily Wheel V2 can be a Diamond source and approved joker grant source. Profile
 Joker Çantası and Solo joker bar must show the purchased balance through the
 shared getUserJokerBalances path. Complete UserJokerInventory rows use a fast

@@ -890,6 +890,7 @@ export const EXTRA_TESTS = [
         makeHealthCategory(1, 'A'),
         makeHealthCategory(2, 'A'),
         makeHealthCategory(3, 'P'),
+        makeHealthCategory(4, 'A'),
       ];
       const preferences = makeHealthPreferences(3);
       const validCount = getValidCategoryPreferenceCount(preferences, categories);

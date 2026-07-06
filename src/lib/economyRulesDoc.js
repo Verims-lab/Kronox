@@ -41,8 +41,10 @@ Daily Wheel V2 is separate from the existing +20 daily login reward, grants one 
 per UTC server day, uses idempotency_key daily_wheel:<playerKey>:<YYYY-MM-DD>,
 records a DailyWheelSpin row plus DiamondTransaction.source = daily_wheel for
 Diamond portions and JokerTransaction.reason = daily_wheel for approved joker
-portions, and grants a 7-day streak bonus: +150 diamonds when applicable. It
-grants no Kronox Puan and does not affect leaderboard sorting or rank. Daily
+portions, and grants a 7-day streak bonus: +150 diamonds when applicable
+(7 günlük seri bonusu: +150 elmas). This Daily Wheel spin-streak bonus is
+separate from the Daily Calendar / Streak Gift Box. It grants no Kronox Puan
+and does not affect leaderboard sorting or rank. Daily
 Wheel same-day duplicate
 prevention uses key/date lookup, reserve-first DailyWheelSpin rows, canonical
 same-player/same-day re-read, User/GuestProfile guard re-check, and DiamondTransaction

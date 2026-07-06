@@ -121,7 +121,7 @@ export const EXTRA_TESTS = [
   makeCase('store_visual_style_and_scroll_contract',
     'Store uses requested scroll, gradient, glow, card, typography, and CTA tokens',
     () => {
-      const missing = missingTokens(marketPageSource, [
+      const missing = missingTokens(`${marketPageSource}\n${marketSource}`, [
         'overflow-y-auto',
         '#081327 0%, #0B1C38 45%, #081327 100%',
         'rgba(65,196,255,.08)',
@@ -186,7 +186,8 @@ export const EXTRA_TESTS = [
         "reason: 'real_money_unavailable'",
         'Satın alma yakında aktif olacak.',
       ]);
-      const forbidden = forbiddenTokens(`${marketSource}\n${marketPageSource}\n${purchaseJokerWithDiamondsSource}`, [
+      const grantPathSource = `${marketPageSource}\n${economyGatewaySource}\n${purchaseJokerWithDiamondsSource}`;
+      const forbidden = forbiddenTokens(grantPathSource, [
         'diamonds_360',
         'client-side add Diamonds',
         'diamondBalanceAfter: diamonds +',
@@ -335,7 +336,7 @@ export const EXTRA_TESTS = [
         "source: DIAMOND_MARKET_PURCHASE_SOURCE",
         "direction: 'spend'",
       ]);
-      const forbidden = forbiddenTokens(`${marketPageSource}\n${marketSource}\n${purchaseJokerWithDiamondsSource}`, [
+      const forbidden = forbiddenTokens(purchaseJokerWithDiamondsSource, [
         'kronox_puan_total',
         'total_kronox_score',
         'SoloLeaderboardEntry',

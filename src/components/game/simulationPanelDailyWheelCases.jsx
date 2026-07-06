@@ -470,22 +470,23 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('daily_wheel_streak_bonus_contract',
-    'Daily Wheel 7-day streak bonus contract exists',
+    'Daily Wheel 7-day streak bonus contract exists when runtime implements it',
     () => {
-      const combined = `${DAILY_WHEEL_BACKEND_HEALTH_SOURCE}\n${dailyWheelCardSource}\n${economyRulesSource}`;
+      const combined = `${DAILY_WHEEL_BACKEND_HEALTH_SOURCE}\n${dailyWheelCardSource}\n${economyRulesSource}\n${releaseChecklistSource}`;
       const missing = missingTokens(combined, [
         'STREAK_BONUS_AMOUNT = 150',
         'streakAfter % 7 === 0',
         '7 günlük seri bonusu: +150 elmas',
         '7-day streak bonus: +150 diamonds',
+        'Daily Calendar / Streak Gift Box',
       ]);
       if (missing.length) {
-        return fail('Daily Wheel 7-day streak bonus contract is incomplete.', {
+        return fail('Daily Wheel runtime has a 7-day streak path but docs/Health do not clearly distinguish it from the Daily Calendar Gift Box reward.', {
           verification: 'STATIC_CONTRACT',
           missing,
         });
       }
-      return pass('Daily Wheel grants/document a +150 Diamond bonus on every 7th consecutive daily spin.', { verification: 'STATIC_CONTRACT' });
+      return pass('Daily Wheel keeps its existing +150 7-day spin streak path and docs distinguish it from the Daily Calendar / Streak 200-Diamond Gift Box.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('daily_wheel_claimed_card_passive_countdown',
@@ -706,7 +707,7 @@ export const EXTRA_TESTS = [
       const modalStart = safeStr(mainMenuSource).indexOf('function HomeShortcutModal');
       const modalSource = modalStart >= 0 ? safeStr(mainMenuSource).slice(modalStart) : '';
       const wheelBranchStart = modalSource.indexOf('if (isWheel)');
-      const wheelBranchEnd = modalSource.indexOf('return (', wheelBranchStart);
+      const wheelBranchEnd = modalSource.indexOf('return null;', wheelBranchStart);
       const wheelBranch = wheelBranchStart >= 0 && wheelBranchEnd > wheelBranchStart
         ? modalSource.slice(wheelBranchStart, wheelBranchEnd)
         : '';
