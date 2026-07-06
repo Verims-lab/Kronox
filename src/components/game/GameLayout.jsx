@@ -1,6 +1,7 @@
 // Verims comment-2 23.06.2026
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowLeft } from 'lucide-react';
 import { sounds } from '@/lib/gameSounds';
 import QuestionCard from './QuestionCard.jsx';
 import Timeline from './Timeline.jsx';
@@ -242,6 +243,7 @@ export default function GameLayout({
   onTouchDragCancel,
   onTimelineSwipeHintInteraction,
   onTimeUp,
+  onSoloBack,
 }) {
   const soloJokers = rawSoloJokers
     ? { ...rawSoloJokers, balances: balances || rawSoloJokers?.balances || null }
@@ -257,6 +259,7 @@ export default function GameLayout({
     : Math.max(1, Number(winCardCount) || 10);
   const progressPercent = Math.min(100, (visibleProgressCount / visibleProgressTarget) * 100);
   const showRemainingMoves = Number.isFinite(Number(remainingMoves));
+  const showSoloLevelHeader = showRemainingMoves && typeof soloLevelTotalSeconds === 'number';
   const visibleRemainingMoves = Math.max(0, Math.floor(Number(remainingMoves) || 0));
   const visibleMaxMoves = Math.max(1, Math.floor(Number(maxMoves) || 10));
   const previousProgressCountRef = useRef(visibleProgressCount);
@@ -384,7 +387,7 @@ export default function GameLayout({
           </div>
         )}
 
-        {/* Center: Logo + progress */}
+        {/* Center: Logo */}
         <div
           className="bg-transparent p-0"
           style={{ background: 'transparent', backgroundColor: 'transparent', boxShadow: 'none', border: 'none' }}
@@ -401,38 +404,100 @@ export default function GameLayout({
               objectFit: 'contain',
             }}
           />
-          {/* Progress bar */}
-          <div className="mt-1 w-28">
-            <motion.div
-              key={progressPulseKey}
-              className="kronox-number mb-0.5 text-center font-inter font-semibold"
-              style={{ fontSize: 13, color: '#A7C4E5' }}
-              initial={progressPulseKey > 0 ? {
-                scale: prefersReducedMotion ? 1 : 1.16,
-              } : false}
-              animate={{ scale: 1 }}
-              transition={{ duration: prefersReducedMotion ? 0.18 : 0.34, ease: 'easeOut' }}
+          {showSoloLevelHeader ? (
+            <div
+              className="mt-1 flex items-center justify-between gap-3"
+              data-kronox-solo-navigation-progress-row="true"
             >
-              {visibleProgressCount}/{visibleProgressTarget}
-            </motion.div>
-            <motion.div
-              className="h-[7px] rounded-full overflow-hidden"
-              style={{ background: '#29436C' }}
-              animate={{
-                boxShadow: progressPulseActive
-                  ? '0 0 12px rgba(255,201,40,0.32)'
-                  : '0 0 0 rgba(0,0,0,0)',
-              }}
-              transition={{ duration: 0.28, ease: 'easeOut' }}
-            >
+              {onSoloBack ? (
+                <button
+                  type="button"
+                  aria-label="Geri dön"
+                  onClick={() => {
+                    sounds.tap();
+                    onSoloBack();
+                  }}
+                  className="kronox-solo-back-button flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full transition-transform active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300/70"
+                  style={{
+                    background: 'rgba(6, 18, 37, 0.86)',
+                    border: '1px solid rgba(167, 196, 229, 0.52)',
+                    boxShadow: '0 0 12px rgba(56, 189, 248, 0.12), inset 0 1px 0 rgba(255,255,255,0.06)',
+                    color: '#D7E7FF',
+                    touchAction: 'manipulation',
+                    WebkitTapHighlightColor: 'transparent',
+                  }}
+                  data-kronox-solo-back-button="true"
+                >
+                  <ArrowLeft className="h-5 w-5" strokeWidth={2.4} aria-hidden="true" />
+                </button>
+              ) : (
+                <span aria-hidden="true" className="h-9 w-9 flex-shrink-0" />
+              )}
+              <div className="w-28 max-w-[32vw]" data-kronox-solo-progress-under-timer="true">
+                <motion.div
+                  key={progressPulseKey}
+                  className="kronox-number mb-0.5 text-center font-inter font-semibold"
+                  style={{ fontSize: 13, color: '#A7C4E5' }}
+                  initial={progressPulseKey > 0 ? {
+                    scale: prefersReducedMotion ? 1 : 1.16,
+                  } : false}
+                  animate={{ scale: 1 }}
+                  transition={{ duration: prefersReducedMotion ? 0.18 : 0.34, ease: 'easeOut' }}
+                >
+                  {visibleProgressCount}/{visibleProgressTarget}
+                </motion.div>
+                <motion.div
+                  className="h-[7px] overflow-hidden rounded-full"
+                  style={{ background: '#29436C' }}
+                  animate={{
+                    boxShadow: progressPulseActive
+                      ? '0 0 12px rgba(255,201,40,0.32)'
+                      : '0 0 0 rgba(0,0,0,0)',
+                  }}
+                  transition={{ duration: 0.28, ease: 'easeOut' }}
+                >
+                  <motion.div
+                    className="h-full rounded-full"
+                    style={{ background: 'linear-gradient(90deg, #FFE26A 0%, #FFC928 100%)' }}
+                    animate={{ width: `${progressPercent}%` }}
+                    transition={{ type: 'spring', stiffness: 200, damping: 30 }}
+                  />
+                </motion.div>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-1 w-28">
               <motion.div
-                className="h-full rounded-full"
-                style={{ background: 'linear-gradient(90deg, #FFE26A 0%, #FFC928 100%)' }}
-                animate={{ width: `${progressPercent}%` }}
-                transition={{ type: 'spring', stiffness: 200, damping: 30 }}
-              />
-            </motion.div>
-          </div>
+                key={progressPulseKey}
+                className="kronox-number mb-0.5 text-center font-inter font-semibold"
+                style={{ fontSize: 13, color: '#A7C4E5' }}
+                initial={progressPulseKey > 0 ? {
+                  scale: prefersReducedMotion ? 1 : 1.16,
+                } : false}
+                animate={{ scale: 1 }}
+                transition={{ duration: prefersReducedMotion ? 0.18 : 0.34, ease: 'easeOut' }}
+              >
+                {visibleProgressCount}/{visibleProgressTarget}
+              </motion.div>
+              <motion.div
+                className="h-[7px] overflow-hidden rounded-full"
+                style={{ background: '#29436C' }}
+                animate={{
+                  boxShadow: progressPulseActive
+                    ? '0 0 12px rgba(255,201,40,0.32)'
+                    : '0 0 0 rgba(0,0,0,0)',
+                }}
+                transition={{ duration: 0.28, ease: 'easeOut' }}
+              >
+                <motion.div
+                  className="h-full rounded-full"
+                  style={{ background: 'linear-gradient(90deg, #FFE26A 0%, #FFC928 100%)' }}
+                  animate={{ width: `${progressPercent}%` }}
+                  transition={{ type: 'spring', stiffness: 200, damping: 30 }}
+                />
+              </motion.div>
+            </div>
+          )}
         </div>
 
         {/* Right: Timer

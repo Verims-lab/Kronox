@@ -82,7 +82,7 @@ export default function SoloChallenge() {
   const handleSelectLevel = (level) => {
     if (!level || !level.isPlayable) return;
     const config = buildSoloGameConfigForLevel(level);
-    navigate('/game', { state: config });
+    navigate('/game', { state: { ...config, soloReturnTo: 'solo-levels' } });
   };
 
   // Reserve space for the global BottomNav + a small breathing buffer so

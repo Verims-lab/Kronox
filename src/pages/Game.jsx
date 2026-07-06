@@ -150,6 +150,24 @@ function buildGuidedTutorialJokerBalances(targetType = null, demoUsed = false) {
   return balances;
 }
 
+export function resolveSoloGameReturnPath(routeState = {}) {
+  if (routeState?.onboardingTutorial === true || routeState?.soloLevel?.onboardingTutorial === true) {
+    return '/onboarding';
+  }
+  const source = routeState?.soloReturnTo || routeState?.returnTo || routeState?.source || '';
+  if (source === 'home' || source === '/') return '/';
+  if (
+    source === 'solo-levels' ||
+    source === 'solo' ||
+    source === 'levels' ||
+    source === 'level-selection' ||
+    source === '/solo'
+  ) {
+    return '/solo';
+  }
+  return '/';
+}
+
 export default function Game() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -173,6 +191,7 @@ export default function Game() {
   const routeMyPlayerName = routeState.myPlayerName ?? null;
   const routeOnlineQuestionDeck = Array.isArray(routeState.onlineQuestionDeck) ? routeState.onlineQuestionDeck : [];
   const routeOnlineDeckMeta = routeState.onlineDeckMeta || null;
+  const soloReturnTo = routeState.soloReturnTo || routeState.returnTo || routeState.source || null;
   // Codex106 — Solo Level mode payload. Only present when SoloChallenge
   // launches a level attempt. Null/absent means legacy solo (no level
   // enforcement, current behavior). We keep all level logic gated behind
@@ -2350,9 +2369,10 @@ export default function Game() {
           soloRulesVersion: SOLO_RULES_VERSION,
         },
         onboardingTutorial: isGuidedSoloTutorial,
+        soloReturnTo,
       },
     });
-  }, [isGuidedSoloTutorial, soloLevel, resetGame, resetSoloJokers, navigate, routeYearStart, routeYearEnd]);
+  }, [isGuidedSoloTutorial, soloLevel, soloReturnTo, resetGame, resetSoloJokers, navigate, routeYearStart, routeYearEnd]);
 
   // Codex106-23 — Jump straight into the next level after a passed attempt.
   // We rebuild the route state from the next level number, reusing the same
@@ -2411,9 +2431,17 @@ export default function Game() {
           maxMistakes: nextMaxMoves,
           soloRulesVersion: SOLO_RULES_VERSION,
         },
+        soloReturnTo,
       },
     });
-  }, [isGuidedSoloTutorial, soloLevel, resetGame, resetSoloJokers, navigate, routeYearStart, routeYearEnd]);
+  }, [isGuidedSoloTutorial, soloLevel, soloReturnTo, resetGame, resetSoloJokers, navigate, routeYearStart, routeYearEnd]);
+
+  const handleSoloGameplayBack = useCallback(() => {
+    if (!isSoloLevelMode) return;
+    resetSoloJokers();
+    resetGame();
+    navigate(resolveSoloGameReturnPath(routeState), { replace: true });
+  }, [isSoloLevelMode, navigate, resetGame, resetSoloJokers, routeState]);
 
   const handleSoloBackToPath = useCallback(() => {
     if (isGuidedSoloTutorial) {
@@ -3017,6 +3045,7 @@ export default function Game() {
         soloLevelElapsedSeconds={isSoloLevelMode ? soloEffectiveElapsedSeconds : undefined}
         soloLevelTimerFrozen={isSoloLevelMode ? isSoloTimerFrozen : false}
         soloJokers={isSoloLevelMode ? soloJokers : null}
+        onSoloBack={isSoloLevelMode ? handleSoloGameplayBack : undefined}
         balances={soloJokers?.balances || null}
         beginnerPlacementHintZone={beginnerPlacementHintZone}
         guidedDragHintActive={guidedDragHintActive}
