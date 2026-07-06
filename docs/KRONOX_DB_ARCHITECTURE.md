@@ -720,14 +720,19 @@ Mandatory sequence — index before duplicate cleanup is not allowed:
 3. Only zero-duplicate keys (re-verified by a fresh dry-run) may be configured
    as platform unique keys, then recorded as release proof.
 
-Latest dry-run snapshot (2026-07-06, bounded scan windows): duplicates exist
-for `DiamondTransaction.idempotency_key` (legacy starter/daily grant retries),
-`UserJokerInventory.user_email + joker_type` (runtime dedupes on read),
-`UserDailyQuestProgress` keys (mostly legacy `daily_quest:*` rows), and
-`SoloLeaderboardEntry.owner_key` (public reads already dedupe server-side) —
-those uniques are blocked pending cleanup. `DailyWheelSpin` (key and
-user/day), `Lobby.code`, and `HintTransaction.idempotency_key` showed zero
-duplicates and are unblocked pending platform support.
+Cleanup status (2026-07-06, admin approved and executed): the
+`adminDuplicateKeyCleanup` executor (AdminUser-gated; `dry_run` default,
+`execute` requires `confirm: 'DELETE_DUPLICATES'`) deleted 959 redundant
+duplicate rows using the approved canonical-row semantics — earliest ledger
+row kept for `DiamondTransaction`/`JokerTransaction` idempotency keys, newest
+updated row kept for `UserJokerInventory` (user + joker_type) and
+`SoloLeaderboardEntry` (owner_key), and best row (completed → highest
+progress → earliest created) kept for `UserDailyQuestProgress`
+(user + quest_date + quest_key). No player balance, score, streak, or reward
+was mutated. A fresh `adminDuplicateKeyReport` dry-run then verified ZERO
+duplicates across all P0/P1 keys, so platform unique-key configuration is
+unblocked for every documented key (re-verify with a fresh dry-run at
+configuration time).
 
 | Entity | Index or unique key | Priority | Why |
 | --- | --- | --- | --- |

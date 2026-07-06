@@ -1,5 +1,23 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex562 — GFable 5 approved duplicate cleanup executed:
+//   • New AdminUser-gated adminDuplicateKeyCleanup executor: dry_run default
+//     with full masked deletion plan; execute requires confirm
+//     DELETE_DUPLICATES and a per-run maxDeletes batch cap.
+//   • Canonical-row semantics applied: earliest ledger row kept for
+//     DiamondTransaction/JokerTransaction idempotency keys; newest updated
+//     row kept for UserJokerInventory (user+joker_type) and
+//     SoloLeaderboardEntry (owner_key); best row (completed → highest
+//     progress → earliest created) kept for UserDailyQuestProgress
+//     (user+quest_date+quest_key).
+//   • 959 redundant duplicate rows deleted across the five blocked keys with
+//     zero delete failures; no player balance, score, streak, reward,
+//     probability, price, or identity value was mutated.
+//   • Post-cleanup adminDuplicateKeyReport dry-run verified ZERO duplicates
+//     on all P0/P1 keys — platform unique-key configuration is now unblocked
+//     for every documented key (manual release gate; fresh dry-run required
+//     at configuration time). Docs + DB architecture mirror updated.
+//
 // Codex561 — GFable 5 DB indexing / duplicate cleanup prep:
 //   • Confirmed the Base44 index support model: repo JSONC entity schemas
 //     cannot declare indexes/unique constraints — platform/manual
@@ -463,7 +481,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex561';
+const BUILD_MARKER = 'Codex562';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
