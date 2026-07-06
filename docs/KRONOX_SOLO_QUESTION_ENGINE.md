@@ -454,6 +454,10 @@ Joker behavior:
 - `Kronokalkan`: activates one-time protection. The next wrong valid placement does not consume a move; correct placements do not consume the shield.
 - `Kart Değiştir`: replaces the current active card using the already prepared Solo attempt deck/reserve and does not consume a move. It must not fetch a raw client question list, rebuild the deck, or rerandomize the attempt mid-game, and the swapped-out card should not reappear later in the same attempt while unused deck cards are available. Replacement must respect visible timeline spacing and prefers a balanced reserve card that does not worsen category/subcategory/theme repetition. If no safe replacement exists, the joker is not consumed and the player sees `Bu kart şu anda değiştirilemiyor.`
 - `Zaman Dondur`: freezes the Solo level timer for 10 seconds and does not consume a move. It does not add score, add extra time, or alter timeout rules beyond pausing the elapsed timer during the freeze window.
+- `İpucu`: opens the active-card Hint popup, pauses the visible Solo timer, and
+  reveals only the active card year in 1/3, 2/3, and full stages after
+  server-confirmed Hint spends. If `Zaman Dondur` is already active, the Hint
+  pause is overlap-aware and must not subtract the same frozen seconds twice.
 
 ## Backward Compatibility
 

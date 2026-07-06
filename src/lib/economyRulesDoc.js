@@ -215,6 +215,9 @@ spends one Hint server-side with HintTransaction.reason = solo_use and source =
 solo_hint, and double-tap/retry paths use idempotency plus EconomyOperationLock.
 Hint use is separate from Joker use, can satisfy Daily hint_used after the
 ledger row exists, and never grants Kronox Puan or affects Leaderboard.
+Opening the Hint popup pauses the visible Solo timer; if Zaman Dondur is
+already active, the Hint pause is overlap-aware and never subtracts the same
+frozen seconds twice.
 Joker balance read-performance contract: UserJokerInventory is the Profile/Solo current-balance source. JokerTransaction is the ledger/audit trail and must not be summed on Profile open. Profile, Solo, and Mağaza use the shared getUserJokerBalances / mutation-result cache path keyed by normalized user email. Complete inventory rows render through a fast current-balance read; missing or partial rows trigger idempotent starter/self-heal. Mağaza purchase and Solo spend must update or invalidate the shared balance cache so Profile and Solo do not show stale counts. spendUserJoker validates Solo context, uses deploy-safe UserJokerInventory/JokerTransaction entity fallback, and returns safe user-facing errors. Normal Solo joker spend uses EconomyOperationLock, rechecks the JokerTransaction idempotency key after the lock, then re-reads UserJokerInventory and refuses to decrement a zero balance. Admin/static reconciliation can compare UserJokerInventory.quantity against JokerTransaction summed deltas and latest balance_after without mutating data. Guest/no-login paths must not query user-owned joker inventory. Live performance proof remains manual: login, open Profile, confirm Joker Çantası loads quickly, purchase/spend a joker, and confirm Profile/Solo counts refresh.
 Hint balance read-performance contract: UserHintInventory is the current-balance
 source for Solo Hint / İpucu. HintTransaction is the ledger/audit trail and must
