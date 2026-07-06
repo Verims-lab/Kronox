@@ -234,7 +234,7 @@ Ana Sayfa is the main return point after onboarding.
 Home can show:
 
 * Primary Solo entry: `OYNA` / dynamic `Seviye X`
-* Secondary `ONLINE KAPIŞMA` entry
+* Secondary `ONLINE KAPIŞ` entry
 * Mağaza entry with the gold storefront icon style
 * `Görevler` shortcut for Daily Quest in a centered popup
 * `Çark` shortcut for Daily Wheel in a centered popup
@@ -242,10 +242,14 @@ Home can show:
 * Diamond balance
 
 Home's middle section is a three-part composition: left `Görevler`, centered
-transparent hourglass artwork, and right `Çark`. The logo and hourglass remain
-unboxed local assets over the dark blue Home background, and the Solo/Online CTA
-stack keeps balanced vertical spacing between the hourglass and the fixed
-BottomNav.
+transparent hourglass, and right `Çark`; the `Çark` shortcut icon is a small
+content-free wheel visual with colored slices, no reward icons, no numbers, and
+no Diamond symbols inside the slices. The logo and hourglass remain unboxed
+local assets over the dark blue Home background, and the Solo/Online CTA stack
+keeps balanced vertical spacing between the hourglass and the fixed BottomNav.
+
+The Home notification panel title uses Barlow Condensed bold italic styling;
+notification body, empty-state, and error copy use Inter.
 
 The Home primary Solo CTA reads the current/next playable level from the same
 canonical Solo progress helpers used by the Solo level path, then starts that

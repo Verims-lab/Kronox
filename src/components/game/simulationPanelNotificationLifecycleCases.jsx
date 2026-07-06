@@ -462,6 +462,35 @@ export const EXTRA_TESTS = [
         { verification: 'STATIC_CONTRACT' });
     }),
 
+  makeCase('notification_typography_contract',
+    'Notification surfaces use Barlow Condensed title typography and Inter body typography',
+    () => {
+      const uiSrc = `${safeStr(headerNotificationBellSource)}\n${safeStr(incomingInvitesPanelSource)}`;
+      const required = missing(uiSrc, [
+        'data-kronox-notification-title',
+        'data-kronox-notification-body',
+        'fontFamily: \'"Barlow Condensed", sans-serif\'',
+        'fontWeight: 700',
+        'fontStyle: \'italic\'',
+        'font-inter',
+        'Yeni bildirimin yok.',
+      ]);
+      const forbiddenTitle = forbidden(headerNotificationBellSource, [
+        'font-cinzel text-[12px] font-black tracking-[0.18em] text-amber-200',
+      ]);
+      if (required.length || forbiddenTitle.length) {
+        return fail('Notification title/body typography drifted from the approved style contract.', {
+          verification: 'STATIC_CONTRACT',
+          actionType: ACTION_TYPES.CODE_FIX,
+          files: ['components/notifications/HeaderNotificationBell.jsx', 'components/invites/IncomingInvitesPanel.jsx'],
+          actual: { missing: required, forbiddenTitle },
+        });
+      }
+      return pass('Notification titles use Barlow Condensed bold italic and body/empty/error text uses Inter.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
   makeCase('accepted_invite_removed_only_by_status_change',
     'Accepted/terminal invite leaves header/Online because status changed, not because toast dismissed',
     () => {
