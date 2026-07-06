@@ -677,6 +677,10 @@ Solo move interaction:
   completed guest players, while `consumeUserHint` spends one Hint server-side
   with `HintTransaction.reason = solo_use`, `source = solo_hint`, and an
   idempotency key.
+* The gameplay Hint launcher only opens the popup; it does not spend a Hint.
+  The popup must render exactly one clear hammer action, keep stage 0 fully
+  covered from the first frame, and reveal the year only after successful
+  server-confirmed consumes.
 * Hint use can satisfy Daily `hint_used` after the ledger row exists, but never
   counts as Joker use, grants Kronox Puan, affects Leaderboard, changes Solo
   scoring, or exposes answer-year/question-bank data through backend reports.
@@ -760,6 +764,9 @@ Hint balance read-performance contract:
 * `consumeUserHint` uses `EconomyOperationLock`, rechecks the
   `HintTransaction` idempotency key after the lock, decrements one Hint, and
   returns a sanitized balance response.
+* Hint popup actions are locally locked and idempotency-keyed so double taps,
+  retries, and stale active-card changes cannot double-spend or reveal before
+  server confirmation.
 * Completed guests use token-proven internal `guest:<g_owner_key>` actor keys
   only through backend functions; public UI/export must not expose these keys.
 

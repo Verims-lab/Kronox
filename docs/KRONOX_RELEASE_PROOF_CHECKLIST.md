@@ -507,6 +507,13 @@ Checklist:
   joker balances or create arbitrary grant rows.
 * Solo use spends one owned joker through `spendUserJoker` and writes
   `JokerTransaction.reason = solo_use`.
+* Solo Hint launcher only opens the active-card popup and never spends by
+  itself.
+* Solo Hint popup has exactly one hammer action, keeps stage 0 fully covered
+  from the first rendered frame, and closes safely if the active card changes.
+* Solo Hint reveal advances, count decreases, and Daily `hint_used` can progress
+  only after `consumeUserHint` confirms a server-side `HintTransaction.reason =
+  solo_use` row.
 * `spendUserJoker` must reject non-Solo context, avoid service-role-only deploy
   assumptions, and map backend invoke failures to safe UI copy.
 * Home shows the Mağaza entry at top-left with a gold storefront icon, Diamond

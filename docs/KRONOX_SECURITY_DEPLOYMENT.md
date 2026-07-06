@@ -861,6 +861,9 @@ Joker inventory is user-owned data:
   completed guests, and `consumeUserHint` spends one Hint server-side with
   `HintTransaction.reason = solo_use`, `source = solo_hint`, `EconomyOperationLock`,
   and idempotency re-checks
+* Opening the Hint popup never spends inventory; the popup has one hammer action,
+  stage 0 fully covers the answer from first render, stale-card changes close the
+  popup, and reveal advances only after server confirmation
 * Hint use never writes `JokerTransaction`, never grants Kronox Puan, never
   affects Leaderboard, and must not expose answer-year/question-bank payloads or
   internal guest actor keys in public UI/API responses

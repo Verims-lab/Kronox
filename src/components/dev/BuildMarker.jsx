@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex568 — Solo Hint popup usability:
+//   • Solo Hint launcher touch target now owns pointer events and is not
+//     disabled by the joker-only post-drag guard.
+//   • Hint popup renders one clear hammer action, clips the year at stage 0
+//     from the first frame, and closes if the active card changes.
+//   • Docs/mirrors/Health protect one-hammer UI, no answer flash, server-side
+//     idempotent consume, timer pause compatibility, and Hint/Joker separation.
+//
 // Codex567 — Profile Joker Çantası Hint card:
 //   • Profile Joker Çantası now renders Kronokalkan, Kart Değiştir,
 //     Zaman Dondur, and İpucu as four compact cards in one non-scrolling row.
@@ -529,7 +537,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex567';
+const BUILD_MARKER = 'Codex568';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

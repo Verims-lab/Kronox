@@ -214,6 +214,9 @@ Hint gameplay consumption is active only for Solo Hint / İpucu: each player
 gets exactly 3 starter Hints once through ensureUserHintInventory, consumeUserHint
 spends one Hint server-side with HintTransaction.reason = solo_use and source =
 solo_hint, and double-tap/retry paths use idempotency plus EconomyOperationLock.
+The gameplay Hint launcher only opens the popup; the popup has one hammer action,
+keeps stage 0 fully covered from the first rendered frame, and reveal advances
+only after server confirmation.
 Hint use is separate from Joker use, can satisfy Daily hint_used after the
 ledger row exists, and never grants Kronox Puan or affects Leaderboard.
 Opening the Hint popup pauses the visible Solo timer; if Zaman Dondur is
@@ -229,9 +232,11 @@ display-only helper and must not initialize, consume, grant, or mutate Hint
 inventory. ensureUserHintInventory is idempotent and must preserve spent
 balances; it must not refill a user back to 3 on every app open. consumeUserHint
 uses EconomyOperationLock, rechecks the HintTransaction idempotency key after the
-lock, decrements one Hint, and returns a sanitized balance response. Completed
-guests use token-proven internal guest:<g_owner_key> actor keys only through
-backend functions; public UI/export must not expose these keys.
+lock, decrements one Hint, and returns a sanitized balance response. Hint popup
+actions are locally locked and stale-card guarded so double taps and active-card
+changes cannot double-spend or reveal before server confirmation. Completed guests
+use token-proven internal guest:<g_owner_key> actor keys only through backend
+functions; public UI/export must not expose these keys.
 
 ## Admin reset and account deletion
 Admin reset sets \`daily_wheel_last_spin_date\` to the current UTC day, clears Daily Wheel guard fields, and removes target \`DailyWheelSpin\` rows. Retained OnlineMatchResult/DiamondTransaction/DailyWheelSpin rows no longer contain the deleted user.

@@ -7,7 +7,7 @@ export const HINT_INVENTORY_CACHE_TTL_MS = 20000;
 export const HINT_INVENTORY_CONTRACT = [
   'Solo Hint / İpucu is separate from Joker inventory.',
   'Every player gets three starter Hints exactly once through server-side idempotent inventory initialization.',
-  'Opening the Hint popup never spends inventory; a reveal stage advances only after consumeUserHint succeeds.',
+  'Opening the Hint popup never spends inventory; the popup renders one hammer action, stage 0 keeps the answer fully covered from first render, and a reveal stage advances only after consumeUserHint succeeds.',
   'Hint use writes HintTransaction reason solo_use and never sets JokerTransaction, joker_used, Kronox Puan, or leaderboard state.',
   'Guest players use a token-proven internal guest:<g_owner_key> economy key and receive sanitized responses only.',
 ].join(' ');
