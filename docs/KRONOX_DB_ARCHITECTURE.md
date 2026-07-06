@@ -742,7 +742,11 @@ create path uses query-before-create; `DailyWheelSpin` uses reserve-first
 re-read); economy mutations run inside `EconomyOperationLock`; ledger writes
 (`DiamondTransaction`, `JokerTransaction`, `HintTransaction`) check
 `idempotency_key` before create and re-read after write where race risk
-exists; `UserDailyQuestProgress` assignments check `findProgressByAssignment`
+exists; starter/daily login Diamond grants are backend-only through
+`claimLoginBonuses` (`EconomyOperationLock` `login_bonus_grant`, pre/post-lock
+idempotency checks, confirm-after-write) — the client cannot create
+`DiamondTransaction` rows or mutate the balance for these grants;
+`UserDailyQuestProgress` assignments check `findProgressByAssignment`
 before create with catch-recover; `SoloLeaderboardEntry` publishes filter by
 `owner_key` before update/create and re-read the canonical row after create;
 `Lobby.code` is generated through `generateUniqueLobbyCode` (lookup-only

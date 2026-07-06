@@ -1,0 +1,5 @@
+{
+  // Codex564 — Server-side starter_bonus / daily_login Diamond grant claim.
+  "name": "claimLoginBonuses",
+  "entry": "entry.ts"
+}

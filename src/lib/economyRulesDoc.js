@@ -149,6 +149,14 @@ DELETE_LEGACY_DAILY_QUESTS confirmation; it must not delete Daily Wheel,
 economy, profile, Solo, Online, Leaderboard, Store, Friends, or account data.
 
 First authenticated entry grants +100 once. Same-day daily login grants +20 once.
+Starter and daily login grants are backend-only through the server-side
+claimLoginBonuses function: EconomyOperationLock (operation_scope
+login_bonus_grant), idempotency_key find-before-create with post-lock re-check
+and confirm-after-write, and server-side User.diamonds + guard-field updates.
+The client must not create DiamondTransaction rows and must not mutate the
+Diamond balance for these grants; cleanup alone is not enough — the backend
+guard is the permanent enforcement, and adminDuplicateKeyReport remains the
+duplicate monitor.
 First-day total: \`120\` Diamonds. This combines starter 100 Diamonds plus
 daily login 20 Diamonds only; it does not imply Kronox Puan and does not affect
 leaderboard rank.

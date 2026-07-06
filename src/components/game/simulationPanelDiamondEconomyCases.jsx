@@ -13,6 +13,7 @@ import marketPageSource from '../../pages/MarketPage.jsx?raw';
 import purchaseJokerWithDiamondsSource from '../../../base44/functions/purchaseJokerWithDiamonds/entry.ts?raw';
 import claimDailyWheelRewardSource from '../../../base44/functions/claimDailyWheelReward/entry.ts?raw';
 import claimDailyQuestRewardSource from '../../../base44/functions/claimDailyQuestReward/entry.ts?raw';
+import claimLoginBonusesSource from '../../../base44/functions/claimLoginBonuses/entry.ts?raw';
 import economyOperationLockEntitySource from '../../../base44/entities/EconomyOperationLock.jsonc?raw';
 import guestProfileEntitySource from '../../../base44/entities/GuestProfile.jsonc?raw';
 import profilePageSource from '../../pages/ProfilePage.jsx?raw';
@@ -213,13 +214,13 @@ export const EXTRA_TESTS = [
   makeCase('diamond_rewards_use_idempotency_keys',
     'Diamond reward grants use durable idempotency keys',
     () => {
-      const combined = `${diamondEconomySource}\n${economyRulesSource}`;
+      const combined = `${diamondEconomySource}\n${claimLoginBonusesSource}\n${economyRulesSource}`;
       const missing = missingTokens(combined, [
         'buildDiamondIdempotencyKey',
         'idempotencyKey',
         'findDiamondTransaction',
-        'const existing = await findDiamondTransaction(email, idempotencyKey);',
-        'const confirmed = await findDiamondTransaction(email, idempotencyKey);',
+        'const existing = await findDiamondTransaction(base44, email, idempotencyKey);',
+        'const confirmed = await findDiamondTransaction(base44, email, idempotencyKey);',
         'DIAMOND_STARTER_BONUS_IDEMPOTENCY_PREFIX',
         'DIAMOND_DAILY_LOGIN_IDEMPOTENCY_PREFIX',
         'Base44 schema-level uniqueness is not assumed',
@@ -247,6 +248,45 @@ export const EXTRA_TESTS = [
         return fail('Diamond bootstrap can regrant on refresh/re-render.', { verification: 'STATIC_CONTRACT', missing });
       }
       return pass('Bootstrap uses in-session guard plus persisted starter/daily guard fields.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('login_bonus_grants_are_backend_only',
+    'Starter/daily login Diamond grants are backend-only; client cannot write the ledger or balance',
+    () => {
+      const forbidden = findForbidden({ diamondEconomySource }, [
+        'base44.entities.DiamondTransaction',
+        'base44.auth.updateMe',
+      ]);
+      const clientMissing = missingTokens(diamondEconomySource, [
+        "invoke('claimLoginBonuses'",
+        'BACKEND-ONLY',
+      ]);
+      const backendMissing = missingTokens(claimLoginBonusesSource, [
+        'withEconomyLock',
+        "'login_bonus_grant'",
+        'const postLockExisting = await findDiamondTransaction',
+        'const existing = await findDiamondTransaction(base44, email, idempotencyKey);',
+        'const confirmed = await findDiamondTransaction(base44, email, idempotencyKey);',
+        "'created_at', 1",
+        'starter_bonus:',
+        'daily_login:',
+        'starter_bonus_granted_at',
+        'last_daily_diamond_reward_date',
+        'noKronoxPuan: true',
+        'noLeaderboardImpact: true',
+        "code: 'auth_required'",
+        '401',
+      ]);
+      if (forbidden.length || clientMissing.length || backendMissing.length) {
+        return fail('Starter/daily login grant path drifted from the backend-only lock/idempotency contract.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['src/lib/diamondEconomy.js', 'base44/functions/claimLoginBonuses/entry.ts'],
+          actual: { forbidden, clientMissing, backendMissing },
+        });
+      }
+      return pass('Client only invokes claimLoginBonuses; the backend grants inside EconomyOperationLock with pre/post-lock idempotency checks, confirm-after-write, earliest-canonical reads, and no Puan/leaderboard impact.', {
+        verification: 'STATIC_CONTRACT',
+      });
     }),
 
   makeCase('diamond_reward_not_regranted_multi_device_contract',
@@ -359,13 +399,13 @@ export const EXTRA_TESTS = [
   makeCase('diamond_transaction_ledger_exists_if_implemented',
     'DiamondTransaction ledger schema and helper exist',
     () => {
-      const missing = missingTokens(`${diamondTransactionEntitySource}\n${diamondEconomySource}`, [
+      const missing = missingTokens(`${diamondTransactionEntitySource}\n${claimLoginBonusesSource}`, [
         'DiamondTransaction',
         'balance_before',
         'balance_after',
         'idempotency_key',
         'createDiamondTransaction',
-        'base44.entities.DiamondTransaction',
+        'diamondTransactionEntity(base44',
       ]);
       if (missing.length) {
         return fail('DiamondTransaction ledger contract is incomplete.', { verification: 'STATIC_CONTRACT', missing });
@@ -422,9 +462,10 @@ export const EXTRA_TESTS = [
   makeCase('economy_operation_lock_serializes_balance_mutations',
     'Economy balance mutations use a TTL operation lock plus post-lock rechecks',
     () => {
-      const combined = `${economyOperationLockEntitySource}\n${purchaseJokerWithDiamondsSource}\n${claimDailyWheelRewardSource}\n${claimDailyQuestRewardSource}\n${economyRulesSource}`;
+      const combined = `${economyOperationLockEntitySource}\n${purchaseJokerWithDiamondsSource}\n${claimDailyWheelRewardSource}\n${claimDailyQuestRewardSource}\n${claimLoginBonusesSource}\n${economyRulesSource}`;
       const missing = missingTokens(combined, [
         '"name": "EconomyOperationLock"',
+        "'login_bonus_grant'",
         '"lock_key"',
         '"expires_at"',
         '"stale"',

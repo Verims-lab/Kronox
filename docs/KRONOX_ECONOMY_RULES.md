@@ -367,6 +367,7 @@ User.starter_bonus_granted_at
 
 Rules:
 
+* grant path is the server-side `claimLoginBonuses` backend function only
 * grant only once per user
 * must not duplicate on refresh
 * must not duplicate across devices as far as platform allows
@@ -414,6 +415,7 @@ User.last_daily_diamond_reward_date
 
 Rules:
 
+* grant path is the server-side `claimLoginBonuses` backend function only
 * grant at most once per user per UTC day
 * refresh/reopen on same UTC day must not duplicate
 * next UTC day may grant again
@@ -455,20 +457,32 @@ base44.auth.me()
 
 resolves.
 
-For each reward:
+`ensureDiamondEconomyForUser` is a thin client wrapper: after a read-only
+persisted-guard pre-check it invokes the server-side `claimLoginBonuses`
+backend function. Starter and daily login Diamond grants are backend-only;
+the client must not create `DiamondTransaction` rows and must not mutate the
+Diamond balance for these grants. Cleanup alone is not enough — the backend
+guard is the permanent enforcement.
 
-1. normalize user email with trim/lowercase
-2. build source idempotency key
-3. check persisted User guard field
-4. check `DiamondTransaction` by `user_email + idempotency_key`
-5. refresh current user profile before writing
-6. update `User.diamonds` and guard field through `base44.auth.updateMe`
-7. create `DiamondTransaction` ledger row through a helper that re-checks the
-   idempotency key before create and confirms the row by idempotency key after
-   create
+Server-side, for each reward:
+
+1. normalize the authenticated user email with trim/lowercase
+2. build the source idempotency key
+3. check `DiamondTransaction` by `user_email + idempotency_key`
+   (the earliest row is canonical)
+4. acquire the shared `EconomyOperationLock`
+   (`operation_scope = login_bonus_grant`)
+5. re-check the idempotency key and the persisted User guard field after the
+   lock
+6. create the `DiamondTransaction` ledger row through a helper that re-checks
+   the idempotency key before create and confirms the row by idempotency key
+   after create
+7. update `User.diamonds` and the guard field server-side
 8. recover ledger if guard exists but ledger is missing
 9. recover guard if ledger exists but guard is missing
 10. do not grant again during recovery
+11. return a sanitized response (grants, balance, userPatch) with no internal
+    row ids or provider identifiers
 
 ---
 
@@ -508,6 +522,9 @@ Current protection is best-effort using:
 * short-lived `EconomyOperationLock` rows with TTL/stale recovery and
   deterministic winner selection for player balance/inventory mutations
 * post-lock idempotency and balance/inventory rechecks before write
+* server-side `claimLoginBonuses` starter/daily login grants inside the same
+  `EconomyOperationLock`; the client cannot create `DiamondTransaction` rows
+  for these sources
 * Daily Wheel reserve-first `DailyWheelSpin` rows plus canonical same-day
   re-read before `User.diamonds` is updated
 * Daily Wheel post-reserve User guard and DiamondTransaction re-checks

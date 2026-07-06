@@ -1,5 +1,13 @@
 import { base44 } from '@/api/base44Client';
 
+// Codex564 — Starter/daily login Diamond grants are BACKEND-ONLY.
+// The client never creates DiamondTransaction rows and never mutates the
+// Diamond balance for starter_bonus / daily_login. It only invokes the
+// server-side claimLoginBonuses function (EconomyOperationLock +
+// idempotency_key find-before-create + confirm-after-write) and merges the
+// sanitized userPatch into local state. A read-only local guard pre-check
+// skips the backend call when both grants are already settled.
+
 export const DIAMOND_BALANCE_FIELD = 'diamonds';
 export const DIAMOND_STARTER_BONUS_AMOUNT = 100;
 export const DIAMOND_DAILY_LOGIN_AMOUNT = 20;
@@ -27,8 +35,6 @@ export const DIAMOND_REWARD_SOURCES = Object.freeze({
   ADMIN_ADJUSTMENT: 'admin_adjustment',
 });
 export const DIAMOND_MARKET_PURCHASE_RELATED_ENTITY_TYPE = 'joker_purchase';
-
-const EARN_DIRECTION = 'earn';
 
 export function normalizeEconomyEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -65,22 +71,10 @@ export function buildDiamondIdempotencyKey(userEmail, source, dateKey = '') {
   return dateKey ? `${source}:${email}:${dateKey}` : `${source}:${email}`;
 }
 
-function safeNowIso(now = new Date()) {
-  const date = now instanceof Date ? now : new Date(now);
-  return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
-}
-
-function getSourceGuardPatch(source, nowIso, dateKey) {
-  if (source === DIAMOND_REWARD_SOURCES.STARTER_BONUS) {
-    return { starter_bonus_granted_at: nowIso };
-  }
-  if (source === DIAMOND_REWARD_SOURCES.DAILY_LOGIN) {
-    return { last_daily_diamond_reward_date: dateKey };
-  }
-  return {};
-}
-
-function hasPersistedGrantGuard(user, source, dateKey) {
+// Read-only persisted guard check. Used ONLY to skip a redundant backend
+// call; the authoritative decision is always made server-side inside
+// claimLoginBonuses under the economy lock.
+export function hasPersistedGrantGuard(user, source, dateKey) {
   if (source === DIAMOND_REWARD_SOURCES.STARTER_BONUS) {
     return Boolean(user?.starter_bonus_granted_at);
   }
@@ -90,293 +84,94 @@ function hasPersistedGrantGuard(user, source, dateKey) {
   return false;
 }
 
-async function findDiamondTransaction(userEmail, idempotencyKey) {
-  const email = normalizeEconomyEmail(userEmail);
-  if (!email || !idempotencyKey) return null;
-  // Canonical-row semantics: the EARLIEST ledger row per idempotency_key is
-  // canonical (ascending sort). If a client-side race ever produced a second
-  // row, all readers/recoveries converge on the same canonical record and the
-  // duplicate is never credited twice (balance guards live on User fields).
-  const rows = await base44.entities.DiamondTransaction
-    .filter({ user_email: email, idempotency_key: idempotencyKey }, 'created_at', 1)
-    .catch(() => []);
-  return Array.isArray(rows) && rows.length ? rows[0] : null;
-}
-
-async function createDiamondTransaction(row) {
-  const email = normalizeEconomyEmail(row?.user_email);
-  const idempotencyKey = String(row?.idempotency_key || '').trim();
-  if (!email || !idempotencyKey) return null;
-  const existing = await findDiamondTransaction(email, idempotencyKey);
-  if (existing) return existing;
-  const created = await base44.entities.DiamondTransaction.create({
-    ...row,
-    user_email: email,
-    idempotency_key: idempotencyKey,
-  });
-  const confirmed = await findDiamondTransaction(email, idempotencyKey);
-  return confirmed || created;
-}
-
-function buildRecoveryTransactionPayload({ user, amount, source, idempotencyKey, metadata, nowIso, dateKey }) {
-  const balanceAfter = getDiamondBalance(user);
-  const normalizedAmount = Math.max(0, Math.floor(Number(amount) || 0));
+function alreadyRecordedGrant(source, amount) {
   return {
-    user_email: normalizeEconomyEmail(user?.email || user?.user_email),
-    amount: normalizedAmount,
-    balance_before: Math.max(0, balanceAfter - normalizedAmount),
-    balance_after: balanceAfter,
+    ok: true,
+    granted: false,
+    alreadyGranted: true,
+    reason: 'already_recorded',
     source,
-    direction: EARN_DIRECTION,
-    idempotency_key: idempotencyKey,
-    metadata: {
-      ...metadata,
-      recoveredFromPersistedGuard: true,
-      dayBoundary: DIAMOND_DAY_BOUNDARY,
-      dateKey: source === DIAMOND_REWARD_SOURCES.DAILY_LOGIN ? dateKey : undefined,
-    },
-    created_at: nowIso,
+    amount,
   };
 }
 
-async function recoverMissingDiamondTransaction({ user, amount, source, idempotencyKey, metadata, nowIso, dateKey }) {
-  try {
-    const payload = buildRecoveryTransactionPayload({ user, amount, source, idempotencyKey, metadata, nowIso, dateKey });
-    if (!payload.user_email || !payload.idempotency_key) return null;
-    return await createDiamondTransaction(payload);
-  } catch (error) {
-    return { recoveryError: error?.message || 'diamond_transaction_recovery_failed' };
-  }
+async function claimLoginBonusesViaBackend() {
+  const res = await base44.functions.invoke('claimLoginBonuses', {});
+  return res?.data || null;
 }
 
-async function recoverUserGuardFromTransaction({ user, source, transaction, nowIso, dateKey }) {
-  if (!transaction) return null;
-  try {
-    const guardPatch = getSourceGuardPatch(source, nowIso, dateKey);
-    if (!Object.keys(guardPatch).length) return null;
-    const nextBalance = Math.max(getDiamondBalance(user), normalizeDiamondBalance(transaction.balance_after));
-    await base44.auth.updateMe({
-      [DIAMOND_BALANCE_FIELD]: nextBalance,
-      economy_updated_at: nowIso,
-      ...guardPatch,
-    });
-    return await base44.auth.me().catch(() => ({
-      ...user,
-      [DIAMOND_BALANCE_FIELD]: nextBalance,
-      economy_updated_at: nowIso,
-      ...guardPatch,
-    }));
-  } catch (error) {
-    return { recoveryError: error?.message || 'diamond_guard_recovery_failed' };
-  }
-}
-
-export async function grantDiamondsOnce({
-  user,
-  amount,
-  source,
-  idempotencyKey,
-  metadata = {},
-  now = new Date(),
-}) {
+export async function ensureDiamondEconomyForUser(user, options = {}) {
   const email = normalizeEconomyEmail(user?.email || user?.user_email);
-  const normalizedAmount = Math.max(0, Math.floor(Number(amount) || 0));
-  const dateKey = getDiamondDailyKey(now);
-  const nowIso = safeNowIso(now);
-
-  if (!email || !normalizedAmount || !source || !idempotencyKey) {
-    return { ok: false, granted: false, reason: 'invalid_reward_request', user };
+  if (!email) {
+    return { ok: false, user, grants: [], totalGranted: 0, reason: 'missing_user_email' };
   }
 
-  const existing = await findDiamondTransaction(email, idempotencyKey);
-  if (existing) {
-    const recoveredUser = hasPersistedGrantGuard(user, source, dateKey)
-      ? user
-      : await recoverUserGuardFromTransaction({ user, source, transaction: existing, nowIso, dateKey });
+  const dateKey = getDiamondDailyKey(options.now || new Date());
+  const starterSettled = hasPersistedGrantGuard(user, DIAMOND_REWARD_SOURCES.STARTER_BONUS, dateKey);
+  const dailySettled = hasPersistedGrantGuard(user, DIAMOND_REWARD_SOURCES.DAILY_LOGIN, dateKey);
+  if (starterSettled && dailySettled) {
     return {
-      ok: !recoveredUser?.recoveryError,
-      granted: false,
-      alreadyGranted: true,
-      reason: 'already_recorded',
-      transaction: existing,
-      user: recoveredUser?.recoveryError ? user : (recoveredUser || user),
-      recovery: recoveredUser?.recoveryError ? recoveredUser : { guardRecoveredFromTransaction: !hasPersistedGrantGuard(user, source, dateKey) },
-    };
-  }
-
-  if (hasPersistedGrantGuard(user, source, dateKey)) {
-    const recoveredTransaction = await recoverMissingDiamondTransaction({
+      ok: true,
       user,
-      amount: normalizedAmount,
-      source,
-      idempotencyKey,
-      metadata,
-      nowIso,
-      dateKey,
-    });
-    return {
-      ok: !recoveredTransaction?.recoveryError,
-      granted: false,
-      alreadyGranted: true,
-      reason: 'already_recorded',
-      transaction: recoveredTransaction?.recoveryError ? null : recoveredTransaction,
-      user,
-      recovery: recoveredTransaction?.recoveryError
-        ? recoveredTransaction
-        : { ledgerRecoveredFromGuard: Boolean(recoveredTransaction) },
+      grants: [
+        alreadyRecordedGrant(DIAMOND_REWARD_SOURCES.STARTER_BONUS, DIAMOND_STARTER_BONUS_AMOUNT),
+        alreadyRecordedGrant(DIAMOND_REWARD_SOURCES.DAILY_LOGIN, DIAMOND_DAILY_LOGIN_AMOUNT),
+      ],
+      totalGranted: 0,
+      firstDayTotalCanBe120: DIAMOND_STARTER_BONUS_AMOUNT + DIAMOND_DAILY_LOGIN_AMOUNT === 120,
     };
   }
 
-  const latestUser = await base44.auth.me().catch(() => user);
-  const sourceUser = latestUser || user;
-
-  if (hasPersistedGrantGuard(sourceUser, source, dateKey)) {
-    const recoveredTransaction = await recoverMissingDiamondTransaction({
-      user: sourceUser,
-      amount: normalizedAmount,
-      source,
-      idempotencyKey,
-      metadata,
-      nowIso,
-      dateKey,
-    });
-    return {
-      ok: !recoveredTransaction?.recoveryError,
-      granted: false,
-      alreadyGranted: true,
-      reason: 'already_recorded',
-      transaction: recoveredTransaction?.recoveryError ? null : recoveredTransaction,
-      user: sourceUser,
-      recovery: recoveredTransaction?.recoveryError
-        ? recoveredTransaction
-        : { ledgerRecoveredFromGuard: Boolean(recoveredTransaction) },
-    };
-  }
-
-  const existingAfterRefresh = await findDiamondTransaction(email, idempotencyKey);
-  if (existingAfterRefresh) {
-    const recoveredUser = hasPersistedGrantGuard(sourceUser, source, dateKey)
-      ? sourceUser
-      : await recoverUserGuardFromTransaction({ user: sourceUser, source, transaction: existingAfterRefresh, nowIso, dateKey });
-    return {
-      ok: !recoveredUser?.recoveryError,
-      granted: false,
-      alreadyGranted: true,
-      reason: 'already_recorded',
-      transaction: existingAfterRefresh,
-      user: recoveredUser?.recoveryError ? sourceUser : (recoveredUser || sourceUser),
-      recovery: recoveredUser?.recoveryError ? recoveredUser : { guardRecoveredFromTransaction: !hasPersistedGrantGuard(sourceUser, source, dateKey) },
-    };
-  }
-
-  const balanceBefore = getDiamondBalance(sourceUser);
-  const balanceAfter = balanceBefore + normalizedAmount;
-  const guardPatch = getSourceGuardPatch(source, nowIso, dateKey);
-
-  await base44.auth.updateMe({
-    [DIAMOND_BALANCE_FIELD]: balanceAfter,
-    economy_updated_at: nowIso,
-    ...guardPatch,
-  });
-
-  const refreshedUser = await base44.auth.me().catch(() => ({
-    ...sourceUser,
-    [DIAMOND_BALANCE_FIELD]: balanceAfter,
-    economy_updated_at: nowIso,
-    ...guardPatch,
-  }));
-
-  const transactionPayload = {
-    user_email: email,
-    amount: normalizedAmount,
-    balance_before: balanceBefore,
-    balance_after: balanceAfter,
-    source,
-    direction: EARN_DIRECTION,
-    idempotency_key: idempotencyKey,
-    metadata: {
-      ...metadata,
-      dayBoundary: DIAMOND_DAY_BOUNDARY,
-      dateKey: source === DIAMOND_REWARD_SOURCES.DAILY_LOGIN ? dateKey : undefined,
-    },
-    created_at: nowIso,
-  };
-
-  let transaction = null;
-  let ledgerError = null;
+  let data = null;
   try {
-    transaction = await createDiamondTransaction(transactionPayload);
+    data = await claimLoginBonusesViaBackend();
   } catch (error) {
-    ledgerError = error?.message || 'diamond_transaction_create_failed';
+    return { ok: false, user, grants: [], totalGranted: 0, reason: error?.message || 'login_bonus_backend_unavailable' };
+  }
+  if (!data?.ok) {
+    return { ok: false, user, grants: [], totalGranted: 0, reason: data?.code || 'login_bonus_backend_rejected' };
   }
 
+  const mergedUser = data.userPatch && typeof data.userPatch === 'object'
+    ? { ...user, ...data.userPatch }
+    : user;
   return {
-    ok: !ledgerError,
-    granted: true,
-    alreadyGranted: false,
-    amount: normalizedAmount,
-    source,
-    idempotencyKey,
-    balanceBefore,
-    balanceAfter,
-    user: refreshedUser,
-    transaction,
-    ledgerError,
+    ok: true,
+    user: mergedUser,
+    grants: Array.isArray(data.grants) ? data.grants : [],
+    totalGranted: normalizeDiamondBalance(data.totalGranted),
+    firstDayTotalCanBe120: DIAMOND_STARTER_BONUS_AMOUNT + DIAMOND_DAILY_LOGIN_AMOUNT === 120,
+  };
+}
+
+function pickGrantResult(result, source, amount) {
+  const grant = Array.isArray(result?.grants)
+    ? result.grants.find((entry) => entry?.source === source)
+    : null;
+  if (grant) return { ...grant, ok: result?.ok !== false, user: result?.user };
+  return {
+    ...alreadyRecordedGrant(source, amount),
+    ok: result?.ok !== false,
+    reason: result?.ok === false ? (result?.reason || 'login_bonus_backend_unavailable') : 'already_recorded',
+    user: result?.user,
   };
 }
 
 export async function grantStarterBonusIfNeeded(user, options = {}) {
-  const email = normalizeEconomyEmail(user?.email || user?.user_email);
-  const idempotencyKey = buildDiamondIdempotencyKey(email, DIAMOND_REWARD_SOURCES.STARTER_BONUS);
-  return grantDiamondsOnce({
-    user,
-    amount: DIAMOND_STARTER_BONUS_AMOUNT,
-    source: DIAMOND_REWARD_SOURCES.STARTER_BONUS,
-    idempotencyKey,
-    metadata: { reward: 'Kronox starter diamond bonus' },
-    now: options.now || new Date(),
-  });
+  const result = await ensureDiamondEconomyForUser(user, options);
+  return pickGrantResult(result, DIAMOND_REWARD_SOURCES.STARTER_BONUS, DIAMOND_STARTER_BONUS_AMOUNT);
 }
 
 export async function grantDailyLoginRewardIfNeeded(user, options = {}) {
-  const now = options.now || new Date();
-  const email = normalizeEconomyEmail(user?.email || user?.user_email);
-  const dateKey = getDiamondDailyKey(now);
-  const idempotencyKey = buildDiamondIdempotencyKey(email, DIAMOND_REWARD_SOURCES.DAILY_LOGIN, dateKey);
-  return grantDiamondsOnce({
-    user,
-    amount: DIAMOND_DAILY_LOGIN_AMOUNT,
-    source: DIAMOND_REWARD_SOURCES.DAILY_LOGIN,
-    idempotencyKey,
-    metadata: { reward: 'Kronox daily login diamond reward', dateKey },
-    now,
-  });
+  const result = await ensureDiamondEconomyForUser(user, options);
+  return pickGrantResult(result, DIAMOND_REWARD_SOURCES.DAILY_LOGIN, DIAMOND_DAILY_LOGIN_AMOUNT);
 }
 
-export async function ensureDiamondEconomyForUser(user, options = {}) {
-  if (!user?.email && !user?.user_email) {
-    return { ok: false, user, grants: [], totalGranted: 0, reason: 'missing_user_email' };
-  }
-
-  const now = options.now || new Date();
-  const grants = [];
-  let currentUser = user;
-
-  const starter = await grantStarterBonusIfNeeded(currentUser, { now });
-  grants.push(starter);
-  if (starter?.user) currentUser = starter.user;
-
-  const daily = await grantDailyLoginRewardIfNeeded(currentUser, { now });
-  grants.push(daily);
-  if (daily?.user) currentUser = daily.user;
-
-  const totalGranted = grants.reduce((sum, grant) => sum + (grant?.granted ? Number(grant.amount) || 0 : 0), 0);
-
-  return {
-    ok: grants.every((grant) => grant?.ok !== false),
-    user: currentUser,
-    grants,
-    totalGranted,
-    firstDayTotalCanBe120: DIAMOND_STARTER_BONUS_AMOUNT + DIAMOND_DAILY_LOGIN_AMOUNT === 120,
-  };
+// Legacy generic granter — retained for import compatibility only.
+// starter_bonus / daily_login route to the backend claim; every other Diamond
+// source is server-side only and must never be granted from client code.
+export async function grantDiamondsOnce({ user, source } = {}) {
+  if (source === DIAMOND_REWARD_SOURCES.STARTER_BONUS) return grantStarterBonusIfNeeded(user);
+  if (source === DIAMOND_REWARD_SOURCES.DAILY_LOGIN) return grantDailyLoginRewardIfNeeded(user);
+  return { ok: false, granted: false, alreadyGranted: false, reason: 'server_side_source_only', user };
 }

@@ -17,7 +17,7 @@ import questProgressFnSource from '../../../base44/functions/recordDailyQuestPro
 import questClaimFnSource from '../../../base44/functions/claimDailyQuestReward/entry.ts?raw';
 import refreshProjectionFnSource from '../../../base44/functions/refreshLeaderboardProjection/entry.ts?raw';
 import duplicateReportFnSource from '../../../base44/functions/adminDuplicateKeyReport/entry.ts?raw';
-import diamondEconomySource from '../../lib/diamondEconomy.js?raw';
+import loginBonusFnSource from '../../../base44/functions/claimLoginBonuses/entry.ts?raw';
 import leaderboardLibSource from '../../lib/leaderboard.js?raw';
 import lobbyCodeGuardSource from '../../lib/lobbyCodeGuard.js?raw';
 import lobbyRoomSource from '../../pages/LobbyRoom.jsx?raw';
@@ -110,13 +110,13 @@ export const EXTRA_TESTS = [
           'const postLockExisting = await findDiamondTransaction',
           'withEconomyLock',
         ]).map((t) => `claimDailyQuestReward:${t}`),
-        ...missingTokens(diamondEconomySource, [
+        ...missingTokens(loginBonusFnSource, [
           'const existing = await findDiamondTransaction',
           'const confirmed = await findDiamondTransaction',
-          'existingAfterRefresh',
-          'hasPersistedGrantGuard',
+          'const postLockExisting = await findDiamondTransaction',
+          'withEconomyLock',
           "'created_at', 1",
-        ]).map((t) => `diamondEconomy:${t}`),
+        ]).map((t) => `claimLoginBonuses:${t}`),
       ];
       if (missing.length) {
         return fail('A DiamondTransaction create path lost its idempotency_key query-before-create / re-read guard.', {
@@ -124,7 +124,7 @@ export const EXTRA_TESTS = [
           missing,
         });
       }
-      return pass('Daily Wheel, Market, Daily Calendar claim, and client starter/daily grants all find-before-create, confirm after write, and converge on the earliest canonical ledger row.', {
+      return pass('Daily Wheel, Market, Daily Calendar claim, and the backend claimLoginBonuses starter/daily grants all find-before-create, confirm after write, and converge on the earliest canonical ledger row.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
