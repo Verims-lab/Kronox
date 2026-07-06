@@ -172,7 +172,7 @@
     },
     "diamonds": {
       "type": "number",
-      "description": "Server-authoritative guest Diamond balance. Completed guest profiles can earn Daily Wheel and Daily Quest Diamonds here; account linking combines this balance once with User.diamonds."
+      "description": "Server-authoritative guest Diamond balance. Completed guest profiles can earn Daily Wheel and Daily Calendar / Streak Diamonds here; account linking combines this balance once with User.diamonds."
     },
     "daily_wheel_last_spin_at": {
       "type": "string",
@@ -209,20 +209,41 @@
     "daily_quest_last_claim_at": {
       "type": "string",
       "format": "date-time",
-      "description": "Latest completed guest Daily Quest reward claim timestamp."
+      "description": "Legacy completed guest Daily reward claim timestamp. Active Daily Calendar Gift Box claims use daily_calendar_* fields and DiamondTransaction source daily_calendar_streak_reward."
     },
     "daily_quest_last_claim_date": {
       "type": "string",
-      "description": "UTC YYYY-MM-DD guard for completed guest Daily Quest reward claims."
+      "description": "Legacy UTC YYYY-MM-DD guard for completed guest Daily reward claims. Active Daily Calendar duplicate-claim idempotency uses daily_calendar:* progress rows plus daily_calendar_streak_reward ledger keys."
     },
     "daily_quest_next_available_at": {
       "type": "string",
       "format": "date-time",
-      "description": "Next UTC availability time for guest Daily Quest rewards."
+      "description": "Next UTC availability time for completed guest Daily Calendar tasks."
     },
     "daily_quest_claim_count": {
       "type": "number",
-      "description": "Completed guest Daily Quest reward claim count."
+      "description": "Legacy completed guest Daily Quest reward claim count. Daily Calendar streak claims use daily_calendar_* fields."
+    },
+    "daily_calendar_current_streak": {
+      "type": "number",
+      "description": "Completed guest current UTC Daily Calendar completed-day streak. Derived from UserDailyQuestProgress daily_calendar:* task rows."
+    },
+    "daily_calendar_last_completed_date": {
+      "type": "string",
+      "description": "Latest UTC YYYY-MM-DD Daily Calendar day whose 3 tasks were completed for this completed guest profile."
+    },
+    "daily_calendar_streak_anchor_date": {
+      "type": "string",
+      "description": "UTC YYYY-MM-DD first day of the current Daily Calendar streak reward window."
+    },
+    "daily_calendar_streak_reward_claim_count": {
+      "type": "number",
+      "description": "Number of 7-day Daily Calendar Gift Box rewards claimed within the current completed guest streak anchor."
+    },
+    "daily_calendar_last_reward_claim_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Latest completed guest Daily Calendar 7-day Gift Box claim timestamp. Claims write DiamondTransaction source daily_calendar_streak_reward."
     },
     "joker_balances": {
       "type": "object",

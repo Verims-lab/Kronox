@@ -176,9 +176,9 @@ Account linking:
 * the first-launch welcome may show `Hesabım Var` only as a route to Profile
   account connection, not as an inline provider/login surface
 * linking merges safe user-beneficial guest progress/economy/categories once
-* linking preserves guest Diamonds, Daily Wheel/Daily Quest same-day guards and
-  reward history, leaderboard username identity, category preferences, and
-  inventory where applicable
+* linking preserves guest Diamonds, Daily Wheel/Daily Calendar same-day/streak
+  guards and reward history, leaderboard username identity, category
+  preferences, and inventory where applicable
 * provider IDs, email, raw guest token, raw `guest_id`, and `owner_key` must not
   become public identity
 
@@ -236,12 +236,12 @@ Home can show:
 * Primary Solo entry: `OYNA` / dynamic `Seviye X`
 * Secondary `ONLINE KAPIŞ` entry
 * Mağaza entry with the gold storefront icon style
-* `Görevler` shortcut for Daily Quest in a centered popup
+* `GÜNLÜK` shortcut for Daily Calendar / Streak at `/daily`
 * `Çark` shortcut for Daily Wheel in a centered popup
 * notification/invite access
 * Diamond balance
 
-Home's middle section is a three-part composition: left `Görevler`, centered
+Home's middle section is a three-part composition: left `GÜNLÜK`, centered
 transparent hourglass, and right `Çark`; the `Çark` shortcut icon is a small
 content-free wheel visual with colored slices, no reward icons, no numbers, and
 no Diamond symbols inside the slices. The logo and hourglass remain unboxed
@@ -392,7 +392,7 @@ Current Diamond sources and sinks:
 
 * starter and login Diamond grants
 * Daily Wheel V2 weighted Diamond / approved joker / Gift Box grants
-* Daily Quest Diamond-only grants
+* Daily Calendar / Streak Diamond-only grants
 * Mağaza Diamond spends
 
 Daily Wheel:
@@ -400,7 +400,7 @@ Daily Wheel:
 * grants Diamonds, approved Solo jokers, or Gift Box rewards only
 * grants no Kronox Puan
 * does not affect leaderboard
-* is separate from Daily Quest
+* is separate from Daily Calendar / Streak
 * completed guests can claim once per UTC day through token-proven GuestProfile
 * uses function-level same-day guard through `DailyWheelSpin`
 * available free spin auto-open and manual Home `Çark` tap use the full Daily
@@ -415,17 +415,21 @@ Daily Wheel:
   result screen from the stored backend reward payload, or a safe claimed
   fallback if legacy data has no payload; it never grants another reward
 
-Daily Quest:
+Daily Calendar / Streak:
 
 * grants Diamonds only
 * grants no Kronox Puan
 * does not affect leaderboard
 * is separate from Daily Wheel
-* completed guests can see, progress, and claim rewards through token-proven
+* completed guests can see, progress, and claim through token-proven
   GuestProfile
-* uses one canonical `solo_level_complete` `UserDailyQuestProgress` row and
-  `claimDailyQuestReward`
-* ignores stale/duplicate `DailyQuestDefinition` rows at runtime
+* creates 3 `daily_calendar:*` `UserDailyQuestProgress` rows per UTC day from
+  the code-owned 9-day template cycle
+* uses real event progress plus `claimDailyQuestReward` for the 7-day Gift Box
+* grants exactly 200 Diamonds through `daily_calendar_streak_reward` only after
+  7 completed days
+* ignores stale/duplicate `DailyQuestDefinition` rows at runtime and cleans
+  them through the admin-gated `cleanupLegacyDailyQuests` path
 
 Economy idempotency:
 
@@ -465,7 +469,7 @@ Never visible in leaderboard:
 Completed guest users can open Liderlik and appear through safe public username
 projection where the current leaderboard path supports it.
 
-Daily Quest and Daily Wheel do not affect leaderboard.
+Daily Calendar / Streak and Daily Wheel do not affect leaderboard.
 
 ---
 
@@ -549,7 +553,7 @@ Before release, verify at minimum:
   prices correct
 * Online: selected categories 100%, difficulty 1/2, shared authoritative deck
 * exposure: actual-shown-only writes and anonymized reports
-* economy: Daily Wheel V2 no-Puan weighted rewards, Daily Quest Diamond-only,
+* economy: Daily Wheel V2 no-Puan weighted rewards, Daily Calendar / Streak Diamond-only,
   idempotency duplicate probes
 * leaderboard: username-only public identity and matching Profile Puan
 * analytics: 9-section email-body report, no PDF, no raw player identifiers
@@ -569,8 +573,8 @@ Legacy/stale contracts that must not return as current truth:
 * current SubCategory preference UI
 * full question bank client exposure
 * raw `Question.list` gameplay fallback
-* Daily Quest granting Kronox Puan
-* Daily Quest leaderboard impact
+* Daily reward granting Kronox Puan
+* Daily reward leaderboard impact
 * Online using Solo preferences
 * DB unique constraints as repo-proven economy truth
 

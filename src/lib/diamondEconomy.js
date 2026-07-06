@@ -15,6 +15,7 @@ export const DIAMOND_REWARD_SOURCES = Object.freeze({
   DAILY_LOGIN: 'daily_login',
   DAILY_WHEEL: 'daily_wheel',
   MARKET_PURCHASE: 'market_purchase',
+  DAILY_CALENDAR_STREAK_REWARD: 'daily_calendar_streak_reward',
   DAILY_QUEST_REWARD: 'daily_quest_reward',
   DAILY_QUEST_FUTURE: 'daily_quest_future',
   WHEEL_SPIN_FUTURE: 'wheel_spin_future',

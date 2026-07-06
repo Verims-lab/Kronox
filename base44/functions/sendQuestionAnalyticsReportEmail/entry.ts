@@ -1382,7 +1382,10 @@ function buildReport({
     ], jokerStockRows, "Bu dönem için joker stok verisi yok")
   ].join("");
 
-  const dailyQuestClaims = (diamondTransactions || []).filter((tx) => String(tx?.source || "") === "daily_quest_reward").length;
+  const dailyQuestClaims = (diamondTransactions || []).filter((tx) => {
+    const source = String(tx?.source || "");
+    return source === "daily_calendar_streak_reward" || source === "daily_quest_reward";
+  }).length;
   const marketDiamondSpends = (diamondTransactions || []).filter((tx) => String(tx?.source || "") === "market_purchase").length;
   const wheelClaims = (dailyWheelSpins || []).length;
   const makeTimeStats = () => ({

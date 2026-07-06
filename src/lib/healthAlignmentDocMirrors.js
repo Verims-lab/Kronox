@@ -52,7 +52,7 @@ Status: Active product workflow contract.
 - Normal Solo uses 2 anchors, an internal 18-question attempt deck buffer, 10 evaluated moves, a 180-second timer, and a 7-card target including anchors. Special Solo starts at level 5 and every 5 levels after that, uses an internal 21-question attempt deck buffer, a 13 evaluated move limit, the same 180-second timer, and a 10-card target. The extra special moves are only a mistake buffer and do not change scoring.
 - Online uses Lobby.selected_category_ids and a startLobbyGame shared deck selected 100% from active lobby-selected categories with difficulty 1/2 only; Online does not use Solo preferences.
 - Unified Kronox Puan is Solo best-score component plus Online progress score. Online winner scoring is exactly +15 Kronox Puan, loser scoring is exactly -6 Kronox Puan before checkpoint protection, and Online has no speed bonus.
-- Daily Wheel V2 grants server-selected Diamonds, approved Solo jokers, or Gift Box rewards only, never Kronox Puan, and never leaderboard impact. Daily Wheel ready popup is a centered blurred modal; its fixed clockwise visual segment order is diamond_20, diamond_60, diamond_100, joker_krono_kalkan, joker_zamani_dondur, joker_kart_degistir, gift_box, diamond_250, and the wheel lands by backend reward_segment_index. The spin stays in the same premium popup/wheel shell with no separate intermediate spinning-copy screen; result reveal/effects wait for the backend-selected landing animation, and segment content uses the shared 0.8 scale token. Post-spin result UI is simplified: the wheel remains visible, one backend-payload reward line appears below it, and one disabled ad/video ÇEVİR repeat CTA with smaller Yakında subtext appears at the bottom. Available free spin auto-open and manual Home Çark tap both use the full Daily Wheel modal; the old compact Çark / Günlük Çark / Hazır! mini card is not part of the Home Daily Wheel flow. Closing a completed result returns directly to usable Home without revealing the old Çark / Günlük Çark claimed cooldown sheet or leaving a hidden overlay over Home buttons; already-claimed Home Çark manual reopen shows a read-only post-win result from stored lastReward or safe Bugünkü ödül alındı fallback and never starts a spin, grants a reward, or fakes an ad path. Old total/streak/retry explanatory result copy is not shown and no fake ad reward path exists. Segment content is radially oriented toward the wheel center: each Diamond icon+number group and each Joker/Gift icon is rotated by its own segment center angle so it faces the hub instead of being artificially kept screen-upright, and the content rotates with the wheel during spin while the pointer stays stationary; this orientation must not enlarge content or change reward mapping/stop alignment. The wheel uses one continuous spin that reaches a clear fast pace immediately and decelerates only near the end with a light final bounce, never slow → fast → slow, with no separate steady pre-spin loop; spin sound/effects are synchronized to the visible rotation and never continue after the wheel stops. Visual polish may improve quality but must not enlarge icons/numbers or change reward mapping. Daily Quest grants Diamonds only, no Kronox Puan, and no leaderboard impact. Authenticated users and token-proven completed GuestProfile users can use these daily systems. Guest rewards persist on GuestProfile.diamonds with internal guest:<g_owner_key> ledger keys. Daily Wheel uses DailyWheelSpin, DiamondTransaction when Diamonds are granted, JokerTransaction/UserJokerInventory when jokers are granted, function-level idempotency guards, and EconomyOperationLock balance mutation guards; DB/entity unique constraints are not repo-proven.
+- Daily Wheel V2 grants server-selected Diamonds, approved Solo jokers, or Gift Box rewards only, never Kronox Puan, and never leaderboard impact. Daily Wheel ready popup is a centered blurred modal; its fixed clockwise visual segment order is diamond_20, diamond_60, diamond_100, joker_krono_kalkan, joker_zamani_dondur, joker_kart_degistir, gift_box, diamond_250, and the wheel lands by backend reward_segment_index. The spin stays in the same premium popup/wheel shell with no separate intermediate spinning-copy screen; result reveal/effects wait for the backend-selected landing animation, and segment content uses the shared 0.8 scale token. Post-spin result UI is simplified: the wheel remains visible, one backend-payload reward line appears below it, and one disabled ad/video ÇEVİR repeat CTA with smaller Yakında subtext appears at the bottom. Available free spin auto-open and manual Home Çark tap both use the full Daily Wheel modal; the old compact Çark / Günlük Çark / Hazır! mini card is not part of the Home Daily Wheel flow. Closing a completed result returns directly to usable Home without revealing the old Çark / Günlük Çark claimed cooldown sheet or leaving a hidden overlay over Home buttons; already-claimed Home Çark manual reopen shows a read-only post-win result from stored lastReward or safe Bugünkü ödül alındı fallback and never starts a spin, grants a reward, or fakes an ad path. Old total/streak/retry explanatory result copy is not shown and no fake ad reward path exists. Segment content is radially oriented toward the wheel center: each Diamond icon+number group and each Joker/Gift icon is rotated by its own segment center angle so it faces the hub instead of being artificially kept screen-upright, and the content rotates with the wheel during spin while the pointer stays stationary; this orientation must not enlarge content or change reward mapping/stop alignment. The wheel uses one continuous spin that reaches a clear fast pace immediately and decelerates only near the end with a light final bounce, never slow → fast → slow, with no separate steady pre-spin loop; spin sound/effects are synchronized to the visible rotation and never continue after the wheel stops. Visual polish may improve quality but must not enlarge icons/numbers or change reward mapping. Daily Calendar / Streak grants Diamonds only, no Kronox Puan, and no leaderboard impact. Authenticated users and token-proven completed GuestProfile users can use these daily systems. Guest rewards persist on GuestProfile.diamonds with internal guest:<g_owner_key> ledger keys. Daily Wheel uses DailyWheelSpin, DiamondTransaction when Diamonds are granted, JokerTransaction/UserJokerInventory when jokers are granted, function-level idempotency guards, and EconomyOperationLock balance mutation guards; DB/entity unique constraints are not repo-proven.
 - Question Analytics is an admin/private nine-section email-body report sourced from QuestionAttemptEvent. PlayerQuestionExposure is optional anti-repeat memory reset scope.
 - Health PASS is not release-ready proof; manual NOT_AUTOMATABLE gates remain required.
 - Stale Codex040 PDF references are old structure only; current truth is markdown/source plus current code and Health contracts.
@@ -64,7 +64,7 @@ Status: Active technical flow contract.
 
 - App routes are owned by src/App.jsx; BottomNav visible tabs are Ana Sayfa, Liderlik, and Profil. Profile is guest-compatible and the app-level onboarding guard must not bounce normal /profile tab navigation while guest state is recoverable.
 - createGuestProfile is public by design but narrow: it creates/verifies GuestProfile and stores guest_token_hash only. Guest mutations require guest_id + raw guest token.
-- linkGuestAccount is Profile-only and verifies guest token proof plus authenticated user before AccountLinkTransaction merge. It preserves the guest kronox_user_id as the canonical identity when linking, plus guest Diamonds, Daily Wheel/Daily Quest same-day guards/history, leaderboard username identity, category preferences, progress, and inventory where applicable.
+- linkGuestAccount is Profile-only and verifies guest token proof plus authenticated user before AccountLinkTransaction merge. It preserves the guest kronox_user_id as the canonical identity when linking, plus guest Diamonds, Daily Wheel/Daily Calendar same-day and streak guards/history, leaderboard username identity, category preferences, progress, and inventory where applicable.
 - getCategoryMetadata returns category_id, name, description, and status from current active Category rows only; it must not expose questions, answers, years, user data, admin fields, passive/deleted categories, or stale fallback arrays.
 - Base44 function.jsonc files use the repo-supported name + entry shape only; auth/public scope is enforced in entry.ts guards. createGuestProfile and getCategoryMetadata are public-by-design and narrow, user-owned functions call base44.auth.me(), guest daily/leaderboard paths verify guest_id + raw guest token against completed GuestProfile, and admin-only functions use AdminUser guards.
 - configured \`function.jsonc\` manifests are the platform-published source in this repo; extra entry.ts directories are compile-checked but need matching manifest/deploy proof before being classified as published callables.
@@ -76,7 +76,7 @@ Status: Active technical flow contract.
 - Solo runtime uses getQuestions bounded projections and buildSoloAttemptDeck; raw Question.list gameplay fallback and full-bank exposure are forbidden.
 - PlayerQuestionExposure is private per-player anti-repeat memory; PlayerQuestionDailyExposure is daily anonymous exposure summary; actual reports source history from QuestionAttemptEvent.
 - UserJokerInventory is the current joker balance source and JokerTransaction is the ledger. purchaseJokerWithDiamonds writes DiamondTransaction plus JokerTransaction under EconomyOperationLock.
-- claimDailyWheelReward writes DailyWheelSpin, DiamondTransaction for Diamond portions, and JokerTransaction/UserJokerInventory for approved joker portions using function-level same-day/idempotency guards plus EconomyOperationLock; no atomic/upsert guarantee is repo-proven. adminResetDailyWheelState is an AdminUser-gated Admin Ekranı support tool that accepts Kronox User ID, resets only today's Daily Wheel test guards/auto-popup marker/blocking same-day wheel idempotency rows, archives DailyWheelSpin/DiamondTransaction/JokerTransaction idempotency keys to preserve completed reward rows, grants no rewards, reverses no Diamonds/Jokers, and does not affect Daily Quest, Kronox Puan, or leaderboard.
+- claimDailyWheelReward writes DailyWheelSpin, DiamondTransaction for Diamond portions, and JokerTransaction/UserJokerInventory for approved joker portions using function-level same-day/idempotency guards plus EconomyOperationLock; no atomic/upsert guarantee is repo-proven. adminResetDailyWheelState is an AdminUser-gated Admin Ekranı support tool that accepts Kronox User ID, resets only today's Daily Wheel test guards/auto-popup marker/blocking same-day wheel idempotency rows, archives DailyWheelSpin/DiamondTransaction/JokerTransaction idempotency keys to preserve completed reward rows, grants no rewards, reverses no Diamonds/Jokers, and does not affect Daily Calendar / Streak, Kronox Puan, or leaderboard.
 - startLobbyGame owns the Online shared deck. Online does not read Solo preference weighting or guest Solo projection.
 - sendQuestionAnalyticsReportEmail is admin-only, email-body-only, exactly nine sections, with anonymized User0001-style per-player coverage where used.
 - Public assets must not contain secrets, tokens, question bank, answer years, internal IDs, raw guest IDs/tokens, provider IDs, or private user data.
@@ -161,8 +161,8 @@ GuestProfile data to release first render while backend GuestProfile
 verification, Kronox ID ensure, profile hydration, Diamond economy grant,
 starter joker repair, account-link merge, admin status, app-open activity,
 presence, invite checks, reward status, and Market/Liderlik warm-up continue
-after paint/idle. Daily Wheel V2 and Daily Quest remain server-authoritative;
-Daily Quest is Diamond-only, while Daily Wheel V2 supports weighted Diamonds,
+after paint/idle. Daily Wheel V2 and Daily Calendar / Streak remain server-authoritative;
+Daily Calendar / Streak is Diamond-only, while Daily Wheel V2 supports weighted Diamonds,
 approved Solo jokers, and Gift Box rewards. Loading/cached status is allowed while post-paint refresh
 completes. Low-end Android/WebView startup timing remains a manual proof gate.
 
@@ -265,7 +265,7 @@ Status: current Health gap audit.
 
 Health is a contract guard. It is not release proof. Static checks
 cover 4-player Online lobby join/start/recovery, invite verified lobby, notification
-no-flicker, Solo backend record context, Daily Quest Diamond-only rewards,
+no-flicker, Solo backend record context, Daily Calendar / Streak Diamond-only rewards,
 leaderboard username-only payloads, Online category isolation, no raw
 Question.list gameplay fallback, unified Solo + Online Kronox Puan with Online
 winner +15, loser -6, no speed bonus, economy idempotency guards, and private
@@ -296,7 +296,7 @@ refetching, deferred friend enrichment, and materialized kronox_puan_total as
 the primary visible score read path. App startup fast-path coverage requires
 direct Home shell import, cached GuestProfile repeat-launch support, post-paint
 AuthContext maintenance, deferred presence/invite/category modules, idle
-Market/Liderlik warm-up, and delayed Daily Wheel/Daily Quest status refresh.
+Market/Liderlik warm-up, and delayed Daily Wheel/Daily Calendar status refresh.
 Solo joker inventory merge coverage now executable-checks that Kart Değiştir,
 Kronokalkan, and Zaman Dondur decrement only the selected joker, preserve
 untouched counts through partial mutation payloads, avoid double-spend on
@@ -427,7 +427,7 @@ PlayerQuestionDailyExposure, and populated QuestionStatsProjection /
 CategoryStatsProjection rows; PlayerQuestionExposure is optional anti-repeat
 memory reset. It must not delete Question, Category, User, GuestProfile,
 PlayerProfile, UserCategoryPreference, UserJokerInventory, JokerTransaction,
-DiamondTransaction, Daily Wheel, Daily Quest, leaderboard, score, progress,
+DiamondTransaction, Daily Wheel, Daily Calendar, legacy Daily Quest cleanup rows, leaderboard, score, progress,
 gameplay, or economy records.
 
 Online Presence Operational Contract: PlayerPresence is operational state, not
@@ -543,7 +543,7 @@ Status: Active profile/onboarding contract.
 - Profile avatar is public visual metadata only: avatar_type, avatar_icon_id, avatar_color_id, and https avatar_url may propagate to leaderboard, friends, Online player selection, lobby, invites, notifications, and header rows; username remains the public identity.
 - GuestProfile is app-owned; Firebase anonymous auth and Base44 anonymous auth are not used. Default username format is KronoxUser#### / KronoxUser#####.
 - Profile > Profil Bilgileri exposes username plus optional private age_group and gender for guest and authenticated users, and may show the current player's immutable kronox_user_id as read-only/copyable Kullanıcı ID. The Profile Info row actively ensures/backfills the ID for the current owner; Hazırlanıyor is loading-only and failure shows Kullanıcı ID hazırlanamadı with retry. The Profile landing routes Profil Bilgileri, Arkadaşlarım, and Ayarlar to dedicated screens; Gizlilik Politikası and Hesabı Sil live under Settings, with signed-in deletion still guarded by the in-app confirmation flow. age is a legacy/private compatibility field; current Profile edit UI collects age_group only and does not ask for exact birthdate or exact age. age, age_group, gender, and kronox_user_id are private/support fields only and must not appear in public leaderboard rows, public projections, scoring, matchmaking, Solo category weighting, or Online game selection. getSoloLeaderboard returns sanitized username plus opaque leaderboard_id and strips owner_key/display_name/email/provider ids/raw guest id/kronox_user_id/internal player_key; completed guests can open Liderlik and appear only as username.
-- Guest account linking is implemented through linkGuestAccount and belongs under Profile. It preserves guest Diamonds, Daily Wheel/Daily Quest guard fields/history, leaderboard username identity, category preferences, progress, and inventory where applicable. Home / Ana Sayfa must not render Google, Apple, email, Hesabını bağla, or progress-protection account-link prompts. The first-launch welcome may show only Hesabım Var as a secondary route into the Profile account-connection card; it must not duplicate Apple / Google / Email buttons.
+- Guest account linking is implemented through linkGuestAccount and belongs under Profile. It preserves guest Diamonds, Daily Wheel/Daily Calendar guard fields/history, leaderboard username identity, category preferences, progress, and inventory where applicable. Home / Ana Sayfa must not render Google, Apple, email, Hesabını bağla, or progress-protection account-link prompts. The first-launch welcome may show only Hesabım Var as a secondary route into the Profile account-connection card; it must not duplicate Apple / Google / Email buttons.
 - Guest onboarding Phase 2 status values include guest_created, tutorial_in_progress, tutorial_completed, profile_setup_pending, category_setup_pending, and onboarding_complete.
 - Eğitime Devam is valid only for true resumable tutorial_in_progress state; stale tutorial_in_progress cannot override tutorial_completed, profile_setup_pending, category_setup_pending, or onboarding_complete.
 - The profile setup step follows the guided first Solo level, shows username plus optional age/gender, and Kategorilere Geç must either advance to category_setup_pending after a successful save or show a visible retryable error.
@@ -594,7 +594,7 @@ Status: Active product contract.
 - User-owned objects are scoped by owner, recipient, participant, host, active admin row, or another documented authority field before return or mutation.
 - Request-body user, email, role, or owner fields are not trusted for authorization.
 - UI hiding is not the authorization boundary.
-- Two-account probes remain mandatory for category preferences, friends, invites, lobbies, Daily Quest progress, Daily Wheel, Diamond/Joker economy, push subscriptions, and analytics cleanup.
+- Two-account probes remain mandatory for category preferences, friends, invites, lobbies, Daily Calendar progress, Daily Wheel, Diamond/Joker economy, push subscriptions, and analytics cleanup.
 - getQuestions serves an authenticated bounded server attempt candidate buffer for signed-in Solo and an explicit capped guest_gameplay_runtime minimal deck for first-time guest Solo; admin/full-bank/diagnostics still require active AdminUser owner/admin authorization. Authenticated candidate reads are bounded to 96 * 3 = 288 rows per active category/query variant before projection.
 - startLobbyGame requires authenticated host, no legacy guest, no client identity override.
 - sendFriendRequest requires authenticated user context, resolves email or username targets server-side, checks self/friend/open-pending guards under FriendRequestOperationLock, requires deletion of expired outgoing invites before resend, sets FriendRequest.expires_at at least 72 hours after creation, keeps open reverse-pending requests actionable through Gelen İstekler, ignores/expires stale reverse-pending rows, creates the FriendRequest row before SendEmail, treats email delivery failure as a soft failure that does not roll back the request, stores username-safe labels, and never returns the target email for username-based add. FriendRequestOperationLock is a function-level guard, not DB unique/index proof.
@@ -654,13 +654,13 @@ Status: Active product contract.
 - Mağaza purchase idempotency keys, EconomyOperationLock, refreshed server balance reads, and post-lock ledger rechecks protect double-tap/retry/concurrent request flows; real two-device/backend race proof remains manual unless Base44 uniqueness is proven.
 - Real-money Store packages are display/unavailable unless approved IAP/payment verification exists; no fake real-money success path grants Diamonds, KronoClub, or ad-removal benefits.
 - Mağaza Store does not expose cosmetics, random boxes, score/leaderboard boosts, real-money fulfillment without approved IAP/payment verification, or Online-mode joker usage.
-- Daily Quest Definition management UI is removed from Profile / Admin Ekranı; runtime no longer depends on Admin-created quest definitions.
+- Daily Quest Definition management UI is removed from Profile / Admin Ekranı; Daily Calendar runtime no longer depends on Admin-created quest definitions.
 - createDailyQuestDefinition is a Base44 callable with an inline AdminUser-backed guard for active owner/admin rows; normal users and disabled admins are rejected.
 - DailyQuestDefinition title and description are display-only; quest_type plus target_value are the executable logic contract.
 - DailyQuestDefinition.quest_key is the logical unique key for legacy/manual cleanup paths. Runtime does not list, seed, or select definition rows; explicit legacy seed/create skips or rejects existing keys. Existing duplicate rows require manual cleanup after backup, not automatic deletion.
-- Supported active Daily Quest runtime quest_type value is solo_level_complete.
-- Daily Quest definitions use reward_diamonds only, never Kronox Puan, and do not affect leaderboard.
-- Daily Quest text is never parsed by AI, NLP, regex, scripts, or arbitrary free-text executable conditions.
+- Active Daily Calendar runtime task types are code-owned by src/lib/dailyCalendar.js and recorded as daily_calendar:* progress rows.
+- Legacy Daily Quest definitions are cleanup/compatibility data only, use reward_diamonds only, never Kronox Puan, and do not affect leaderboard.
+- Daily Calendar task logic is never parsed from AI, NLP, regex, scripts, or arbitrary free-text executable conditions.
 - sendQuestionAnalyticsReportEmail is manual/admin-triggered only and sends the full useful question analytics/product intelligence report inside the email body with text fallback. The PDF attachment flow is intentionally disabled/cancelled for now.
 - sendQuestionAnalyticsReportEmail is callable from base44/functions/sendQuestionAnalyticsReportEmail/entry.ts with base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc name sendQuestionAnalyticsReportEmail and entry entry.ts; the callable report function INLINES a DB-backed AdminUser guard (no local _shared import) so it deploys cleanly under the Base44 function runtime.
 
@@ -679,9 +679,9 @@ Status: Active product contract.
 - Function-based question analytics reset is currently not used.
 - Manual DB reset path after question pool replacement clears QuestionAttemptEvent, PlayerQuestionDailyExposure, and any populated QuestionStatsProjection/CategoryStatsProjection manual aggregate rows. Projection tables may be empty because the active 9-section report computes history from raw QuestionAttemptEvent rows.
 - PlayerQuestionExposure is optional reset scope only when per-player anti-repeat memory should restart; clearing it resets the same-player question freshness memory.
-- Manual reset must not delete Question, Category, SubCategory, User, GuestProfile, PlayerProfile, UserCategoryPreference, UserStatsProjection, UserJokerInventory, JokerTransaction, DiamondTransaction, progress/economy/leaderboard data, Daily Wheel/Daily Quest rows, users, or AdminUser.
-- Do not delete Question, Category, SubCategory, User, GuestProfile, PlayerProfile, UserCategoryPreference, UserStatsProjection, UserJokerInventory, JokerTransaction, DiamondTransaction, progress/economy, leaderboard, Daily Wheel/Daily Quest, users, AdminUser, or gameplay rows during question analytics reset.
-- manual question analytics reset does not delete Question, Category, SubCategory, user/guest/player profiles, UserCategoryPreference, UserStatsProjection, score/progress/economy, leaderboard, Daily Wheel/Daily Quest, users, AdminUser, or gameplay rows.
+- Manual reset must not delete Question, Category, SubCategory, User, GuestProfile, PlayerProfile, UserCategoryPreference, UserStatsProjection, UserJokerInventory, JokerTransaction, DiamondTransaction, progress/economy/leaderboard data, Daily Wheel/Daily Calendar rows, users, or AdminUser.
+- Do not delete Question, Category, SubCategory, User, GuestProfile, PlayerProfile, UserCategoryPreference, UserStatsProjection, UserJokerInventory, JokerTransaction, DiamondTransaction, progress/economy, leaderboard, Daily Wheel/Daily Calendar, users, AdminUser, or gameplay rows during question analytics reset.
+- manual question analytics reset does not delete Question, Category, SubCategory, user/guest/player profiles, UserCategoryPreference, UserStatsProjection, score/progress/economy, leaderboard, Daily Wheel/Daily Calendar, users, AdminUser, or gameplay rows.
 - Joker Kullanımı Analizi may be ledger-derived from JokerTransaction/UserJokerInventory and is not fully reset by question analytics cleanup. DiamondTransaction and DailyWheelSpin are economy/audit rows, not question analytics reset tables. Oynanma Zamanı hour/day metrics reset through QuestionAttemptEvent timestamps.
 - sendQuestionAnalyticsReportEmail handles stale/deleted question references with diagnostics and bounded sections.
 - sendQuestionAnalyticsReportEmail actual sent body includes exactly Executive Summary, Kategori Bazında Soru Havuzu, Kategori Tercihleri, Kategori Bazında Gösterim, En Çok Gösterilen Sorular, Az ya da Hiç Gösterilmeyen Sorular, En Çok Yanlış Yapılan Sorular, Joker Kullanımı Analizi, and Oynanma Zamanı ve Kullanım Ritmi. Kategori Bazında Soru Havuzu includes the category-based Top 10 answer year/count table inside the same section.
@@ -725,10 +725,10 @@ Status: Active manual release gate.
 Review docs/KRONOX_PRODUCT_WORKFLOW.md for onboarding, identity, Profile, category selection, Solo, Online, economy, leaderboard, analytics, Health, and release proof changes.
 Review docs/KRONOX_TECHNICAL_FLOW.md for route flow, Base44 entities/functions, guest/account-linking state, question runtime, category metadata, exposure analytics, economy ledgers, admin/security boundaries, Health alignment, and deployment validation changes.
 These docs supersede old PDF-style documents such as stale Codex040 kronox-is-akisi.pdf and kronox-teknik-dokuman.pdf references unless those PDFs are regenerated from current source.
-Stale contracts such as Home login CTAs, standalone tutorial onboarding, hardcoded category fallbacks, visible HATA scoring, public display_name identity/leaderboard payloads, raw Question.list gameplay fallback, Daily Quest Puan rewards, Daily Quest leaderboard impact, Online Solo-preference selection, and old fixed 10-card Solo decks must be removed or explicitly marked legacy before release.
+Stale contracts such as Home login CTAs, standalone tutorial onboarding, hardcoded category fallbacks, visible HATA scoring, public display_name identity/leaderboard payloads, raw Question.list gameplay fallback, Daily reward Puan rewards, Daily reward leaderboard impact, Online Solo-preference selection, and old fixed 10-card Solo decks must be removed or explicitly marked legacy before release.
 
 ## Full Audit Release Gates
-Health Center, Admin Ekranı, reports, and large maintenance lists avoid rebuilding expensive derived output after every row/case. Long admin work is batched or yielded around the 50ms long-task budget. Gameplay paths do not run Health/report/question-analytics calculations. Large email/report/list output stays bounded, paginated, or summarized. Health Copy Blocker JSON is intentionally blocker-only and includes real FAIL/BLOCKER/CRITICAL code/security/static failures plus summary counts, not manual-only verification reminders or the full raw PASS payload. Health Copy Warning JSON is warning-only. Manual Required / NOT_AUTOMATABLE does not reduce automated score; critical manual gates keep releaseReady=false until completed or accepted. Last Run and copy/download actions use the newest completed report only. Health mobile report actions, case details, copy buttons, clipboard fallback textarea, manual proof details, and raw JSON preview must fit 320px-class screens without horizontal overflow. User-owned backend operations enforce object-level authorization server-side; UI hiding is not accepted as proof. Two-account probes verify user-owned reads/writes for invites, lobbies, category preferences, Daily Quest progress, Daily Wheel, Diamond/Joker economy, PushSubscription, and analytics cleanup. Base44/manual DB constraints are checked for user+date, user+status, quest_key, question_id, category_id, created_at, endpoint, and idempotency_key. iOS, Android, and PWA wrapper quality remain separate manual gates: safe-area, keyboard, scroll/overscroll, back navigation, orientation, accessibility, reduced motion, 320px layout, push, icon, App Store, physical Apple parity, and Play Console proof. npm run build does not prove Base44 backend deployment, RLS/BOLA behavior, device gestures, push delivery, final IPA icon state, physical Apple parity, or Play Console wrapper quality.
+Health Center, Admin Ekranı, reports, and large maintenance lists avoid rebuilding expensive derived output after every row/case. Long admin work is batched or yielded around the 50ms long-task budget. Gameplay paths do not run Health/report/question-analytics calculations. Large email/report/list output stays bounded, paginated, or summarized. Health Copy Blocker JSON is intentionally blocker-only and includes real FAIL/BLOCKER/CRITICAL code/security/static failures plus summary counts, not manual-only verification reminders or the full raw PASS payload. Health Copy Warning JSON is warning-only. Manual Required / NOT_AUTOMATABLE does not reduce automated score; critical manual gates keep releaseReady=false until completed or accepted. Last Run and copy/download actions use the newest completed report only. Health mobile report actions, case details, copy buttons, clipboard fallback textarea, manual proof details, and raw JSON preview must fit 320px-class screens without horizontal overflow. User-owned backend operations enforce object-level authorization server-side; UI hiding is not accepted as proof. Two-account probes verify user-owned reads/writes for invites, lobbies, category preferences, Daily Calendar progress, Daily Wheel, Diamond/Joker economy, PushSubscription, and analytics cleanup. Base44/manual DB constraints are checked for user+date, user+status, quest_key, question_id, category_id, created_at, endpoint, and idempotency_key. iOS, Android, and PWA wrapper quality remain separate manual gates: safe-area, keyboard, scroll/overscroll, back navigation, orientation, accessibility, reduced motion, 320px layout, push, icon, App Store, physical Apple parity, and Play Console proof. npm run build does not prove Base44 backend deployment, RLS/BOLA behavior, device gestures, push delivery, final IPA icon state, physical Apple parity, or Play Console wrapper quality.
 npm run check:base44-functions must run before Base44 Save & Deploy to catch function syntax, duplicate declarations, deploy-risk _shared imports, committed email literals, and getQuestions marker/projection diagnostics before manual backend publish.
 
 ## Solo v3
@@ -765,8 +765,8 @@ packages, Diamond-spend Advantage packages, and future KronoClub / Reklamları
 Kaldır sections. Real-money packages show safe unavailable behavior and do not
 grant Diamonds until approved IAP/payment verification exists.
 Home uses a larger centered transparent local Kronox logo, a larger centered
-transparent hourglass visual balanced between left Görevler and right Çark,
-compact shortcuts with ready badges, centered Görevler/Çark popups, a content-free
+transparent hourglass visual balanced between left GÜNLÜK and right Çark,
+compact shortcuts with ready badges, centered GÜNLÜK/Çark surfaces, a content-free
 mini wheel icon for Çark, and large OYNA / dynamic Seviye X and ONLINE KAPIŞ
 CTAs whose stack position balances the hourglass-to-Solo gap with the Online-to-BottomNav gap; the expanded Günlük
 Ödüller panel is not rendered on first Home paint. The Home notification panel
@@ -790,44 +790,45 @@ affect Leaderboard. Daily Wheel V2 can be a Diamond source and approved joker gr
 Joker Çantası and Solo joker bar must show the purchased balance; Online mode
 is unaffected and Daily Wheel V2 does not use Mağaza purchase semantics.
 
-## Daily Quest Runtime v1
-Daily Quest Runtime v1 is active.
-The active quest is code-owned, not Admin-definition-owned:
-solo_level_complete / Solo’da Seviye Geç / Bugün 1 Solo seviyesini tamamla.,
-target 1, reward 20 Diamonds. UserDailyQuestProgress stores 1 selected UTC-day
-player quest from this canonical runtime contract. Authenticated users use
-normalized email keys; completed guests use token-proven internal
-guest:<g_owner_key> keys and persist rewards on GuestProfile.diamonds.
-recordDailyQuestProgress increments only passed Solo level completion, and
-Online mode does not increment Daily Quest progress. claimDailyQuestReward
-grants diamonds only through DiamondTransaction.source = daily_quest_reward,
-using the reward copied into the progress row rather than a client-provided
-amount. Completed progress alone does not grant Diamonds; completed and
-unclaimed quests expose an Al claim action. Successful claimDailyQuestReward
-updates visible User.diamonds or GuestProfile.diamonds, returns diamondBalanceAfter and questStatus:
-claimed, and only then marks the progress row claimed. Daily Quest does not
-grant Kronox Puan and has no leaderboard impact. Daily Quest does not affect
-leaderboard. Home Görevler Daily Quest copy is
-"Günlük Görevleri Yap, Elmasları Kazan!" and the runtime backend functions
-explicitly bind UserDailyQuestProgress for status, progress, and claim
-deployability.
-Günlük Görev no longer requires active DailyQuestDefinition rows; getDailyQuestStatus and
-recordDailyQuestProgress do not seed definition rows on app/Home open. Runtime ignores
-stale or duplicate DailyQuestDefinition rows and stops duplicate/empty DB definition bloat.
-Profile / Admin Ekranı does not mount
-Günlük Görev Yönetimi. getDailyQuestStatus is authenticated-or-completed-guest but not
-admin-only and preserves newly created rows if immediate Base44 refresh is stale. Older
-same-day rows from the previous model are retained but the Home Görevler flow displays
-only the canonical solo_level_complete quest. Loading or ensuring today’s quests does not grant Diamonds;
-claimDailyQuestReward remains the only reward path. \`claimDailyQuestReward\` remains the only reward path.
-One claim per quest per UTC day is enforced by UserDailyQuestProgress and
-daily_quest_reward idempotency keys. User/GuestProfile fields daily_quest_last_claim_date
-and daily_quest_next_available_at track claim summary/reset availability only. Stale
-legacy rows require manual cleanup after backup/operator approval.
-Daily Wheel remains separate from Daily Quest definitions.
-Daily Wheel and Daily Quest are separate.
+## Daily Calendar / Streak
+The legacy Daily Quest Runtime v1 is replaced by the Daily Calendar / Streak
+system. Home exposes a calendar-icon GÜNLÜK shortcut that routes to /daily;
+Günlük is not a BottomNav item. getDailyQuestStatus creates or returns exactly
+3 UserDailyQuestProgress daily_calendar:* rows for the UTC server day from a
+9-day rotating task template cycle. Day 3 uses Profilini tamamla only while
+the profile is incomplete; otherwise it falls back to 5 soruyu doğru cevapla.
+Hint tasks fall back to 5 soruyu doğru cevapla until a real Hint-consumption
+event exists. Registered-only friend/joker tasks fall back for completed
+guests when needed so the runtime never creates impossible active tasks.
+
+The Daily page shows the current month calendar, today with a yellow ring,
+completed days with checks, future days uncompleted, today’s 3 tasks, and a
+Zaman Serisi / 7-day Gift Box panel. A day is complete only when all 3 task
+rows are complete. Missing a UTC day breaks the computed streak. Progress is
+real-event-based and idempotent: Daily Wheel claim is verified from
+DailyWheelSpin, Joker tasks from JokerTransaction, Solo level/correct/jokerless
+events from gameplay completion, and friend tasks from the friends API success
+path. recordDailyQuestProgress never grants Diamonds.
+
+claimDailyQuestReward is the only Daily Calendar reward path. It grants the
+7-day Gift Box server-side and idempotently through
+DiamondTransaction.source = daily_calendar_streak_reward for exactly 200
+Diamonds, guarded by the streak cycle id, DiamondTransaction re-read, and the
+economy lock path. Daily Calendar grants Diamonds only, does not grant Kronox
+Puan, and does not affect Leaderboard. Authenticated users use normalized
+email keys; completed guests use token-proven internal guest keys and persist
+rewards on GuestProfile.diamonds without exposing raw guest tokens.
+
+DailyQuestDefinition is legacy/admin-only; the active runtime ignores
+definition rows and never seeds them on Home/app open. cleanupLegacyDailyQuests
+is the admin-gated cleanup path, defaults to dry_run, requires
+DELETE_LEGACY_DAILY_QUESTS for destructive deletion, and is scoped to legacy
+DailyQuestDefinition plus non-daily_calendar UserDailyQuestProgress rows. It
+must not delete Daily Wheel, economy, profile, Solo, Online, Leaderboard,
+Store, Friends, or account data.
+Daily Wheel remains separate from Daily Calendar.
 daily_wheel:<playerKey>:<YYYY-MM-DD>
-daily_quest_reward:<playerKey>:<YYYY-MM-DD>:<quest_key>
+daily_calendar_streak:<playerKey>:<streak_anchor_date>:<claim_number>:200
 
 ## Online Scoring Persistence
 Two-account invite + scoring proof, OnlineMatchResult idempotency, winner
@@ -839,7 +840,7 @@ Puan.
 Two/three-account RLS probe matrix, service-role scoping.
 
 ## Privacy Policy / App Store Privacy
-Public privacy URL is https://kronoxgame.com/privacy. /privacy must be publicly accessible without login, admin status, backend data, or redirect to Home/login. The page title is Gizlilik Politikası, includes a last-updated date, and lists the configured support contact from VITE_KRONOX_SUPPORT_EMAIL when present. The policy discloses account/profile data, gameplay/progress/leaderboard data, friends/invites/social data, category preferences, optional push subscription/notification data, local storage/cache/IndexedDB use, Daily Wheel/Daily Quest/Mağaza/Joker/Diamond economy records, and question analytics/reporting data. The policy states Kronox does not sell personal data for third-party advertising and must not claim that no data is collected. Account deletion/access/correction requests are covered and must not rely on committed support email literals. App Store Connect privacy answers must match the /privacy policy and be updated whenever data collection, analytics, push notifications, social features, or economy/ledger behavior changes. App Store Guideline 4.8 remains a Manual Required / P0 release gate: physical Apple parity must be proven on a physical iOS/TestFlight/App Store build, and Sign in with Apple must be visible wherever Google login is offered. Manual proof opens https://kronoxgame.com/privacy from a fresh browser without login and confirms Turkish policy content loads on mobile.
+Public privacy URL is https://kronoxgame.com/privacy. /privacy must be publicly accessible without login, admin status, backend data, or redirect to Home/login. The page title is Gizlilik Politikası, includes a last-updated date, and lists the configured support contact from VITE_KRONOX_SUPPORT_EMAIL when present. The policy discloses account/profile data, gameplay/progress/leaderboard data, friends/invites/social data, category preferences, optional push subscription/notification data, local storage/cache/IndexedDB use, Daily Wheel/Daily Calendar/Mağaza/Joker/Diamond economy records, and question analytics/reporting data. The policy states Kronox does not sell personal data for third-party advertising and must not claim that no data is collected. Account deletion/access/correction requests are covered and must not rely on committed support email literals. App Store Connect privacy answers must match the /privacy policy and be updated whenever data collection, analytics, push notifications, social features, or economy/ledger behavior changes. App Store Guideline 4.8 remains a Manual Required / P0 release gate: physical Apple parity must be proven on a physical iOS/TestFlight/App Store build, and Sign in with Apple must be visible wherever Google login is offered. Manual proof opens https://kronoxgame.com/privacy from a fresh browser without login and confirms Turkish policy content loads on mobile.
 
 ## PWA / Push
 BottomNav visible tabs are Ana Sayfa, Liderlik, and Profil only. Online is launched from Home through Online Kapışma, not from BottomNav. Switching visible tabs preserves subroute/scroll state and re-tapping the active tab resets that tab to its root while /game remains full-screen.

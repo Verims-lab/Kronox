@@ -17,6 +17,7 @@
         "market_purchase",
         "solo_joker_spend",
         "daily_wheel_claim",
+        "daily_calendar_streak_claim",
         "daily_quest_claim",
         "admin_diamond_grant"
       ],

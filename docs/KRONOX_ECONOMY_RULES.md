@@ -84,8 +84,10 @@ first_login_reward
 daily_login
 daily_wheel
 market_purchase
-daily_quest_reward
+daily_calendar_streak_reward
 ```
+
+Legacy historical source retained for old ledger rows: `daily_quest_reward`.
 
 Future schema-ready sources are intentionally inactive:
 
@@ -98,28 +100,29 @@ achievement_future
 special_event_future
 ```
 
-Home exposes Daily Wheel through the `Çark` shortcut and Daily Quest / Günün
-Görevi Runtime v1 through the `Görevler` shortcut/modal. Runtime owns one canonical daily quest in code:
-`solo_level_complete` / `Solo’da Seviye Geç` /
-`Bugün 1 Solo seviyesini tamamla.`, target 1, reward 20 Diamonds.
-`UserDailyQuestProgress` stores 1 selected UTC-day quest per user, with copied
-target/reward, progress, completion, and claim state. Runtime ignores stale or
-duplicate `DailyQuestDefinition` rows and does not seed definition rows on Home
-or app open. Legacy definition rows should be cleaned manually only after
-backup/operator confirmation; they must not duplicate Home quests or rewards.
+Home exposes Daily Wheel through the `Çark` shortcut and Daily Calendar /
+Streak through the Home `GÜNLÜK` calendar shortcut. Daily Calendar creates 3
+`daily_calendar:*` `UserDailyQuestProgress` rows per UTC server day from a
+9-day rotating task template cycle. Task progress is real-event-based and
+idempotent; `recordDailyQuestProgress` never grants Diamonds.
 
-Daily Quest grants diamonds only through the server-backed
-`claimDailyQuestReward` callable. Claims write
-`DiamondTransaction.source = daily_quest_reward` with `direction = earn` and an
-idempotency key shaped like
-`daily_quest_reward:<playerKey>:<YYYY-MM-DD>:<questKey>`, where `playerKey` is
-the normalized email for registered users or `guest:<g_owner_key>` for a
-token-proven completed guest. The client must
-not control reward amount. Daily Quest does not grant Kronox Puan and has no
-leaderboard impact. Daily Quest does not affect leaderboard.
+Daily Calendar grants Diamonds only through the server-backed
+`claimDailyQuestReward` callable when the 7-day Gift Box is ready. Claims write
+`DiamondTransaction.source = daily_calendar_streak_reward` with
+`direction = earn`, grant exactly 200 Diamonds, and use an idempotency key
+shaped like
+`daily_calendar_streak:<playerKey>:<streak_anchor_date>:<claim_number>:200`.
+The client must not control reward amount. Daily Calendar does not grant Kronox
+Puan and does not affect Leaderboard.
 
-Do not implement client-side quest reward diamond grants, Kronox Puan rewards,
-Online quest progress, or leaderboard scoring from Daily Quest.
+Legacy `DailyQuestDefinition` rows are ignored by the active runtime. Use the
+admin-gated `cleanupLegacyDailyQuests` path for old Daily Quest data; it
+defaults to dry-run and requires `DELETE_LEGACY_DAILY_QUESTS` before deleting
+only legacy definition/progress rows. It must not delete Daily Wheel, economy,
+profile, Solo, Online, Leaderboard, Store, Friends, or account data.
+
+Do not implement client-side Daily Calendar Diamond grants, Kronox Puan
+rewards, or leaderboard scoring from Daily tasks.
 
 Profile account linking grants a one-time `first_login_reward` of 80 Diamonds
 only after a token-proven GuestProfile is successfully linked to a real
@@ -257,12 +260,13 @@ Diamond rewards or the same joker twice.
 
 If the user misses a UTC day, the next successful spin resets the streak to 1.
 
-Completed guests can see and claim the Daily Wheel and Daily Quest from Home.
-Guest Daily Wheel and Daily Quest rows use internal `guest:<g_owner_key>` keys,
-never raw `guest_id` as public identity. Guest balances and same-day guards are
-stored on `GuestProfile`; `linkGuestAccount` copies daily reward history/guards
-to the registered owner key so a guest cannot claim the same UTC-day reward
-again immediately after linking.
+Completed guests can see and claim Daily Wheel and Daily Calendar / Streak
+rewards from Home. Guest Daily Wheel and Daily Calendar rows use internal
+`guest:<g_owner_key>` keys, never raw `guest_id` as public identity. Guest
+balances and same-day/streak guards are stored on `GuestProfile`;
+`linkGuestAccount` copies daily reward history/guards to the registered owner
+key so a guest cannot claim the same UTC-day or streak-cycle reward again
+immediately after linking.
 
 Result screen:
 
@@ -605,7 +609,7 @@ adminResetDailyWheelState
 * preserves completed reward/audit rows by archiving same-day DailyWheelSpin, DiamondTransaction, and JokerTransaction idempotency keys under an admin-reset namespace instead of subtracting balances
 * does not grant rewards
 * does not reverse previously awarded Diamonds or Jokers
-* does not affect Daily Quest, Kronox Puan, leaderboard, Solo, Online, profile, or account data
+* does not affect Daily Calendar / Streak, Kronox Puan, leaderboard, Solo, Online, profile, or account data
 * writes AdminMaintenanceLog
 
 ---
@@ -681,7 +685,7 @@ Purchase rules:
   remains manual
 * Store purchases do not grant Kronox Puan
 * Store purchases do not affect Leaderboard
-* Daily Wheel and Daily Quest behavior is unchanged by Store purchases
+* Daily Wheel and Daily Calendar / Streak behavior is unchanged by Store purchases
 
 Joker balance read-performance contract:
 
@@ -719,8 +723,8 @@ The following are not implemented:
 * Special event rewards
 * Hint gameplay consumption
 
-Daily Quest / Günün Görevi Runtime v1 is active; only future Daily Quest reward
-sources such as `daily_quest_future` remain inactive until explicitly approved.
+Daily Calendar / Streak is active; only future Daily reward sources such as
+`daily_quest_future` remain inactive until explicitly approved.
 
 Do not implement these without explicit product approval.
 
@@ -771,7 +775,7 @@ Manual/release proof should verify:
 ## GuestProfile And Economy Boundary
 
 Phase 1 GuestProfile creates portable guest identity. Phase 3 account linking
-adds the one-time merge path and preserves completed-guest Daily Quest and
+adds the one-time merge path and preserves completed-guest Daily Calendar and
 Daily Wheel balances, guard fields, and history copies; it does not change
 Market prices, normal Joker spend/purchase rules, or Diamond reward rules.
 
@@ -781,9 +785,9 @@ may be combined once with the authenticated `User.diamonds` balance through
 `DiamondTransaction.source = account_link_merge`. Guest joker balances may be
 combined once through `UserJokerInventory` current balances and
 `JokerTransaction.reason = account_link_merge`. Guest Daily Wheel and Daily
-Quest same-day guard fields are copied to the linked user, and guest reward
-history rows are copied under the registered internal owner key to prevent
-duplicate same-day claims after account linking.
+Calendar same-day/streak guard fields are copied to the linked user, and guest
+reward history rows are copied under the registered internal owner key to
+prevent duplicate same-day or streak-cycle claims after account linking.
 
 `User.linked_guest_ids` prevents repeated additive economy merge if an account
 link request retries after a partial response. `UserJokerInventory` remains the
@@ -791,5 +795,5 @@ current joker balance source and `JokerTransaction` remains the ledger. Raw
 guest token must never be stored server-side or logged.
 
 Profile > Profil Bilgileri optional `age_group` / `gender` edits are private profile metadata.
-They must not grant Diamonds, affect Daily Quest/Wheel rewards, change Market
+They must not grant Diamonds, affect Daily Calendar/Wheel rewards, change Market
 prices, alter joker balances, or appear in economy ledgers.

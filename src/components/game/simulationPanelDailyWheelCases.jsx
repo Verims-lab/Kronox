@@ -5,6 +5,9 @@
 // idempotency keys or a real backend race probe are verified.
 
 import mainMenuSource from '../../pages/MainMenu.jsx?raw';
+import appSource from '../../App.jsx?raw';
+import dailyPageSource from '../../pages/DailyPage.jsx?raw';
+import bottomNavSource from '../layout/BottomNav.jsx?raw';
 import dailyWheelCardSource from '../dailyWheel/DailyWheelCard.jsx?raw';
 import dailyRewardsPanelSource from '../dailyWheel/DailyRewardsPanel.jsx?raw';
 import dailyWheelHookSource from '../../hooks/useDailyWheel.js?raw';
@@ -72,33 +75,39 @@ export const EXTRA_SUITES = [
 
 export const EXTRA_TESTS = [
   makeCase('daily_rewards_panel_above_solo_cta',
-    'Home exposes compact Görevler/Çark shortcuts above Solo CTA without expanded rewards on first render',
+    'Home exposes compact GÜNLÜK/Çark shortcuts above Solo CTA without expanded rewards on first render',
     () => {
       const src = safeStr(mainMenuSource);
-      const shortcutIndex = src.indexOf('label="Görevler"');
+      const shortcutIndex = src.indexOf('label="GÜNLÜK"');
       const soloIndex = src.indexOf('primaryLabel="OYNA"');
-      const missing = missingTokens(`${src}\n${dailyRewardsPanelSource}`, [
+      const missing = missingTokens(`${src}\n${dailyRewardsPanelSource}\n${appSource}\n${dailyPageSource}\n${bottomNavSource}`, [
         'HomeShortcut',
         'HomeShortcutModal',
         'items-center justify-center',
         "maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 3rem)'",
         "overflowY: 'auto'",
-        'label="Görevler"',
+        'CalendarDays',
+        'label="GÜNLÜK"',
+        "navigate('/daily')",
+        'path="/daily"',
+        'element={<DailyPage />}',
         'label="Çark"',
-        "'quests'",
         "'wheel'",
         'activeShortcut',
         'completedGuestProfile',
         'guestProfile={guestProfile}',
         'DailyWheelCard',
-        'DailyQuestV1Card',
-        'Günlük Görev',
+        'GÜNLÜK',
+        'BUGÜNKÜ GÖREVLER',
         'getLeaderboardDiamondValue(user || completedGuestProfile)',
         'onUserUpdated={handleDailyWheelUserPatch}',
         'primaryLabel="OYNA"',
         '`Seviye ${homeSoloLevelNumber}`',
         'buildSoloGameConfigForLevel',
         'label="ONLINE KAPIŞ"',
+        "{ label: 'Ana Sayfa'",
+        "{ label: 'Liderlik'",
+        "{ label: 'Profil'",
       ]);
       const miniWheelStart = src.indexOf('function HomeMiniDailyWheelIcon');
       const miniWheelEnd = src.indexOf('function HomeTimeArtifact');
@@ -131,6 +140,9 @@ export const EXTRA_TESTS = [
         'function handleLogin',
         'const handleLogin',
         'icon={TimerReset}',
+        'label="Görevler"',
+        "'quests'",
+        'DailyQuestV1Card',
       ]);
       if (missing.length || miniWheelMissing.length || miniWheelForbidden.length || forbidden.length || shortcutIndex < 0 || soloIndex < 0 || shortcutIndex > soloIndex) {
         return fail('Home does not place compact reward shortcuts before the Solo CTA while avoiding expanded reward panels and login prompts on first render.', {
@@ -139,7 +151,7 @@ export const EXTRA_TESTS = [
           actual: { missing, miniWheelMissing, miniWheelForbidden, forbidden, shortcutIndex, soloIndex },
         });
       }
-      return pass('Compact Görevler/Çark shortcuts sit above Solo CTA, Çark uses a content-free mini wheel icon, and existing centered reward flows remain attached.', { verification: 'STATIC_CONTRACT' });
+      return pass('Compact GÜNLÜK/Çark shortcuts sit above Solo CTA, Çark uses a content-free mini wheel icon, and Daily is route-owned instead of BottomNav-owned.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('daily_wheel_icon_polished_not_asset_dependent',
@@ -305,31 +317,30 @@ export const EXTRA_TESTS = [
       });
     }),
 
-  makeCase('daily_rewards_panel_quest_v1_no_client_grant',
-    'Daily Quest Runtime v1 is visible and claims through backend only',
+  makeCase('daily_calendar_no_client_grant',
+    'Daily Calendar streak reward claims through backend only',
     () => {
-      const combined = `${dailyRewardsPanelSource}\n${economyRulesSource}\n${economyGatewaySource}`;
+      const combined = `${dailyPageSource}\n${economyRulesSource}\n${economyGatewaySource}`;
       const missing = missingTokens(combined, [
-        'DailyQuestV1Card',
-        'Günlük Görev',
+        'Hediye Kutusu',
         'claimDailyQuestReward',
-        'daily_quest_reward',
-        'User.daily_quest_*',
+        'daily_calendar_streak_reward',
+        '200 Diamonds',
         'does not grant Kronox Puan',
-        'no leaderboard impact',
+        'does not affect Leaderboard',
       ]);
-      const forbidden = forbiddenTokens(dailyRewardsPanelSource, [
+      const forbidden = forbiddenTokens(dailyPageSource, [
         'DiamondTransaction',
         'diamonds:',
         'kronox_puan_total',
       ]);
       if (missing.length || forbidden.length) {
-        return fail('Daily Quest Runtime v1 can grant rewards client-side or lacks separate backend claim contract.', {
+        return fail('Daily Calendar streak reward can grant client-side or lacks separate backend claim contract.', {
           verification: 'STATIC_CONTRACT',
           actual: { missing, forbidden },
         });
       }
-      return pass('Daily Quest Runtime v1 is panel-visible and Diamond claims are backend-owned, not client-mutated.', { verification: 'STATIC_CONTRACT' });
+      return pass('Daily Calendar Gift Box claim is backend-owned and the route UI does not mutate Diamonds directly.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('daily_wheel_v2_no_puan_no_leaderboard',

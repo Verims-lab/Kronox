@@ -121,25 +121,30 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('daily_quest_definition_entity_registered',
-    'DailyQuestDefinition legacy entity is registered while runtime is canonical',
+    'DailyQuestDefinition legacy entity is registered while Daily Calendar runtime is code-owned',
     () => {
       const combined = `${dailyQuestGatewaySource}\n${DB_ARCHITECTURE_IMPLEMENTATION_MIRROR}`;
       const missing = missingTokens(combined, [
         'DailyQuestDefinition',
         'legacy/admin-only',
+        'Daily Calendar / Streak',
         'runtime ignores definition rows',
-        'solo_level_complete',
-        'reward_diamonds only',
-        'never Kronox Puan',
+        'daily_calendar:*',
+        '3 tasks per server day',
+        'daily_calendar_streak_reward',
+        '200 Diamonds',
+        'does not grant Kronox Puan',
+        'does not affect Leaderboard',
+        'cleanupLegacyDailyQuests',
       ]);
       if (missing.length) {
-        return fail('DailyQuestDefinition/canonical runtime DB architecture contract is incomplete.', {
+        return fail('DailyQuestDefinition/Daily Calendar DB architecture contract is incomplete.', {
           verification: 'STATIC_CONTRACT',
           missing,
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('DailyQuestDefinition is documented as legacy/admin-only while Daily Quest runtime uses the canonical solo_level_complete progress row.', {
+      return pass('DailyQuestDefinition is legacy/admin-only while Daily Calendar runtime uses code-owned daily_calendar rows and a scoped cleanup path.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

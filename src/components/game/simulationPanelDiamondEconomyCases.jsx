@@ -8,7 +8,7 @@ import authContextSource from '../../lib/AuthContext.jsx?raw';
 import diamondEconomySource from '../../lib/diamondEconomy.js?raw';
 import leaderboardSource from '../../lib/leaderboard.js?raw';
 import mainMenuSource from '../../pages/MainMenu.jsx?raw';
-import dailyRewardsPanelSource from '../dailyWheel/DailyRewardsPanel.jsx?raw';
+import dailyPageSource from '../../pages/DailyPage.jsx?raw';
 import marketPageSource from '../../pages/MarketPage.jsx?raw';
 import purchaseJokerWithDiamondsSource from '../../../base44/functions/purchaseJokerWithDiamonds/entry.ts?raw';
 import claimDailyWheelRewardSource from '../../../base44/functions/claimDailyWheelReward/entry.ts?raw';
@@ -146,7 +146,7 @@ export const EXTRA_TESTS = [
           missing,
         });
       }
-      return pass('Completed guests persist Daily Wheel and Daily Quest Diamonds on GuestProfile.diamonds, and Home/Liderlik read that balance through the shared helper.', {
+      return pass('Completed guests persist Daily Wheel and Daily Calendar / Streak Diamonds on GuestProfile.diamonds, and Home/Liderlik read that balance through the shared helper.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
@@ -373,27 +373,27 @@ export const EXTRA_TESTS = [
       return pass('DiamondTransaction ledger exists and the grant helper writes audit rows.', { verification: 'STATIC_CONTRACT' });
     }),
 
-  makeCase('daily_quest_v1_no_client_grants',
-    'Daily Quest Runtime v1 uses server-backed Diamond claim, not client grant',
+  makeCase('daily_calendar_no_client_grants',
+    'Daily Calendar streak reward uses server-backed Diamond claim, not client grant',
     () => {
-      const activeRuntimeSources = `${diamondEconomySource}\n${userEntitySource}\n${diamondTransactionEntitySource}\n${dailyRewardsPanelSource}`;
-      const accidentalGrant = dailyRewardsPanelSource.includes('DiamondTransaction')
-        || dailyRewardsPanelSource.includes('diamonds:');
+      const activeRuntimeSources = `${diamondEconomySource}\n${userEntitySource}\n${diamondTransactionEntitySource}\n${dailyPageSource}\n${claimDailyQuestRewardSource}`;
+      const accidentalGrant = dailyPageSource.includes('DiamondTransaction')
+        || dailyPageSource.includes('diamonds:');
       const missing = missingTokens(`${activeRuntimeSources}\n${economyRulesSource}`, [
-        'DailyQuestV1Card',
-        'daily_quest_reward',
-        'daily_quest_last_claim_date',
+        'daily_calendar_streak_reward',
+        'daily_calendar_streak_reward_claim_count',
         'claimDailyQuestReward',
+        'DAILY_STREAK_REWARD_DIAMONDS = 200',
         'does not grant Kronox Puan',
-        'no leaderboard impact',
+        'does not affect Leaderboard',
       ]);
       if (accidentalGrant || missing.length) {
-        return fail('Daily Quest Runtime v1 can grant Diamonds client-side or lacks the separate backend source contract.', {
+        return fail('Daily Calendar streak reward can grant Diamonds client-side or lacks the separate backend source contract.', {
           verification: 'STATIC_CONTRACT',
           actual: { accidentalGrant, missing },
         });
       }
-      return pass('Daily Quest Runtime v1 is visible through the Home Görevler shortcut and claims Diamonds through daily_quest_reward backend source.', { verification: 'STATIC_CONTRACT' });
+      return pass('Daily Calendar Gift Box is visible through /daily and claims Diamonds through daily_calendar_streak_reward backend source.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('market_purchase_is_diamond_sink',
@@ -433,7 +433,7 @@ export const EXTRA_TESTS = [
         'buildEconomyLockKey',
         "operationScope: 'market_purchase'",
         "operationScope: 'daily_wheel_claim'",
-        "operationScope: 'daily_quest_claim'",
+        "'daily_calendar_streak_claim'",
         'const secondExistingDiamondTx = await findDiamondTransaction',
         'const postLockSpin = await findSpin',
         'const postLockTx = await findDiamondTransaction',
@@ -453,7 +453,7 @@ export const EXTRA_TESTS = [
           missing,
         });
       }
-      return pass('Market purchase, Daily Wheel, and Daily Quest balance writes use the TTL economy lock with post-lock duplicate/idempotency rechecks.', {
+      return pass('Market purchase, Daily Wheel, and Daily Calendar / Streak balance writes use the TTL economy lock with post-lock duplicate/idempotency rechecks.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

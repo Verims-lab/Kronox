@@ -1,13 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ScrollText, X } from 'lucide-react';
+import { CalendarDays } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
 import { useAuth } from '@/lib/AuthContext';
 import StandardTopBar from '@/components/layout/StandardTopBar';
 import DailyWheelCard from '@/components/dailyWheel/DailyWheelCard';
-import { DailyQuestV1Card } from '@/components/dailyWheel/DailyRewardsPanel';
 import { useDailyWheel } from '@/hooks/useDailyWheel';
 import { useDailyQuests } from '@/hooks/useDailyQuests';
 import {
@@ -55,7 +54,7 @@ export default function MainMenu() {
     : null;
   const soloProgressPlayer = user || completedGuestProfile || null;
   // Resolved linked-or-guest rewards player. Completed guests remain valid
-  // reward players (Daily Wheel / Daily Quest) without login; the shortcuts
+  // reward players (Daily Wheel / Daily Calendar) without login; the shortcuts
   // and wheel status are gated by this resolved player, not by a logged-in
   // Base44 user only.
   const rewardsPlayer = user || completedGuestProfile || null;
@@ -126,8 +125,8 @@ export default function MainMenu() {
     [completedGuestProfile, user],
   );
 
-  // Lightweight ready-state signals for the Görevler/Çark shortcut badges.
-  // These reuse the existing daily wheel/quest status hooks (server-owned
+  // Lightweight ready-state signals for the Günlük/Çark shortcut badges.
+  // These reuse the existing daily wheel/calendar status hooks (server-owned
   // source of truth) purely to decide whether to render a small badge.
   const dailyWheel = useDailyWheel({ user, guestProfile: completedGuestProfile });
   const dailyQuests = useDailyQuests({ user, guestProfile: completedGuestProfile });
@@ -135,8 +134,8 @@ export default function MainMenu() {
   // and never block first render on reward status.
   const wheelReady = Boolean(rewardsPlayer) && dailyWheel?.isAvailable === true;
   const questReady = useMemo(
-    () => Boolean(rewardsPlayer) && (dailyQuests?.quests || []).some((quest) => quest?.status === 'completed'),
-    [dailyQuests?.quests, rewardsPlayer],
+    () => Boolean(rewardsPlayer) && dailyQuests?.status === 'ready' && dailyQuests?.dayCompleted !== true,
+    [dailyQuests?.dayCompleted, dailyQuests?.status, rewardsPlayer],
   );
   const soloTotalLevels = getSoloLevelCount();
   const homeSoloLevelNumber = useMemo(
@@ -171,6 +170,11 @@ export default function MainMenu() {
 
   const handleMarket = () => {
     navigate('/market');
+  };
+
+  const handleDaily = () => {
+    sounds.tap();
+    navigate('/daily');
   };
 
   const handleShortcut = (shortcut) => {
@@ -254,11 +258,11 @@ export default function MainMenu() {
               className="absolute left-0 top-1/2 z-10 flex w-20 -translate-y-1/2 justify-center"
             >
               <HomeShortcut
-                label="Görevler"
-                icon={ScrollText}
+                label="GÜNLÜK"
+                icon={CalendarDays}
                 tone="cyan"
                 ready={Boolean(rewardsPlayer && questReady)}
-                onClick={() => handleShortcut('quests')}
+                onClick={handleDaily}
               />
             </div>
             <HomeTimeArtifact />
@@ -526,7 +530,6 @@ function HomeCTA({ variant, label, primaryLabel, secondaryLabel, onClick, ariaLa
 
 function HomeShortcutModal({ activeShortcut, user, guestProfile, onClose, onUserUpdated }) {
   const isWheel = activeShortcut === 'wheel';
-  const isQuests = activeShortcut === 'quests';
   if (isWheel) {
     return (
       <AnimatePresence>
@@ -547,54 +550,5 @@ function HomeShortcutModal({ activeShortcut, user, guestProfile, onClose, onUser
     );
   }
 
-  return (
-    <AnimatePresence>
-      {isQuests && (
-        <motion.div
-          className="fixed inset-0 z-[140] flex items-center justify-center bg-slate-950/58 px-4 py-6 backdrop-blur-sm"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Görevler"
-          onClick={onClose}
-        >
-          <motion.div
-            className="w-full max-w-[24rem] rounded-[22px] p-3"
-            initial={{ y: 10, opacity: 0, scale: 0.98 }}
-            animate={{ y: 0, opacity: 1, scale: 1 }}
-            exit={{ y: 8, opacity: 0, scale: 0.98 }}
-            transition={{ duration: 0.18 }}
-            onClick={(event) => event.stopPropagation()}
-            style={{
-              maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 3rem)',
-              overflowY: 'auto',
-              border: '1px solid rgba(85, 216, 255, 0.26)',
-              background: 'linear-gradient(180deg, rgba(16,38,75,0.98), rgba(6,18,37,0.98))',
-              boxShadow: '0 24px 52px rgba(0,0,0,0.50), inset 0 0 0 1px rgba(255,255,255,0.05)',
-            }}
-          >
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <h2 className="font-inter text-sm font-black text-white">Görevler</h2>
-              <button
-                type="button"
-                onClick={onClose}
-                className="grid h-9 w-9 place-items-center rounded-full text-blue-100/80 active:scale-95"
-                style={{ background: 'rgba(255,255,255,0.06)', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.12)' }}
-                aria-label="Kapat"
-              >
-                <X className="h-4 w-4" strokeWidth={2.4} />
-              </button>
-            </div>
-            <DailyQuestV1Card
-              user={user}
-              guestProfile={guestProfile}
-              onUserUpdated={onUserUpdated}
-            />
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
+  return null;
 }

@@ -169,9 +169,10 @@ daily_wheel_last_spin_date
 daily_wheel_next_available_at
 daily_wheel_streak
 daily_wheel_spin_count
-daily_quest_reward:<playerKey>:<YYYY-MM-DD>:<questKey>
-daily_quest_last_claim_date
-daily_quest_next_available_at
+daily_calendar_streak_reward
+daily_calendar_streak:<playerKey>:<streak_anchor_date>:<claim_number>:200
+daily_calendar_current_streak
+daily_calendar_streak_reward_claim_count
 daily_wheel_request_failed
 Çark ödülü alınamadı.
 Base44 uniqueness is platform/manual proof

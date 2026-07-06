@@ -104,20 +104,19 @@ not appear behind it, and no hidden overlay may block Home buttons. Already-
 claimed Home \`Çark\` taps reopen the read-only post-win result screen from the
 stored backend reward payload, or a safe \`Bugünkü ödül alındı\` fallback for
 legacy missing-payload data; no new spin, reward, or fake ad path is triggered.
-Home exposes Daily Wheel through the Çark shortcut and one Günlük Görev through
-the Görevler shortcut/modal for active Daily Quest Runtime v1. Runtime owns one canonical code-backed quest:
-solo_level_complete / Solo’da Seviye Geç / Bugün 1 Solo seviyesini tamamla.,
-target 1, reward 20 Diamonds. UserDailyQuestProgress tracks 1 selected UTC-day
-quest per user. Progress is Solo-level-completion-only and
-claimDailyQuestReward grants diamonds only through DiamondTransaction.source =
-daily_quest_reward. Daily Quest does not grant Kronox Puan and has no
-leaderboard impact. Home copy says "Günlük Görevleri Yap, Elmasları Kazan!" and
-runtime backend functions explicitly bind UserDailyQuestProgress. One claim per
-quest per UTC day is enforced by UserDailyQuestProgress plus daily_quest_reward
-idempotency keys.
+Home exposes Daily Wheel through the Çark shortcut and the Daily Calendar /
+Streak through the Home GÜNLÜK shortcut. Daily Calendar / Streak is opened at
+/daily, is not a BottomNav item, creates 3 daily_calendar:* tasks per UTC
+server day from a 9-day rotating task template cycle, and advances only through
+real/idempotent events. claimDailyQuestReward grants only the 7-day Gift Box
+through DiamondTransaction.source = daily_calendar_streak_reward for exactly
+200 Diamonds. Daily Calendar does not grant Kronox Puan and does not affect
+Leaderboard.
 Runtime ignores stale/duplicate DailyQuestDefinition rows and does not seed
-definition rows on app/Home open. getDailyQuestStatus preserves newly created
-rows if immediate refresh is stale; loading today’s quests does not grant
+definition rows on app/Home open. cleanupLegacyDailyQuests is admin-gated,
+defaults to dry_run, requires DELETE_LEGACY_DAILY_QUESTS for destructive
+deletion, and must not touch Daily Wheel, economy, profile, Solo, Online,
+Leaderboard, Store, Friends, or account data. Loading today’s tasks does not grant
 Diamonds.
 Claimed Home \`Çark\` opens the read-only result screen, not a countdown
 mini-card; any embedded legacy launcher countdown outside the current Home flow
@@ -149,7 +148,7 @@ POPÜLER; 2.400 ELMAS — ₺349,99; 6.200 ELMAS — ₺799,99; 13.000 ELMAS —
 packages, Diamond-spend Advantage packages, and future KronoClub / Reklamları
 Kaldır sections. Real-money packages show safe unavailable behavior and do not
 grant Diamonds until approved IAP/payment verification exists. The Home middle
-section keeps left Görevler,
+section keeps left GÜNLÜK,
 centered transparent hourglass, and right Çark balanced, with a content-free
 mini wheel visual for the Çark shortcut, centered shortcut popups, and CTA
 stack spacing balanced between the hourglass and fixed BottomNav. The primary

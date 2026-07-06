@@ -303,7 +303,7 @@ Recommended Phase 1 economy anomaly reporting fields:
 
 - anonymized actor key hash.
 - operation scope: `market_purchase`, `solo_joker_spend`, `daily_wheel_claim`,
-  or `daily_quest_claim`.
+  or `daily_calendar_streak_claim`.
 - hashed idempotency key.
 - lock result: acquired / in_progress / stale_recovered / released.
 - duplicate-attempt counter for same actor + scope + day.

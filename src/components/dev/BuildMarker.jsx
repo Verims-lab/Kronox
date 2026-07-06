@@ -1,5 +1,14 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex555 — Daily Calendar / Streak replacement:
+//   • Home GÜNLÜK now opens /daily with a calendar/streak screen instead of the
+//     old embedded Daily Quest card; BottomNav remains Ana Sayfa/Liderlik/Profil.
+//   • Daily tasks come from a code-owned 9-day cycle, progress through verified
+//     real events, and the 7-day Gift Box grants exactly 200 Diamonds through
+//     daily_calendar_streak_reward with no Kronox Puan or leaderboard impact.
+//   • Legacy DailyQuestDefinition/UserDailyQuestProgress data is ignored at
+//     runtime and has an admin-gated dry-run/delete cleanup path.
+//
 // Codex554 — Daily Wheel flow stabilization:
 //   • Home ÇARK now mounts the full Daily Wheel modal controller directly for
 //     loading, available, claimed, and error states, removing the legacy compact
@@ -368,7 +377,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex554';
+const BUILD_MARKER = 'Codex555';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

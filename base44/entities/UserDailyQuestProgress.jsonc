@@ -1,7 +1,7 @@
 {
   "name": "UserDailyQuestProgress",
   "type": "object",
-  "description": "Daily Quest Runtime v1 user-owned per-day progress row. Exactly 1 canonical solo_level_complete row is ensured per authenticated/completed-guest user per UTC quest_date without reading or creating DailyQuestDefinition rows. Older same-day rows from previous definition-backed or multi-event implementations are retained but ignored by runtime/UI. Claim grants diamonds only through claimDailyQuestReward / DiamondTransaction source daily_quest_reward; Daily Quest does not grant Kronox Puan and has no leaderboard impact.",
+  "description": "Daily Calendar/Streak Runtime v1 user-owned per-day task progress row. Exactly 3 code-owned daily_calendar:* rows are ensured per authenticated/completed-guest user per UTC quest_date without reading or creating DailyQuestDefinition rows. Legacy Daily Quest rows are ignored by runtime/UI and can be cleaned through cleanupLegacyDailyQuests dry-run/delete. Task completion itself grants no reward; claimDailyQuestReward grants the 7-day Gift Box only through DiamondTransaction source daily_calendar_streak_reward. Daily Calendar grants Diamonds only and has no Kronox Puan or leaderboard impact.",
   "properties": {
     "user_email": {
       "type": "string",
@@ -17,15 +17,15 @@
         "registered",
         "guest"
       ],
-      "description": "Internal daily quest owner type. Completed guest profiles can see, progress, and claim Daily Quest Diamond rewards."
+      "description": "Internal daily calendar owner type. Completed guest profiles can see, progress, and claim Daily Calendar Diamond rewards."
     },
     "quest_definition_id": {
       "type": "string",
-      "description": "System daily quest definition marker for the canonical code-owned quest, or a legacy DailyQuestDefinition id retained from older rows."
+      "description": "System marker for the code-owned daily_calendar:* task, or a legacy DailyQuestDefinition id retained from old rows."
     },
     "quest_key": {
       "type": "string",
-      "description": "Stable quest key. Current runtime uses solo_level_complete only."
+      "description": "Stable task key. Current runtime uses daily_calendar:d<cycleDay>:s<slot>:<taskKey> rows."
     },
     "quest_date": {
       "type": "string",
@@ -42,13 +42,22 @@
     "quest_type": {
       "type": "string",
       "enum": [
+        "daily_wheel_claim",
         "solo_level_complete",
+        "consecutive_correct_4",
+        "joker_used",
+        "time_freeze_joker_used",
+        "jokerless_solo_level_complete",
+        "profile_complete",
+        "correct_answer",
+        "friend_invite_sent",
+        "friend_added",
         "start_solo_attempt",
         "correct_cards",
         "complete_solo_level",
         "use_joker"
       ],
-      "description": "Executable progress type. Current runtime advances only solo_level_complete on passed Solo level completion; older enum values are legacy-retained/no-op."
+      "description": "Executable event type. Current runtime advances the 9-day Daily Calendar cycle tasks from server-verified wheel/joker/friend events and Solo gameplay events; older enum values are legacy-retained/no-op."
     },
     "progress_value": {
       "type": "integer",
@@ -62,8 +71,8 @@
     },
     "reward_diamonds": {
       "type": "integer",
-      "minimum": 1,
-      "description": "Diamond reward copied from the canonical runtime contract when assigned. Daily Quest grants diamonds only."
+      "minimum": 0,
+      "description": "Per-task reward is 0 in Daily Calendar V1. The only active reward is the server-owned 7-day Gift Box claim for exactly 200 Diamonds."
     },
     "status": {
       "type": "string",
@@ -73,7 +82,7 @@
         "claimed"
       ],
       "default": "active",
-      "description": "Current claim lifecycle state."
+      "description": "Current task lifecycle state. Active Daily Calendar task rows use active/completed; claimed is legacy-retained for old one-row Daily Quest rows."
     },
     "completed_at": {
       "type": "string",
@@ -83,11 +92,11 @@
     "claimed_at": {
       "type": "string",
       "format": "date-time",
-      "description": "ISO timestamp when claimDailyQuestReward granted the Diamond reward."
+      "description": "Legacy timestamp when old one-row Daily Quest rewards were claimed. Daily Calendar streak reward claims are represented by DiamondTransaction source daily_calendar_streak_reward and player streak fields."
     },
     "idempotency_key": {
       "type": "string",
-      "description": "daily_quest:<email>:<YYYY-MM-DD>:<quest_key> assignment key."
+      "description": "daily_calendar:<playerKey>:<YYYY-MM-DD>:<quest_key> assignment key."
     },
     "last_event_key": {
       "type": "string",

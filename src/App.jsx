@@ -22,6 +22,7 @@ import usePresenceHeartbeat from '@/hooks/usePresenceHeartbeat';
 import usePreventAppZoom from '@/hooks/usePreventAppZoom';
 
 const MarketPage = lazyWithRetry(() => import('./pages/MarketPage'), 'MarketPage');
+const DailyPage = lazyWithRetry(() => import('./pages/DailyPage'), 'DailyPage');
 const SoloChallenge = lazyWithRetry(() => import('./pages/SoloChallenge'), 'SoloChallenge');
 const Game = lazyWithRetry(() => import('./pages/Game'), 'Game');
 const LobbyRoom = lazyWithRetry(() => import('./pages/LobbyRoom'), 'LobbyRoom');
@@ -133,7 +134,7 @@ const AuthenticatedApp = () => {
 
   // Determine transition direction: push (right-to-left) or pop (left-to-right)
   const getTransitionDirection = () => {
-    const routeOrder = ['/', '/onboarding', '/market', '/solo', '/game', '/lobby', '/profile', '/profile/edit', '/friends', '/settings', '/admin', '/test-suite', '/account-deletion', '/privacy'];
+    const routeOrder = ['/', '/onboarding', '/market', '/daily', '/solo', '/game', '/lobby', '/profile', '/profile/edit', '/friends', '/settings', '/admin', '/test-suite', '/account-deletion', '/privacy'];
     const currIdx = routeOrder.indexOf(location.pathname);
     const prevIdx = routeOrder.indexOf(prevPathRef.current);
     const direction = currIdx > prevIdx ? 'push' : 'pop';
@@ -235,6 +236,7 @@ const AuthenticatedApp = () => {
                   <Route path="/" element={<MainMenu />} />
                   <Route path="/onboarding" element={<OnboardingPage />} />
                   <Route path="/market" element={<MarketPage />} />
+                  <Route path="/daily" element={<DailyPage />} />
                   <Route path="/solo" element={<SoloChallenge />} />
                   <Route path="/setup" element={<Navigate to="/solo" replace />} />
                   <Route path="/settings" element={<SettingsPage />} />
