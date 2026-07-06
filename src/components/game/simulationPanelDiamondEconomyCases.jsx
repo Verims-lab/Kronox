@@ -126,7 +126,7 @@ export const EXTRA_TESTS = [
         'Server-authoritative guest Diamond balance',
         'GuestProfile.diamonds',
         'updateDailyWheelPlayer',
-        'updateDailyQuestPlayer',
+        'updateDailyCalendarPlayer',
         'guestProfileReward',
         'rawGuestTokenServerStored: false',
         'getLeaderboardDiamondValue(user || completedGuestProfile)',
@@ -401,7 +401,7 @@ export const EXTRA_TESTS = [
     () => {
       const missing = missingTokens(`${purchaseJokerWithDiamondsSource}\n${diamondEconomySource}\n${economyRulesSource}`, [
         "MARKET_PURCHASE: 'market_purchase'",
-        'const diamondCost = product.price * quantity',
+        'const diamondCost = normalizeDiamondBalance(product.diamondCost)',
         'const diamondAfter = diamondBefore - diamondCost',
         "direction: 'spend'",
         'Mağaza purchase is a Diamond sink',
@@ -436,7 +436,7 @@ export const EXTRA_TESTS = [
         "'daily_calendar_streak_claim'",
         'const secondExistingDiamondTx = await findDiamondTransaction',
         'const postLockSpin = await findSpin',
-        'const postLockTx = await findDiamondTransaction',
+        'const postLockExisting = await findDiamondTransaction',
         'function-level EconomyOperationLock',
         'DB/entity unique constraints or live parallel backend proof remain manual',
       ]);

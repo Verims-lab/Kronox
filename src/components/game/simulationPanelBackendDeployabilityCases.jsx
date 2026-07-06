@@ -755,7 +755,7 @@ export const EXTRA_TESTS = [
         'DAILY_STREAK_REWARD_DIAMONDS = 200',
         'definitionRowsIgnoredAtRuntime',
         'solo_level_complete',
-        'entities.DiamondTransaction',
+        'entities?.DiamondTransaction',
         'daily_calendar_streak_reward',
         'DELETE_LEGACY_DAILY_QUESTS',
       ]);

@@ -7,10 +7,10 @@ import { AdminRefreshContext } from '@/lib/AdminRefreshContext';
 import {
   DAILY_QUEST_TYPE_LABELS,
   DAILY_QUEST_V1_TYPES,
-  createDailyQuestDefinition,
-  listDailyQuestDefinitions,
-  seedDailyQuestDefinitions,
-  updateDailyQuestDefinitionStatus,
+  legacyCreateDailyQuestDefinitionRow,
+  legacyListDailyQuestDefinitionRows,
+  legacySeedDailyQuestDefinitionRows,
+  legacyUpdateDailyQuestDefinitionStatus,
 } from '@/lib/dbGateway/dailyQuestGateway';
 
 const DEFAULT_FORM = {
@@ -72,7 +72,7 @@ export default function DailyQuestDefinitionManager() {
     setError('');
     setMessage('');
     try {
-      const body = await listDailyQuestDefinitions();
+      const body = await legacyListDailyQuestDefinitionRows();
       applyDefinitionPayload(body);
       if (Array.isArray(body?.seededKeys) && body.seededKeys.length) {
         setMessage('Varsayılan günlük görevler eklendi.');
@@ -123,7 +123,7 @@ export default function DailyQuestDefinitionManager() {
     setError('');
     setMessage('');
     try {
-      const body = await createDailyQuestDefinition({
+      const body = await legacyCreateDailyQuestDefinitionRow({
         quest_key: normalizeQuestKey(form.quest_key),
         title: form.title,
         description: form.description,
@@ -148,7 +148,7 @@ export default function DailyQuestDefinitionManager() {
     setError('');
     setMessage('');
     try {
-      const body = await seedDailyQuestDefinitions();
+      const body = await legacySeedDailyQuestDefinitionRows();
       applyDefinitionPayload(body);
       const count = Array.isArray(body?.seededKeys) ? body.seededKeys.length : 0;
       setMessage(count ? 'Varsayılan günlük görevler eklendi.' : 'Varsayılan günlük görevler zaten mevcut.');
@@ -166,7 +166,7 @@ export default function DailyQuestDefinitionManager() {
     setError('');
     setMessage('');
     try {
-      const body = await updateDailyQuestDefinitionStatus(definition.id, nextStatus);
+      const body = await legacyUpdateDailyQuestDefinitionStatus(definition.id, nextStatus);
       applyDefinitionPayload(body);
       setMessage(body?.message || 'Günlük görev güncellendi.');
     } catch (err) {

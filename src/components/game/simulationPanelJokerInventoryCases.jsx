@@ -380,7 +380,8 @@ export const EXTRA_TESTS = [
     'Market purchase and Solo spend refresh the shared joker balance cache',
     () => {
       const missing = missingTokens(`${jokerInventorySource}\n${marketSource}\n${authContextSource}`, [
-        'setCachedJokerBalances(email, balances',
+        'setCachedJokerBalances(email, normalized.balances',
+        'setCachedJokerBalances(email, result.balances',
         "invalidatedBy: 'market_purchase'",
         "invalidatedBy: 'solo_spend'",
         'invalidateJokerInventoryCache(email)',

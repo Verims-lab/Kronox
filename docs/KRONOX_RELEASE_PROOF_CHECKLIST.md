@@ -443,8 +443,11 @@ Checklist:
 * No repo DB/entity unique proof exists for `DailyWheelSpin.idempotency_key` or
   `DailyWheelSpin.user_email + spin_date` unless Base44/platform configuration
   is attached.
-* Daily Wheel 7-day streak bonus grants `+150` Diamonds on every 7th consecutive daily spin.
-* Missing a UTC day resets the Daily Wheel streak gracefully to 1 on next spin.
+* Daily Wheel 7-day streak bonus grants `+150` Diamonds on every 7th consecutive daily spin (`7 günlük seri bonusu: +150 elmas`).
+* Daily Calendar / Streak Gift Box is separate and grants exactly 200 Diamonds
+  through `daily_calendar_streak_reward`.
+* Missing a UTC day resets the Daily Wheel streak gracefully to 1 on next spin
+  and breaks the Daily Calendar / Streak chain.
 * Manual economy idempotency proof:
   1. Call the same Diamond reward/spend flow twice with the same
      `DiamondTransaction.idempotency_key` and confirm at most one visible
@@ -577,7 +580,7 @@ Checklist:
   14. Verify Online mode remains unaffected.
   15. Verify Daily Wheel V2 grants only server-selected Diamonds, approved
       jokers, or Gift Box contents.
-* Market purchase is a Diamond sink; Daily Wheel V2 can be a Diamond source and
+* Mağaza purchase is a Diamond sink. Market purchase is a Diamond sink; Daily Wheel V2 can be a Diamond source and
   approved joker grant source but must not use `market_purchase`.
 * Daily Wheel result reflects the server reward with the simplified post-spin UI: wheel visible, one backend-selected reward line, and one disabled ad/video `ÇEVİR` repeat CTA with smaller `Yakında` subtext.
 * Daily Wheel result no longer shows old total/streak/retry explanatory copy; no fake ad reward flow is active before future rewarded-ad integration.

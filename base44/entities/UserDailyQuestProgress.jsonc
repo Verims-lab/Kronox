@@ -19,6 +19,20 @@
       ],
       "description": "Internal daily calendar owner type. Completed guest profiles can see, progress, and claim Daily Calendar Diamond rewards."
     },
+    "daily_calendar_current_streak": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Optional runtime summary mirror for the player's current Daily Calendar streak at the time this row was updated. The player profile remains the canonical streak summary source."
+    },
+    "daily_calendar_streak_anchor_date": {
+      "type": "string",
+      "description": "Optional UTC YYYY-MM-DD anchor date for the current Daily Calendar streak summary mirror."
+    },
+    "daily_calendar_streak_reward_claim_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Optional count of 7-day Gift Box reward claims observed for the current streak anchor. Used for admin/reporting diagnostics, not public UI identity."
+    },
     "quest_definition_id": {
       "type": "string",
       "description": "System marker for the code-owned daily_calendar:* task, or a legacy DailyQuestDefinition id retained from old rows."
@@ -47,6 +61,7 @@
         "consecutive_correct_4",
         "joker_used",
         "time_freeze_joker_used",
+        "hint_used",
         "jokerless_solo_level_complete",
         "profile_complete",
         "correct_answer",

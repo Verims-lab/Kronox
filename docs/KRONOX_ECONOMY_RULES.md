@@ -256,9 +256,13 @@ Diamond rewards or the same joker twice.
 
 ```text
 7-day streak bonus: +150 diamonds
+7 günlük seri bonusu: +150 elmas
 ```
 
-If the user misses a UTC day, the next successful spin resets the streak to 1.
+This Daily Wheel spin-streak bonus is separate from the Daily Calendar /
+Streak Gift Box, which grants 200 Diamonds through
+`daily_calendar_streak_reward`. If the user misses a UTC day, the next
+successful spin resets the Daily Wheel streak to 1.
 
 Completed guests can see and claim Daily Wheel and Daily Calendar / Streak
 rewards from Home. Guest Daily Wheel and Daily Calendar rows use internal
@@ -665,6 +669,7 @@ Purchase rules:
 * Diamond source/sink balance: Daily Wheel V2 can be a Diamond source and/or an
   approved joker grant source, while Mağaza Diamond-spend purchases are Diamond
   sinks
+* Mağaza purchase is a Diamond sink
 * real-money Diamond packages must not grant Diamonds unless a real approved
   IAP/payment success path exists; current no-IAP behavior is safe unavailable
   copy: `Satın alma yakında aktif olacak.`
@@ -790,6 +795,8 @@ Manual/release proof should verify:
 * Daily Wheel grants once per UTC server day
 * Daily Wheel does not grant Kronox Puan
 * 7th consecutive Daily Wheel spin grants +150 extra Diamonds
+* Daily Calendar / Streak Gift Box is a separate 7-day reward and grants 200
+  Diamonds through `daily_calendar_streak_reward`
 * two-device duplicate prevention is probed
 * ledger recovery does not double grant
 ## GuestProfile And Economy Boundary

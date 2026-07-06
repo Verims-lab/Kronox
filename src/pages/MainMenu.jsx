@@ -230,6 +230,10 @@ export default function MainMenu() {
           paddingLeft: 'calc(env(safe-area-inset-left) + 1.15rem)',
           paddingRight: 'calc(env(safe-area-inset-right) + 1.15rem)',
           bottom: `calc(env(safe-area-inset-bottom) + ${HOME_BOTTOM_NAV_HEIGHT})`,
+          maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 3rem)',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          overscrollBehavior: 'contain',
         }}
         aria-label="Kronox Ana Sayfa"
       >

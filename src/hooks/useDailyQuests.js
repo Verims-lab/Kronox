@@ -9,7 +9,7 @@ import {
   normalizeDailyTask,
 } from '@/lib/dailyCalendar';
 
-const DAILY_STATUS_CACHE_TTL_MS = 60 * 1000;
+const DAILY_QUEST_STATUS_CACHE_TTL_MS = 60 * 1000;
 const dailyStatusCache = new Map();
 
 function todayFallbackKey() {
@@ -24,18 +24,18 @@ function buildDailyStatusCacheKey(user, guestCredentials) {
   return null;
 }
 
-function readDailyStatusCache(cacheKey) {
+function readDailyQuestStatusCache(cacheKey) {
   if (!cacheKey) return null;
   const cached = dailyStatusCache.get(cacheKey);
   if (!cached) return null;
-  if (Date.now() - cached.cachedAt > DAILY_STATUS_CACHE_TTL_MS) {
+  if (Date.now() - cached.cachedAt > DAILY_QUEST_STATUS_CACHE_TTL_MS) {
     dailyStatusCache.delete(cacheKey);
     return null;
   }
   return cached.body || null;
 }
 
-function writeDailyStatusCache(cacheKey, body) {
+function writeDailyQuestStatusCache(cacheKey, body) {
   if (!cacheKey || !body) return;
   dailyStatusCache.set(cacheKey, {
     cachedAt: Date.now(),
@@ -51,7 +51,7 @@ export function invalidateDailyQuestStatusCache(cacheKey = '') {
   dailyStatusCache.clear();
 }
 
-function scheduleDailyStatusRefresh(callback) {
+function scheduleDailyQuestStatusRefresh(callback) {
   if (typeof window === 'undefined') {
     callback();
     return () => {};
@@ -102,7 +102,7 @@ export function useDailyQuests({ user, guestProfile, onUserUpdated } = {}) {
   );
   const isSignedIn = Boolean(user?.email || user?.user_email || guestCredentials);
 
-  const applyStatusBody = useCallback((body) => {
+  const applyDailyQuestStatusBody = useCallback((body) => {
     const next = normalizeCalendarBody(body);
     setState(next);
     setStatus('ready');
@@ -116,16 +116,16 @@ export function useDailyQuests({ user, guestProfile, onUserUpdated } = {}) {
       setState(buildEmptyCalendarState());
       return null;
     }
-    const cachedBody = readDailyStatusCache(dailyCacheKey);
+    const cachedBody = readDailyQuestStatusCache(dailyCacheKey);
     if (cachedBody) {
-      applyStatusBody(cachedBody);
+      applyDailyQuestStatusBody(cachedBody);
     } else {
       setStatus('loading');
     }
     try {
       const body = await getDailyQuestStatus(dailyPayload);
-      writeDailyStatusCache(dailyCacheKey, body);
-      return applyStatusBody(body);
+      writeDailyQuestStatusCache(dailyCacheKey, body);
+      return applyDailyQuestStatusBody(body);
     } catch (err) {
       if (!cachedBody) {
         setStatus('error');
@@ -134,11 +134,11 @@ export function useDailyQuests({ user, guestProfile, onUserUpdated } = {}) {
       setError(err?.message || 'Günlük verileri yüklenemedi.');
       return null;
     }
-  }, [applyStatusBody, dailyCacheKey, dailyPayload, isSignedIn]);
+  }, [applyDailyQuestStatusBody, dailyCacheKey, dailyPayload, isSignedIn]);
 
   useEffect(() => {
     let cancelled = false;
-    const cancelScheduledRefresh = scheduleDailyStatusRefresh(async () => {
+    const cancelScheduledRefresh = scheduleDailyQuestStatusRefresh(async () => {
       const body = await refresh();
       if (cancelled || !body) return;
       if (body?.userPatch && typeof onUserUpdated === 'function') onUserUpdated(body.userPatch);

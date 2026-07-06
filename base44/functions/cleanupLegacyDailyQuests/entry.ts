@@ -3,6 +3,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 
 const DAILY_CALENDAR_RUNTIME_VERSION = 'daily-calendar-streak-v1';
 const DELETE_CONFIRMATION = 'DELETE_LEGACY_DAILY_QUESTS';
+const CLEANUP_DEFAULTS = Object.freeze({ mode: 'dry_run' });
 const LEGACY_QUEST_KEYS = new Set([
   'solo_level_complete',
   'start_1_solo_attempt',
@@ -147,7 +148,7 @@ Deno.serve(async (req: Request) => {
     const admin = await requireAdmin(base44);
     if (admin.response) return admin.response;
     const body = await req.json().catch(() => ({}));
-    const mode = String(body?.mode || 'dry_run').trim().toLowerCase();
+    const mode = String(body?.mode || CLEANUP_DEFAULTS.mode).trim().toLowerCase();
     if (mode !== 'dry_run' && mode !== 'delete') {
       return json({ ok: false, code: 'invalid_mode', error: 'Geçersiz temizlik modu.' }, 400);
     }
@@ -172,15 +173,28 @@ Deno.serve(async (req: Request) => {
       'QuestionAttemptEvent',
       'PlayerQuestionExposure',
       'Leaderboard',
+      'UserJokerInventory',
+      'JokerTransaction',
+      'HintTransaction',
+      'FriendRequest',
+      'Friendship',
+      'SoloLeaderboardEntry',
     ];
 
     const result = {
       ok: true,
       mode,
+      defaults: CLEANUP_DEFAULTS,
       dryRun: mode === 'dry_run',
       runtimeVersion: DAILY_CALENDAR_RUNTIME_VERSION,
       legacyDefinitionCount: definitions.length,
       legacyProgressCount: progressRows.length,
+      legacyDefinitionRows: definitions.length,
+      legacyProgressRows: progressRows.length,
+      legacyRows: {
+        DailyQuestDefinition: definitions.length,
+        UserDailyQuestProgress: progressRows.length,
+      },
       deleteConfirmation: DELETE_CONFIRMATION,
       protectedEntities,
       deleted: {

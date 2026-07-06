@@ -603,7 +603,7 @@ export const EXTRA_TESTS = [
     'Solo joker bar can reflect purchased Market balances',
     () => {
       const missing = missingTokens(`${marketPageSource}\n${gameSource}\n${soloJokerBarSource}\n${jokerInventorySource}`, [
-        'setBalances(nextBalances)',
+        'setBalances(normalizeJokerBalances(result.balances))',
         'getUserJokerBalances(currentUser, { ensureStarter: true })',
         'balances={soloJokers?.balances || null}',
         'const balance = normalizeJokerQuantity(balances?.[inventoryType])',
