@@ -521,9 +521,10 @@ Checklist:
   `2.400 ELMAS — ₺349,99`, `6.200 ELMAS — ₺799,99`, `13.000 ELMAS —
   ₺1.499,99`), Diamond-spend Joker packages, Diamond-spend Hint packages,
   Diamond-spend Advantage packages, and future KronoClub / Reklamları Kaldır.
-* Real-money package buttons do not grant Diamonds without an approved
-  IAP/payment success path; current safe copy is `Satın alma yakında aktif
-  olacak.`
+* Real-money/TL package buttons, KronoClub, and Reklamları Kaldır are visible
+  but disabled with exact `Yakında` button copy until an approved IAP/payment
+  success path exists; they must not attach a purchase handler or grant
+  Diamonds/benefits.
 * Mağaza Diamond-spend purchases use `purchaseJokerWithDiamonds`; the client
   displays price but the backend owns the trusted product/price table and
   sufficient-Diamond check.
@@ -559,8 +560,9 @@ Checklist:
   4. Confirm all Diamond package amounts/prices/unit prices and badges:
      360/1.100/2.400/6.200/13.000 ELMAS, EN POPÜLER on 1.100, EN İYİ DEĞER
      on 13.000.
-  5. Tap a real-money Diamond package and confirm Diamonds are not granted and
-     unavailable copy appears.
+  5. Confirm each real-money/TL Diamond package, KronoClub, and Reklamları
+     Kaldır button is disabled with exact `Yakında` copy and cannot grant
+     Diamonds or benefits.
   6. Buy one Joker package with sufficient Diamonds and confirm Diamonds
      decrease and the matching joker inventory increases.
   7. Buy one Hint package and one Advantage package with sufficient Diamonds;

@@ -1,5 +1,14 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex566 — Store real-money purchase lock:
+//   • TL/IAP Diamond packages, KronoClub, and Reklamları Kaldır stay visible
+//     but render disabled Yakında buttons with no click handler and no fake
+//     Diamond/benefit grant path.
+//   • Diamond-spend Joker/Hint/Advantage products keep the existing
+//     purchaseJokerWithDiamonds backend-owned purchase path.
+//   • Health/docs/mirrors now guard exact Yakında copy, no-Puan/no-leaderboard
+//     impact, and no real-money fulfillment without approved IAP verification.
+//
 // Codex563 — GFable 5 permanent code-level logical unique guards:
 //   • Verified all cleaned unique keys keep permanent function-level guards:
 //     DailyWheelSpin reserve-first + pre/post-lock findSpin + post-create
@@ -511,7 +520,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex565';
+const BUILD_MARKER = 'Codex566';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

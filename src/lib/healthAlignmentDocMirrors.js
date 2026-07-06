@@ -239,11 +239,13 @@ Diamond-spend Joker packages, Diamond-spend Hint packages, Diamond-spend
 Advantage packages, and future KronoClub / Reklamları Kaldır sections. It may
 be cached/prefetched for fast open, but purchase remains server-authoritative:
 the client is never trusted for price, cost, user identity, reward, or target
-account. Real-money packages must not grant Diamonds without approved
-IAP/payment verification. Satın Al readiness should depend only on auth/user,
-item data, sufficient Diamonds, item availability, and purchase in-flight state;
-slow non-critical inventory count refresh or starter self-heal must not
-silently disable an otherwise valid purchase button.
+account. Real-money/TL packages, KronoClub, and Reklamları Kaldır stay visible
+but disabled with exact Yakında button copy and must not grant Diamonds/benefits
+without approved IAP/payment verification. Diamond-spend Satın Al readiness
+should depend only on auth/user, item data, sufficient Diamonds, item
+availability, and purchase in-flight state; slow non-critical inventory count
+refresh or starter self-heal must not silently disable an otherwise valid
+Diamond purchase button.
 
 Unified Kronox Puan is the only player-facing score source. Solo contributes
 its best-score component; Online contributes User.online_progress.score. Online
@@ -656,7 +658,7 @@ Status: Active product contract.
 - Solo Hint / İpucu is separate from Joker: ensureUserHintInventory initializes exactly 3 starter Hints once for authenticated and token-proven completed guests, consumeUserHint spends one Hint server-side with HintTransaction.reason = solo_use, source = solo_hint, EconomyOperationLock, and idempotency re-checks, and responses do not expose actor keys, raw guest IDs/tokens, answer years, or the full question bank. Hint use can satisfy Daily hint_used after the ledger row exists, but never counts as Joker use, grants Kronox Puan, or affects leaderboard. Opening the Hint popup pauses the visible Solo timer; if Zaman Dondur is already active, the Hint pause is overlap-aware and never subtracts the same frozen seconds twice.
 - Mağaza purchases are server-authoritative economy actions: the client is not trusted for price, cost, user identity, or target account; service-role writes stay scoped to the authenticated user.
 - Mağaza purchase idempotency keys, EconomyOperationLock, refreshed server balance reads, and post-lock ledger rechecks protect double-tap/retry/concurrent request flows; real two-device/backend race proof remains manual unless Base44 uniqueness is proven.
-- Real-money Store packages are display/unavailable unless approved IAP/payment verification exists; no fake real-money success path grants Diamonds, KronoClub, or ad-removal benefits.
+- Real-money/TL Store products, KronoClub, and Reklamları Kaldır are visible but disabled with exact Yakında button copy unless approved IAP/payment verification exists; no fake real-money success path grants Diamonds, KronoClub, or ad-removal benefits.
 - Mağaza Store does not expose cosmetics, random boxes, score/leaderboard boosts, real-money fulfillment without approved IAP/payment verification, or Online-mode joker usage.
 - Daily Quest Definition management UI is removed from Profile / Admin Ekranı; Daily Calendar runtime no longer depends on Admin-created quest definitions.
 - createDailyQuestDefinition is a Base44 callable with an inline AdminUser-backed guard for active owner/admin rows; normal users and disabled admins are rejected.
@@ -766,8 +768,9 @@ real-money Diamond packages (360 ELMAS — ₺79,99; 1.100 ELMAS — ₺199,99 w
 POPÜLER; 2.400 ELMAS — ₺349,99; 6.200 ELMAS — ₺799,99; 13.000 ELMAS —
 ₺1.499,99 with EN İYİ DEĞER), Diamond-spend Joker packages, Diamond-spend Hint
 packages, Diamond-spend Advantage packages, and future KronoClub / Reklamları
-Kaldır sections. Real-money packages show safe unavailable behavior and do not
-grant Diamonds until approved IAP/payment verification exists.
+Kaldır sections. Real-money/TL packages, KronoClub, and Reklamları Kaldır show
+disabled Yakında buttons and do not grant Diamonds or benefits until approved
+IAP/payment verification exists.
 Home uses a larger centered transparent local Kronox logo, a larger centered
 transparent hourglass visual balanced between left GÜNLÜK and right Çark,
 compact shortcuts with ready badges, centered GÜNLÜK/Çark surfaces, a content-free

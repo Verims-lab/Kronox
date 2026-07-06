@@ -867,9 +867,10 @@ Joker inventory is user-owned data:
 * Mağaza Store Diamond-spend purchases use `purchaseJokerWithDiamonds`; users
   purchase only for themselves, the backend owns the trusted Store product/price
   table, and sufficient Diamonds are validated server-side
-* real-money Store products are display/unavailable unless an approved
-  IAP/payment verification path exists; no fake real-money success path may
-  grant Diamonds or benefits
+* real-money/TL Store products, KronoClub, and Reklamları Kaldır are visible but
+  disabled with exact `Yakında` button copy unless an approved IAP/payment
+  verification path exists; no fake real-money success path may grant Diamonds
+  or benefits
 * successful Mağaza purchases write `DiamondTransaction` plus matching
   `JokerTransaction` and/or `HintTransaction` grant rows with `market_purchase`;
   insufficient Diamonds must not change balances or write successful purchase

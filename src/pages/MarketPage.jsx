@@ -170,12 +170,7 @@ export default function MarketPage() {
       anyPending: Boolean(pendingProductId),
     });
 
-    if (readiness.reason === 'real_money_unavailable') {
-      setNotice({ type: 'info', text: 'Satın alma yakında aktif olacak.' });
-      return;
-    }
-    if (readiness.reason === 'future_feature') {
-      setNotice({ type: 'info', text: 'Bu özellik yakında.' });
+    if (readiness.purchaseBlocked) {
       return;
     }
     if (readiness.reason === 'login_required') {
@@ -196,7 +191,7 @@ export default function MarketPage() {
         productId: product.id,
       });
       if (!result?.ok) {
-        setNotice({ type: result?.code === 'real_money_unavailable' ? 'info' : 'error', text: result?.error || 'Satın alma tamamlanamadı. Tekrar dene.' });
+        setNotice({ type: result?.code === 'real_money_unavailable' || result?.code === 'future_feature' ? 'info' : 'error', text: result?.error || 'Satın alma tamamlanamadı. Tekrar dene.' });
         return;
       }
       setBalances(normalizeJokerBalances(result.balances));
@@ -405,9 +400,9 @@ function MarketProductCard({
         <PriceLabel product={product} />
         <button
           type="button"
-          onClick={onPurchase}
+          onClick={disabled ? undefined : onPurchase}
           disabled={disabled}
-          className="flex min-h-10 w-full min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 text-center uppercase transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-55 disabled:active:scale-100"
+          className="flex min-h-10 w-full min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 text-center transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-55 disabled:active:scale-100"
           style={{
             background: disabled ? 'rgba(148,163,184,0.70)' : 'linear-gradient(180deg, #FFD95A 0%, #FFB026 100%)',
             color: '#111111',
@@ -417,7 +412,7 @@ function MarketProductCard({
             fontSize: 'clamp(0.95rem, 3.5vw, 1.15rem)',
             letterSpacing: 0,
           }}
-          aria-label={`${product.title} satın al`}
+          aria-label={`${product.title} ${buttonLabel}`}
         >
           {pending && <Loader2 className="h-4 w-4 animate-spin" />}
           <span className="truncate">{buttonLabel}</span>

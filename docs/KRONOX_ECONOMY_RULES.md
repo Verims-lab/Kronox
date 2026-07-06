@@ -690,9 +690,10 @@ Purchase rules:
   approved joker grant source, while Mağaza Diamond-spend purchases are Diamond
   sinks
 * Mağaza purchase is a Diamond sink
-* real-money Diamond packages must not grant Diamonds unless a real approved
-  IAP/payment success path exists; current no-IAP behavior is safe unavailable
-  copy: `Satın alma yakında aktif olacak.`
+* real-money Diamond packages, KronoClub, Reklamları Kaldır, and any future
+  TL/IAP product must render as disabled `Yakında` buttons unless a real
+  approved IAP/payment success path exists; current no-IAP behavior must not
+  attach a purchase handler or grant Diamonds/benefits
 * `purchaseJokerWithDiamonds` owns the trusted Store product and price table
 * purchase validation is server-authoritative; Client is not trusted for price
   and client-provided price/cost is ignored

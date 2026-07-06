@@ -177,14 +177,15 @@ KronoClub / Reklamları Kaldır sections. Real-money Diamond packages are displa
 only until an approved IAP/payment success path exists: 360 ELMAS — ₺79,99,
 1.100 ELMAS — ₺199,99 with EN POPÜLER, 2.400 ELMAS — ₺349,99, 6.200 ELMAS —
 ₺799,99, and 13.000 ELMAS — ₺1.499,99 with EN İYİ DEĞER. Current no-IAP
-behavior is safe unavailable copy: Satın alma yakında aktif olacak.
+behavior renders disabled Yakında buttons with no purchase handler and no
+Diamond/benefit grant.
 Diamond-spend Joker packages are Kronokalkan 1/5/15 = 60/270/720 Diamonds,
 Zamanı Dondur 1/5/15 = 40/180/480 Diamonds, and Kart Değiştir 1/5/15 =
 50/225/600 Diamonds. Hint packages are 5/15/40 İpucu = 40/100/240 Diamonds.
 Advantage Packages are Başlangıç Paketi = 2 Kronokalkan + 2 Kart Değiştir + 2
 Zamanı Dondur + 10 İpucu for 250 Diamonds and Mega Paket = 10 Kronokalkan + 10
 Kart Değiştir + 10 Zamanı Dondur + 30 İpucu for 1.000 Diamonds. KronoClub and
-Reklamları Kaldır are future/disabled and grant no benefits.
+Reklamları Kaldır are future/disabled Yakında buttons and grant no benefits.
 Diamond source/sink balance: Daily Wheel V2 can be a Diamond source and/or
 approved joker grant source, while Mağaza purchase is a Diamond sink —
 Mağaza Diamond-spend purchases only remove Diamonds server-side.

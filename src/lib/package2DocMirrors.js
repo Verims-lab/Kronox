@@ -146,8 +146,9 @@ real-money Diamond packages (360 ELMAS — ₺79,99; 1.100 ELMAS — ₺199,99 w
 POPÜLER; 2.400 ELMAS — ₺349,99; 6.200 ELMAS — ₺799,99; 13.000 ELMAS —
 ₺1.499,99 with EN İYİ DEĞER), Diamond-spend Joker packages, Diamond-spend Hint
 packages, Diamond-spend Advantage packages, and future KronoClub / Reklamları
-Kaldır sections. Real-money packages show safe unavailable behavior and do not
-grant Diamonds until approved IAP/payment verification exists. The Home middle
+Kaldır sections. Real-money/TL packages, KronoClub, and Reklamları Kaldır show
+disabled Yakında buttons and do not grant Diamonds or benefits until approved
+IAP/payment verification exists. The Home middle
 section keeps left GÜNLÜK,
 centered transparent hourglass, and right Çark balanced, with a content-free
 mini wheel visual for the Çark shortcut, centered shortcut popups, and CTA

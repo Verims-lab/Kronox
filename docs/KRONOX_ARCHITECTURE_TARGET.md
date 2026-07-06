@@ -241,12 +241,14 @@ Parity plan:
   Advantage packages, and future KronoClub / Reklamları Kaldır sections. It may
   be cached/prefetched for fast open, but purchase remains
   server-authoritative: the client is never trusted for price, cost, user
-  identity, reward, or target account. Real-money packages must not grant
-  Diamonds without approved IAP/payment verification. `Satın Al` readiness
-  should depend only on auth/user, item data, sufficient Diamonds, item
-  availability, and purchase in-flight state; slow non-critical inventory count
-  refresh or starter self-heal must not silently disable an otherwise valid
-  purchase button.
+  identity, reward, or target account. Real-money/TL packages, KronoClub, and
+  Reklamları Kaldır must stay visible but disabled with exact `Yakında` button
+  copy and must not grant Diamonds/benefits without approved IAP/payment
+  verification. Diamond-spend `Satın Al` readiness should depend only on
+  auth/user, item data, sufficient Diamonds, item availability, and purchase
+  in-flight state; slow non-critical inventory count refresh or starter
+  self-heal must not silently disable an otherwise valid Diamond purchase
+  button.
 - Unified Kronox Puan is the only player-facing score source. Solo contributes
   its best-score component; Online contributes `User.online_progress.score`.
   Online winner scoring is exactly `+15`, loser scoring is exactly `-6` before
