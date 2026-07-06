@@ -314,8 +314,10 @@ response. Question analytics reset coverage requires the Admin card to list
 report names, actual source tables, Joker/rhythm sub-reports, and protected
 non-reset data instead of a dense paragraph. Home CTA coverage requires OYNA /
 dynamic Seviye X from canonical Solo progress, direct-start to the resolved
-Solo level, equal dimensions with ONLINE KAPIŞMA, and Online remaining
-Home-owned. Two-account, realtime, push,
+Solo level, equal dimensions with ONLINE KAPIŞ, Online remaining Home-owned,
+and the Home Çark shortcut using a content-free mini wheel visual. Notification
+typography coverage requires Barlow Condensed bold italic titles and Inter
+body/empty/error text without changing notification lifecycle behavior. Two-account, realtime, push,
 RLS/BOLA, keyboard/screen-reader,
 device, and store proof remain manual/live probes.
 The Online lobby/start/reconnect contract remains an architecture target and
@@ -755,10 +757,12 @@ notifications right. Mağaza title is Mağaza and prices are Zaman Dondur 40,
 Kart Değiştir 50, Kronokalkan 60.
 Home uses a larger centered transparent local Kronox logo, a larger centered
 transparent hourglass visual balanced between left Görevler and right Çark,
-compact shortcuts with ready badges, centered Görevler/Çark popups, and large
-OYNA / dynamic Seviye X and ONLINE KAPIŞMA CTAs whose stack position balances
-the hourglass-to-Solo gap with the Online-to-BottomNav gap; the expanded Günlük
-Ödüller panel is not rendered on first Home paint. The Home primary Solo CTA
+compact shortcuts with ready badges, centered Görevler/Çark popups, a content-free
+mini wheel icon for Çark, and large OYNA / dynamic Seviye X and ONLINE KAPIŞ
+CTAs whose stack position balances the hourglass-to-Solo gap with the Online-to-BottomNav gap; the expanded Günlük
+Ödüller panel is not rendered on first Home paint. The Home notification panel
+uses Barlow Condensed bold italic title typography and Inter body/empty/error
+typography. The Home primary Solo CTA
 reads Seviye X from the canonical Solo progress helper and direct-starts that
 resolved level; the secondary Online CTA remains Home-owned and has the same
 dimensions as the primary CTA.

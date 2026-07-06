@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ScrollText, TimerReset, X } from 'lucide-react';
+import { ScrollText, X } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
 import { useAuth } from '@/lib/AuthContext';
@@ -267,7 +267,7 @@ export default function MainMenu() {
             >
               <HomeShortcut
                 label="Çark"
-                icon={TimerReset}
+                icon={HomeMiniDailyWheelIcon}
                 tone="gold"
                 ready={Boolean(rewardsPlayer && wheelReady)}
                 onClick={() => handleShortcut('wheel')}
@@ -289,9 +289,9 @@ export default function MainMenu() {
             />
             <HomeCTA
               variant="online"
-              label="ONLINE KAPIŞMA"
+              label="ONLINE KAPIŞ"
               onClick={handleOnline}
-              ariaLabel="Online Kapışma"
+              ariaLabel="Online Kapış"
             />
           </div>
         </div>
@@ -369,6 +369,45 @@ function HomeShortcut({ label, icon: Icon, tone, ready = false, onClick }) {
         {label}
       </span>
     </button>
+  );
+}
+
+function HomeMiniDailyWheelIcon(props) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      role="img"
+      aria-hidden="true"
+      focusable="false"
+      data-kronox-home-mini-wheel-icon="true"
+      {...props}
+    >
+      <defs>
+        <clipPath id="home-mini-wheel-clip">
+          <circle cx="12" cy="12" r="7.2" />
+        </clipPath>
+      </defs>
+      <g clipPath="url(#home-mini-wheel-clip)">
+        <path d="M12 12 L12 4.8 A7.2 7.2 0 0 1 17.1 6.9 Z" fill="#1fb6ff" />
+        <path d="M12 12 L17.1 6.9 A7.2 7.2 0 0 1 19.2 12 Z" fill="#f97316" />
+        <path d="M12 12 L19.2 12 A7.2 7.2 0 0 1 17.1 17.1 Z" fill="#facc15" />
+        <path d="M12 12 L17.1 17.1 A7.2 7.2 0 0 1 12 19.2 Z" fill="#dc2626" />
+        <path d="M12 12 L12 19.2 A7.2 7.2 0 0 1 6.9 17.1 Z" fill="#8b5cf6" />
+        <path d="M12 12 L6.9 17.1 A7.2 7.2 0 0 1 4.8 12 Z" fill="#16a34a" />
+        <path d="M12 12 L4.8 12 A7.2 7.2 0 0 1 6.9 6.9 Z" fill="#0ea5e9" />
+        <path d="M12 12 L6.9 6.9 A7.2 7.2 0 0 1 12 4.8 Z" fill="#7c3aed" />
+      </g>
+      <circle cx="12" cy="12" r="7.55" fill="none" stroke="#FFC928" strokeWidth="1.65" />
+      <circle cx="12" cy="12" r="5.15" fill="none" stroke="rgba(7,21,47,0.62)" strokeWidth="0.65" />
+      <circle cx="12" cy="12" r="2.15" fill="url(#home-mini-wheel-hub)" stroke="#FFE77A" strokeWidth="0.75" />
+      <path d="M12 2.9 L14.25 6.55 H9.75 Z" fill="#FFE77A" stroke="#8A5C00" strokeWidth="0.55" />
+      <defs>
+        <radialGradient id="home-mini-wheel-hub" cx="35%" cy="28%" r="70%">
+          <stop offset="0" stopColor="#FFF3A3" />
+          <stop offset="1" stopColor="#D79508" />
+        </radialGradient>
+      </defs>
+    </svg>
   );
 }
 

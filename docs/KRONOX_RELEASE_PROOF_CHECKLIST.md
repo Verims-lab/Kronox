@@ -504,9 +504,13 @@ Checklist:
 * Home shows the larger centered transparent Kronox logo, larger centered local
   hourglass visual with no visible wrapper/background block, compact `Görevler`
   / `Çark` shortcuts with ready badges, centered shortcut popups, and large
-  `OYNA` / dynamic `Seviye X` and `ONLINE KAPIŞMA` CTAs with equal dimensions
-  balanced above BottomNav. The Solo CTA direct-starts the resolved current/next
-  Solo level; Online remains Home CTA-owned.
+  `OYNA` / dynamic `Seviye X` and `ONLINE KAPIŞ` CTAs with equal dimensions
+  balanced above BottomNav. The `Çark` shortcut uses a simplified mini wheel
+  visual with no reward icons, numbers, or Diamond symbols inside the slices.
+  The Home notification panel uses Barlow Condensed bold italic title
+  typography and Inter body/empty/error typography.
+  The Solo CTA direct-starts the resolved current/next Solo level; Online
+  remains Home CTA-owned.
 * Mağaza Phase 1 sells only three Solo jokers:
   `Zaman Dondur = 40` Diamonds, `Kart Değiştir = 50` Diamonds,
   `Kronokalkan = 60` Diamonds.

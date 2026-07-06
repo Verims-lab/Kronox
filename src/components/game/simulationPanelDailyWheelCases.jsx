@@ -98,7 +98,30 @@ export const EXTRA_TESTS = [
         'primaryLabel="OYNA"',
         '`Seviye ${homeSoloLevelNumber}`',
         'buildSoloGameConfigForLevel',
-        'label="ONLINE KAPIŞMA"',
+        'label="ONLINE KAPIŞ"',
+      ]);
+      const miniWheelStart = src.indexOf('function HomeMiniDailyWheelIcon');
+      const miniWheelEnd = src.indexOf('function HomeTimeArtifact');
+      const miniWheelSource = miniWheelStart >= 0 && miniWheelEnd > miniWheelStart
+        ? src.slice(miniWheelStart, miniWheelEnd)
+        : '';
+      const miniWheelMissing = missingTokens(miniWheelSource, [
+        'data-kronox-home-mini-wheel-icon',
+        '<svg',
+        '<clipPath',
+        '<path',
+        '#FFC928',
+        'radialGradient',
+      ]);
+      const miniWheelForbidden = forbiddenTokens(miniWheelSource, [
+        '<text',
+        'Gem',
+        'diamond',
+        'reward',
+        '20',
+        '60',
+        '100',
+        '250',
       ]);
       const forbidden = forbiddenTokens(src, [
         '<DailyRewardsPanel',
@@ -107,15 +130,16 @@ export const EXTRA_TESTS = [
         'onLogin={handleLogin}',
         'function handleLogin',
         'const handleLogin',
+        'icon={TimerReset}',
       ]);
-      if (missing.length || forbidden.length || shortcutIndex < 0 || soloIndex < 0 || shortcutIndex > soloIndex) {
+      if (missing.length || miniWheelMissing.length || miniWheelForbidden.length || forbidden.length || shortcutIndex < 0 || soloIndex < 0 || shortcutIndex > soloIndex) {
         return fail('Home does not place compact reward shortcuts before the Solo CTA while avoiding expanded reward panels and login prompts on first render.', {
           verification: 'STATIC_CONTRACT',
           file: 'src/pages/MainMenu.jsx',
-          actual: { missing, forbidden, shortcutIndex, soloIndex },
+          actual: { missing, miniWheelMissing, miniWheelForbidden, forbidden, shortcutIndex, soloIndex },
         });
       }
-      return pass('Compact Görevler/Çark shortcuts sit above Solo CTA, open existing reward flows in a centered modal, and keep first-render Home free of expanded reward panels.', { verification: 'STATIC_CONTRACT' });
+      return pass('Compact Görevler/Çark shortcuts sit above Solo CTA, Çark uses a content-free mini wheel icon, and existing centered reward flows remain attached.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('daily_wheel_icon_polished_not_asset_dependent',

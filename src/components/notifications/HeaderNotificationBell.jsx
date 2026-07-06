@@ -28,6 +28,12 @@ import {
 import { getSafeNotificationActorName } from '@/lib/notificationIdentity';
 import { sounds } from '@/lib/gameSounds';
 
+const NOTIFICATION_TITLE_STYLE = {
+  fontFamily: '"Barlow Condensed", sans-serif',
+  fontWeight: 700,
+  fontStyle: 'italic',
+};
+
 export default function HeaderNotificationBell({ user, variant = 'default' }) {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef(null);
@@ -155,7 +161,11 @@ export default function HeaderNotificationBell({ user, variant = 'default' }) {
             }}
           >
             <div className="flex items-center justify-between px-3 py-2 border-b border-white/10">
-              <p className="font-cinzel text-[12px] font-black tracking-[0.18em] text-amber-200">
+              <p
+                data-kronox-notification-title="true"
+                className="text-[12px] uppercase tracking-[0.18em] text-amber-200"
+                style={NOTIFICATION_TITLE_STYLE}
+              >
                 BİLDİRİMLER
               </p>
               <button
@@ -170,12 +180,15 @@ export default function HeaderNotificationBell({ user, variant = 'default' }) {
 
             <div className="max-h-[60vh] overflow-y-auto">
               {error && (
-                <div className="px-3 py-2 text-[12px] text-rose-200">
+                <div
+                  data-kronox-notification-body="true"
+                  className="px-3 py-2 font-inter text-[12px] text-rose-200"
+                >
                   {error}
                   <button
                     type="button"
                     onClick={refresh}
-                    className="ml-2 underline text-rose-100"
+                    className="ml-2 font-inter underline text-rose-100"
                   >
                     Tekrar dene
                   </button>
@@ -205,7 +218,10 @@ export default function HeaderNotificationBell({ user, variant = 'default' }) {
               </Section>
 
               {!loading && totalCount === 0 && !error && (
-                <p className="px-3 py-6 text-center font-inter text-[12px] text-blue-100/65">
+                <p
+                  data-kronox-notification-body="true"
+                  className="px-3 py-6 text-center font-inter text-[12px] text-blue-100/65"
+                >
                   Yeni bildirimin yok.
                 </p>
               )}

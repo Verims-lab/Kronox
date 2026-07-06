@@ -13,6 +13,12 @@ import { sounds } from '@/lib/gameSounds';
 import InviteCountdown from '@/components/invites/InviteCountdown';
 import KronoxAvatar from '@/components/profile/KronoxAvatar';
 
+const NOTIFICATION_SURFACE_TITLE_STYLE = {
+  fontFamily: '"Barlow Condensed", sans-serif',
+  fontWeight: 700,
+  fontStyle: 'italic',
+};
+
 /**
  * "Oyun Davetleri" — pending GameInvite rows addressed to the current user.
  * Reads from the shared notification center. Header, in-app toast, and this
@@ -79,7 +85,11 @@ export default function IncomingInvitesPanel({ user, variant = 'fantasy' }) {
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-2">
           <Mailbox className="h-3.5 w-3.5 text-amber-200/80" />
-          <p className="font-inter text-[10px] font-black uppercase tracking-[0.18em] text-blue-100/70">
+          <p
+            data-kronox-notification-title="true"
+            className="text-[10px] uppercase tracking-[0.18em] text-blue-100/70"
+            style={NOTIFICATION_SURFACE_TITLE_STYLE}
+          >
             Oyun Davetleri
           </p>
         </div>
@@ -99,7 +109,7 @@ export default function IncomingInvitesPanel({ user, variant = 'fantasy' }) {
           style={{ background: 'rgba(244,63,94,0.10)', boxShadow: 'inset 0 0 0 1px rgba(244,63,94,0.35)' }}
         >
           <AlertCircle className="h-4 w-4 text-rose-300 flex-shrink-0 mt-0.5" />
-          <p className="font-inter text-xs text-rose-100/90">{error}</p>
+          <p data-kronox-notification-body="true" className="font-inter text-xs text-rose-100/90">{error}</p>
         </div>
       )}
 

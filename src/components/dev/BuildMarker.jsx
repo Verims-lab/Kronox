@@ -1,5 +1,17 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex550 — Home CTA copy, Çark shortcut mini wheel, notification typography:
+//   • Home secondary Online CTA copy now reads ONLINE KAPIŞ while preserving
+//     the existing Home-owned Online route behavior and BottomNav ownership.
+//   • The Home Çark shortcut now uses a scoped SVG mini Daily Wheel visual
+//     with colored slices, gold ring/hub, and no reward icons, numbers, or
+//     Diamond symbols inside the wheel segments; Daily Wheel popup/reward
+//     logic is unchanged.
+//   • Header notification and invite notification surfaces now use Barlow
+//     Condensed bold italic title styling plus Inter body/error/empty text,
+//     without changing notification fetch, read/unread, accept/reject, or
+//     lifecycle behavior.
+//
 // Codex549 — Solo gameplay header back/progress layout:
 //   • Solo GameLayout now renders a source-aware back arrow in the old
 //     left-side progress slot and moves the existing progress value/bar to
@@ -315,7 +327,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex549';
+const BUILD_MARKER = 'Codex550';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
