@@ -11,6 +11,7 @@ export const DAILY_TASK_TYPES = Object.freeze({
   CONSECUTIVE_CORRECT_4: 'consecutive_correct_4',
   JOKER_USED: 'joker_used',
   TIME_FREEZE_JOKER_USED: 'time_freeze_joker_used',
+  HINT_USED: 'hint_used',
   JOKERLESS_LEVEL_COMPLETE: 'jokerless_solo_level_complete',
   PROFILE_COMPLETE: 'profile_complete',
   CORRECT_ANSWER: 'correct_answer',
@@ -94,6 +95,14 @@ const TASK_LIBRARY = Object.freeze({
     icon: 'freeze',
     requiresRegisteredUser: true,
   },
+  hint: {
+    key: 'hint',
+    title: 'İpucu kullan',
+    description: 'Solo’da 1 ipucu kullan.',
+    questType: DAILY_TASK_TYPES.HINT_USED,
+    targetValue: 1,
+    icon: 'hint',
+  },
   jokerless: {
     key: 'jokerless',
     title: 'Jokersiz seviye tamamla',
@@ -135,10 +144,10 @@ export const DAILY_TASK_TEMPLATE_CYCLE = Object.freeze([
   Object.freeze(['wheel', 'correct4', 'level1']),
   Object.freeze(['wheel', 'jokerless', 'profile']),
   Object.freeze(['wheel', 'joker1', 'level2']),
-  Object.freeze(['wheel', 'hintFallback', 'friendInvite']),
+  Object.freeze(['wheel', 'hint', 'friendInvite']),
   Object.freeze(['wheel', 'friendAdd', 'timeFreeze']),
   Object.freeze(['wheel', 'friendAdd', 'level2']),
-  Object.freeze(['wheel', 'hintFallback', 'level3']),
+  Object.freeze(['wheel', 'hint', 'level3']),
   Object.freeze(['wheel', 'joker2', 'level3']),
 ]);
 
@@ -165,10 +174,6 @@ export function resolveDailyTaskTemplates({ dateKey, profileComplete = false, pl
     if (key === 'profile' && profileComplete) {
       key = 'correct5';
       fallbackReason = 'profile_already_complete';
-    }
-    if (key === 'hintFallback') {
-      key = 'correct5';
-      fallbackReason = 'hint_gameplay_consumption_not_active';
     }
     let task = TASK_LIBRARY[key] || TASK_LIBRARY.correct5;
     if (task.requiresRegisteredUser && playerType === 'guest') {

@@ -7,9 +7,14 @@ import gameSource from '../../pages/Game.jsx?raw';
 import gameLayoutSource from './GameLayout.jsx?raw';
 import questionCardSource from './QuestionCard.jsx?raw';
 import soloJokerBarSource from './SoloJokerBar.jsx?raw';
+import soloHintButtonSource from './SoloHintButton.jsx?raw';
+import soloHintRevealPopupSource from './SoloHintRevealPopup.jsx?raw';
 import soloTimerSource from './SoloLevelTimer.jsx?raw';
 import jokerInventorySource from '../../lib/jokerInventory.js?raw';
+import hintInventorySource from '../../lib/hintInventory.js?raw';
 import spendUserJokerSource from '../../../base44/functions/spendUserJoker/entry.ts?raw';
+import ensureUserHintInventorySource from '../../../base44/functions/ensureUserHintInventory/entry.ts?raw';
+import consumeUserHintSource from '../../../base44/functions/consumeUserHint/entry.ts?raw';
 import marketPageSource from '../../pages/MarketPage.jsx?raw';
 import purchaseJokerWithDiamondsSource from '../../../base44/functions/purchaseJokerWithDiamonds/entry.ts?raw';
 import { SOLO_QUESTION_ENGINE_DOC } from '@/lib/soloQuestionEngineDoc';
@@ -84,6 +89,83 @@ export const EXTRA_TESTS = [
         missing,
       });
       return pass('SoloJokerBar renders Kronokalkan, Kart Değiştir, and Zaman Dondur.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('solo_hint_left_rail_and_jokers_right_rail',
+    'Solo Hint button renders on the left while Jokers remain on the right',
+    () => {
+      const missing = missingTokens(`${gameLayoutSource}\n${soloHintButtonSource}\n${soloJokerBarSource}`, [
+        'SoloHintButton',
+        'data-kronox-solo-hint-left-rail',
+        'data-kronox-solo-joker-right-rail',
+        'gridColumn: 1',
+        'gridColumn: 3',
+        'Hammer',
+        'İpucu',
+      ]);
+      if (missing.length) return fail('Solo Hint/Joker rail placement contract drifted.', {
+        verification: 'STATIC_CONTRACT',
+        files: ['src/components/game/GameLayout.jsx', 'src/components/game/SoloHintButton.jsx', 'src/components/game/SoloJokerBar.jsx'],
+        missing,
+      });
+      return pass('Solo Hint uses a hammer/count badge in the left gutter and existing Jokers remain in the right gutter.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('solo_hint_popup_pauses_timer_and_reveals_current_year_only',
+    'Solo Hint popup pauses timer and reveals only the active card year in 3 stages',
+    () => {
+      const missing = missingTokens(`${gameSource}\n${soloHintRevealPopupSource}\n${hintInventorySource}`, [
+        'hintPopupOpen',
+        'hintPauseOffset',
+        'activeHintPauseOffset',
+        'soloLevelTimerFrozen={isSoloLevelMode ? (isSoloTimerFrozen || hintPopupOpen) : false}',
+        'interactionPaused={Boolean(guidedTutorialPopup || hintPopupOpen)}',
+        'SoloHintRevealPopup',
+        'coverWidthForStage',
+        "stage === 2) return '34%'",
+        "stage === 1) return '66%'",
+        "if (stage >= 3) return '0%'",
+        'year={currentQuestion?.year}',
+        'SOLO_HINT_REVEAL_STAGE_COUNT = 3',
+      ]);
+      if (missing.length) return fail('Solo Hint popup/timer/reveal contract is incomplete.', {
+        verification: 'STATIC_CONTRACT',
+        files: ['src/pages/Game.jsx', 'src/components/game/SoloHintRevealPopup.jsx', 'src/lib/hintInventory.js'],
+        missing,
+      });
+      return pass('Solo Hint popup pauses gameplay timing and reveals the current active year in 1/3, 2/3, and full stages.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('solo_hint_server_spend_is_separate_from_joker_use',
+    'Solo Hint spend is server-owned and does not count as Joker use',
+    () => {
+      const hintHandler = safeStr(gameSource).slice(
+        safeStr(gameSource).indexOf('const handleUseSoloHint'),
+        safeStr(gameSource).indexOf('const handleRestart'),
+      );
+      const missing = missingTokens(`${hintHandler}\n${hintInventorySource}\n${ensureUserHintInventorySource}\n${consumeUserHintSource}`, [
+        'consumeUserHint',
+        'buildSoloHintUseIdempotencyKey',
+        "eventType: 'hint_used'",
+        'HintTransaction',
+        'reason: SOLO_USE_REASON',
+        'quantity_delta: -1',
+        'operation_scope: \'solo_hint_spend\'',
+        'privateActorKeyReturned: false',
+        'noKronoxPuan: true',
+        'noLeaderboardImpact: true',
+      ]);
+      const forbidden = forbiddenTokens(hintHandler, [
+        'markSoloJokerUsedForDecision',
+        'jokerUsedRef.current = true',
+        "eventType: 'joker_used'",
+      ]);
+      if (missing.length || forbidden.length) return fail('Solo Hint spend is not clearly separate from Joker use.', {
+        verification: 'STATIC_CONTRACT',
+        files: ['src/pages/Game.jsx', 'src/lib/hintInventory.js', 'base44/functions/consumeUserHint/entry.ts'],
+        actual: { missing, forbidden },
+      });
+      return pass('Solo Hint uses its own server-side HintTransaction path and does not mark Joker usage.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('solo_joker_area_has_no_rectangular_containers',

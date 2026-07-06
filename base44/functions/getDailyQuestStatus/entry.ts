@@ -16,6 +16,7 @@ const TASK_TYPES = {
   CONSECUTIVE_CORRECT_4: 'consecutive_correct_4',
   JOKER_USED: 'joker_used',
   TIME_FREEZE_JOKER_USED: 'time_freeze_joker_used',
+  HINT_USED: 'hint_used',
   JOKERLESS_LEVEL_COMPLETE: 'jokerless_solo_level_complete',
   PROFILE_COMPLETE: 'profile_complete',
   CORRECT_ANSWER: 'correct_answer',
@@ -99,6 +100,14 @@ const TASK_LIBRARY: Record<string, any> = {
     icon: 'freeze',
     requiresRegisteredUser: true,
   },
+  hint: {
+    key: 'hint',
+    title: 'İpucu kullan',
+    description: 'Solo’da 1 ipucu kullan.',
+    questType: TASK_TYPES.HINT_USED,
+    targetValue: 1,
+    icon: 'hint',
+  },
   jokerless: {
     key: 'jokerless',
     title: 'Jokersiz seviye tamamla',
@@ -140,10 +149,10 @@ const DAILY_TASK_TEMPLATE_CYCLE = [
   ['wheel', 'correct4', 'level1'],
   ['wheel', 'jokerless', 'profile'],
   ['wheel', 'joker1', 'level2'],
-  ['wheel', 'hintFallback', 'friendInvite'],
+  ['wheel', 'hint', 'friendInvite'],
   ['wheel', 'friendAdd', 'timeFreeze'],
   ['wheel', 'friendAdd', 'level2'],
-  ['wheel', 'hintFallback', 'level3'],
+  ['wheel', 'hint', 'level3'],
   ['wheel', 'joker2', 'level3'],
 ];
 const SAFE_GUEST_FALLBACKS = ['correct5', 'level1'];
@@ -331,10 +340,6 @@ function resolveTaskTemplates(dateKey: string, player: any) {
     if (key === 'profile' && profileComplete) {
       key = 'correct5';
       fallbackReason = 'profile_already_complete';
-    }
-    if (key === 'hintFallback') {
-      key = 'correct5';
-      fallbackReason = 'hint_gameplay_consumption_not_active';
     }
     let task = TASK_LIBRARY[key] || TASK_LIBRARY.correct5;
     if (task.requiresRegisteredUser && player?.isGuest) {
@@ -615,7 +620,7 @@ Deno.serve(async (req: Request) => {
       },
       calendarDays: buildMonthGrid(monthKey, serverDate, groupedRows),
       templateCycleLength: DAILY_CALENDAR_TEMPLATE_CYCLE_LENGTH,
-      hintTasksFallbackTo: TASK_TYPES.CORRECT_ANSWER,
+      hintTasksUse: TASK_TYPES.HINT_USED,
       legacyCleanupDryRun: {
         available: true,
         functionName: 'cleanupLegacyDailyQuests',

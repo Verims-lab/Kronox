@@ -212,7 +212,7 @@ without refunding spent jokers.
 used jokers are not refunded on fail, timeout, or exit.
 
 Mağaza Store sells Solo joker packages with Diamonds, may grant Hint balances
-through Store-only Hint inventory, and shows real-money Diamond packages only
+through server-owned Hint inventory, and shows real-money Diamond packages only
 as no-grant display until approved IAP/payment verification exists. Mağaza
 purchase validates price and sufficient Diamonds server-side through
 purchaseJokerWithDiamonds, writes Diamond plus matching Joker/Hint ledgers with
@@ -224,6 +224,14 @@ Purchased jokers appear through the same persistent UserJokerInventory balances
 that Solo already reads; using them in Solo still spends through spendUserJoker,
 which is Solo-context-only, uses deploy-safe UserJokerInventory/JokerTransaction
 entity fallback, and writes JokerTransaction.reason = solo_use.
+Solo Hint / İpucu is separate from Joker: ensureUserHintInventory initializes
+exactly 3 starter Hints once for authenticated and token-proven completed
+guests, while consumeUserHint spends one Hint with HintTransaction.reason =
+solo_use, source = solo_hint, and an idempotency key. The left-card hammer
+popup pauses the effective Solo timer, reveals only the active card year in
+1/3, 2/3, and full stages, can satisfy Daily hint_used, and never counts as
+Joker use, changes scoring, grants Kronox Puan, affects leaderboard, or exposes
+the full question bank.
 
 Kronokalkan protects the next wrong valid placement from consuming a move.
 Kart Değiştir replaces the current card from the already prepared Solo deck

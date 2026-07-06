@@ -57,7 +57,7 @@ export const MARKET_SECTION_DEFINITIONS = Object.freeze([
     id: 'hints',
     title: 'İpuçları',
     eyebrow: 'Elmas ile ipucu',
-    description: 'İpucu bakiyesi sunucuda tutulur; oyun içi tüketim bu görevde açılmadı.',
+    description: 'İpucu bakiyesi sunucuda tutulur; Solo ipucu kullanımı ayrı sunucu tüketimiyle çalışır.',
   },
   {
     id: 'advantages',

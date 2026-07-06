@@ -1,11 +1,11 @@
 {
   "name": "UserHintInventory",
   "type": "object",
-  "description": "User-owned Hint / Ipucu current balance rows. One logical row should exist per user_email. Mağaza can grant hint packages and advantage-package hint portions through server-side Diamond spend validation. Gameplay hint consumption is not enabled by this schema.",
+  "description": "User-owned Hint / Ipucu current balance rows. One logical row should exist per user_email/internal actor key. Mağaza can grant hint packages and advantage-package hint portions through server-side Diamond spend validation; Solo gameplay initializes three starter Hints once and consumes Hints through backend-owned idempotent spend functions.",
   "properties": {
     "user_email": {
       "type": "string",
-      "description": "Lowercased owner email for registered users. Never use this as public identity."
+      "description": "Lowercased owner email for registered users or internal guest:<g_owner_key> actor key for completed guests. Never use this as public identity."
     },
     "quantity": {
       "type": "number",

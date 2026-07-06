@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex556 — Solo Hint mechanic:
+//   • Solo Hint / İpucu is separate from Jokers, renders as a hammer button in
+//     the left active-card gutter, and opens a paused reveal popup.
+//   • ensureUserHintInventory initializes exactly 3 starter Hints once for
+//     authenticated and token-proven completed guest players.
+//   • consumeUserHint spends one Hint server-side with HintTransaction solo_use,
+//     idempotency, and no Kronox Puan/leaderboard/Joker-use impact.
+//
 // Codex555 — Daily Calendar / Streak replacement:
 //   • Home GÜNLÜK now opens /daily with a calendar/streak screen instead of the
 //     old embedded Daily Quest card; BottomNav remains Ana Sayfa/Liderlik/Profil.
@@ -377,7 +385,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex555';
+const BUILD_MARKER = 'Codex556';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

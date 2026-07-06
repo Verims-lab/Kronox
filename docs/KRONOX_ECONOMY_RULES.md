@@ -651,6 +651,14 @@ Solo move interaction:
 * Kart Değiştir and Kronokalkan are capped by the per-attempt deck buffer; extra use beyond that buffer fails safely before any joker spend.
 * Normal Solo joker use still spends `UserJokerInventory` and writes `JokerTransaction`.
 * Guided tutorial joker demos remain tutorial-only and must not spend real inventory.
+* Solo Hint / İpucu is separate from Joker inventory: `ensureUserHintInventory`
+  initializes exactly 3 starter Hints once for authenticated and token-proven
+  completed guest players, while `consumeUserHint` spends one Hint server-side
+  with `HintTransaction.reason = solo_use`, `source = solo_hint`, and an
+  idempotency key.
+* Hint use can satisfy Daily `hint_used` after the ledger row exists, but never
+  counts as Joker use, grants Kronox Puan, affects Leaderboard, changes Solo
+  scoring, or exposes answer-year/question-bank data through backend reports.
 
 Purchase rules:
 
@@ -711,6 +719,19 @@ Joker balance read-performance contract:
   Çantası loads quickly, purchase/spend a joker, and confirm Profile/Solo counts
   refresh.
 
+Hint balance read-performance contract:
+
+* `UserHintInventory` is the current-balance source for Solo Hint / İpucu.
+* `HintTransaction` is the ledger/audit trail and must not be summed on Solo
+  open.
+* `ensureUserHintInventory` is idempotent and must preserve spent balances; it
+  must not refill a user back to 3 on every app open.
+* `consumeUserHint` uses `EconomyOperationLock`, rechecks the
+  `HintTransaction` idempotency key after the lock, decrements one Hint, and
+  returns a sanitized balance response.
+* Completed guests use token-proven internal `guest:<g_owner_key>` actor keys
+  only through backend functions; public UI/export must not expose these keys.
+
 ---
 
 # 12. Not Implemented Yet
@@ -721,7 +742,6 @@ The following are not implemented:
 * Real-money purchase fulfillment / IAP verification
 * Achievement rewards
 * Special event rewards
-* Hint gameplay consumption
 
 Daily Calendar / Streak is active; only future Daily reward sources such as
 `daily_quest_future` remain inactive until explicitly approved.
