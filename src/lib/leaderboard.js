@@ -79,6 +79,17 @@ export function getLeaderboardSnapshotCacheKey(ownerKey = '') {
   return key ? `leaderboard:${key}` : 'leaderboard:anonymous';
 }
 
+export function getPublicLeaderboardId(ownerKey = '') {
+  const text = String(ownerKey || '').trim();
+  if (!text) return '';
+  let hash = 2166136261;
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `lb_${(hash >>> 0).toString(36)}`;
+}
+
 export function getCachedSoloLeaderboardSnapshot(cacheKey, now = Date.now()) {
   const key = getLeaderboardSnapshotCacheKey(cacheKey);
   const cached = leaderboardSnapshotCache.get(key);
@@ -350,6 +361,36 @@ export function getFriendLeaderboardKeys(friendEmails = []) {
       .map(getLeaderboardOwnerKey)
       .filter(Boolean),
   );
+}
+
+function hasPublicAvatar(avatar) {
+  return Boolean(
+    (avatar?.avatar_type === 'photo' && avatar.avatar_url) ||
+    (avatar?.avatar_type === 'icon' && avatar.avatar_icon_id),
+  );
+}
+
+export function mergeLeaderboardAvatarFields(row, avatarSource) {
+  if (!row || !avatarSource) return row;
+  const avatar = pickPublicAvatarFields(avatarSource);
+  if (!hasPublicAvatar(avatar)) return row;
+  return {
+    ...row,
+    ...avatar,
+  };
+}
+
+export function getFriendLeaderboardAvatarMap(friends = []) {
+  const avatarByLeaderboardId = new Map();
+  (Array.isArray(friends) ? friends : []).forEach((friend) => {
+    const ownerKey = getLeaderboardOwnerKey(friend?.friend_email || friend?.email || friend?.user_email);
+    const leaderboardId = getPublicLeaderboardId(ownerKey);
+    const avatar = pickPublicAvatarFields(friend);
+    if (leaderboardId && hasPublicAvatar(avatar)) {
+      avatarByLeaderboardId.set(leaderboardId, avatar);
+    }
+  });
+  return avatarByLeaderboardId;
 }
 
 export function toSoloLeaderboardEntry(publicRow, friendKeySet = new Set(), currentOwnerKey = '') {

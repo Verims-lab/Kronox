@@ -177,14 +177,15 @@ KronoClub / Reklamları Kaldır sections. Real-money Diamond packages are displa
 only until an approved IAP/payment success path exists: 360 ELMAS — ₺79,99,
 1.100 ELMAS — ₺199,99 with EN POPÜLER, 2.400 ELMAS — ₺349,99, 6.200 ELMAS —
 ₺799,99, and 13.000 ELMAS — ₺1.499,99 with EN İYİ DEĞER. Current no-IAP
-behavior is safe unavailable copy: Satın alma yakında aktif olacak.
+behavior renders disabled Yakında buttons with no purchase handler and no
+Diamond/benefit grant.
 Diamond-spend Joker packages are Kronokalkan 1/5/15 = 60/270/720 Diamonds,
 Zamanı Dondur 1/5/15 = 40/180/480 Diamonds, and Kart Değiştir 1/5/15 =
 50/225/600 Diamonds. Hint packages are 5/15/40 İpucu = 40/100/240 Diamonds.
 Advantage Packages are Başlangıç Paketi = 2 Kronokalkan + 2 Kart Değiştir + 2
 Zamanı Dondur + 10 İpucu for 250 Diamonds and Mega Paket = 10 Kronokalkan + 10
 Kart Değiştir + 10 Zamanı Dondur + 30 İpucu for 1.000 Diamonds. KronoClub and
-Reklamları Kaldır are future/disabled and grant no benefits.
+Reklamları Kaldır are future/disabled Yakında buttons and grant no benefits.
 Diamond source/sink balance: Daily Wheel V2 can be a Diamond source and/or
 approved joker grant source, while Mağaza purchase is a Diamond sink —
 Mağaza Diamond-spend purchases only remove Diamonds server-side.
@@ -213,6 +214,9 @@ Hint gameplay consumption is active only for Solo Hint / İpucu: each player
 gets exactly 3 starter Hints once through ensureUserHintInventory, consumeUserHint
 spends one Hint server-side with HintTransaction.reason = solo_use and source =
 solo_hint, and double-tap/retry paths use idempotency plus EconomyOperationLock.
+The gameplay Hint launcher only opens the popup; the popup has one hammer action,
+keeps stage 0 fully covered from the first rendered frame, and reveal advances
+only after server confirmation.
 Hint use is separate from Joker use, can satisfy Daily hint_used after the
 ledger row exists, and never grants Kronox Puan or affects Leaderboard.
 Opening the Hint popup pauses the visible Solo timer; if Zaman Dondur is
@@ -221,13 +225,18 @@ frozen seconds twice.
 Joker balance read-performance contract: UserJokerInventory is the Profile/Solo current-balance source. JokerTransaction is the ledger/audit trail and must not be summed on Profile open. Profile, Solo, and Mağaza use the shared getUserJokerBalances / mutation-result cache path keyed by normalized user email. Complete inventory rows render through a fast current-balance read; missing or partial rows trigger idempotent starter/self-heal. Mağaza purchase and Solo spend must update or invalidate the shared balance cache so Profile and Solo do not show stale counts. spendUserJoker validates Solo context, uses deploy-safe UserJokerInventory/JokerTransaction entity fallback, and returns safe user-facing errors. Normal Solo joker spend uses EconomyOperationLock, rechecks the JokerTransaction idempotency key after the lock, then re-reads UserJokerInventory and refuses to decrement a zero balance. Admin/static reconciliation can compare UserJokerInventory.quantity against JokerTransaction summed deltas and latest balance_after without mutating data. Guest/no-login paths must not query user-owned joker inventory. Live performance proof remains manual: login, open Profile, confirm Joker Çantası loads quickly, purchase/spend a joker, and confirm Profile/Solo counts refresh.
 Hint balance read-performance contract: UserHintInventory is the current-balance
 source for Solo Hint / İpucu. HintTransaction is the ledger/audit trail and must
-not be summed on Solo open. ensureUserHintInventory is idempotent and must
-preserve spent balances; it must not refill a user back to 3 on every app open.
-consumeUserHint uses EconomyOperationLock, rechecks the HintTransaction
-idempotency key after the lock, decrements one Hint, and returns a sanitized
-balance response. Completed guests use token-proven internal guest:<g_owner_key>
-actor keys only through backend functions; public UI/export must not expose
-these keys.
+not be summed on Solo open or Profile open. Profile Joker Çantası displays
+Kronokalkan, Kart Değiştir, Zaman Dondur, and İpucu as four compact cards in one
+non-scrolling row; the İpucu card reads UserHintInventory.quantity through a
+display-only helper and must not initialize, consume, grant, or mutate Hint
+inventory. ensureUserHintInventory is idempotent and must preserve spent
+balances; it must not refill a user back to 3 on every app open. consumeUserHint
+uses EconomyOperationLock, rechecks the HintTransaction idempotency key after the
+lock, decrements one Hint, and returns a sanitized balance response. Hint popup
+actions are locally locked and stale-card guarded so double taps and active-card
+changes cannot double-spend or reveal before server confirmation. Completed guests
+use token-proven internal guest:<g_owner_key> actor keys only through backend
+functions; public UI/export must not expose these keys.
 
 ## Admin reset and account deletion
 Admin reset sets \`daily_wheel_last_spin_date\` to the current UTC day, clears Daily Wheel guard fields, and removes target \`DailyWheelSpin\` rows. Retained OnlineMatchResult/DiamondTransaction/DailyWheelSpin rows no longer contain the deleted user.

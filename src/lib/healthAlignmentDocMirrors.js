@@ -119,10 +119,12 @@ useFriendPresence, and src/lib/onlinePlayerSelection.js. Presence uses a 25s
 visible heartbeat, 75s server-owned TTL, runtime session ids, and token-proven
 GuestProfile support. Presence writes are current-user-bound, friend reads are
 accepted-friend-scoped, player selection returns online friends, online
-non-friends, then offline friends as username + opaque target_ref only,
-stale/missing presence displays offline, transient refresh failures preserve
-previous safe rows, and public surfaces render username-safe labels instead of
-email/provider/internal id fallbacks.
+non-friends, then offline friends as username + opaque u_/g_ target_ref only,
+completed guests can load the picker with guest_id + guest_token proof,
+non-routable guest presence rows stay visible but disabled for direct invite
+creation, stale/missing presence displays offline, transient refresh failures
+preserve previous safe rows, and public surfaces render username-safe labels
+instead of email/provider/internal id fallbacks.
 
 Friend add now uses backend-owned sendFriendRequest so email or username input
 shares one server-side path for target resolution, self/duplicate/pending
@@ -200,11 +202,13 @@ session, linked actors derive identity from auth.me, guest actors require
 GuestProfile token proof, friend lookup is restricted to accepted FriendRequest
 rows, and stale/missing presence displays offline rather than online. Explicit
 offline is session-scoped and TTL is the final safety net. Online non-friend
-discovery is fresh-presence-only. Friend, invite, lobby, notification, presence,
-and player selection surfaces render username-safe labels only; email, provider
-ID, raw guest ID, kronox_user_id, owner_key, and internal player_key values are
-never public display fallbacks. The UI stores opaque target_ref values and
-backend functions resolve recipient email privately for GameInvite creation.
+discovery is fresh-presence-only and supports token-proven guest actors in the
+picker. Friend, invite, lobby, notification, presence, and player selection
+surfaces render username-safe labels only; email, provider ID, raw guest ID,
+kronox_user_id, owner_key, and internal player_key values are never public
+display fallbacks. The UI stores opaque u_/g_ target_ref values and backend
+functions resolve recipient email privately for routable GameInvite creation;
+non-routable guest rows return safe disabled state instead of a raw 500.
 Profile avatar fields are public visual metadata only. Public rows may carry
 only sanitized avatar_type, avatar_icon_id, avatar_color_id, and avatar_url;
 username remains the public identity, and email/provider/owner/raw guest/internal
@@ -239,11 +243,13 @@ Diamond-spend Joker packages, Diamond-spend Hint packages, Diamond-spend
 Advantage packages, and future KronoClub / Reklamları Kaldır sections. It may
 be cached/prefetched for fast open, but purchase remains server-authoritative:
 the client is never trusted for price, cost, user identity, reward, or target
-account. Real-money packages must not grant Diamonds without approved
-IAP/payment verification. Satın Al readiness should depend only on auth/user,
-item data, sufficient Diamonds, item availability, and purchase in-flight state;
-slow non-critical inventory count refresh or starter self-heal must not
-silently disable an otherwise valid purchase button.
+account. Real-money/TL packages, KronoClub, and Reklamları Kaldır stay visible
+but disabled with exact Yakında button copy and must not grant Diamonds/benefits
+without approved IAP/payment verification. Diamond-spend Satın Al readiness
+should depend only on auth/user, item data, sufficient Diamonds, item
+availability, and purchase in-flight state; slow non-critical inventory count
+refresh or starter self-heal must not silently disable an otherwise valid
+Diamond purchase button.
 
 Unified Kronox Puan is the only player-facing score source. Solo contributes
 its best-score component; Online contributes User.online_progress.score. Online
@@ -327,7 +333,9 @@ The Online lobby/start/reconnect contract remains an architecture target and
 manual live-proof area even when reducer/static Health checks pass.
 Static Health coverage now exists for the strongest current UX contracts:
 Profile/Settings route ownership, BottomNav ownership, own leaderboard-row
-navigation, global avatar propagation with safe public avatar fields, public identifier privacy with no email/provider/owner/raw guest/internal identifiers, Solo/Online active question long-word
+navigation, global avatar propagation with safe public avatar fields, profile-save
+Leaderboard projection refresh, current/friend Leaderboard avatar parity overlay,
+public identifier privacy with no email/provider/owner/raw guest/internal identifiers, Solo/Online active question long-word
 fit, focused visual scope, heavy-effect manual proof gates, Timeline visual safety, and asset/readiness
 docs. Manual proof remains required for mobile route walkthrough, PWA/native
 wrapper navigation, real touch drag, failure-injection UI timing, avatar visual
@@ -537,10 +545,10 @@ Status: Active profile/onboarding contract.
 - Puan uses the shared visible Kronox Puan helper.
 - Seviye uses the same Solo progress helper as the Solo level path.
 - Elmas uses persisted User.diamonds through the shared Diamond display helper.
-- Joker Çantası uses UserJokerInventory current balances through getUserJokerBalances; JokerTransaction is ledger/audit only and is not a Profile render-time balance source.
+- Joker Çantası uses UserJokerInventory current joker balances through getUserJokerBalances and UserHintInventory.quantity for the separate İpucu card; JokerTransaction and HintTransaction are ledger/audit only and are not Profile render-time balance sources.
 - User Category preferences are Solo-only soft 70/30 weighting input when at least 3 active valid preferences exist. Empty or fewer-than-3 preferences use all active categories for Solo. Online question selection is not affected. Kategori seçimi is edited from Profile > Profil Bilgileri for authenticated users through UserCategoryPreference; Settings owns privacy/account actions instead.
 - GuestProfile public identity uses username; display_name is only a legacy/internal projection mirror and is not a public fallback identity. Email, Google ID, Apple ID, provider UID, raw guest id, kronox_user_id, internal owner_key, and internal player_key values are not public display names outside the current player's own Profile Info support row.
-- Profile avatar is public visual metadata only: avatar_type, avatar_icon_id, avatar_color_id, and https avatar_url may propagate to leaderboard, friends, Online player selection, lobby, invites, notifications, and header rows; username remains the public identity.
+- Profile avatar is public visual metadata only: avatar_type, avatar_icon_id, avatar_color_id, and https avatar_url may propagate to leaderboard, friends, Online player selection, lobby, invites, notifications, and header rows; username remains the public identity. Profile avatar saves refresh existing SoloLeaderboardEntry rows with the same safe avatar quartet, and Leaderboard hydration may overlay current-player plus accepted-friend avatars from already-safe sources without private per-row profile reads.
 - GuestProfile is app-owned; Firebase anonymous auth and Base44 anonymous auth are not used. Default username format is KronoxUser#### / KronoxUser#####.
 - Profile > Profil Bilgileri exposes username plus optional private age_group and gender for guest and authenticated users, and may show the current player's immutable kronox_user_id as read-only/copyable Kullanıcı ID. The Profile Info row actively ensures/backfills the ID for the current owner; Hazırlanıyor is loading-only and failure shows Kullanıcı ID hazırlanamadı with retry. The Profile landing routes Profil Bilgileri, Arkadaşlarım, and Ayarlar to dedicated screens; Gizlilik Politikası and Hesabı Sil live under Settings, with signed-in deletion still guarded by the in-app confirmation flow. age is a legacy/private compatibility field; current Profile edit UI collects age_group only and does not ask for exact birthdate or exact age. age, age_group, gender, and kronox_user_id are private/support fields only and must not appear in public leaderboard rows, public projections, scoring, matchmaking, Solo category weighting, or Online game selection. getSoloLeaderboard returns sanitized username plus opaque leaderboard_id and strips owner_key/display_name/email/provider ids/raw guest id/kronox_user_id/internal player_key; completed guests can open Liderlik and appear only as username.
 - Guest account linking is implemented through linkGuestAccount and belongs under Profile. It preserves guest Diamonds, Daily Wheel/Daily Calendar guard fields/history, leaderboard username identity, category preferences, progress, and inventory where applicable. Home / Ana Sayfa must not render Google, Apple, email, Hesabını bağla, or progress-protection account-link prompts. The first-launch welcome may show only Hesabım Var as a secondary route into the Profile account-connection card; it must not duplicate Apple / Google / Email buttons.
@@ -599,7 +607,7 @@ Status: Active product contract.
 - getQuestions serves an authenticated bounded server attempt candidate buffer for signed-in Solo and an explicit capped guest_gameplay_runtime minimal deck for first-time guest Solo; admin/full-bank/diagnostics still require active AdminUser owner/admin authorization. Authenticated candidate reads are bounded to 96 * 3 = 288 rows per active category/query variant before projection.
 - startLobbyGame requires authenticated host, no legacy guest, no client identity override.
 - sendFriendRequest requires authenticated user context, resolves email or username targets server-side, checks self/friend/open-pending guards under FriendRequestOperationLock, requires deletion of expired outgoing invites before resend, sets FriendRequest.expires_at at least 72 hours after creation, keeps open reverse-pending requests actionable through Gelen İstekler, ignores/expires stale reverse-pending rows, creates the FriendRequest row before SendEmail, treats email delivery failure as a soft failure that does not roll back the request, stores username-safe labels, and never returns the target email for username-based add. FriendRequestOperationLock is a function-level guard, not DB unique/index proof.
-- Online non-friend game invites use opaque target_ref values in the client. createGameInvitesForTargets resolves target refs backend-side to routable recipients, while public player-selection, lobby, invite, notification, and push payloads use username-safe labels and never expose target email, provider IDs, owner keys, raw guest IDs, or internal player keys.
+- Online non-friend game invites use opaque u_/g_ target_ref values in the client. getOnlinePlayerSelection supports authenticated users and token-proven completed guests; createGameInvitesForTargets resolves routable target refs backend-side, while non-routable guest refs return safe disabled/failure state. Public player-selection, lobby, invite, notification, and push payloads use username-safe labels and never expose target email, provider IDs, owner keys, raw guest IDs, or internal player keys.
 - DailyWheelSpin, GameInvite, and FriendRequest direct client create is not part of the secure product contract. Their RLS create rules allow only admin/service-role writes; callers must use claimDailyWheelReward, linkGuestAccount, createGameInvitesForTargets, or sendFriendRequest so the backend derives the actor, validates guest-token proof where applicable, and returns only privacy-safe response shapes.
 - Security Pass 1 pins @base44/sdk exactly at 0.8.34 and aligns Base44 Deno function imports to npm:@base44/sdk@0.8.34. Do not reintroduce frontend ^ SDK ranges, unversioned function SDK imports, or npm:@base44/sdk@0.8.25 without a documented Base44 runtime compatibility split.
 - User/admin/question markdown is not rendered as raw HTML. react-markdown is not a runtime dependency, rehype-raw is forbidden for user/content markdown, and dangerouslySetInnerHTML must not be used for user-generated, backend-provided, or markdown-provided content. Static generated CSS should use guarded text children instead of raw HTML injection.
@@ -649,12 +657,12 @@ Status: Active product contract.
 - ensureUserJokerInventory grants 3 Kronokalkan, 3 Kart Değiştir, and 3 Zaman Dondur once per authenticated user using starter_jokers:<email>:<joker_type> idempotency keys; missing or partial UserJokerInventory rows self-heal, existing balances are preserved, owner email is normalized, and duplicate/malformed rows do not crash Joker Çantası.
 - spendUserJoker spends one owned Solo joker using authenticated user context, positive-balance validation, Solo-context validation, deploy-safe UserJokerInventory/JokerTransaction entity fallback, reason solo_use, source solo, quantity_delta -1, safe user-facing errors, and an idempotency key.
 - spendUserJoker uses EconomyOperationLock, post-lock idempotency recheck, and a fresh UserJokerInventory read before decrementing; guided/tutorial joker demos remain tutorial-only and do not spend real inventory.
-- Profile shows only Joker Çantası balances; normal users must not see other users' balances or transaction ledger rows.
+- Profile Joker Çantası shows Kronokalkan, Kart Değiştir, Zaman Dondur, and İpucu as four compact cards in one non-scrolling row; normal users must not see other users' balances or transaction ledger rows.
 - Mağaza Store Diamond-spend purchases use purchaseJokerWithDiamonds; users purchase only for themselves, backend owns trusted Store product prices, sufficient Diamonds are validated server-side, and successful purchases write DiamondTransaction plus JokerTransaction and/or HintTransaction with market_purchase.
-- Solo Hint / İpucu is separate from Joker: ensureUserHintInventory initializes exactly 3 starter Hints once for authenticated and token-proven completed guests, consumeUserHint spends one Hint server-side with HintTransaction.reason = solo_use, source = solo_hint, EconomyOperationLock, and idempotency re-checks, and responses do not expose actor keys, raw guest IDs/tokens, answer years, or the full question bank. Hint use can satisfy Daily hint_used after the ledger row exists, but never counts as Joker use, grants Kronox Puan, or affects leaderboard. Opening the Hint popup pauses the visible Solo timer; if Zaman Dondur is already active, the Hint pause is overlap-aware and never subtracts the same frozen seconds twice.
+- Solo Hint / İpucu is separate from Joker: Profile reads İpucu from UserHintInventory.quantity through a display-only helper, while ensureUserHintInventory initializes exactly 3 starter Hints once for authenticated and token-proven completed guests, consumeUserHint spends one Hint server-side with HintTransaction.reason = solo_use, source = solo_hint, EconomyOperationLock, and idempotency re-checks, and responses do not expose actor keys, raw guest IDs/tokens, answer years, or the full question bank. The gameplay Hint launcher only opens the popup; the popup has one clear hammer action, keeps stage 0 fully covered from first render, closes on stale active-card changes, and reveal/count/Daily hint_used advances only after server confirmation. Hint use never counts as Joker use, grants Kronox Puan, or affects leaderboard. Opening the Hint popup pauses the visible Solo timer; if Zaman Dondur is already active, the Hint pause is overlap-aware and never subtracts the same frozen seconds twice.
 - Mağaza purchases are server-authoritative economy actions: the client is not trusted for price, cost, user identity, or target account; service-role writes stay scoped to the authenticated user.
 - Mağaza purchase idempotency keys, EconomyOperationLock, refreshed server balance reads, and post-lock ledger rechecks protect double-tap/retry/concurrent request flows; real two-device/backend race proof remains manual unless Base44 uniqueness is proven.
-- Real-money Store packages are display/unavailable unless approved IAP/payment verification exists; no fake real-money success path grants Diamonds, KronoClub, or ad-removal benefits.
+- Real-money/TL Store products, KronoClub, and Reklamları Kaldır are visible but disabled with exact Yakında button copy unless approved IAP/payment verification exists; no fake real-money success path grants Diamonds, KronoClub, or ad-removal benefits.
 - Mağaza Store does not expose cosmetics, random boxes, score/leaderboard boosts, real-money fulfillment without approved IAP/payment verification, or Online-mode joker usage.
 - Daily Quest Definition management UI is removed from Profile / Admin Ekranı; Daily Calendar runtime no longer depends on Admin-created quest definitions.
 - createDailyQuestDefinition is a Base44 callable with an inline AdminUser-backed guard for active owner/admin rows; normal users and disabled admins are rejected.
@@ -764,8 +772,9 @@ real-money Diamond packages (360 ELMAS — ₺79,99; 1.100 ELMAS — ₺199,99 w
 POPÜLER; 2.400 ELMAS — ₺349,99; 6.200 ELMAS — ₺799,99; 13.000 ELMAS —
 ₺1.499,99 with EN İYİ DEĞER), Diamond-spend Joker packages, Diamond-spend Hint
 packages, Diamond-spend Advantage packages, and future KronoClub / Reklamları
-Kaldır sections. Real-money packages show safe unavailable behavior and do not
-grant Diamonds until approved IAP/payment verification exists.
+Kaldır sections. Real-money/TL packages, KronoClub, and Reklamları Kaldır show
+disabled Yakında buttons and do not grant Diamonds or benefits until approved
+IAP/payment verification exists.
 Home uses a larger centered transparent local Kronox logo, a larger centered
 transparent hourglass visual balanced between left GÜNLÜK and right Çark,
 compact shortcuts with ready badges, centered GÜNLÜK/Çark surfaces, a content-free
@@ -789,7 +798,7 @@ DiamondTransaction, JokerTransaction, and HintTransaction. Double-tap, network
 retry, insufficient Diamonds, and two tabs/devices proof remains manual. Market
 purchase is a Diamond sink; Store purchases do not grant Kronox Puan and do not
 affect Leaderboard. Daily Wheel V2 can be a Diamond source and approved joker grant source. Profile
-Joker Çantası and Solo joker bar must show the purchased balance; Online mode
+Joker Çantası must show purchased joker balances plus the read-only İpucu balance, Solo joker bar must show purchased joker balances, and Online mode
 is unaffected and Daily Wheel V2 does not use Mağaza purchase semantics.
 
 ## Daily Calendar / Streak

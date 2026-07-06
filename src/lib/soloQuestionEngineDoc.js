@@ -196,7 +196,8 @@ successfully applied.
 
 Solo jokers are user-owned and Solo-only. Solo joker buttons read
 UserJokerInventory and show owned counts for Kronokalkan, Kart Değiştir, and
-Zaman Dondur. A player may use multiple jokers across a Solo level when they
+Zaman Dondur; Profile Joker Çantası also shows the separate İpucu balance from
+UserHintInventory.quantity. A player may use multiple jokers across a Solo level when they
 own enough balance, but only one joker may be used for the current
 question/card decision. Kart Değiştir keeps the same current-card guard for
 the replacement card. Successful Solo use writes a JokerTransaction row with
@@ -227,12 +228,14 @@ entity fallback, and writes JokerTransaction.reason = solo_use.
 Solo Hint / İpucu is separate from Joker: ensureUserHintInventory initializes
 exactly 3 starter Hints once for authenticated and token-proven completed
 guests, while consumeUserHint spends one Hint with HintTransaction.reason =
-solo_use, source = solo_hint, and an idempotency key. The left-card hammer
-popup pauses the effective Solo timer, reveals only the active card year in
-1/3, 2/3, and full stages, is overlap-aware when Zaman Dondur is active so
-the same frozen seconds are never subtracted twice, can satisfy Daily
-hint_used, and never counts as Joker use, changes scoring, grants Kronox Puan,
-affects leaderboard, or exposes the full question bank.
+solo_use, source = solo_hint, and an idempotency key. The left-card Hint
+launcher opens the popup without consuming. The popup has one hammer action,
+pauses the effective Solo timer, keeps stage 0 fully covered from first render,
+reveals only the active card year in 1/3, 2/3, and full stages after server
+confirmation, is overlap-aware when Zaman Dondur is active so the same frozen
+seconds are never subtracted twice, can satisfy Daily hint_used, and never
+counts as Joker use, changes scoring, grants Kronox Puan, affects leaderboard,
+or exposes the full question bank.
 
 Kronokalkan protects the next wrong valid placement from consuming a move.
 Kart Değiştir replaces the current card from the already prepared Solo deck

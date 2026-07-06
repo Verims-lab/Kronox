@@ -514,10 +514,10 @@ Configured function auth/public matrix:
 | `updateProfileSettings` | Guest-token or authenticated user | Guest path verifies token; auth path derives current user. |
 | `linkGuestAccount` | Authenticated user + guest-token | Auth user from `base44.auth.me()` and guest ownership from token hash. |
 | `sendFriendRequest` | Authenticated user | Current user from `base44.auth.me()`; email or username target is resolved server-side, self/open-pending/expired-outgoing guards run under `FriendRequestOperationLock`, new rows get 72-hour `expires_at`, creates `FriendRequest` only through the backend service/admin path, and username add responses return username-safe labels without target email. |
-| `updatePlayerPresence` | Authenticated user | Current user from `base44.auth.me()`; request body cannot mark another actor online; rows store anonymized owner_key_hash plus backend-private user_email for invite routing, never returned by public presence/selection responses. |
+| `updatePlayerPresence` | Guest-token or authenticated user | Auth path derives the current user from `base44.auth.me()`; guest path verifies `guest_id + guest_token` against `GuestProfile.guest_token_hash`; request body cannot mark another actor online; rows store anonymized owner_key_hash plus backend-private user_email for linked invite routing, never returned by public presence/selection responses. |
 | `getFriendPresence` | Authenticated accepted-friend lookup | Current user from `base44.auth.me()`; response is restricted to accepted FriendRequest relationships and returns username-safe presence rows plus safe avatar fields only. |
-| `getOnlinePlayerSelection` | Authenticated player selection lookup | Current user from `base44.auth.me()`; returns online friends, fresh online non-friends, and offline friends as username + opaque target_ref plus safe avatar fields only; excludes current user and unroutable rows. |
-| `createGameInvitesForTargets` | Authenticated lobby host | Current user from `base44.auth.me()` and `Lobby.host_email`; opaque target refs resolve backend-side only when accepted friend or fresh online presence; creates `GameInvite` only through the backend service/admin path; response returns invite ids for push/open operations, not recipient email. |
+| `getOnlinePlayerSelection` | Guest-token or authenticated player selection lookup | Auth path derives the current user from `base44.auth.me()`; guest path verifies `guest_id + guest_token`; returns online friends, fresh online non-friends, and offline friends as username + opaque target_ref plus safe avatar fields only. Fresh guest presence can appear without product login; non-email-routable rows are marked non-invitable for the current GameInvite path instead of crashing. |
+| `createGameInvitesForTargets` | Authenticated lobby host | Current user from `base44.auth.me()` and `Lobby.host_email`; opaque `u_`/`g_` target refs are accepted, but only backend-routable linked recipients create `GameInvite` rows. Non-routable guest refs return safe per-target failure codes; response returns invite ids for push/open operations, not recipient email. |
 | `getSoloLeaderboard` | Authenticated user or completed guest-token | Public-safe rows only; guest path verifies token and strips owner_key/raw guest_id/display_name while allowing safe avatar fields. |
 | `getAdminStatus` | Authenticated status check | Uses current authenticated email and AdminUser row; normal users receive non-admin status. |
 | `ensureUserJokerInventory` | Authenticated user | Current user from `base44.auth.me()`. |
@@ -861,15 +861,19 @@ Joker inventory is user-owned data:
   completed guests, and `consumeUserHint` spends one Hint server-side with
   `HintTransaction.reason = solo_use`, `source = solo_hint`, `EconomyOperationLock`,
   and idempotency re-checks
+* Opening the Hint popup never spends inventory; the popup has one hammer action,
+  stage 0 fully covers the answer from first render, stale-card changes close the
+  popup, and reveal advances only after server confirmation
 * Hint use never writes `JokerTransaction`, never grants Kronox Puan, never
   affects Leaderboard, and must not expose answer-year/question-bank payloads or
   internal guest actor keys in public UI/API responses
 * Mağaza Store Diamond-spend purchases use `purchaseJokerWithDiamonds`; users
   purchase only for themselves, the backend owns the trusted Store product/price
   table, and sufficient Diamonds are validated server-side
-* real-money Store products are display/unavailable unless an approved
-  IAP/payment verification path exists; no fake real-money success path may
-  grant Diamonds or benefits
+* real-money/TL Store products, KronoClub, and Reklamları Kaldır are visible but
+  disabled with exact `Yakında` button copy unless an approved IAP/payment
+  verification path exists; no fake real-money success path may grant Diamonds
+  or benefits
 * successful Mağaza purchases write `DiamondTransaction` plus matching
   `JokerTransaction` and/or `HintTransaction` grant rows with `market_purchase`;
   insufficient Diamonds must not change balances or write successful purchase
@@ -898,7 +902,8 @@ Joker inventory is user-owned data:
 * Daily Wheel remains separate from Daily Calendar definitions/cleanup
 * Daily Wheel and Daily Calendar are separate
 * normal users must not be able to arbitrarily grant themselves jokers
-* Profile shows only `Joker Çantası` balances, not ledger rows
+* Profile shows only `Joker Çantası` current balances, including separate
+  `İpucu`, not ledger rows
 * Mağaza Store may display Diamond packages, Joker packages, Hint packages,
   Advantage packages, KronoClub future, and Reklamları Kaldır future; it must
   not expose cosmetics, random boxes, score/leaderboard boosts, fake external

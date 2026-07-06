@@ -206,6 +206,21 @@ function initialFromName(value: string) {
   return text.charAt(0).toLocaleUpperCase('tr-TR') || 'K';
 }
 
+function pickPublicAvatarFields(row: any = {}) {
+  const type = String(row?.avatar_type || '').trim();
+  const iconId = String(row?.avatar_icon_id || '').trim();
+  const colorId = normalizeAvatarColorId(row?.avatar_color_id);
+  const avatarUrl = isSafeAvatarPhotoUrl(row?.avatar_url) ? String(row.avatar_url).trim() : '';
+
+  if ((type === 'photo' || !type) && avatarUrl) {
+    return { avatar_type: 'photo', avatar_icon_id: '', avatar_url: avatarUrl, avatar_color_id: colorId };
+  }
+  if ((type === 'icon' || !type) && AVATAR_ICON_IDS.has(iconId)) {
+    return { avatar_type: 'icon', avatar_icon_id: iconId, avatar_url: '', avatar_color_id: colorId };
+  }
+  return { avatar_type: '', avatar_icon_id: '', avatar_url: '', avatar_color_id: colorId };
+}
+
 async function findRows(entity: any, filter: Record<string, unknown>, sort = '-updated_at', limit = 10) {
   if (!entity?.filter) return [];
   const rows = await entity.filter(filter, sort, limit).catch(() => []);
@@ -330,15 +345,18 @@ function publicGuestProfile(row: any) {
 }
 
 
-async function refreshLeaderboardIdentity(base44: any, ownerKey: string, displayName: string) {
+async function refreshLeaderboardIdentity(base44: any, ownerKey: string, displayName: string, profile: any = {}) {
   const entity = entityStore(base44, 'SoloLeaderboardEntry');
   if (!entity?.filter || !entity?.update || !ownerKey) return false;
   const rows = await findRows(entity, { owner_key: ownerKey }, '-updated_at', 5);
   const existing = rows[0] || null;
   if (!rowId(existing)) return false;
+  const username = safePublicUsername(displayName, ownerKey);
   await entity.update(rowId(existing), {
-    display_name: displayName,
-    initial: initialFromName(displayName),
+    username,
+    display_name: username,
+    initial: initialFromName(username),
+    ...pickPublicAvatarFields(profile),
     updated_at: nowIso(),
   });
   return true;
@@ -411,15 +429,17 @@ Deno.serve(async (req: Request) => {
         ...(await ensureKronoxUserIdPatch(base44, user, 'system_profile_settings_backfill')),
         profile_settings_updated_at: timestamp,
       });
+      const publicUser = updatedUser || { ...user, ...built.patch };
       const leaderboardUpdated = await refreshLeaderboardIdentity(
         base44,
         getAuthOwnerKey(email),
         String(built.patch.display_name),
+        publicUser,
       ).catch(() => false);
       return json({
         ok: true,
         mode: 'registered',
-        user: updatedUser || { ...user, ...built.patch },
+        user: publicUser,
         leaderboardUpdated,
         contract: {
           authUserVerifiedServerSide: true,
@@ -459,15 +479,17 @@ Deno.serve(async (req: Request) => {
       ...(await ensureKronoxUserIdPatch(base44, guest, 'system_profile_settings_backfill')),
       last_seen_at: timestamp,
     });
+    const publicGuest = updatedGuest || { ...guest, ...built.patch };
     const leaderboardUpdated = await refreshLeaderboardIdentity(
       base44,
       getGuestOwnerKey(guestId),
       String(built.patch.display_name),
+      publicGuest,
     ).catch(() => false);
     return json({
       ok: true,
       mode: 'guest',
-      profile: publicGuestProfile(updatedGuest || { ...guest, ...built.patch }),
+      profile: publicGuestProfile(publicGuest),
       leaderboardUpdated,
       contract: {
         guestTokenProofRequired: true,

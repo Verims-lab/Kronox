@@ -32,7 +32,7 @@ fallback polling/refetch.
 | Online start | Confirms source has merge/retry/start/recovery markers | Does not simulate four live accounts or Base44 realtime delivery |
 | Invite accept | Confirms `verifiedLobby`/`joinedLobby` contract | Does not prove deployed function freshness |
 | Notifications | Executable merge helpers cover stale empty fetches | Does not prove push delivery or service worker behavior on real devices |
-| Online presence / player selection | Confirms PlayerPresence owner binding, GuestProfile token proof for guest heartbeat, 75s TTL/25s heartbeat/12s visible refresh, accepted-friend lookup, backend-owned player selection, username-only labels, opaque target refs, and offline fallback | Does not prove deployed function freshness, two-device heartbeat timing, or live non-friend invite delivery |
+| Online presence / player selection | Confirms PlayerPresence owner binding, GuestProfile token proof for guest heartbeat and player selection, 75s TTL/25s heartbeat/12s visible refresh, accepted-friend lookup, backend-owned player selection, username-only labels, opaque `u_`/`g_` target refs, non-routable guest row safety, safe retry copy, and offline fallback | Does not prove deployed function freshness, two-device heartbeat timing, or live non-friend invite delivery |
 | Solo records | Confirms backend context and copy | Does not prove production data has multi-user records |
 | Economy | Confirms idempotency guards, Daily Wheel V2 no-Puan weighted reward rules, Daily Calendar / Streak Diamond-only rules, and function-level economy lock/recheck guards | Does not prove DB uniqueness or two-device race safety |
 | Leaderboard privacy | Confirms sanitized public payload shape | Does not prove live RLS prevents direct entity reads |
@@ -70,9 +70,10 @@ fallback polling/refetch.
   suppression, function-level `FriendRequestOperationLock` race hardening, and
   username-safe responses.
 - Added focused Online player-selection coverage for online friend / online
-  non-friend / offline friend ordering, current-user/unroutable exclusion,
-  opaque target refs, backend-only invite recipient resolution, and no
-  client-visible recipient email.
+  non-friend / offline friend ordering, completed-guest actor proof,
+  `u_`/`g_` opaque target refs, non-routable guest row handling, backend-only
+  invite recipient resolution, safe retry copy, and no client-visible
+  recipient email/private identity fields.
 - Added Security Pass 1 coverage for exact Base44 SDK pin/alignment, no
   `react-markdown`/`rehype-raw` raw HTML markdown path, guarded chart CSS
   generation without `dangerouslySetInnerHTML`, and Base44 access-token URL
@@ -113,6 +114,11 @@ fallback polling/refetch.
 - Added global avatar propagation coverage for leaderboard, friends, Online
   player selection, lobby, invite, and header surfaces; safe public avatar
   projection; local bundled icon categories; and public avatar privacy fields.
+- Added avatar parity coverage for the previously missed drift class:
+  profile avatar saves refresh existing `SoloLeaderboardEntry` rows with the
+  safe avatar quartet, and Leaderboard hydration overlays current-player plus
+  accepted-friend custom avatars from already-safe sources without private
+  per-row profile reads.
 - Added Mağaza performance/readiness coverage so static checks require idle
   route/inventory warm-up, fast `UserJokerInventory` reads before starter
   self-heal, explicit `Satın Al` readiness, and parallel starter repair in the
@@ -146,7 +152,7 @@ fallback polling/refetch.
 | Unified Solo + Online Kronox Puan | Static/executable scoring suites confirm visible Kronox Puan includes Solo best-score plus Online progress, Online winner is exactly +15, loser is exactly -6 with checkpoint protection, Online has no speed bonus, and result popup copy shows the persisted delta/new score | Two-account live proof that winner/loser score writes, Profile, Header, and Leaderboard all refresh to the same persisted Kronox Puan |
 | Solo record congratulations | Static backend context/copy checks | Production-like multi-user record fixture or backend probe |
 | Immutable Kronox user ID | Static source checks for backend generation/backfill, link preservation, Profile Info read-only/copy display, internal dual-write fields, tombstone non-reuse, and public output stripping | Deployed two-account/guest-link proof; DB uniqueness/index proof if the platform adds first-class constraints; full production backfill audit |
-| Global profile avatar propagation | Static UI/projection checks for shared renderer usage, safe avatar quartet, bundled icon categories, leaderboard/friends/Online/lobby/invite/header propagation, and no private avatar payload fields | Manual visual proof across leaderboard, friends, player select, lobby, invites, header, uploaded photo fallback, and guest/linked profiles |
+| Global profile avatar propagation | Static UI/projection checks for shared renderer usage, safe avatar quartet, bundled icon categories, leaderboard/friends/Online/lobby/invite/header propagation, profile-save projection refresh, current/friend Leaderboard avatar overlay, and no private avatar payload fields | Manual visual proof across leaderboard, friends, player select, lobby, invites, header, uploaded photo fallback, and guest/linked profiles |
 | Mağaza open / purchase readiness | Static Market checks for idle chunk/cache warm-up, fast inventory read before starter self-heal, explicit purchase-readiness helper, and backend server-price/idempotency/lock guards | Manual low-end mobile proof for first open/reopen, sufficient/insufficient Diamond CTA state, purchase success, and double-tap/retry behavior |
 | Liderlik open / score projection performance | Static Leaderboard checks for idle chunk/snapshot warm-up, projection-only `getSoloLeaderboard` fast mode, cached rows during refetch, deferred friend enrichment, bounded repair, and materialized score reads | Manual low-end mobile proof for cold/repeat BottomNav opens, deployed Base44 latency, DB index/sort behavior, exact rank at scale, and post-score-change refresh |
 | App startup / Home first render | Static startup fast-path checks for direct Home shell import, cached GuestProfile repeat launch, post-paint AuthContext maintenance, deferred presence/invite/category modules, idle Market/Liderlik warm-up, and delayed Daily Wheel/Daily Calendar status refresh | Manual Android/WebView proof for cold/repeat app launch, splash duration, dark-loader duration, first Home paint, and deployed Base44 latency |

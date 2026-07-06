@@ -7,6 +7,7 @@ import {
   ONLINE_PLAYER_SELECTION_GROUPS,
 } from '@/lib/onlinePlayerSelection';
 import { PRESENCE_REFRESH_MS } from '@/lib/presence';
+import { getCompletedGuestCredentialsPayload } from '@/lib/guestProfile';
 import KronoxAvatar from '@/components/profile/KronoxAvatar';
 
 /**
@@ -39,6 +40,7 @@ export default function FriendSelectModal({
   open,
   onClose,
   user,
+  guestProfile = null,
   initialSelectedTargets = [],
   onConfirm,
   onGoFriends,
@@ -47,6 +49,8 @@ export default function FriendSelectModal({
   const [players, setPlayers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const guestCredentials = getCompletedGuestCredentialsPayload(guestProfile);
+  const hasPlayerContext = Boolean(user?.email || guestCredentials);
 
   useEffect(() => {
     if (open) setSelected(initialSelectedTargets);
@@ -55,7 +59,7 @@ export default function FriendSelectModal({
 
   useEffect(() => {
     if (!open) return undefined;
-    if (!user?.email) {
+    if (!hasPlayerContext) {
       setPlayers([]);
       setLoading(false);
       setError('');
@@ -67,10 +71,10 @@ export default function FriendSelectModal({
       if (showLoading) setLoading(true);
       setError('');
       try {
-        const rows = await loadOnlinePlayerSelection();
+        const rows = await loadOnlinePlayerSelection({ guestCredentials });
         if (!cancelled) setPlayers(rows || []);
       } catch (err) {
-        if (!cancelled) setError(err?.message || 'Oyuncular yüklenemedi.');
+        if (!cancelled) setError(err?.message || 'Oyuncu listesi alınamadı. Tekrar dene.');
       } finally {
         if (!cancelled && showLoading) setLoading(false);
       }
@@ -90,7 +94,7 @@ export default function FriendSelectModal({
       window.removeEventListener('focus', refreshIfVisible);
       window.removeEventListener('online', refreshIfVisible);
     };
-  }, [open, user?.email]);
+  }, [guestCredentials?.guest_id, guestCredentials?.guest_token, hasPlayerContext, open]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -220,7 +224,15 @@ export default function FriendSelectModal({
               {loading && players.length === 0 ? (
                 <FriendsSkeleton />
               ) : error && players.length === 0 ? (
-                <ErrorHint text={error} />
+                <ErrorHint text={error} onRetry={() => {
+                  sounds.tap();
+                  setLoading(true);
+                  setError('');
+                  loadOnlinePlayerSelection({ guestCredentials })
+                    .then((rows) => setPlayers(rows || []))
+                    .catch((err) => setError(err?.message || 'Oyuncu listesi alınamadı. Tekrar dene.'))
+                    .finally(() => setLoading(false));
+                }} />
               ) : players.length === 0 ? (
                 <EmptyPlayers onGoFriends={onGoFriends} onClose={onClose} />
               ) : (
@@ -292,6 +304,7 @@ function GroupedPlayerList({ players, selected, onToggle }) {
             <ul className="divide-y divide-white/5">
               {rows.map((player) => {
                 const isSelected = selected.includes(player.target_ref);
+                const selectionDisabled = player?.invite_enabled === false;
                 const capped = !isSelected && selected.length >= MAX_SELECTION;
                 return (
                   <PlayerRow
@@ -299,7 +312,10 @@ function GroupedPlayerList({ players, selected, onToggle }) {
                     player={player}
                     selected={isSelected}
                     capped={capped}
-                    onToggle={() => onToggle(player.target_ref)}
+                    disabled={selectionDisabled}
+                    onToggle={() => {
+                      if (!selectionDisabled) onToggle(player.target_ref);
+                    }}
                   />
                 );
               })}
@@ -311,17 +327,19 @@ function GroupedPlayerList({ players, selected, onToggle }) {
   );
 }
 
-function PlayerRow({ player, selected, capped, onToggle }) {
+function PlayerRow({ player, selected, capped, disabled, onToggle }) {
   const display = player?.username || player?.display_name || 'Oyuncu';
   const isOnline = Boolean(player?.online);
+  const rowDisabled = Boolean(disabled);
 
   return (
     <li>
       <button
         type="button"
         onClick={onToggle}
+        disabled={rowDisabled}
         className="w-full flex items-center gap-3 py-3 text-left"
-        style={{ opacity: capped ? 0.6 : 1 }}
+        style={{ opacity: capped || rowDisabled ? 0.6 : 1 }}
         aria-pressed={selected}
       >
         {/* Online status dot */}
@@ -342,7 +360,7 @@ function PlayerRow({ player, selected, capped, onToggle }) {
           <p className="truncate font-inter text-[14px] font-bold text-white">{display}</p>
           <div className="flex min-w-0 items-center gap-2">
             <p className="truncate font-inter text-[11px]" style={{ color: isOnline ? '#34d399' : '#f87171' }}>
-              {player?.status_label || (isOnline ? 'Çevrimiçi' : 'Çevrim dışı')}
+              {rowDisabled ? 'Kod ile katılabilir' : (player?.status_label || (isOnline ? 'Çevrimiçi' : 'Çevrim dışı'))}
             </p>
             <span className="shrink-0 rounded-full px-1.5 py-0.5 font-inter text-[9px] font-black uppercase tracking-wider text-blue-100/75"
               style={{ boxShadow: 'inset 0 0 0 1px rgba(120,170,255,0.25)' }}>
@@ -425,14 +443,29 @@ function EmptyPlayers({ onGoFriends, onClose }) {
   );
 }
 
-function ErrorHint({ text }) {
+function ErrorHint({ text, onRetry }) {
   return (
     <div
-      className="my-2 flex items-start gap-2 rounded-xl px-3 py-2"
+      className="my-2 rounded-xl px-3 py-3"
       style={{ background: 'rgba(244,63,94,0.10)', boxShadow: 'inset 0 0 0 1px rgba(244,63,94,0.35)' }}
     >
-      <AlertCircle className="h-4 w-4 text-rose-300 flex-shrink-0 mt-0.5" />
-      <p className="font-inter text-xs text-rose-100/90">{text}</p>
+      <div className="flex items-start gap-2">
+        <AlertCircle className="h-4 w-4 text-rose-300 flex-shrink-0 mt-0.5" />
+        <p className="font-inter text-xs text-rose-100/90">{text || 'Oyuncu listesi alınamadı. Tekrar dene.'}</p>
+      </div>
+      {onRetry && (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="mt-3 min-h-9 w-full rounded-xl px-3 py-2 font-inter text-[12px] font-black text-amber-950"
+          style={{
+            background: 'linear-gradient(180deg,#ffe066,#b97a06)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.45), 0 0 12px rgba(250,204,21,0.30)',
+          }}
+        >
+          Tekrar Dene
+        </button>
+      )}
     </div>
   );
 }

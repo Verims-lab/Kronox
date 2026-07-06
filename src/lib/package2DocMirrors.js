@@ -146,8 +146,9 @@ real-money Diamond packages (360 ELMAS — ₺79,99; 1.100 ELMAS — ₺199,99 w
 POPÜLER; 2.400 ELMAS — ₺349,99; 6.200 ELMAS — ₺799,99; 13.000 ELMAS —
 ₺1.499,99 with EN İYİ DEĞER), Diamond-spend Joker packages, Diamond-spend Hint
 packages, Diamond-spend Advantage packages, and future KronoClub / Reklamları
-Kaldır sections. Real-money packages show safe unavailable behavior and do not
-grant Diamonds until approved IAP/payment verification exists. The Home middle
+Kaldır sections. Real-money/TL packages, KronoClub, and Reklamları Kaldır show
+disabled Yakında buttons and do not grant Diamonds or benefits until approved
+IAP/payment verification exists. The Home middle
 section keeps left GÜNLÜK,
 centered transparent hourglass, and right Çark balanced, with a content-free
 mini wheel visual for the Çark shortcut, centered shortcut popups, and CTA
@@ -165,11 +166,14 @@ DiamondTransaction, JokerTransaction, and HintTransaction. Double-tap, network
 retry, insufficient Diamonds, and two tabs/devices proof remains manual. Market
 purchase is a Diamond sink. Mağaza purchase is a Diamond sink; Store purchases do not grant Kronox Puan and do not
 affect Leaderboard. Daily Wheel V2 can be a Diamond source and approved joker grant source. Profile
-Joker Çantası and Solo joker bar must show the purchased balance through the
-shared getUserJokerBalances path. Complete UserJokerInventory rows use a fast
+Joker Çantası shows Kronokalkan, Kart Değiştir, Zaman Dondur, and İpucu as four
+compact cards in one row. Joker cards and the Solo joker bar use the shared
+getUserJokerBalances path; the Profile İpucu card uses read-only
+UserHintInventory.quantity. Complete UserJokerInventory rows use a fast
 current-balance read, ensureUserJokerInventory runs only for missing/partial
-rows or explicit retry, Profile does not scan JokerTransaction to render
-balances, and Mağaza purchase/Solo spend update or invalidate the shared cache.
+rows or explicit retry, Profile does not scan JokerTransaction/HintTransaction
+or call Hint starter/consume mutations to render balances, and Mağaza
+purchase/Solo spend update or invalidate the shared cache.
 Online mode is unaffected and Daily Wheel V2 does not use Mağaza purchase semantics.
 `;
 

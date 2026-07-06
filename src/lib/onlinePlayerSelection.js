@@ -18,7 +18,7 @@ const GROUP_RANK = Object.freeze(Object.fromEntries(
 ));
 
 const SAFE_USERNAME_PATTERN = /^[A-Za-z0-9_]{3,24}$/;
-const TARGET_REF_PATTERN = /^u_[a-z0-9]{3,32}$/;
+const TARGET_REF_PATTERN = /^[ug]_[a-z0-9]{3,32}$/;
 
 export function normalizeInviteTargetRef(value) {
   const ref = String(value || '').trim();
@@ -82,6 +82,8 @@ export function normalizeOnlinePlayerSelectionRow(row) {
     group,
     status_label: getOnlinePlayerSelectionStatusLabel({ status: group === ONLINE_PLAYER_SELECTION_GROUPS.OFFLINE_FRIEND ? 'offline' : 'online' }),
     badge_label: getOnlinePlayerSelectionBadgeLabel(row),
+    invite_enabled: row?.invite_enabled !== false,
+    selection_disabled_reason: row?.selection_disabled_reason || '',
     last_seen_at: row?.last_seen_at || null,
     ...pickPublicAvatarFields(row),
   };
@@ -107,8 +109,19 @@ export function normalizeOnlinePlayerSelectionRows(rows) {
   return sortOnlinePlayerSelectionRows(normalized);
 }
 
-export async function loadOnlinePlayerSelection({ limit = 200 } = {}) {
-  const response = await base44.functions.invoke('getOnlinePlayerSelection', { limit });
-  const rows = Array.isArray(response?.data?.players) ? response.data.players : [];
-  return normalizeOnlinePlayerSelectionRows(rows);
+export async function loadOnlinePlayerSelection({ limit = 200, guestCredentials = null } = {}) {
+  try {
+    const response = await base44.functions.invoke('getOnlinePlayerSelection', {
+      limit,
+      ...(guestCredentials?.guest_id && guestCredentials?.guest_token ? guestCredentials : {}),
+    });
+    const data = response?.data || {};
+    if (data?.ok === false) throw new Error(data.error || 'player_selection_failed');
+    const rows = Array.isArray(data?.players) ? data.players : [];
+    return normalizeOnlinePlayerSelectionRows(rows);
+  } catch (error) {
+    const safeError = new Error('Oyuncu listesi alınamadı. Tekrar dene.');
+    safeError.code = error?.response?.status || error?.status || error?.code || 'player_selection_failed';
+    throw safeError;
+  }
 }

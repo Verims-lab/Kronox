@@ -229,6 +229,7 @@ export const EXTRA_TESTS = [
         'friend_presence_backend_is_owner_bound_and_friend_scoped',
         'friend_rows_username_only_no_email_display_fallback',
         'online_player_selection_order_and_scope',
+        'online_player_selection_guest_safe_retry_contract',
         'admin_user_report_aggregate_privacy_contract',
         'inactive_guest_username_cleanup_contract',
         'no email/provider/owner/raw guest/internal',
@@ -309,6 +310,7 @@ export const EXTRA_TESTS = [
       const required = [
         'friend_presence_backend_is_owner_bound_and_friend_scoped',
         'presence_freshness_and_refresh_contract',
+        'online_player_selection_guest_safe_retry_contract',
         'PRESENCE_ONLINE_TTL_MS = 75 * 1000',
         'PRESENCE_HEARTBEAT_MS = 25 * 1000',
         'PRESENCE_REFRESH_MS = 12 * 1000',

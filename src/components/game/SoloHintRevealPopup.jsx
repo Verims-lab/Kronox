@@ -11,6 +11,13 @@ function coverWidthForStage(stage) {
   return '100%';
 }
 
+function answerClipPathForStage(stage) {
+  if (stage >= 3) return 'inset(0 0 0 0)';
+  if (stage === 2) return 'inset(0 0 0 34%)';
+  if (stage === 1) return 'inset(0 0 0 66%)';
+  return 'inset(0 0 0 100%)';
+}
+
 function revealLabel(stage) {
   if (stage >= 3) return 'Tamamı açıldı';
   if (stage === 2) return '2/3 açıldı';
@@ -87,6 +94,7 @@ export default function SoloHintRevealPopup({
 
   const canAdvance = open && !pending && hintCount > 0 && normalizedStage < SOLO_HINT_REVEAL_STAGE_COUNT;
   const coverWidth = coverWidthForStage(normalizedStage);
+  const answerClipPath = answerClipPathForStage(normalizedStage);
   const hammerAnimate = strikeKey && !reducedMotion
     ? { rotate: [0, -24, 18, -5, 0], y: [0, -8, 5, 0, 0], scale: [1, 1.05, 0.98, 1, 1] }
     : { rotate: 0, y: 0, scale: 1 };
@@ -142,36 +150,11 @@ export default function SoloHintRevealPopup({
               <X className="h-5 w-5" strokeWidth={2.5} />
             </button>
 
-            <div className="mb-5 flex items-center justify-center">
-              <motion.div
-                className="relative flex h-[64px] w-[64px] items-center justify-center rounded-full"
-                animate={hammerAnimate}
-                transition={strikeKey && !reducedMotion ? { duration: 0.48, ease: 'easeOut' } : { duration: 0.15 }}
-                style={{
-                  background: 'radial-gradient(circle at 36% 22%, rgba(255,255,255,0.22), transparent 36%), linear-gradient(180deg, #3b2a13, #071329)',
-                  border: '1.5px solid rgba(250,204,21,0.88)',
-                  boxShadow: '0 0 18px rgba(250,204,21,0.36), inset 0 -7px 12px rgba(0,0,0,0.32)',
-                }}
-              >
-                <Hammer className="h-8 w-8 text-yellow-300" strokeWidth={2.55} />
-                <span
-                  className="kronox-number absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px]"
-                  style={{
-                    color: '#fff7d1',
-                    background: 'linear-gradient(180deg, #171923, #050816)',
-                    border: '1px solid rgba(250,204,21,0.82)',
-                    boxShadow: '0 0 10px rgba(250,204,21,0.32), 0 2px 8px rgba(0,0,0,0.45)',
-                  }}
-                >
-                  {hintCount}
-                </span>
-              </motion.div>
-            </div>
-
-            <div className="flex items-center justify-center gap-4">
+            <div className="mt-6 flex items-center justify-center gap-4">
               <motion.div
                 className="relative h-[238px] w-[180px] overflow-hidden rounded-[22px]"
                 data-kronox-solo-hint-reveal-stage={normalizedStage}
+                data-kronox-solo-hint-answer-clipped={normalizedStage === 0 ? 'true' : undefined}
                 data-kronox-solo-hint-reveal-label={revealLabel(normalizedStage)}
                 animate={cardAnimate}
                 transition={strikeKey && !reducedMotion ? { duration: 0.42, ease: 'easeOut' } : { duration: 0.15 }}
@@ -192,9 +175,10 @@ export default function SoloHintRevealPopup({
                 />
                 <div className="absolute inset-4 flex items-center justify-center">
                   <span
-                    className="kronox-number font-inter text-[58px] font-black leading-none"
+                    className="kronox-number inline-block font-inter text-[58px] font-black leading-none"
                     style={{
                       color: '#172033',
+                      clipPath: answerClipPath,
                       textShadow: '0 2px 0 rgba(255,255,255,0.18)',
                     }}
                   >
@@ -204,9 +188,11 @@ export default function SoloHintRevealPopup({
                 <motion.div
                   aria-hidden="true"
                   className="absolute inset-y-0 left-0 overflow-hidden"
+                  initial={false}
                   animate={{ width: coverWidth }}
                   transition={{ duration: reducedMotion ? 0.12 : 0.48, ease: 'easeOut' }}
                   style={{
+                    width: coverWidth,
                     background:
                       'radial-gradient(circle at 20% 18%, rgba(255,234,178,0.34), transparent 34%), linear-gradient(135deg, #b78b4b 0%, #8c6337 46%, #5f4228 100%)',
                     borderRight: normalizedStage > 0 && normalizedStage < 3 ? '2px solid rgba(61,37,20,0.50)' : 'none',
@@ -232,7 +218,7 @@ export default function SoloHintRevealPopup({
                   if (!canAdvance || !onUseHint) return;
                   onUseHint();
                 }}
-                className="flex h-[58px] w-[58px] flex-col items-center justify-center rounded-full transition-transform active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300/70"
+                className="flex min-h-[72px] w-[72px] flex-col items-center justify-center rounded-2xl px-1.5 transition-transform active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300/70"
                 style={{
                   background: canAdvance
                     ? 'radial-gradient(circle at 35% 20%, rgba(255,255,255,0.22), transparent 38%), linear-gradient(180deg, rgba(18,42,80,0.96), rgba(7,15,36,0.98))'
@@ -243,11 +229,41 @@ export default function SoloHintRevealPopup({
                     ? '0 0 14px rgba(250,204,21,0.34), inset 0 -5px 10px rgba(0,0,0,0.30)'
                     : 'inset 0 0 10px rgba(255,255,255,0.032), 0 3px 9px rgba(0,0,0,0.26)',
                   cursor: canAdvance ? 'pointer' : 'default',
+                  touchAction: 'manipulation',
+                  WebkitTapHighlightColor: 'transparent',
                 }}
                 data-kronox-solo-hint-popup-consume-button="true"
+                data-kronox-solo-hint-popup-single-hammer="true"
               >
-                <Hammer className="h-5 w-5" strokeWidth={2.6} />
-                <span className="kronox-number text-[10px] font-black">{hintCount}</span>
+                <motion.span
+                  aria-hidden="true"
+                  animate={hammerAnimate}
+                  transition={strikeKey && !reducedMotion ? { duration: 0.48, ease: 'easeOut' } : { duration: 0.15 }}
+                  className="relative flex h-9 w-9 items-center justify-center rounded-full"
+                  style={{
+                    background: canAdvance
+                      ? 'radial-gradient(circle at 36% 22%, rgba(255,255,255,0.20), transparent 36%), linear-gradient(180deg, #3b2a13, #071329)'
+                      : 'linear-gradient(180deg, rgba(51,65,85,0.72), rgba(15,23,42,0.86))',
+                    border: `1px solid ${canAdvance ? 'rgba(250,204,21,0.88)' : 'rgba(148,163,184,0.28)'}`,
+                  }}
+                >
+                  <Hammer className="h-5 w-5" strokeWidth={2.6} />
+                  <span
+                    className="kronox-number absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px]"
+                    style={{
+                      color: canAdvance ? '#fff7d1' : 'rgba(226,232,240,0.58)',
+                      background: canAdvance
+                        ? 'linear-gradient(180deg, #171923, #050816)'
+                        : 'linear-gradient(180deg, rgba(71,85,105,0.96), rgba(30,41,59,0.98))',
+                      border: `1px solid ${canAdvance ? 'rgba(250,204,21,0.82)' : 'rgba(148,163,184,0.38)'}`,
+                    }}
+                  >
+                    {hintCount}
+                  </span>
+                </motion.span>
+                <span className="mt-1 text-center font-inter text-[10px] font-black leading-tight">
+                  Kullan
+                </span>
               </button>
             </div>
 

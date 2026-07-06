@@ -677,6 +677,10 @@ Solo move interaction:
   completed guest players, while `consumeUserHint` spends one Hint server-side
   with `HintTransaction.reason = solo_use`, `source = solo_hint`, and an
   idempotency key.
+* The gameplay Hint launcher only opens the popup; it does not spend a Hint.
+  The popup must render exactly one clear hammer action, keep stage 0 fully
+  covered from the first frame, and reveal the year only after successful
+  server-confirmed consumes.
 * Hint use can satisfy Daily `hint_used` after the ledger row exists, but never
   counts as Joker use, grants Kronox Puan, affects Leaderboard, changes Solo
   scoring, or exposes answer-year/question-bank data through backend reports.
@@ -690,9 +694,10 @@ Purchase rules:
   approved joker grant source, while Mağaza Diamond-spend purchases are Diamond
   sinks
 * Mağaza purchase is a Diamond sink
-* real-money Diamond packages must not grant Diamonds unless a real approved
-  IAP/payment success path exists; current no-IAP behavior is safe unavailable
-  copy: `Satın alma yakında aktif olacak.`
+* real-money Diamond packages, KronoClub, Reklamları Kaldır, and any future
+  TL/IAP product must render as disabled `Yakında` buttons unless a real
+  approved IAP/payment success path exists; current no-IAP behavior must not
+  attach a purchase handler or grant Diamonds/benefits
 * `purchaseJokerWithDiamonds` owns the trusted Store product and price table
 * purchase validation is server-authoritative; Client is not trusted for price
   and client-provided price/cost is ignored
@@ -749,11 +754,19 @@ Hint balance read-performance contract:
 * `UserHintInventory` is the current-balance source for Solo Hint / İpucu.
 * `HintTransaction` is the ledger/audit trail and must not be summed on Solo
   open.
+* Profile `Joker Çantası` displays `İpucu` beside Kronokalkan, Kart Değiştir,
+  and Zaman Dondur as a separate inventory item in one mobile row.
+* Profile reads the `İpucu` count from `UserHintInventory.quantity` only; the
+  display path is read-only and must not initialize, consume, grant, or mutate
+  Hint inventory.
 * `ensureUserHintInventory` is idempotent and must preserve spent balances; it
   must not refill a user back to 3 on every app open.
 * `consumeUserHint` uses `EconomyOperationLock`, rechecks the
   `HintTransaction` idempotency key after the lock, decrements one Hint, and
   returns a sanitized balance response.
+* Hint popup actions are locally locked and idempotency-keyed so double taps,
+  retries, and stale active-card changes cannot double-spend or reveal before
+  server confirmation.
 * Completed guests use token-proven internal `guest:<g_owner_key>` actor keys
   only through backend functions; public UI/export must not expose these keys.
 

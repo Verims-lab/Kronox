@@ -653,7 +653,7 @@ export const EXTRA_TESTS = [
         'market_health',
         'Mağaza / Store Health Suite',
         'purchaseJokerWithDiamonds',
-        'Real-money package buttons do not grant Diamonds without approved IAP',
+        'Real-money package buttons are disabled as Yakında and do not grant Diamonds without approved IAP',
         'Diamond-spend catalog includes Joker, Hint, and Advantage packages',
         'Diamond-spend purchases are server-side, idempotent, and no-partial by design',
         'Hint inventory foundation exists and Solo gameplay Hint consumption is server-owned',

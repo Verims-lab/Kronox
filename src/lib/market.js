@@ -340,6 +340,16 @@ export function getMarketCatalogSections() {
     .filter((section) => section.products.length > 0);
 }
 
+export function isMarketRealMoneyProduct(product) {
+  return product?.priceType === MARKET_PRICE_TYPES.REAL_MONEY
+    || product?.priceType === MARKET_PRICE_TYPES.FUTURE_REAL_MONEY;
+}
+
+export function isMarketRealMoneyPurchaseDisabled(product) {
+  if (!isMarketRealMoneyProduct(product)) return false;
+  return product.priceType === MARKET_PRICE_TYPES.FUTURE_REAL_MONEY || !MARKET_REAL_MONEY_IAP_AVAILABLE;
+}
+
 export function getMarketPurchaseReadiness(options = {}) {
   const {
     product,
@@ -349,20 +359,22 @@ export function getMarketPurchaseReadiness(options = {}) {
     pending = false,
     anyPending = false,
   } = /** @type {any} */ (options || {});
+  if (!product) {
+    return { disabled: true, reason: 'missing_item_data', label: 'HAZIRLANIYOR' };
+  }
+  if (isMarketRealMoneyPurchaseDisabled(product)) {
+    return {
+      disabled: true,
+      reason: product.priceType === MARKET_PRICE_TYPES.FUTURE_REAL_MONEY ? 'future_feature' : 'real_money_unavailable',
+      label: 'Yakında',
+      purchaseBlocked: true,
+    };
+  }
   if (pending) {
     return { disabled: true, reason: 'purchase_in_flight', label: 'İŞLENİYOR' };
   }
   if (anyPending) {
     return { disabled: true, reason: 'another_purchase_in_flight', label: 'BEKLE' };
-  }
-  if (!product) {
-    return { disabled: true, reason: 'missing_item_data', label: 'HAZIRLANIYOR' };
-  }
-  if (product.priceType === MARKET_PRICE_TYPES.FUTURE_REAL_MONEY) {
-    return { disabled: true, reason: 'future_feature', label: 'YAKINDA' };
-  }
-  if (product.priceType === MARKET_PRICE_TYPES.REAL_MONEY && !MARKET_REAL_MONEY_IAP_AVAILABLE) {
-    return { disabled: false, reason: 'real_money_unavailable', label: 'SATIN AL' };
   }
   if (authLoading) {
     return { disabled: true, reason: 'auth_loading', label: 'HAZIRLANIYOR' };
@@ -415,7 +427,7 @@ function safeMarketPurchaseError(errorOrBody, fallback = 'Satın alma tamamlanam
     ? unwrapInvokeError(errorOrBody)
     : errorOrBody;
   const code = String(body?.code || '').trim();
-  if (code === 'real_money_unavailable') return 'Satın alma yakında aktif olacak.';
+  if (code === 'real_money_unavailable') return 'Yakında';
   if (code === 'future_feature') return 'Bu özellik yakında.';
   if (code === 'insufficient_diamonds') return 'Yeterli elmas yok.';
   if (code === 'invalid_product_id') return 'Ürün geçersiz.';
@@ -454,20 +466,11 @@ export async function purchaseMarketProduct(user, options = {}) {
   if (!product) {
     return { ok: false, code: 'invalid_product_id', error: 'Ürün geçersiz.', balances: emptyJokerBalances() };
   }
-  if (product.priceType === MARKET_PRICE_TYPES.REAL_MONEY && !MARKET_REAL_MONEY_IAP_AVAILABLE) {
+  if (isMarketRealMoneyPurchaseDisabled(product)) {
     return {
       ok: false,
-      code: 'real_money_unavailable',
-      error: 'Satın alma yakında aktif olacak.',
-      product,
-      balances: emptyJokerBalances(),
-    };
-  }
-  if (product.priceType === MARKET_PRICE_TYPES.FUTURE_REAL_MONEY) {
-    return {
-      ok: false,
-      code: 'future_feature',
-      error: 'Bu özellik yakında.',
+      code: product.priceType === MARKET_PRICE_TYPES.FUTURE_REAL_MONEY ? 'future_feature' : 'real_money_unavailable',
+      error: 'Yakında',
       product,
       balances: emptyJokerBalances(),
     };

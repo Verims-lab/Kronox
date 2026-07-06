@@ -88,6 +88,7 @@ import {
   ensureUserHintInventory,
   normalizeHintQuantity,
   normalizeHintRevealStage,
+  setCachedHintBalance,
 } from '@/lib/hintInventory';
 import { mergeJokerSpendMutationBalances } from '@/lib/jokerInventorySpendMerge';
 import { getOrderedSoloDeckQuestion, getSoloSeedQuestions } from '@/lib/soloDeckRuntime';
@@ -381,6 +382,7 @@ export default function Game() {
   const jokerSpendPendingRef = useRef(false);
   const hintConsumePendingRef = useRef(false);
   const hintPopupOpenRef = useRef(false);
+  const hintPopupCardKeyRef = useRef('');
   const soloJokerDecisionKeyByQuestionIdRef = useRef(new Map());
   const soloJokerUsedByDecisionKeyRef = useRef(new Map());
   const soloSkippedQuestionIdsRef = useRef(new Set());
@@ -630,7 +632,11 @@ export default function Game() {
     ensureUserHintInventory({ guestCredentials })
       .then((result) => {
         if (!active) return;
-        setHintBalance(normalizeHintQuantity(result?.hintBalance));
+        const nextHintBalance = normalizeHintQuantity(result?.hintBalance);
+        setHintBalance(nextHintBalance);
+        if (currentUser?.email) {
+          setCachedHintBalance(currentUser, nextHintBalance, { queryPath: 'ensureUserHintInventory.gameplay_result' });
+        }
         setHintError('');
       })
       .catch(() => {
@@ -1003,6 +1009,7 @@ export default function Game() {
     soloDailyQuestCorrectStreakRef.current = 0;
     hintConsumePendingRef.current = false;
     hintPopupOpenRef.current = false;
+    hintPopupCardKeyRef.current = '';
     setUsedJokerType(null);
     setGuidedTutorialJokerDemoUsedByCard({});
     setGuidedTutorialPopup(null);
@@ -1047,6 +1054,7 @@ export default function Game() {
     }
     hintPauseElapsedAtStartRef.current = null;
     hintPopupOpenRef.current = false;
+    hintPopupCardKeyRef.current = '';
     setHintPopupOpen(false);
   }, [overallSeconds, overallSecondsRef, timerFreezeUntil]);
 
@@ -1179,6 +1187,14 @@ export default function Game() {
     if (!isSoloLevelMode) return;
     setHintError('');
   }, [currentQuestion?.id, isSoloLevelMode]);
+
+  useEffect(() => {
+    if (!isSoloLevelMode || !hintPopupOpen) return;
+    const popupCardKey = hintPopupCardKeyRef.current;
+    if (!currentSoloHintCardKey || (popupCardKey && popupCardKey !== currentSoloHintCardKey)) {
+      closeSoloHintPopup();
+    }
+  }, [closeSoloHintPopup, currentSoloHintCardKey, hintPopupOpen, isSoloLevelMode]);
 
   useEffect(() => {
     if (!isSoloLevelMode || !currentQuestion?.id) {
@@ -2303,6 +2319,7 @@ export default function Game() {
     }
     setHintError('');
     hintPopupOpenRef.current = true;
+    hintPopupCardKeyRef.current = currentSoloHintCardKey;
     setHintPopupOpen(true);
   }, [
     currentQuestion?.id,
@@ -2322,6 +2339,10 @@ export default function Game() {
     if (!hintPopupOpen || hintConsumePendingRef.current) return;
     if (!isSoloLevelMode || isGuidedSoloTutorial || soloLevelResult || winner || feedback || !isMyTurn) return;
     if (!currentQuestion?.id || !currentSoloHintCardKey) return;
+    if (hintPopupCardKeyRef.current && hintPopupCardKeyRef.current !== currentSoloHintCardKey) {
+      closeSoloHintPopup();
+      return;
+    }
     const currentStage = normalizeHintRevealStage(currentSoloHintRevealStage);
     if (currentStage >= 3) return;
     if (normalizeHintQuantity(hintBalance) <= 0) {
@@ -2351,13 +2372,21 @@ export default function Game() {
         revealStage: nextStage,
       });
       if (response?.ok === false) {
-        setHintBalance(normalizeHintQuantity(response?.hintBalance ?? hintBalance));
+        const fallbackHintBalance = normalizeHintQuantity(response?.hintBalance ?? hintBalance);
+        setHintBalance(fallbackHintBalance);
+        if (currentUser?.email) {
+          setCachedHintBalance(currentUser, fallbackHintBalance, { queryPath: 'consumeUserHint.error_result' });
+        }
         setHintError(response?.error || 'İpucu kullanılamadı.');
         return;
       }
 
       const responseStage = normalizeHintRevealStage(response?.revealStage || nextStage);
-      setHintBalance(normalizeHintQuantity(response?.hintBalance));
+      const nextHintBalance = normalizeHintQuantity(response?.hintBalance);
+      setHintBalance(nextHintBalance);
+      if (currentUser?.email) {
+        setCachedHintBalance(currentUser, nextHintBalance, { queryPath: 'consumeUserHint.mutation_result' });
+      }
       setHintRevealStagesByCard((previous) => ({
         ...previous,
         [currentSoloHintCardKey]: Math.max(
@@ -2404,6 +2433,7 @@ export default function Game() {
     isGuidedSoloTutorial,
     isMyTurn,
     isSoloLevelMode,
+    closeSoloHintPopup,
     soloAttemptId,
     soloLevel?.levelNumber,
     soloLevelResult,
@@ -3262,8 +3292,7 @@ export default function Game() {
       hintInventoryLoading ||
       hintConsumePending ||
       guidedTutorialPopup ||
-      isDragging ||
-      soloJokerDragLocked
+      isDragging
     ),
     onOpen: handleOpenSoloHint,
   } : null;

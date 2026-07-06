@@ -178,8 +178,11 @@ Phase 1 foundation:
 - Online player selection goes through `getOnlinePlayerSelection` and
   `src/lib/onlinePlayerSelection.js`. The picker order is online friends,
   online non-friends, then offline friends; offline non-friends are excluded.
-  The UI stores opaque `target_ref` values only. `createGameInvitesForTargets`
-  resolves those refs backend-side to existing `GameInvite` recipients.
+  Linked actors use `auth.me`; completed guests can use the same picker with
+  `guest_id + guest_token` proof. The UI stores opaque `u_`/`g_` `target_ref`
+  values only. `createGameInvitesForTargets` resolves routable refs
+  backend-side to existing `GameInvite` recipients; non-email-routable guest
+  presence rows stay visible but disabled for direct invite creation.
   Player-selection and friend-presence UI refresh while visible, refetch on
   focus/reconnect, and preserve previous safe rows through transient failures.
 
@@ -241,12 +244,14 @@ Parity plan:
   Advantage packages, and future KronoClub / Reklamları Kaldır sections. It may
   be cached/prefetched for fast open, but purchase remains
   server-authoritative: the client is never trusted for price, cost, user
-  identity, reward, or target account. Real-money packages must not grant
-  Diamonds without approved IAP/payment verification. `Satın Al` readiness
-  should depend only on auth/user, item data, sufficient Diamonds, item
-  availability, and purchase in-flight state; slow non-critical inventory count
-  refresh or starter self-heal must not silently disable an otherwise valid
-  purchase button.
+  identity, reward, or target account. Real-money/TL packages, KronoClub, and
+  Reklamları Kaldır must stay visible but disabled with exact `Yakında` button
+  copy and must not grant Diamonds/benefits without approved IAP/payment
+  verification. Diamond-spend `Satın Al` readiness should depend only on
+  auth/user, item data, sufficient Diamonds, item availability, and purchase
+  in-flight state; slow non-critical inventory count refresh or starter
+  self-heal must not silently disable an otherwise valid Diamond purchase
+  button.
 - Unified Kronox Puan is the only player-facing score source. Solo contributes
   its best-score component; Online contributes `User.online_progress.score`.
   Online winner scoring is exactly `+15`, loser scoring is exactly `-6` before

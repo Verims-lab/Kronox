@@ -1,5 +1,40 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex569 — Online player selection guest/presence safety:
+//   • getOnlinePlayerSelection now resolves linked auth or completed
+//     GuestProfile token actors, accepts u_/g_ opaque target refs, and keeps
+//     non-routable guest presence visible without raw 500 failures.
+//   • FriendSelectModal sends guest credentials, shows safe Turkish retry UI,
+//     and disables non-routable rows instead of leaking private recipient data.
+//   • Docs/mirrors/Health guard guest-valid Online selection, safe retry copy,
+//     presence/login separation, and sanitized player-list responses.
+//
+// Codex568 — Solo Hint popup usability:
+//   • Solo Hint launcher touch target now owns pointer events and is not
+//     disabled by the joker-only post-drag guard.
+//   • Hint popup renders one clear hammer action, clips the year at stage 0
+//     from the first frame, and closes if the active card changes.
+//   • Docs/mirrors/Health protect one-hammer UI, no answer flash, server-side
+//     idempotent consume, timer pause compatibility, and Hint/Joker separation.
+//
+// Codex567 — Profile Joker Çantası Hint card:
+//   • Profile Joker Çantası now renders Kronokalkan, Kart Değiştir,
+//     Zaman Dondur, and İpucu as four compact cards in one non-scrolling row.
+//   • İpucu count reads UserHintInventory.quantity through a read-only helper;
+//     Profile does not call Hint starter/consume/grant mutation paths.
+//   • Store/Solo Hint mutations update the shared Hint balance cache, while
+//     docs/mirrors/Health guard Hint/Joker separation and no Puan/leaderboard
+//     impact.
+//
+// Codex566 — Store real-money purchase lock:
+//   • TL/IAP Diamond packages, KronoClub, and Reklamları Kaldır stay visible
+//     but render disabled Yakında buttons with no click handler and no fake
+//     Diamond/benefit grant path.
+//   • Diamond-spend Joker/Hint/Advantage products keep the existing
+//     purchaseJokerWithDiamonds backend-owned purchase path.
+//   • Health/docs/mirrors now guard exact Yakında copy, no-Puan/no-leaderboard
+//     impact, and no real-money fulfillment without approved IAP verification.
+//
 // Codex563 — GFable 5 permanent code-level logical unique guards:
 //   • Verified all cleaned unique keys keep permanent function-level guards:
 //     DailyWheelSpin reserve-first + pre/post-lock findSpin + post-create
@@ -492,6 +527,11 @@ import React, { useEffect, useState } from 'react';
 //   • Package 2 Diamond recovery Health targets backend-owned claimLoginBonuses guard/ledger repair while diamondEconomy remains invoke-only.
 //   • Solo Hint popup pause accounting is overlap-aware with Zaman Dondur so frozen seconds are not subtracted twice.
 //
+// Codex565 — Avatar parity across Leaderboard/Friends/Online:
+//   • Profile avatar saves now refresh the safe avatar quartet into existing SoloLeaderboardEntry projection rows for registered and guest owners.
+//   • Leaderboard hydration overlays current-player and deferred accepted-friend avatars from safe local payloads, fixing stale projection rows without private per-row profile reads.
+//   • Health/docs now guard the missed drift class: shared renderer alone is insufficient unless projection refresh and hydration parity are both source-connected.
+//
 // Codex502 — Health blocker fixes (KRONOX-MR0KZQBY):
 //   • App-shell presence heartbeat now calls usePresenceHeartbeat with inline nonCriticalModulesEnabled gates, so Home first render stays ahead of presence startup and Health scans the live contract.
 //   • Solo move Health now protects Kronokalkan move preservation without requiring the removed visible joker success/status overlay text.
@@ -506,7 +546,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex564';
+const BUILD_MARKER = 'Codex569';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

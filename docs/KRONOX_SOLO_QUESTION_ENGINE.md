@@ -392,7 +392,8 @@ Inventory foundation:
   `JokerTransaction.balance_after` so spent jokers are not refunded
 - duplicate, unknown, or malformed inventory rows must not crash Profile or
   Solo loading; valid known balances are still displayed
-- Profile displays balances under `Joker Çantası`
+- Profile displays Kronokalkan, Kart Değiştir, Zaman Dondur, and separate
+  `İpucu` balances under `Joker Çantası`
 - Mağaza Store sells Solo joker packages with Diamonds, may grant Hint balances
   through server-owned Hint inventory, and shows real-money Diamond packages
   only as no-grant display until approved IAP/payment verification exists.
@@ -414,10 +415,12 @@ Inventory foundation:
   initializes exactly 3 starter Hints once for authenticated and token-proven
   completed guest players, while `consumeUserHint` spends one Hint with
   `HintTransaction.reason = solo_use`, `source = solo_hint`, and an
-  idempotency key. Hint use opens a left-card hammer popup, pauses the effective
-  Solo timer, reveals only the active card year in 1/3, 2/3, and full stages,
-  can satisfy Daily `hint_used`, and does not count as Joker use, change scoring,
-  grant Kronox Puan, affect leaderboard, or expose the full question bank.
+  idempotency key. The left-card Hint launcher opens the popup and does not
+  consume. The popup has one clear hammer action, pauses the effective Solo
+  timer, keeps stage 0 fully covered from first render, reveals only the active
+  card year in 1/3, 2/3, and full stages after server confirmation, can satisfy
+  Daily `hint_used`, and does not count as Joker use, change scoring, grant
+  Kronox Puan, affect leaderboard, or expose the full question bank.
 
 ## Daily Calendar / Streak
 
@@ -454,10 +457,12 @@ Joker behavior:
 - `Kronokalkan`: activates one-time protection. The next wrong valid placement does not consume a move; correct placements do not consume the shield.
 - `Kart Değiştir`: replaces the current active card using the already prepared Solo attempt deck/reserve and does not consume a move. It must not fetch a raw client question list, rebuild the deck, or rerandomize the attempt mid-game, and the swapped-out card should not reappear later in the same attempt while unused deck cards are available. Replacement must respect visible timeline spacing and prefers a balanced reserve card that does not worsen category/subcategory/theme repetition. If no safe replacement exists, the joker is not consumed and the player sees `Bu kart şu anda değiştirilemiyor.`
 - `Zaman Dondur`: freezes the Solo level timer for 10 seconds and does not consume a move. It does not add score, add extra time, or alter timeout rules beyond pausing the elapsed timer during the freeze window.
-- `İpucu`: opens the active-card Hint popup, pauses the visible Solo timer, and
-  reveals only the active card year in 1/3, 2/3, and full stages after
-  server-confirmed Hint spends. If `Zaman Dondur` is already active, the Hint
-  pause is overlap-aware and must not subtract the same frozen seconds twice.
+- `İpucu`: opens the active-card Hint popup without consuming, pauses the
+  visible Solo timer, renders one hammer action, keeps stage 0 fully covered
+  from first render, and reveals only the active card year in 1/3, 2/3, and
+  full stages after server-confirmed Hint spends. If `Zaman Dondur` is already
+  active, the Hint pause is overlap-aware and must not subtract the same frozen
+  seconds twice.
 
 ## Backward Compatibility
 

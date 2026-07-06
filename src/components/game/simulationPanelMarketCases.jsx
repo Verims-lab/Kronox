@@ -25,6 +25,8 @@ import claimDailyWheelRewardSource from '../../../base44/functions/claimDailyWhe
 import onlineChallengeSource from '../lobby/OnlineChallengeScreen.jsx?raw';
 import lobbyGatewaySource from '../../lib/dbGateway/lobbyGateway.js?raw';
 import {
+  getMarketPurchaseReadiness,
+  isMarketRealMoneyPurchaseDisabled,
   MARKET_ADVANTAGE_PRODUCTS,
   MARKET_DIAMOND_PACKAGES,
   MARKET_FUTURE_PRODUCTS,
@@ -179,12 +181,27 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('real_money_buttons_do_not_grant_without_iap',
-    'Real-money package buttons do not grant Diamonds without approved IAP',
+    'Real-money package buttons are disabled as Yakında and do not grant Diamonds without approved IAP',
     () => {
+      const readiness = MARKET_DIAMOND_PACKAGES.map((product) => ({
+        id: product.id,
+        locked: isMarketRealMoneyPurchaseDisabled(product),
+        readiness: getMarketPurchaseReadiness({ product, diamonds: 999999 }),
+      }));
+      const allLocked = readiness.every(({ locked, readiness: state }) => (
+        locked === true
+        && state.disabled === true
+        && state.reason === 'real_money_unavailable'
+        && state.label === 'Yakında'
+        && state.purchaseBlocked === true
+      ));
       const missing = missingTokens(`${marketSource}\n${marketPageSource}`, [
         'MARKET_REAL_MONEY_IAP_AVAILABLE = false',
+        'isMarketRealMoneyPurchaseDisabled',
         "reason: 'real_money_unavailable'",
-        'Satın alma yakında aktif olacak.',
+        "label: 'Yakında'",
+        'purchaseBlocked: true',
+        'onClick={disabled ? undefined : onPurchase}',
       ]);
       const grantPathSource = `${marketPageSource}\n${economyGatewaySource}\n${purchaseJokerWithDiamondsSource}`;
       // Narrowed to real fake-grant call patterns: the shared economy gateway
@@ -199,11 +216,11 @@ export const EXTRA_TESTS = [
         'grantDiamondsOnce(',
         'purchase_future',
       ]);
-      if (missing.length || forbidden.length) return fail('Real-money catalog can fake a purchase or lacks unavailable gating.', {
+      if (!allLocked || missing.length || forbidden.length) return fail('Real-money catalog can fake a purchase or lacks disabled Yakında gating.', {
         verification: 'STATIC_CONTRACT',
-        actual: { missing, forbidden },
+        actual: { readiness, missing, forbidden },
       });
-      return pass('Real-money Diamond package buttons show unavailable feedback and never grant Diamonds in repo code.', { verification: 'STATIC_CONTRACT' });
+      return pass('Real-money Diamond package buttons are disabled with exact Yakında copy and never grant Diamonds in repo code.', { verification: 'EXECUTABLE_STATIC_CONTRACT' });
     }),
 
   makeCase('diamond_spend_catalog_contains_jokers_hints_advantages',
@@ -316,20 +333,23 @@ export const EXTRA_TESTS = [
         id: product.id,
         priceType: product.priceType,
         available: product.available,
+        locked: isMarketRealMoneyPurchaseDisabled(product),
+        readiness: getMarketPurchaseReadiness({ product, diamonds: 999999 }),
       }));
       const ok = actual.some((p) => p.id === 'krono_club_future' && p.available === false)
-        && actual.some((p) => p.id === 'remove_ads_future' && p.available === false);
+        && actual.some((p) => p.id === 'remove_ads_future' && p.available === false)
+        && actual.every((p) => p.locked === true && p.readiness?.disabled === true && p.readiness?.label === 'Yakında');
       const missing = missingTokens(`${marketSource}\n${marketPageSource}`, [
         'KronoClub',
         'REKLAMLARI KALDIR',
         "reason: 'future_feature'",
-        'YAKINDA',
+        "label: 'Yakında'",
       ]);
       if (!ok || missing.length) return fail('Future real-money sections are missing or can look active.', {
         verification: 'EXECUTABLE_STATIC_CONTRACT',
         actual: { futureProducts: actual, missing },
       });
-      return pass('KronoClub and Remove Ads are visible future sections with disabled/no-grant behavior.', { verification: 'EXECUTABLE_STATIC_CONTRACT' });
+      return pass('KronoClub and Remove Ads are visible future sections with disabled Yakında/no-grant behavior.', { verification: 'EXECUTABLE_STATIC_CONTRACT' });
     }),
 
   makeCase('store_purchases_do_not_affect_puan_or_leaderboard',
@@ -412,7 +432,8 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(`${ECONOMY_RULES_DOC}\n${RELEASE_PROOF_CHECKLIST_DOC}`, [
         '360 ELMAS',
         '13.000 ELMAS',
-        'Satın alma yakında aktif olacak',
+        'Yakında',
+        'disabled',
         'HintTransaction',
         'UserHintInventory',
         'Advantage',

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Hammer } from 'lucide-react';
 import { normalizeHintQuantity, normalizeHintRevealStage } from '@/lib/hintInventory';
@@ -12,8 +12,6 @@ export default function SoloHintButton({
   revealStage = 0,
   onOpen,
 }) {
-  if (!enabled) return null;
-
   const quantity = normalizeHintQuantity(balance);
   const stage = normalizeHintRevealStage(revealStage);
   const canReopenExistingReveal = stage > 0;
@@ -22,11 +20,22 @@ export default function SoloHintButton({
   const dimmed = isLocked;
   const accent = '#facc15';
   const glow = 'rgba(250,204,21,0.36)';
+  const lastOpenAtRef = useRef(0);
+  const triggerOpen = useCallback(() => {
+    if (!active || !onOpen) return;
+    const now = Date.now();
+    if (now - lastOpenAtRef.current < 320) return;
+    lastOpenAtRef.current = now;
+    onOpen();
+  }, [active, onOpen]);
+
+  if (!enabled) return null;
 
   return (
     <div
-      className="relative flex w-[var(--solo-joker-rail-width,64px)] shrink-0 items-center justify-center px-0 py-0"
+      className="pointer-events-auto relative z-30 flex w-[var(--solo-joker-rail-width,64px)] shrink-0 items-center justify-center px-0 py-0"
       data-kronox-solo-hint-left-rail="true"
+      data-kronox-solo-hint-touch-target="true"
       data-kronox-solo-hint-stage={stage}
     >
       <motion.button
@@ -36,18 +45,22 @@ export default function SoloHintButton({
         aria-busy={pending}
         aria-label={`İpucu, kalan ${quantity}`}
         data-kronox-solo-hint-button="true"
-        onClick={() => {
-          if (!active || !onOpen) return;
-          onOpen();
+        onPointerUp={(event) => {
+          if (event.pointerType === 'mouse') return;
+          event.preventDefault();
+          event.stopPropagation();
+          triggerOpen();
         }}
+        onClick={triggerOpen}
         whileTap={active ? { scale: 0.94 } : { scale: 1 }}
         animate={pending ? { scale: [1, 0.94, 1.04, 1] } : { scale: 1 }}
         transition={pending ? { duration: 0.34, ease: 'easeOut' } : { duration: 0.12 }}
-        className="group flex min-h-[clamp(56px,8vh,70px)] w-full flex-col items-center justify-start gap-0.5 bg-transparent px-0 py-0 font-inter transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300/70"
+        className="group relative z-10 flex min-h-[clamp(56px,8vh,70px)] min-w-[56px] w-full flex-col items-center justify-start gap-0.5 bg-transparent px-0 py-0 font-inter transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300/70"
         style={{
           color: dimmed ? 'rgba(203,213,225,0.44)' : '#f8fafc',
           cursor: active ? 'pointer' : 'default',
           opacity: dimmed ? 0.62 : 1,
+          pointerEvents: 'auto',
           touchAction: 'manipulation',
           WebkitTapHighlightColor: 'transparent',
         }}

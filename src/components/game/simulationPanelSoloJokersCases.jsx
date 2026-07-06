@@ -97,9 +97,14 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(`${gameLayoutSource}\n${soloHintButtonSource}\n${soloJokerBarSource}`, [
         'SoloHintButton',
         'data-kronox-solo-hint-left-rail',
+        'data-kronox-solo-hint-touch-target',
         'data-kronox-solo-joker-right-rail',
         'gridColumn: 1',
         'gridColumn: 3',
+        'pointer-events-auto relative z-30',
+        'min-w-[56px]',
+        'onPointerUp',
+        'lastOpenAtRef',
         'Hammer',
         'İpucu',
       ]);
@@ -125,6 +130,12 @@ export const EXTRA_TESTS = [
         'interactionPaused={Boolean(guidedTutorialPopup || hintPopupOpen)}',
         'SoloHintRevealPopup',
         'coverWidthForStage',
+        'answerClipPathForStage',
+        "return 'inset(0 0 0 100%)'",
+        'data-kronox-solo-hint-answer-clipped',
+        'clipPath: answerClipPath',
+        'initial={false}',
+        'width: coverWidth',
         "stage === 2) return '34%'",
         "stage === 1) return '66%'",
         "if (stage >= 3) return '0%'",
@@ -137,6 +148,63 @@ export const EXTRA_TESTS = [
         missing,
       });
       return pass('Solo Hint popup pauses gameplay timing and reveals the current active year in 1/3, 2/3, and full stages.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('solo_hint_popup_single_hammer_action',
+    'Solo Hint popup has one clear hammer action',
+    () => {
+      const hammerIconCount = (safeStr(soloHintRevealPopupSource).match(/<Hammer\b/g) || []).length;
+      const missing = missingTokens(soloHintRevealPopupSource, [
+        'data-kronox-solo-hint-popup-consume-button="true"',
+        'data-kronox-solo-hint-popup-single-hammer="true"',
+        'aria-label={`İpucu kullan, kalan ${hintCount}`}',
+        "Kullan",
+        'min-h-[72px]',
+        'touchAction: \'manipulation\'',
+      ]);
+      const forbidden = forbiddenTokens(soloHintRevealPopupSource, [
+        'mb-5 flex items-center justify-center',
+        'h-[64px] w-[64px]',
+        'text-yellow-300',
+      ]);
+      if (missing.length || forbidden.length || hammerIconCount !== 1) return fail('Solo Hint popup can show duplicate or unclear hammer actions.', {
+        verification: 'STATIC_CONTRACT',
+        file: 'src/components/game/SoloHintRevealPopup.jsx',
+        actual: { missing, forbidden, hammerIconCount },
+      });
+      return pass('Solo Hint popup exposes exactly one clear hammer action button with count and disabled/loading states.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('solo_hint_popup_stale_card_and_double_tap_guard',
+    'Solo Hint popup guards stale cards and double taps',
+    () => {
+      const hintHandler = safeStr(gameSource).slice(
+        safeStr(gameSource).indexOf('const handleOpenSoloHint'),
+        safeStr(gameSource).indexOf('const handleUseSoloJoker'),
+      );
+      const missing = missingTokens(`${gameSource}\n${hintHandler}\n${hintInventorySource}`, [
+        'hintPopupCardKeyRef',
+        'hintPopupCardKeyRef.current = currentSoloHintCardKey',
+        'hintPopupCardKeyRef.current = \'\'',
+        'hintPopupCardKeyRef.current !== currentSoloHintCardKey',
+        'closeSoloHintPopup();',
+        'hintConsumePendingRef.current',
+        'setHintConsumePending(true)',
+        'setHintConsumePending(false)',
+        'buildSoloHintUseIdempotencyKey',
+        'consumeUserHint',
+        'setHintRevealStagesByCard',
+        "eventType: 'hint_used'",
+      ]);
+      const forbidden = forbiddenTokens(hintHandler, [
+        'setHintBalance(normalizeHintQuantity(hintBalance) - 1)',
+      ]);
+      if (missing.length || forbidden.length) return fail('Solo Hint popup can consume against stale card state or double-spend before server confirmation.', {
+        verification: 'STATIC_CONTRACT',
+        files: ['src/pages/Game.jsx', 'src/lib/hintInventory.js'],
+        actual: { missing, forbidden },
+      });
+      return pass('Solo Hint use is card-key guarded, locally locked, idempotency-keyed, and advances reveal only after server success.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('solo_hint_server_spend_is_separate_from_joker_use',
