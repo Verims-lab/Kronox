@@ -403,10 +403,14 @@ Daily Wheel:
 * is separate from Daily Quest
 * completed guests can claim once per UTC day through token-proven GuestProfile
 * uses function-level same-day guard through `DailyWheelSpin`
+* available free spin auto-open and manual Home `Çark` tap use the full Daily
+  Wheel modal, not the old compact `Çark` / `Günlük Çark` / `Hazır!` mini card
 * after spin completion, shows the wheel, the backend-selected reward line, and
-  one disabled ad/video `ÇEVİR` repeat CTA; no fake ad reward flow is active
+  one disabled ad/video `ÇEVİR` repeat CTA with smaller `Yakında` subtext; no
+  fake ad reward flow is active
 * closing a completed reward result closes the wheel modal and returns directly
-  to Home without showing the old claimed/cooldown sheet
+  to usable Home without showing the old claimed/cooldown sheet or leaving a
+  hidden overlay over Home buttons
 * manually opening `Çark` after today's claim reopens the read-only post-win
   result screen from the stored backend reward payload, or a safe claimed
   fallback if legacy data has no payload; it never grants another reward

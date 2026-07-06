@@ -1,5 +1,16 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex554 — Daily Wheel flow stabilization:
+//   • Home ÇARK now mounts the full Daily Wheel modal controller directly for
+//     loading, available, claimed, and error states, removing the legacy compact
+//     Günlük Çark / Hazır mini-card path from the Home wheel flow.
+//   • Already-claimed Home ÇARK opens the read-only post-win result without
+//     starting a spin; result close invalidates stale effect sessions, clears
+//     timers/confetti, and unmounts the modal so no hidden overlay blocks Home.
+//   • The disabled repeat-ad CTA keeps ÇEVİR as the main label, adds smaller
+//     Yakında subtext, uses a local rewarded-video SVG icon, and still has no
+//     fake ad/reward path. Docs, mirrors, and Health cases guard the contract.
+//
 // Codex553 — Category preference startup gate:
 //   • The app-entry İlgi Alanlarını Seç prompt now waits for active Category
 //     metadata to load successfully; transient load failures fail open instead
@@ -357,7 +368,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex553';
+const BUILD_MARKER = 'Codex554';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

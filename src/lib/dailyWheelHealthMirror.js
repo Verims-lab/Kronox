@@ -99,11 +99,15 @@ SONRA does not consume spin
 ÇEVİR starts backend claim only
 spinning state stays in same premium popup/wheel shell
 no separate intermediate spinning-copy screen
+available free spin auto-opens the full Daily Wheel modal after player and wheel state resolve
+Home Çark manual tap opens the full modal when available and read-only post-win result when already claimed
+old compact Çark / Günlük Çark / Hazır card is removed from Home Daily Wheel flow
 result reveal waits for backend-selected landing animation
-post-spin result screen keeps wheel visible, shows one backend-payload reward line, and shows one disabled ad/video ÇEVİR CTA
-old result copy removed: Toplam, Toplam Elmas, Seri, repeat heading, repeat explanation, visible standalone Yakında
+post-spin result screen keeps wheel visible, shows one backend-payload reward line, and shows one disabled ad/video ÇEVİR CTA with smaller Yakında subtext
+old result copy removed: Toplam, Toplam Elmas, Seri, repeat heading, repeat explanation
 disabled ad repeat has no fake rewarded-ad grant path and cannot start a spin today
 completed reward result close returns directly to Home and does not reveal the old Çark / Günlük Çark claimed cooldown sheet
+completed reward result close cleans up audio/effects/timers/confetti and leaves no hidden overlay blocking Home
 already-claimed Home Çark manual reopen shows read-only post-win result from stored lastReward or safe Bugünkü ödül alındı fallback
 already-claimed manual reopen does not call claimDailyWheelReward, start a spin, grant a reward, or fake an ad path
 one continuous spin: fast start, decelerate only near the end, light final bounce

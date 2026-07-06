@@ -55,10 +55,11 @@ overwrite the same Diamond balance without first passing the lock and post-lock
 rechecks. DB/entity unique constraints or live parallel backend proof remain manual.
 Disabled repeat-ad spin is future rewarded-ad integration only; the post-spin
 result screen keeps the wheel visible, shows one backend-payload reward line,
-and shows one disabled ad/video ÇEVİR CTA. It cannot trigger a spin today and
-has no fake ad reward path.
+and shows one disabled, subdued ad/video ÇEVİR control with smaller Yakında
+subtext. It cannot trigger a spin today and has no fake ad reward path.
 Closing a completed reward result closes the Daily Wheel modal and returns
-directly to Home without revealing the old Çark / Günlük Çark countdown sheet.
+directly to usable Home without revealing the old Çark / Günlük Çark countdown
+sheet or leaving an invisible backdrop over Home.
 Already-claimed manual Çark opens are read-only post-win result reopens from
 the stored backend reward payload, or safe Bugünkü ödül alındı fallback when
 legacy data has no payload; they do not start a spin, grant a reward, or mark
@@ -102,9 +103,10 @@ joker_krono_kalkan + joker_zamani_dondur. A Gift Box package must not contain
 two separate Diamond rewards or the same joker twice.
 
 After the free spin is used, the result screen remains simplified: wheel
-visible, backend-selected reward line, and one disabled ad/video ÇEVİR repeat
-CTA. Future rewarded-ad integration may add up to 5 ad spins/day for 6 total
-spins with the free spin, but no fake rewarded-ad grant flow is active.
+visible, backend-selected reward line, and one disabled, subdued ad/video
+ÇEVİR repeat control with smaller Yakında subtext. Future rewarded-ad integration may add up to 5 ad
+spins/day for 6 total spins with the free spin, but no fake rewarded-ad grant
+flow is active.
 
 Admin Ekranı includes a narrow Günlük Çark Reset support tool backed by
 adminResetDailyWheelState. The tool accepts Kronox User ID only, requires
