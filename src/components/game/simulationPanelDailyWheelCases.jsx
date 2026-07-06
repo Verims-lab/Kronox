@@ -1002,7 +1002,9 @@ export const EXTRA_TESTS = [
         'getWheelTargetRotation(displayResult?.rewardSegmentIndex, prefersReducedMotion)',
         'highlightAmount={revealReady ? displayResult?.rewardId : null}',
         'getDailyWheelWonRewardLine(displayResult, jokerRewards)',
-        'displayResult?.rewardAmount',
+        // Simplified result reads the backend amount inside the reward-line
+        // helper (result?.rewardAmount ?? result?.reward_amount ?? segment).
+        'result?.rewardAmount ??',
         'displayResult?.rewardId',
         'displayResult?.rewardSegmentIndex',
         'getDailyWheelSegmentById(rewardId)',

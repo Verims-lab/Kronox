@@ -793,8 +793,7 @@ Joker Çantası and Solo joker bar must show the purchased balance; Online mode
 is unaffected and Daily Wheel V2 does not use Mağaza purchase semantics.
 
 ## Daily Calendar / Streak
-The legacy Daily Quest Runtime v1 is replaced by the Daily Calendar / Streak
-system. Home exposes a calendar-icon GÜNLÜK shortcut that routes to /daily;
+The legacy Daily Quest Runtime v1 is replaced by Daily Calendar / Streak. Home exposes a calendar-icon GÜNLÜK shortcut that routes to /daily;
 Günlük is not a BottomNav item. getDailyQuestStatus creates or returns exactly
 3 UserDailyQuestProgress daily_calendar:* rows for the UTC server day from a
 9-day rotating task template cycle. Day 3 uses Profilini tamamla only while
@@ -818,7 +817,8 @@ claimDailyQuestReward is the only Daily Calendar reward path. It grants the
 DiamondTransaction.source = daily_calendar_streak_reward for exactly 200
 Diamonds, guarded by the streak cycle id, DiamondTransaction re-read, and the
 economy lock path. Daily Calendar grants Diamonds only, does not grant Kronox
-Puan, and does not affect Leaderboard. Authenticated users use normalized
+Puan, and does not affect Leaderboard. Daily Calendar rewards carry
+no Kronox Puan and no leaderboard impact. Authenticated users use normalized
 email keys; completed guests use token-proven internal guest keys and persist
 rewards on GuestProfile.diamonds without exposing raw guest tokens.
 

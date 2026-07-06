@@ -178,8 +178,9 @@ Zamanı Dondur + 10 İpucu for 250 Diamonds and Mega Paket = 10 Kronokalkan + 10
 Kart Değiştir + 10 Zamanı Dondur + 30 İpucu for 1.000 Diamonds. KronoClub and
 Reklamları Kaldır are future/disabled and grant no benefits.
 Diamond source/sink balance: Daily Wheel V2 can be a Diamond source and/or
-approved joker grant source, while Mağaza Diamond-spend purchases are Diamond
-sinks. purchaseJokerWithDiamonds owns the trusted Store product/price table,
+approved joker grant source, while Mağaza purchase is a Diamond sink —
+Mağaza Diamond-spend purchases only remove Diamonds server-side.
+purchaseJokerWithDiamonds owns the trusted Store product/price table,
 purchase validation is server-authoritative, Client is not trusted for price,
 client-provided price/cost is ignored, validates authenticated self-owned user
 context and sufficient User.diamonds server-side, writes DiamondTransaction.source
@@ -189,8 +190,8 @@ market_purchase / UserHintInventory for hint grants. purchaseJokerWithDiamonds
 explicitly binds UserJokerInventory, UserHintInventory, DiamondTransaction,
 JokerTransaction, and HintTransaction in the Base44 runtime path; deployed proof
 must confirm Diamond decrease, inventory increase, ledgers, insufficient-Diamond
-block, and duplicate tap guard. Store purchases do not grant Kronox Puan and do
-not affect Leaderboard.
+block, and duplicate tap guard. Store purchases do not grant Kronox Puan.
+Store purchases do not affect Leaderboard.
 Insufficient Diamonds do not decrease Diamonds, increase inventory balances, or
 write successful purchase ledgers. Purchase uses an idempotency key; double-tap,
 network retry, and two tabs/devices are guarded by EconomyOperationLock,

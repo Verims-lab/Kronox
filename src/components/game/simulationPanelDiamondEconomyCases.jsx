@@ -465,7 +465,8 @@ export const EXTRA_TESTS = [
         'getLeaderboardDiamondValue(user || completedGuestProfile)',
         'aria-label={`Elmas: ${diamonds}`}',
         'setUser((current) => ({',
-        'diamonds: normalizeJokerQuantity(result.diamondBalanceAfter)',
+        'normalizeJokerQuantity(result?.diamondBalanceAfter)',
+        'diamonds: nextDiamonds',
         'diamondBalanceAfter',
       ]);
       if (missing.length) {

@@ -49,6 +49,9 @@ import lobbyUtilsSource from '../../../lib/lobbyUtils.js?raw';
 import onlineGameStartSource from '../../../lib/onlineGameStart.js?raw';
 import onlineGameNavigationSource from '../../../lib/onlineGameNavigation.js?raw';
 import questionCacheSource from '../../../lib/questionCache.js?raw';
+// Codex560 — shared Daily status cache helper (60s TTL + idle refresh) that
+// useDailyWheel/useDailyQuests consume; performance_ux cases scan it directly.
+import dailyStatusCacheSource from '../../../lib/dailyStatusCache.js?raw';
 
 import { getNextPlayerIndex, hasPlayerWon, isCorrectPlacement, selectNextQuestion } from '../../../lib/gameRules';
 import { normalizeCode, removePlayerByIdentity, summarizePlayers } from '../../../lib/lobbyUtils';
@@ -508,8 +511,12 @@ export const TESTS = [
       'runAuthenticatedBootstrapMaintenance',
       'runGuestBootstrapMaintenance',
       'cleanupOAuthUrlAfterAuth',
-      'scheduleDailyWheelStatusRefresh',
-      'scheduleDailyQuestStatusRefresh',
+      // Shared idle-scheduled Daily status refresh (Codex559 dedup): both
+      // hooks consume src/lib/dailyStatusCache.js instead of private schedulers.
+      "from '@/lib/dailyStatusCache'",
+      'scheduleIdleStatusRefresh(',
+      'dailyWheelStatusStore',
+      'dailyQuestStatusStore',
       'setTimeout(warmMarket, 1800)',
     ];
     const combined = `${SRC.App}\n${SRC.AuthContext}\n${SRC.MainMenu}\n${SRC.UseDailyWheel}\n${SRC.UseDailyQuests}`;
@@ -556,14 +563,15 @@ export const TESTS = [
     'VisibleAppDiagnosticsPanel',
   ]),
   sourceHas('performance_ux', 'question_text_fit_tokens_memoized', 'Question text fit tokens are memoized per active text', 'QuestionCard.jsx', SRC.QuestionCard, ['useMemo(() => getQuestionTextFitTokens(text), [text])']),
-  sourceHas('performance_ux', 'home_rewards_preserve_cached_status_during_refresh', 'Home reward panels preserve cached status during background refresh', 'useDailyWheel/useDailyQuests', `${SRC.UseDailyWheel}\n${SRC.UseDailyQuests}`, [
-    'DAILY_REWARD_STATUS_CACHE_TTL_MS',
-    'readDailyWheelStatusCache',
-    'writeDailyWheelStatusCache',
+  sourceHas('performance_ux', 'home_rewards_preserve_cached_status_during_refresh', 'Home reward panels preserve cached status during background refresh', 'dailyStatusCache/useDailyWheel/useDailyQuests', `${dailyStatusCacheSource}\n${SRC.UseDailyWheel}\n${SRC.UseDailyQuests}`, [
+    'DAILY_STATUS_CACHE_TTL_MS = 60 * 1000',
+    'createDailyStatusStore',
+    'scheduleIdleStatusRefresh',
+    'dailyWheelStatusStore.read(dailyWheelCacheKey)',
+    'dailyWheelStatusStore.write(dailyWheelCacheKey',
     'applyDailyWheelStatusBody',
-    'DAILY_QUEST_STATUS_CACHE_TTL_MS',
-    'readDailyQuestStatusCache',
-    'writeDailyQuestStatusCache',
+    'dailyQuestStatusStore.read(dailyCacheKey)',
+    'dailyQuestStatusStore.write(dailyCacheKey',
     'applyDailyQuestStatusBody',
   ]),
 

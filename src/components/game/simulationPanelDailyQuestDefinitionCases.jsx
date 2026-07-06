@@ -138,7 +138,7 @@ export const EXTRA_TESTS = [
     () => {
       const missing = missingTokens(dailyQuestProgressEntitySource, [
         '"name": "UserDailyQuestProgress"',
-        'Daily Calendar/Streak v1',
+        'Daily Calendar/Streak Runtime v1',
         'daily_calendar:*',
         '"daily_wheel_claim"',
         '"solo_level_complete"',

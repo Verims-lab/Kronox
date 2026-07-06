@@ -759,13 +759,30 @@ export const EXTRA_TESTS = [
         'daily_calendar_streak_reward',
         'DELETE_LEGACY_DAILY_QUESTS',
       ]);
-      const forbidden = forbiddenTokens(`${getDailyQuestStatusSource}\n${recordDailyQuestProgressSource}\n${claimDailyQuestRewardSource}\n${cleanupLegacyDailyQuestsSource}`, [
-        "from './_shared",
-        "from '../_shared",
-        'file://' + '/src/_shared',
-        'kronox_puan_total',
-        'SoloLeaderboardEntry',
-      ]);
+      // Runtime status/progress/claim functions must never even name score/
+      // leaderboard entities. cleanupLegacyDailyQuests legitimately lists
+      // SoloLeaderboardEntry inside its protectedEntities safety deny-list,
+      // so the cleanup scan targets actual entity binds/writes instead.
+      const runtimeOnlySources = `${getDailyQuestStatusSource}\n${recordDailyQuestProgressSource}\n${claimDailyQuestRewardSource}`;
+      const forbidden = [
+        ...forbiddenTokens(`${runtimeOnlySources}\n${cleanupLegacyDailyQuestsSource}`, [
+          "from './_shared",
+          "from '../_shared",
+          'file://' + '/src/_shared',
+          'kronox_puan_total',
+        ]),
+        ...forbiddenTokens(runtimeOnlySources, [
+          'SoloLeaderboardEntry',
+        ]),
+        ...forbiddenTokens(cleanupLegacyDailyQuestsSource, [
+          'entities.SoloLeaderboardEntry',
+          'entities?.SoloLeaderboardEntry',
+          "entityStore(base44, 'SoloLeaderboardEntry')",
+          'SoloLeaderboardEntry.create',
+          'SoloLeaderboardEntry.update',
+          'SoloLeaderboardEntry.delete',
+        ]),
+      ];
       if (missing.length || forbidden.length) {
         return fail('Daily Calendar runtime functions are not clearly registered/deployable or can drift into score/leaderboard writes.', {
           verification: 'STATIC_CONTRACT',

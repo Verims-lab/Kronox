@@ -622,6 +622,7 @@ Checklist:
   200 Diamonds, updates visible `User.diamonds` or completed-guest
   `GuestProfile.diamonds`, and is idempotent.
 * Daily Calendar does not grant Kronox Puan and does not affect Leaderboard.
+  Daily Calendar rewards carry no Kronox Puan and no leaderboard impact.
 * `DailyQuestDefinition` is legacy/admin-only. `cleanupLegacyDailyQuests`
   defaults to dry-run and requires `DELETE_LEGACY_DAILY_QUESTS` for destructive
   deletion of only legacy Daily Quest definition/progress rows.

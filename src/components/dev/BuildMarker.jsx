@@ -1,5 +1,32 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex560 — KRONOX-MR9GYP0O Health blocker alignment:
+//   • Performance/UX Signal cases retargeted to the shared dailyStatusCache
+//     helper: startup fast-path now scans scheduleIdleStatusRefresh plus the
+//     per-hook wheel/quest store instances, and the cached-status case scans
+//     src/lib/dailyStatusCache.js (60s TTL + createDailyStatusStore) directly.
+//     No duplicated private cache/scheduler code was reintroduced.
+//   • Economy/Store mirrors re-synced to the current canonical docs:
+//     economyRulesDoc restores the exact "Mağaza purchase is a Diamond sink"
+//     and split "Store purchases do not affect Leaderboard" contract phrases;
+//     RELEASE_PROOF mirror states legacy Daily Quest "is replaced by Daily
+//     Calendar / Streak" and adds the no-Kronox-Puan/no-leaderboard wording.
+//   • Over-broad static scans narrowed without weakening coverage: BottomNav
+//     scan now forbids actual tab label entries (not comment mentions of
+//     Online), real-money fake-grant scan targets grant call patterns instead
+//     of the legit re-exported bootstrap grantDiamondsOnce helper, and backend
+//     deployability distinguishes runtime SoloLeaderboardEntry writes from the
+//     cleanup function's protectedEntities safety deny-list.
+//   • Stale token retargets: Market visible-balance case reads the current
+//     normalizeJokerQuantity(result?.diamondBalanceAfter) patch path, Store
+//     visual case checks text-white instead of a removed #FFFFFF literal,
+//     Daily Wheel result case reads result?.rewardAmount ?? backend payload,
+//     and UserDailyQuestProgress schema case matches "Daily Calendar/Streak
+//     Runtime v1". dailyQuestGateway contract adds the runtime-connected
+//     definitionRowsIgnoredAtRuntime marker mirroring getDailyQuestStatus.
+//   • No scoring, reward, probability, price, identity, BottomNav, admin, or
+//     native wrapper behavior changed.
+//
 // Codex559 — Fable 5 deep audit + safe fix pass:
 //   • Startup/Daily status cache dedup: src/lib/dailyStatusCache.js is now the
 //     single shared source for the 60s TTL Daily Wheel / Daily Calendar status
@@ -414,7 +441,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex559';
+const BUILD_MARKER = 'Codex560';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

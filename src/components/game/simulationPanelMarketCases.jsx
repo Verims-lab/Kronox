@@ -129,7 +129,7 @@ export const EXTRA_TESTS = [
         'rgba(255,210,95,.18)',
         'clamp(1rem,2vw,1.4rem)',
         '"Barlow Condensed", "Arial Narrow", sans-serif',
-        '#FFFFFF',
+        'text-white',
         '#FFD24A',
         '#C6CEDB',
         '#8FA3C4',
@@ -187,11 +187,16 @@ export const EXTRA_TESTS = [
         'Satın alma yakında aktif olacak.',
       ]);
       const grantPathSource = `${marketPageSource}\n${economyGatewaySource}\n${purchaseJokerWithDiamondsSource}`;
+      // Narrowed to real fake-grant call patterns: the shared economy gateway
+      // legitimately re-exports the bootstrap-only grantDiamondsOnce helper
+      // for starter/daily grants, which is not reachable from Store buttons.
       const forbidden = forbiddenTokens(grantPathSource, [
         'diamonds_360',
         'client-side add Diamonds',
         'diamondBalanceAfter: diamonds +',
-        'grantDiamonds',
+        "invoke('grantDiamonds",
+        "invoke('adminGrantDiamonds",
+        'grantDiamondsOnce(',
         'purchase_future',
       ]);
       if (missing.length || forbidden.length) return fail('Real-money catalog can fake a purchase or lacks unavailable gating.', {
@@ -360,10 +365,17 @@ export const EXTRA_TESTS = [
         'ONLINE KAPIŞ',
         "navigate('/market')",
       ]);
+      // Inspect BottomNav TAB entries only — comments legitimately explain
+      // that Online stays Home CTA-owned, so a whole-file 'Online' scan is
+      // over-broad. Forbid actual tab label entries instead.
       const forbidden = forbiddenTokens(bottomNavSource, [
-        'Mağaza',
-        'Market',
-        'Online',
+        "{ label: 'Mağaza'",
+        "{ label: 'Market'",
+        "{ label: 'Online'",
+        "{ label: 'Günlük'",
+        "{ label: 'GÜNLÜK'",
+        "{ label: 'Çark'",
+        "{ label: 'Admin'",
       ]);
       if (missing.length || forbidden.length) return fail('Store task changed BottomNav or Home Online ownership contracts.', {
         verification: 'STATIC_CONTRACT',

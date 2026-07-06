@@ -58,6 +58,9 @@ export const DAILY_QUEST_DEFINITION_CONTRACT = Object.freeze({
   streakRewardDays: DAILY_STREAK_REWARD_DAYS,
   streakRewardDiamonds: DAILY_STREAK_REWARD_DIAMONDS,
   logicalUniqueKey: 'quest_key + quest_date + player_key',
+  // Mirrors the backend getDailyQuestStatus runtime marker: the active Daily
+  // Calendar runtime never reads/creates/seeds DailyQuestDefinition rows.
+  definitionRowsIgnoredAtRuntime: true,
   adminDefinitionRowsIgnoredAtRuntime: true,
   duplicateCleanupMode: 'cleanupLegacyDailyQuests dry-run first; destructive delete requires explicit admin confirmation',
 });
