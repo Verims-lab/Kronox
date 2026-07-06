@@ -1,5 +1,17 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex549 — Solo gameplay header back/progress layout:
+//   • Solo GameLayout now renders a source-aware back arrow in the old
+//     left-side progress slot and moves the existing progress value/bar to
+//     the right side directly beneath the timer, with both controls aligned
+//     on one row.
+//   • Home direct Solo starts tag /game route state with soloReturnTo:'home';
+//     SoloChallenge level-node starts tag soloReturnTo:'solo-levels'; Game.jsx
+//     resolves those to Home or /solo with a safe Home fallback and preserves
+//     the source through retry/next-level route rebuilds.
+//   • Solo scoring, timer, move count, completion/progress math, drag/drop,
+//     joker inventory/actions, and question selection remain unchanged.
+//
 // Codex548 — Daily Wheel post-claim close/reopen flow:
 //   • Closing a completed Daily Wheel result now closes the Home Çark shortcut
 //     sheet as well, returning directly to Home without the old claimed
@@ -303,7 +315,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex548';
+const BUILD_MARKER = 'Codex549';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

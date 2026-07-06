@@ -24,6 +24,8 @@ import { PLACEMENT_FEEDBACK_OVERLAY_SOURCE as overlaySource } from '@/lib/health
 import gameLayoutSource from './GameLayout.jsx?raw';
 import gameActionsSource from '../../hooks/useGameActions.js?raw';
 import gameRulesSource from '../../lib/gameRules.js?raw';
+import mainMenuSource from '../../pages/MainMenu.jsx?raw';
+import soloChallengeSource from '../../pages/SoloChallenge.jsx?raw';
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL' };
 const ACTION_TYPES = { CODE_FIX: 'CODE_FIX' };
@@ -125,6 +127,41 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Solo header progress and completion both read the timeline card count source.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('solo_header_back_button_and_timer_progress_row',
+    'Solo gameplay header has back button and progress under timer',
+    () => {
+      const layoutMissing = missingTokens(gameLayoutSource, [
+        'showSoloLevelHeader',
+        'onSoloBack',
+        'data-kronox-solo-navigation-progress-row',
+        'data-kronox-solo-back-button',
+        'data-kronox-solo-progress-under-timer',
+        'kronox-solo-back-button',
+        'ArrowLeft',
+        'aria-label="Geri dön"',
+      ]);
+      const gameMissing = missingTokens(gameSource, [
+        'resolveSoloGameReturnPath',
+        "source === 'home'",
+        "source === 'solo-levels'",
+        'soloReturnTo',
+        'onSoloBack={isSoloLevelMode ? handleSoloGameplayBack : undefined}',
+      ]);
+      const launchMissing = missingTokens(`${mainMenuSource}\n${soloChallengeSource}`, [
+        "soloReturnTo: 'home'",
+        "soloReturnTo: 'solo-levels'",
+      ]);
+      if (layoutMissing.length || gameMissing.length || launchMissing.length) {
+        return fail('Solo gameplay header no longer guarantees a left back arrow with progress moved under the timer and source-aware exit routing.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['components/game/GameLayout.jsx', 'pages/Game.jsx', 'pages/MainMenu.jsx', 'pages/SoloChallenge.jsx'],
+          actual: { layoutMissing, gameMissing, launchMissing },
+          expected: 'Solo row has back button on the left, progress under timer on the right, and /game launches tag home vs solo-levels return sources.',
+        });
+      }
+      return pass('Solo gameplay header back/progress row is source-aware and keeps the existing completion-backed progress meter.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('progress_counter_pops_on_correct_increment',

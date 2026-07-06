@@ -160,7 +160,7 @@ export default function MainMenu() {
   const handleSolo = useCallback(() => {
     if (soloCtaDisabled) return;
     sounds.tap();
-    navigate('/game', { state: buildSoloGameConfigForLevel(homeSoloLevel) });
+    navigate('/game', { state: { ...buildSoloGameConfigForLevel(homeSoloLevel), soloReturnTo: 'home' } });
   }, [homeSoloLevel, navigate, soloCtaDisabled]);
 
   const handleOnline = () => {
