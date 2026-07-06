@@ -492,6 +492,11 @@ import React, { useEffect, useState } from 'react';
 //   • Package 2 Diamond recovery Health targets backend-owned claimLoginBonuses guard/ledger repair while diamondEconomy remains invoke-only.
 //   • Solo Hint popup pause accounting is overlap-aware with Zaman Dondur so frozen seconds are not subtracted twice.
 //
+// Codex565 — Avatar parity across Leaderboard/Friends/Online:
+//   • Profile avatar saves now refresh the safe avatar quartet into existing SoloLeaderboardEntry projection rows for registered and guest owners.
+//   • Leaderboard hydration overlays current-player and deferred accepted-friend avatars from safe local payloads, fixing stale projection rows without private per-row profile reads.
+//   • Health/docs now guard the missed drift class: shared renderer alone is insufficient unless projection refresh and hydration parity are both source-connected.
+//
 // Codex502 — Health blocker fixes (KRONOX-MR0KZQBY):
 //   • App-shell presence heartbeat now calls usePresenceHeartbeat with inline nonCriticalModulesEnabled gates, so Home first render stays ahead of presence startup and Health scans the live contract.
 //   • Solo move Health now protects Kronokalkan move preservation without requiring the removed visible joker success/status overlay text.
@@ -506,7 +511,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex564';
+const BUILD_MARKER = 'Codex565';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

@@ -58,6 +58,15 @@ public leaderboard identity field. Email, Google ID, Apple ID, provider UID,
 raw guest id, internal `owner_key`, and internal `player_key` values are not
 public display names.
 
+Profile avatar is public visual metadata only. Public rows may carry sanitized
+`avatar_type`, `avatar_icon_id`, `avatar_color_id`, and HTTPS `avatar_url`
+fields; raw storage metadata and private/internal identity fields stay
+forbidden. The same avatar must render across Friends, Online player selection,
+Leaderboard rows, and the current-user rank card. Profile avatar saves refresh
+existing `SoloLeaderboardEntry` rows with the safe avatar quartet, and
+Leaderboard hydration may overlay current-player plus accepted-friend avatars
+from already-safe sources without private per-row profile reads.
+
 `createGuestProfile` is public by design because unauthenticated players must be
 able to start as guests. It still generates `guest_id`, raw guest token, token
 hash, and default username server-side; request bodies cannot set trusted

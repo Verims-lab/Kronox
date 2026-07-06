@@ -113,6 +113,11 @@ fallback polling/refetch.
 - Added global avatar propagation coverage for leaderboard, friends, Online
   player selection, lobby, invite, and header surfaces; safe public avatar
   projection; local bundled icon categories; and public avatar privacy fields.
+- Added avatar parity coverage for the previously missed drift class:
+  profile avatar saves refresh existing `SoloLeaderboardEntry` rows with the
+  safe avatar quartet, and Leaderboard hydration overlays current-player plus
+  accepted-friend custom avatars from already-safe sources without private
+  per-row profile reads.
 - Added Mağaza performance/readiness coverage so static checks require idle
   route/inventory warm-up, fast `UserJokerInventory` reads before starter
   self-heal, explicit `Satın Al` readiness, and parallel starter repair in the
@@ -146,7 +151,7 @@ fallback polling/refetch.
 | Unified Solo + Online Kronox Puan | Static/executable scoring suites confirm visible Kronox Puan includes Solo best-score plus Online progress, Online winner is exactly +15, loser is exactly -6 with checkpoint protection, Online has no speed bonus, and result popup copy shows the persisted delta/new score | Two-account live proof that winner/loser score writes, Profile, Header, and Leaderboard all refresh to the same persisted Kronox Puan |
 | Solo record congratulations | Static backend context/copy checks | Production-like multi-user record fixture or backend probe |
 | Immutable Kronox user ID | Static source checks for backend generation/backfill, link preservation, Profile Info read-only/copy display, internal dual-write fields, tombstone non-reuse, and public output stripping | Deployed two-account/guest-link proof; DB uniqueness/index proof if the platform adds first-class constraints; full production backfill audit |
-| Global profile avatar propagation | Static UI/projection checks for shared renderer usage, safe avatar quartet, bundled icon categories, leaderboard/friends/Online/lobby/invite/header propagation, and no private avatar payload fields | Manual visual proof across leaderboard, friends, player select, lobby, invites, header, uploaded photo fallback, and guest/linked profiles |
+| Global profile avatar propagation | Static UI/projection checks for shared renderer usage, safe avatar quartet, bundled icon categories, leaderboard/friends/Online/lobby/invite/header propagation, profile-save projection refresh, current/friend Leaderboard avatar overlay, and no private avatar payload fields | Manual visual proof across leaderboard, friends, player select, lobby, invites, header, uploaded photo fallback, and guest/linked profiles |
 | Mağaza open / purchase readiness | Static Market checks for idle chunk/cache warm-up, fast inventory read before starter self-heal, explicit purchase-readiness helper, and backend server-price/idempotency/lock guards | Manual low-end mobile proof for first open/reopen, sufficient/insufficient Diamond CTA state, purchase success, and double-tap/retry behavior |
 | Liderlik open / score projection performance | Static Leaderboard checks for idle chunk/snapshot warm-up, projection-only `getSoloLeaderboard` fast mode, cached rows during refetch, deferred friend enrichment, bounded repair, and materialized score reads | Manual low-end mobile proof for cold/repeat BottomNav opens, deployed Base44 latency, DB index/sort behavior, exact rank at scale, and post-score-change refresh |
 | App startup / Home first render | Static startup fast-path checks for direct Home shell import, cached GuestProfile repeat launch, post-paint AuthContext maintenance, deferred presence/invite/category modules, idle Market/Liderlik warm-up, and delayed Daily Wheel/Daily Calendar status refresh | Manual Android/WebView proof for cold/repeat app launch, splash duration, dark-loader duration, first Home paint, and deployed Base44 latency |

@@ -18,11 +18,14 @@ import {
   getGuestLeaderboardOwnerKey,
   getLeaderboardDiamondValue,
   getLeaderboardOwnerKey,
+  getFriendLeaderboardAvatarMap,
+  getPublicLeaderboardId,
   LEADERBOARD_FAST_SNAPSHOT_OPTIONS,
   LEADERBOARD_FETCH_LIMIT,
   LEADERBOARD_TOP_LIMIT,
   buildSoloLeaderboardPayload,
   loadSoloLeaderboardSnapshot,
+  mergeLeaderboardAvatarFields,
   normalizeLeaderboardRank,
   publishSoloLeaderboardEntry,
   rankSoloLeaderboardEntries,
@@ -199,22 +202,39 @@ export default function LeaderboardPage() {
         ...(snapshot.friendUserKeys || []),
         ...extraFriendKeys,
       ]);
+      const friendAvatarByLeaderboardId = options.friendAvatarByLeaderboardId instanceof Map
+        ? options.friendAvatarByLeaderboardId
+        : new Map();
+      const currentLeaderboardId = getPublicLeaderboardId(currentOwnerKey);
+      const withAvatarParity = (publicRow) => {
+        const publicId = String(publicRow?.leaderboard_id || publicRow?.leaderboardId || publicRow?.id || '').trim();
+        let nextRow = publicId && friendAvatarByLeaderboardId.has(publicId)
+          ? mergeLeaderboardAvatarFields(publicRow, friendAvatarByLeaderboardId.get(publicId))
+          : publicRow;
+        if (publicRow?.isCurrentUser === true || (currentLeaderboardId && publicId === currentLeaderboardId)) {
+          nextRow = mergeLeaderboardAvatarFields(nextRow, currentPayload);
+        }
+        if (publicId && friendAvatarByLeaderboardId.has(publicId)) {
+          nextRow = { ...nextRow, isFriend: true };
+        }
+        return nextRow;
+      };
       const topRows = (snapshot.topRows || [])
-        .map((row) => hydrateLeaderboardRow(row, friendKeys, currentOwnerKey))
+        .map((row) => hydrateLeaderboardRow(withAvatarParity(row), friendKeys, currentOwnerKey))
         .map((row) => withCurrentTotalKronoxScore(row, totalKronoxScore))
         .filter((row) => row.id);
       const currentUserRow = snapshot.currentUserRow
         ? withCurrentTotalKronoxScore(
-          hydrateLeaderboardRow(snapshot.currentUserRow, friendKeys, currentOwnerKey),
+          hydrateLeaderboardRow(withAvatarParity(snapshot.currentUserRow), friendKeys, currentOwnerKey),
           totalKronoxScore,
         )
         : null;
       const friendsOutsideTop = (snapshot.friendsOutsideTop || [])
-        .map((row) => hydrateLeaderboardRow(row, friendKeys, currentOwnerKey))
+        .map((row) => hydrateLeaderboardRow(withAvatarParity(row), friendKeys, currentOwnerKey))
         .map((row) => withCurrentTotalKronoxScore(row, totalKronoxScore))
         .filter((row) => row.id);
       let rankedRows = (snapshot.rows || [])
-        .map((row) => hydrateLeaderboardRow(row, friendKeys, currentOwnerKey))
+        .map((row) => hydrateLeaderboardRow(withAvatarParity(row), friendKeys, currentOwnerKey))
         .map((row) => withCurrentTotalKronoxScore(row, totalKronoxScore))
         .filter((row) => row.id);
       let sections = {
@@ -301,7 +321,9 @@ export default function LeaderboardPage() {
             const acceptedFriendKeys = getFriendLeaderboardKeys(
               (acceptedFriends || []).map((friend) => friend.friend_email),
             );
-            applySnapshot(snapshot, acceptedFriendKeys);
+            applySnapshot(snapshot, acceptedFriendKeys, {
+              friendAvatarByLeaderboardId: getFriendLeaderboardAvatarMap(acceptedFriends),
+            });
           })
           .catch(() => {});
       }

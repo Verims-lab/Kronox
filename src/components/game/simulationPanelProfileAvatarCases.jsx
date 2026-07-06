@@ -22,6 +22,7 @@ import friendSelectModalSource from '../lobby/FriendSelectModal.jsx?raw';
 import incomingInvitesPanelSource from '../invites/IncomingInvitesPanel.jsx?raw';
 import incomingRequestItemSource from '../friends/IncomingRequestItem.jsx?raw';
 import kronoxRankingSectionSource from '../leaderboard/KronoxRankingSection.jsx?raw';
+import leaderboardPageSource from '../../pages/LeaderboardPage.jsx?raw';
 import outgoingRequestItemSource from '../friends/OutgoingRequestItem.jsx?raw';
 import screenHeaderSource from '../layout/ScreenHeader.jsx?raw';
 import waitingRoomPanelSource from '../lobby/WaitingRoomPanel.jsx?raw';
@@ -263,6 +264,66 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Public avatar projection uses a sanitized quartet and https-only photo URLs.', {
+        verification: 'STATIC_CONTRACT', actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('avatar_profile_save_refreshes_leaderboard_projection',
+    'Profile avatar save refreshes the public leaderboard projection avatar fields',
+    () => {
+      const requiredMissing = missing(updateProfileSettingsSource, [
+        'refreshLeaderboardIdentity',
+        'SoloLeaderboardEntry',
+        'pickPublicAvatarFields(profile)',
+        'avatar_type',
+        'avatar_icon_id',
+        'avatar_color_id',
+        'avatar_url',
+        'getAuthOwnerKey(email)',
+        'getGuestOwnerKey(guestId)',
+        'leaderboardUpdated',
+      ]);
+      if (requiredMissing.length) {
+        return fail('Profile avatar changes may not refresh the existing SoloLeaderboardEntry projection.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'base44/functions/updateProfileSettings/entry.ts',
+          expected: 'updateProfileSettings refreshes username plus safe avatar quartet into the owner leaderboard projection for registered and guest profiles',
+          actual: { missing: requiredMissing },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Profile saves propagate the safe avatar quartet into existing leaderboard projection rows.', {
+        verification: 'STATIC_CONTRACT', actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('avatar_leaderboard_hydrates_current_and_friend_avatars',
+    'Leaderboard hydration preserves current-player and accepted-friend custom avatars',
+    () => {
+      const combined = `${leaderboardSource}\n${leaderboardPageSource}`;
+      const requiredMissing = missing(combined, [
+        'getPublicLeaderboardId',
+        'getFriendLeaderboardAvatarMap',
+        'mergeLeaderboardAvatarFields',
+        'friendAvatarByLeaderboardId',
+        'withAvatarParity',
+        'currentPayload',
+        'loadFriends(normalizedUserEmail)',
+      ]);
+      const forbidden = present(leaderboardPageSource, [
+        'base44.entities.User.list',
+        'base44.entities.User.filter',
+        'base44.asServiceRole.entities.User',
+      ]);
+      if (requiredMissing.length || forbidden.length) {
+        return fail('Leaderboard hydration can still lose custom avatars or add private per-row profile fetches.', {
+          verification: 'STATIC_CONTRACT',
+          expected: 'Leaderboard overlays safe avatars from currentPayload and deferred accepted-friend rows while staying off private User reads in the page',
+          actual: { missing: requiredMissing, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Leaderboard hydration uses safe current/friend avatar overlays without private per-row User reads.', {
         verification: 'STATIC_CONTRACT', actionType: ACTION_TYPES.CODE_FIX,
       });
     }),
