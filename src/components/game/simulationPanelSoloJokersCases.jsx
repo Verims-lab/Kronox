@@ -116,8 +116,11 @@ export const EXTRA_TESTS = [
     () => {
       const missing = missingTokens(`${gameSource}\n${soloHintRevealPopupSource}\n${hintInventorySource}`, [
         'hintPopupOpen',
+        'hintPopupOpenRef',
         'hintPauseOffset',
         'activeHintPauseOffset',
+        'freezeCurrentlyCoversHintPause',
+        'hintPauseElapsedAtStartRef.current = rawElapsed',
         'soloLevelTimerFrozen={isSoloLevelMode ? (isSoloTimerFrozen || hintPopupOpen) : false}',
         'interactionPaused={Boolean(guidedTutorialPopup || hintPopupOpen)}',
         'SoloHintRevealPopup',

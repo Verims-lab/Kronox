@@ -680,6 +680,9 @@ Solo move interaction:
 * Hint use can satisfy Daily `hint_used` after the ledger row exists, but never
   counts as Joker use, grants Kronox Puan, affects Leaderboard, changes Solo
   scoring, or exposes answer-year/question-bank data through backend reports.
+* Opening the Hint popup pauses the visible Solo timer; if Zaman Dondur is
+  already active, the Hint pause must be overlap-aware and must not subtract
+  the same frozen seconds twice.
 
 Purchase rules:
 

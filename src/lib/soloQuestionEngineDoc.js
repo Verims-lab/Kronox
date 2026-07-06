@@ -229,9 +229,10 @@ exactly 3 starter Hints once for authenticated and token-proven completed
 guests, while consumeUserHint spends one Hint with HintTransaction.reason =
 solo_use, source = solo_hint, and an idempotency key. The left-card hammer
 popup pauses the effective Solo timer, reveals only the active card year in
-1/3, 2/3, and full stages, can satisfy Daily hint_used, and never counts as
-Joker use, changes scoring, grants Kronox Puan, affects leaderboard, or exposes
-the full question bank.
+1/3, 2/3, and full stages, is overlap-aware when Zaman Dondur is active so
+the same frozen seconds are never subtracted twice, can satisfy Daily
+hint_used, and never counts as Joker use, changes scoring, grants Kronox Puan,
+affects leaderboard, or exposes the full question bank.
 
 Kronokalkan protects the next wrong valid placement from consuming a move.
 Kart Değiştir replaces the current card from the already prepared Solo deck

@@ -9,8 +9,10 @@ import categoryFiltersSource from '../../lib/categoryFilters.js?raw';
 import applyOnlineResultSource from '../../lib/applyOnlineResult.js?raw';
 import diamondEconomySource from '../../lib/diamondEconomy.js?raw';
 import rankingSectionSource from '../leaderboard/KronoxRankingSection.jsx?raw';
-// Out-of-/src sources (base44/* and docs/*) cannot be ?raw-imported on this
-// host — they are mirrored as JS strings to keep the build healthy.
+import claimLoginBonusesSource from '../../../base44/functions/claimLoginBonuses/entry.ts?raw';
+// Some out-of-/src docs/entities still cannot be ?raw-imported on this host,
+// so they are mirrored as JS strings. Base44 function sources that build
+// cleanly are imported directly to keep Health pointed at runtime owners.
 import {
   startLobbyGameSource,
   getSoloLeaderboardSource,
@@ -172,21 +174,28 @@ export const EXTRA_TESTS = [
   makeCase('diamond_ledger_guard_recovery_exists',
     'Diamond economy detects and repairs guard/ledger mismatch without regranting',
     () => {
-      const missing = missingTokens(diamondEconomySource, [
-        'recoverMissingDiamondTransaction',
-        'recoverUserGuardFromTransaction',
-        'ledgerRecoveredFromGuard',
-        'guardRecoveredFromTransaction',
+      const clientMissing = missingTokens(diamondEconomySource, [
+        "invoke('claimLoginBonuses'",
+        'BACKEND-ONLY',
+        'server_side_source_only',
+      ]);
+      const backendMissing = missingTokens(claimLoginBonusesSource, [
+        'Guard exists but ledger row is missing',
+        'recoveredFromPersistedGuard: true',
+        'Ledger exists: never re-grant',
+        'Object.assign(guardPatch, spec.guardPatch(timestamp))',
+        'balance = Math.max(balance, normalizeNumber(postLockExisting.balance_after))',
+        'totalGranted += spec.amount',
         'already_recorded',
       ]);
-      if (missing.length) {
-        return fail('Diamond idempotency lacks guard/ledger recovery helpers.', {
+      if (clientMissing.length || backendMissing.length) {
+        return fail('Diamond idempotency lacks backend-owned guard/ledger recovery coverage.', {
           verification: 'STATIC_CONTRACT',
-          file: 'src/lib/diamondEconomy.js',
-          missing,
+          files: ['src/lib/diamondEconomy.js', 'base44/functions/claimLoginBonuses/entry.ts'],
+          actual: { clientMissing, backendMissing },
         });
       }
-      return pass('Diamond economy has retry-safe guard/ledger recovery paths.', { verification: 'STATIC_CONTRACT' });
+      return pass('claimLoginBonuses owns retry-safe guard/ledger recovery while the client remains invoke-only.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('leaderboard_uses_persisted_unified_projection_and_no_email',

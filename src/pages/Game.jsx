@@ -380,6 +380,7 @@ export default function Game() {
   const jokerUsedRef = useRef(false);
   const jokerSpendPendingRef = useRef(false);
   const hintConsumePendingRef = useRef(false);
+  const hintPopupOpenRef = useRef(false);
   const soloJokerDecisionKeyByQuestionIdRef = useRef(new Map());
   const soloJokerUsedByDecisionKeyRef = useRef(new Map());
   const soloSkippedQuestionIdsRef = useRef(new Set());
@@ -932,6 +933,8 @@ export default function Game() {
   }, [stopTimelineSwipeHint]);
 
   const clearSoloTimerFreeze = useCallback((applyElapsed = false, updateState = true) => {
+    const hadActiveFreeze = Boolean(timerFreezeStartRef.current);
+    const rawElapsed = Number(overallSecondsRef.current ?? 0);
     if (timerFreezeTimeoutRef.current) {
       window.clearTimeout(timerFreezeTimeoutRef.current);
       timerFreezeTimeoutRef.current = null;
@@ -942,11 +945,13 @@ export default function Game() {
     }
     if (applyElapsed && updateState && timerFreezeStartRef.current) {
       const startEffectiveElapsed = Number(timerFreezeElapsedAtStartRef.current);
-      const rawElapsed = Number(overallSecondsRef.current ?? 0);
       if (Number.isFinite(startEffectiveElapsed) && Number.isFinite(rawElapsed)) {
         const nextOffset = Math.max(0, rawElapsed - startEffectiveElapsed);
         setFrozenElapsedOffset((prev) => Math.max(prev, nextOffset));
       }
+    }
+    if (hadActiveFreeze && hintPopupOpenRef.current && Number.isFinite(rawElapsed)) {
+      hintPauseElapsedAtStartRef.current = rawElapsed;
     }
     timerFreezeStartRef.current = null;
     timerFreezeElapsedAtStartRef.current = null;
@@ -997,6 +1002,7 @@ export default function Game() {
     soloDailyQuestCompletionRecordedRef.current = null;
     soloDailyQuestCorrectStreakRef.current = 0;
     hintConsumePendingRef.current = false;
+    hintPopupOpenRef.current = false;
     setUsedJokerType(null);
     setGuidedTutorialJokerDemoUsedByCard({});
     setGuidedTutorialPopup(null);
@@ -1032,12 +1038,17 @@ export default function Game() {
   const closeSoloHintPopup = useCallback(() => {
     const pausedAt = Number(hintPauseElapsedAtStartRef.current);
     const rawElapsed = Number(overallSecondsRef.current ?? overallSeconds);
-    if (Number.isFinite(pausedAt) && Number.isFinite(rawElapsed)) {
+    const freezeCurrentlyCoversHintPause = Boolean(
+      timerFreezeStartRef.current &&
+      Number(timerFreezeUntil) > Date.now()
+    );
+    if (!freezeCurrentlyCoversHintPause && Number.isFinite(pausedAt) && Number.isFinite(rawElapsed)) {
       setHintPauseOffset((previous) => Math.max(previous, rawElapsed - pausedAt));
     }
     hintPauseElapsedAtStartRef.current = null;
+    hintPopupOpenRef.current = false;
     setHintPopupOpen(false);
-  }, [overallSeconds, overallSecondsRef]);
+  }, [overallSeconds, overallSecondsRef, timerFreezeUntil]);
 
   useEffect(() => {
     const shouldRunTimelineSwipeHint = Boolean(
@@ -2291,6 +2302,7 @@ export default function Game() {
       return;
     }
     setHintError('');
+    hintPopupOpenRef.current = true;
     setHintPopupOpen(true);
   }, [
     currentQuestion?.id,

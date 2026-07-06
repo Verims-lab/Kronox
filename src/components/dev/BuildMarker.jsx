@@ -487,6 +487,11 @@ import React, { useEffect, useState } from 'react';
 //   • spendUserJoker also reconciles duplicate inventory rows on already-applied/idempotent retry responses, keeping refresh/reopen counts aligned.
 //   • Health now guards partial-payload merge behavior, duplicate-row repair, and UI badge preservation.
 //
+// Codex564 — MR9KKEPE sync and Health fix:
+//   • Codex branch now contains the latest Base44 claimLoginBonuses / duplicate-key work from origin/main.
+//   • Package 2 Diamond recovery Health targets backend-owned claimLoginBonuses guard/ledger repair while diamondEconomy remains invoke-only.
+//   • Solo Hint popup pause accounting is overlap-aware with Zaman Dondur so frozen seconds are not subtracted twice.
+//
 // Codex502 — Health blocker fixes (KRONOX-MR0KZQBY):
 //   • App-shell presence heartbeat now calls usePresenceHeartbeat with inline nonCriticalModulesEnabled gates, so Home first render stays ahead of presence startup and Health scans the live contract.
 //   • Solo move Health now protects Kronokalkan move preservation without requiring the removed visible joker success/status overlay text.
@@ -501,7 +506,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex563';
+const BUILD_MARKER = 'Codex564';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
