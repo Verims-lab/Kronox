@@ -8,60 +8,20 @@ import {
   buildEmptyCalendarState,
   normalizeDailyTask,
 } from '@/lib/dailyCalendar';
+import {
+  buildDailyStatusCacheKey,
+  createDailyStatusStore,
+  scheduleIdleStatusRefresh,
+  todayFallbackKey,
+} from '@/lib/dailyStatusCache';
 
-const DAILY_QUEST_STATUS_CACHE_TTL_MS = 60 * 1000;
-const dailyStatusCache = new Map();
-
-function todayFallbackKey() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function buildDailyStatusCacheKey(user, guestCredentials) {
-  const email = String(user?.email || user?.user_email || '').trim().toLowerCase();
-  const guestId = String(guestCredentials?.guest_id || '').trim();
-  if (email) return `auth:${email}:${todayFallbackKey()}`;
-  if (guestId) return `guest:${guestId}:${todayFallbackKey()}`;
-  return null;
-}
-
-function readDailyQuestStatusCache(cacheKey) {
-  if (!cacheKey) return null;
-  const cached = dailyStatusCache.get(cacheKey);
-  if (!cached) return null;
-  if (Date.now() - cached.cachedAt > DAILY_QUEST_STATUS_CACHE_TTL_MS) {
-    dailyStatusCache.delete(cacheKey);
-    return null;
-  }
-  return cached.body || null;
-}
-
-function writeDailyQuestStatusCache(cacheKey, body) {
-  if (!cacheKey || !body) return;
-  dailyStatusCache.set(cacheKey, {
-    cachedAt: Date.now(),
-    body,
-  });
-}
+// Shared Daily status cache contract (60s TTL + idle-scheduled refresh)
+// lives in src/lib/dailyStatusCache.js; the calendar keeps its own store
+// instance so wheel/calendar invalidations stay independent.
+const dailyQuestStatusStore = createDailyStatusStore();
 
 export function invalidateDailyQuestStatusCache(cacheKey = '') {
-  if (cacheKey) {
-    dailyStatusCache.delete(cacheKey);
-    return;
-  }
-  dailyStatusCache.clear();
-}
-
-function scheduleDailyQuestStatusRefresh(callback) {
-  if (typeof window === 'undefined') {
-    callback();
-    return () => {};
-  }
-  if (typeof window.requestIdleCallback === 'function') {
-    const id = window.requestIdleCallback(callback, { timeout: 2200 });
-    return () => window.cancelIdleCallback?.(id);
-  }
-  const id = window.setTimeout(callback, 650);
-  return () => window.clearTimeout(id);
+  dailyQuestStatusStore.invalidate(cacheKey);
 }
 
 function normalizeCalendarBody(body) {
@@ -116,7 +76,7 @@ export function useDailyQuests({ user, guestProfile, onUserUpdated } = {}) {
       setState(buildEmptyCalendarState());
       return null;
     }
-    const cachedBody = readDailyQuestStatusCache(dailyCacheKey);
+    const cachedBody = dailyQuestStatusStore.read(dailyCacheKey);
     if (cachedBody) {
       applyDailyQuestStatusBody(cachedBody);
     } else {
@@ -124,7 +84,7 @@ export function useDailyQuests({ user, guestProfile, onUserUpdated } = {}) {
     }
     try {
       const body = await getDailyQuestStatus(dailyPayload);
-      writeDailyQuestStatusCache(dailyCacheKey, body);
+      dailyQuestStatusStore.write(dailyCacheKey, body);
       return applyDailyQuestStatusBody(body);
     } catch (err) {
       if (!cachedBody) {
@@ -138,7 +98,7 @@ export function useDailyQuests({ user, guestProfile, onUserUpdated } = {}) {
 
   useEffect(() => {
     let cancelled = false;
-    const cancelScheduledRefresh = scheduleDailyQuestStatusRefresh(async () => {
+    const cancelScheduledRefresh = scheduleIdleStatusRefresh(async () => {
       const body = await refresh();
       if (cancelled || !body) return;
       if (body?.userPatch && typeof onUserUpdated === 'function') onUserUpdated(body.userPatch);

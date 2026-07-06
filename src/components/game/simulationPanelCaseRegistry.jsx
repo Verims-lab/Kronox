@@ -227,6 +227,10 @@ import * as healthUpdateAuditCases from './simulationPanelHealthUpdateAuditCases
 // saves, protected-field preservation, bundled (non-hotlinked) icons,
 // image-only Base44 photo upload, and privacy-safe public avatar payloads.
 import * as profileAvatarCases from './simulationPanelProfileAvatarCases';
+// Codex559 — Startup/Daily status cache performance contracts: shared TTL
+// cache helper, idle-scheduled refresh, cache-preserving background refresh,
+// and no direct Daily status backend calls from the Home shell.
+import * as startupStatusCacheCases from './simulationPanelStartupStatusCacheCases';
 
 const MODULES = [
   soloProgressCases,
@@ -284,6 +288,7 @@ const MODULES = [
   a11yQualityCases,
   healthUpdateAuditCases,
   profileAvatarCases,
+  startupStatusCacheCases,
 ];
 
 function flatten(key) {

@@ -154,6 +154,12 @@ Cross-cutting query/performance audit rules:
 - If Base44 cannot enforce a DB-level unique/index constraint, the service
   layer remains responsible for idempotency and duplicate detection, and the
   release checklist must keep the manual platform proof visible.
+- Daily Wheel and Daily Calendar client status reads share one cache contract:
+  `src/lib/dailyStatusCache.js` owns the 60s TTL per-actor/per-UTC-day status
+  cache and the idle-scheduled (post-paint) refresh. Hooks render cached status
+  immediately, revalidate in the background, and preserve the cached body when
+  a background refresh fails. Home derives shortcut ready badges from hook
+  state only and never calls the Daily status backend functions directly.
 
 ## 2. Current Entity Map
 

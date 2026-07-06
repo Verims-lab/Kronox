@@ -1,5 +1,19 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex559 — Fable 5 deep audit + safe fix pass:
+//   • Startup/Daily status cache dedup: src/lib/dailyStatusCache.js is now the
+//     single shared source for the 60s TTL Daily Wheel / Daily Calendar status
+//     cache and the idle-scheduled (post-paint) refresh; useDailyWheel and
+//     useDailyQuests consume it instead of duplicating cache/scheduler code.
+//     Behavior (TTL, cache keys, cached-body preservation on failed refresh,
+//     invalidation export) is unchanged.
+//   • New Health suite startup_status_cache_health guards the shared cache
+//     helper, both hooks' cached-status/idle-refresh contracts, and that Home
+//     never calls Daily status backend functions directly.
+//   • docs/KRONOX_DB_ARCHITECTURE.md and the DB architecture doc mirror record
+//     the shared Daily status cache contract. No scoring, reward, economy,
+//     BottomNav, identity, or native wrapper behavior changed.
+//
 // Codex558 — MR9DOLSC Health alignment:
 //   • Daily Calendar cache helpers, schema mirrors, legacy cleanup scope, and
 //     DailyQuestDefinition legacy helper names now match current contracts.
@@ -400,7 +414,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex558';
+const BUILD_MARKER = 'Codex559';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

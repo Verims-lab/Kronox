@@ -5,13 +5,15 @@ import { recordDailyQuestProgress } from '@/lib/dbGateway/dailyQuestGateway';
 import { getCompletedGuestCredentialsPayload } from '@/lib/guestProfile';
 import { normalizeDailyWheelJokerRewards } from '@/lib/dailyWheelRewards';
 import { invalidateDailyQuestStatusCache } from '@/hooks/useDailyQuests';
+import {
+  buildDailyStatusCacheKey,
+  createDailyStatusStore,
+  scheduleIdleStatusRefresh,
+  todayFallbackKey,
+} from '@/lib/dailyStatusCache';
 
 function normalizeFunctionBody(response) {
   return response?.data || response || {};
-}
-
-function todayFallbackKey() {
-  return new Date().toISOString().slice(0, 10);
 }
 
 function dailyWheelActorKey(user, guestCredentials) {
@@ -25,48 +27,10 @@ function autoPopupStorageKey(user, guestCredentials, serverDate, resetAt = '') {
   return `kronox_daily_wheel_auto_popup_seen:${dailyWheelActorKey(user, guestCredentials)}:${serverDate || todayFallbackKey()}${resetSuffix}`;
 }
 
-const DAILY_REWARD_STATUS_CACHE_TTL_MS = 60 * 1000;
-const dailyWheelStatusCache = new Map();
-
-function buildDailyWheelStatusCacheKey(user, guestCredentials) {
-  const email = String(user?.email || user?.user_email || '').trim().toLowerCase();
-  const guestId = String(guestCredentials?.guest_id || '').trim();
-  if (email) return `auth:${email}:${todayFallbackKey()}`;
-  if (guestId) return `guest:${guestId}:${todayFallbackKey()}`;
-  return null;
-}
-
-function readDailyWheelStatusCache(cacheKey) {
-  if (!cacheKey) return null;
-  const cached = dailyWheelStatusCache.get(cacheKey);
-  if (!cached) return null;
-  if (Date.now() - cached.cachedAt > DAILY_REWARD_STATUS_CACHE_TTL_MS) {
-    dailyWheelStatusCache.delete(cacheKey);
-    return null;
-  }
-  return cached.body || null;
-}
-
-function writeDailyWheelStatusCache(cacheKey, body) {
-  if (!cacheKey || !body) return;
-  dailyWheelStatusCache.set(cacheKey, {
-    cachedAt: Date.now(),
-    body,
-  });
-}
-
-function scheduleDailyWheelStatusRefresh(callback) {
-  if (typeof window === 'undefined') {
-    callback();
-    return () => {};
-  }
-  if (typeof window.requestIdleCallback === 'function') {
-    const id = window.requestIdleCallback(callback, { timeout: 2200 });
-    return () => window.cancelIdleCallback?.(id);
-  }
-  const id = window.setTimeout(callback, 650);
-  return () => window.clearTimeout(id);
-}
+// Shared Daily status cache contract (60s TTL + idle-scheduled refresh)
+// lives in src/lib/dailyStatusCache.js; the wheel keeps its own store
+// instance so wheel/calendar invalidations stay independent.
+const dailyWheelStatusStore = createDailyStatusStore();
 
 function userSafeDailyWheelError(err, fallback) {
   const body = err?.response?.data || err?.body || null;
@@ -154,7 +118,7 @@ export function useDailyWheel({ user, guestProfile, onUserUpdated } = {}) {
   const guestCredentials = useMemo(() => getCompletedGuestCredentialsPayload(guestProfile), [guestProfile]);
   const dailyWheelPayload = useMemo(() => guestCredentials || {}, [guestCredentials]);
   const dailyWheelCacheKey = useMemo(
-    () => buildDailyWheelStatusCacheKey(user, guestCredentials),
+    () => buildDailyStatusCacheKey(user, guestCredentials),
     [guestCredentials, user?.email, user?.user_email],
   );
   const isSignedIn = Boolean(user?.email || user?.user_email || guestCredentials);
@@ -193,7 +157,7 @@ export function useDailyWheel({ user, guestProfile, onUserUpdated } = {}) {
       setShowPrompt(false);
       return null;
     }
-    const cachedBody = readDailyWheelStatusCache(dailyWheelCacheKey);
+    const cachedBody = dailyWheelStatusStore.read(dailyWheelCacheKey);
     if (cachedBody) {
       applyDailyWheelStatusBody(cachedBody);
     } else {
@@ -201,7 +165,7 @@ export function useDailyWheel({ user, guestProfile, onUserUpdated } = {}) {
     }
     try {
       const body = await invokeDailyWheelFunction('getDailyWheelStatus', dailyWheelPayload);
-      writeDailyWheelStatusCache(dailyWheelCacheKey, body);
+      dailyWheelStatusStore.write(dailyWheelCacheKey, body);
       applyDailyWheelStatusBody(body);
       return body;
     } catch (err) {
@@ -219,7 +183,7 @@ export function useDailyWheel({ user, guestProfile, onUserUpdated } = {}) {
 
   useEffect(() => {
     let cancelled = false;
-    const cancelScheduledRefresh = scheduleDailyWheelStatusRefresh(async () => {
+    const cancelScheduledRefresh = scheduleIdleStatusRefresh(async () => {
       const body = await refresh();
       if (cancelled || !body) return;
       if (body?.userPatch && typeof onUserUpdated === 'function') onUserUpdated(body.userPatch);
@@ -266,7 +230,7 @@ export function useDailyWheel({ user, guestProfile, onUserUpdated } = {}) {
       },
       diamondTotal: body.updatedDiamondTotal,
     };
-    writeDailyWheelStatusCache(dailyWheelCacheKey, claimedWheelStatus);
+    dailyWheelStatusStore.write(dailyWheelCacheKey, claimedWheelStatus);
     setWheel(claimedWheelStatus);
     setStatus('claimed');
     if (body.userPatch && typeof onUserUpdated === 'function') onUserUpdated(body.userPatch);
