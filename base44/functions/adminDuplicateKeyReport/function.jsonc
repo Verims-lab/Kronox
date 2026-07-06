@@ -1,0 +1,4 @@
+{
+  "name": "adminDuplicateKeyReport",
+  "entry": "entry.ts"
+}

@@ -700,6 +700,35 @@ For economy idempotency, repo code provides function-level guards, not atomic
 upserts: DB/entity unique plus code guard is Low risk; code guard only is
 Medium/P1 hardening; neither is High.
 
+### GFable 5 — Duplicate Cleanup Before Unique Index
+
+Support model confirmed: Base44 repo JSONC entity schemas cannot declare
+indexes/unique constraints; unique/index setup is platform/manual
+configuration and remains a manual release gate. Function-level guards plus
+`EconomyOperationLock` stay the runtime enforcement until platform proof.
+
+Mandatory sequence — index before duplicate cleanup is not allowed:
+
+1. Run `adminDuplicateKeyReport` (AdminUser-gated, read-only; modes `dry_run`
+   default and `prepare_cleanup_plan`) for every planned unique key. It returns
+   masked counts/sample keys only and never mutates rows or balances.
+2. If a key reports duplicates, do not configure the unique constraint yet.
+   Destructive cleanup is intentionally not implemented; canonical-row
+   semantics per entity require explicit product/admin approval first.
+   Legacy `daily_quest:*` progress duplicates use the existing
+   `cleanupLegacyDailyQuests` dry-run/delete path.
+3. Only zero-duplicate keys (re-verified by a fresh dry-run) may be configured
+   as platform unique keys, then recorded as release proof.
+
+Latest dry-run snapshot (2026-07-06, bounded scan windows): duplicates exist
+for `DiamondTransaction.idempotency_key` (legacy starter/daily grant retries),
+`UserJokerInventory.user_email + joker_type` (runtime dedupes on read),
+`UserDailyQuestProgress` keys (mostly legacy `daily_quest:*` rows), and
+`SoloLeaderboardEntry.owner_key` (public reads already dedupe server-side) —
+those uniques are blocked pending cleanup. `DailyWheelSpin` (key and
+user/day), `Lobby.code`, and `HintTransaction.idempotency_key` showed zero
+duplicates and are unblocked pending platform support.
+
 | Entity | Index or unique key | Priority | Why |
 | --- | --- | --- | --- |
 | `Category` | unique `category_id` | P0 | Seed/backfill and question references. |

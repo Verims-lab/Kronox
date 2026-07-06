@@ -231,6 +231,10 @@ import * as profileAvatarCases from './simulationPanelProfileAvatarCases';
 // cache helper, idle-scheduled refresh, cache-preserving background refresh,
 // and no direct Daily status backend calls from the Home shell.
 import * as startupStatusCacheCases from './simulationPanelStartupStatusCacheCases';
+// GFable 5 — DB index / duplicate cleanup readiness: platform-manual index
+// gate, duplicate-dry-run-before-unique rule, and the AdminUser-gated
+// read-only adminDuplicateKeyReport tool contract.
+import * as dbIndexReadinessCases from './simulationPanelDbIndexReadinessCases';
 
 const MODULES = [
   soloProgressCases,
@@ -289,6 +293,7 @@ const MODULES = [
   healthUpdateAuditCases,
   profileAvatarCases,
   startupStatusCacheCases,
+  dbIndexReadinessCases,
 ];
 
 function flatten(key) {

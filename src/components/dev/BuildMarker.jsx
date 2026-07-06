@@ -1,5 +1,27 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex561 — GFable 5 DB indexing / duplicate cleanup prep:
+//   • Confirmed the Base44 index support model: repo JSONC entity schemas
+//     cannot declare indexes/unique constraints — platform/manual
+//     configuration only, tracked as a manual release gate while
+//     function-level guards + EconomyOperationLock remain the enforcement.
+//   • Ran real duplicate dry-runs for every planned P0/P1 unique key and
+//     recorded the snapshot in docs/mirror: DiamondTransaction idempotency,
+//     UserJokerInventory user+joker, UserDailyQuestProgress keys, and
+//     SoloLeaderboardEntry owner_key carry duplicates (unique blocked until
+//     admin-approved cleanup); DailyWheelSpin, Lobby.code, and
+//     HintTransaction are duplicate-free (unblocked pending platform support).
+//   • New AdminUser-gated, READ-ONLY adminDuplicateKeyReport backend function:
+//     mode dry_run default / prepare_cleanup_plan, masked sample keys only,
+//     no delete/merge/balance mutation, destructive cleanup intentionally
+//     not implemented until canonical-row semantics are approved.
+//   • New db_index_readiness Health suite guards the tool's admin gate,
+//     read-only contract, P0/P1 dry-run coverage, sample masking, docs
+//     alignment, and the manual platform unique/index gate.
+//   • No scoring, reward, probability, price, identity, BottomNav, admin
+//     permission, or native wrapper behavior changed; no production data
+//     was deleted or mutated.
+//
 // Codex560 — KRONOX-MR9GYP0O Health blocker alignment:
 //   • Performance/UX Signal cases retargeted to the shared dailyStatusCache
 //     helper: startup fast-path now scans scheduleIdleStatusRefresh plus the
@@ -441,7 +463,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex560';
+const BUILD_MARKER = 'Codex561';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
