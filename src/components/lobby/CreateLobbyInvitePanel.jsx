@@ -87,7 +87,7 @@ export default function CreateLobbyInvitePanel({
         const rows = await loadOnlinePlayerSelection();
         if (!cancelled) setPlayers(rows || []);
       } catch (err) {
-        if (!cancelled) setPlayersError(err?.message || 'Oyuncular yüklenemedi.');
+        if (!cancelled) setPlayersError(err?.message || 'Oyuncu listesi alınamadı. Tekrar dene.');
       } finally {
         if (!cancelled && showLoading) setPlayersLoading(false);
       }
@@ -216,14 +216,17 @@ export default function CreateLobbyInvitePanel({
           <ul className="space-y-2">
             {players.map((player) => {
               const isSelected = selectedTargets.includes(player.target_ref);
-              const disabled = !isSelected && selectedTargets.length >= inviteCap;
+              const selectionDisabled = player?.invite_enabled === false;
+              const disabled = selectionDisabled || (!isSelected && selectedTargets.length >= inviteCap);
               return (
                 <FriendInviteRow
                   key={player.target_ref}
                   player={player}
                   selected={isSelected}
                   disabled={disabled}
-                  onToggle={() => togglePlayer(player.target_ref)}
+                  onToggle={() => {
+                    if (!selectionDisabled) togglePlayer(player.target_ref);
+                  }}
                 />
               );
             })}
@@ -454,7 +457,7 @@ function FriendInviteRow({ player, selected, disabled, onToggle }) {
         <div className="min-w-0 flex-1">
           <p className="truncate font-inter text-sm font-bold text-white">{display}</p>
           <p className="truncate font-inter text-[11px]" style={{ color: isOnline ? '#34d399' : '#f87171' }}>
-            {player?.status_label || (isOnline ? 'Çevrimiçi' : 'Çevrim dışı')} · {player?.badge_label || (player?.relation === 'friend' ? 'Arkadaş' : 'Oyuncu')}
+            {player?.invite_enabled === false ? 'Kod ile katılabilir' : (player?.status_label || (isOnline ? 'Çevrimiçi' : 'Çevrim dışı'))} · {player?.badge_label || (player?.relation === 'friend' ? 'Arkadaş' : 'Oyuncu')}
           </p>
         </div>
         <span

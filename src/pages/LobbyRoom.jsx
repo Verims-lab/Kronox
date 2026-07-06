@@ -1,6 +1,7 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
 import LobbyCreateJoinPanel from '@/components/lobby/LobbyCreateJoinPanel';
 import OnlineChallengeScreen from '@/components/lobby/OnlineChallengeScreen';
 import WaitingRoomPanel from '@/components/lobby/WaitingRoomPanel';
@@ -30,10 +31,12 @@ import { generateUniqueLobbyCode } from '@/lib/lobbyCodeGuard';
 import { debugLog, debugWarn } from '@/lib/debugLog';
 import { setBottomNavHidden } from '@/lib/bottomNavVisibility';
 import { getSafeNotificationActorName } from '@/lib/notificationIdentity';
+import { isGuestOnboardingComplete } from '@/lib/guestProfile';
 
 export default function LobbyRoom() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user: authUser, guestProfile: authGuestProfile, authChecked } = useAuth();
   const initialJoinedLobby = useMemo(() => {
     const joined = location.state?.verifiedLobby || location.state?.joinedLobby;
     if (!joined?.id) return null;
@@ -59,6 +62,10 @@ export default function LobbyRoom() {
     setCopied,
     userChecked,
   } = useLobbyRoomState(initialJoinedLobby);
+  const currentUser = authUser || user;
+  const currentGuestProfile = !currentUser && isGuestOnboardingComplete(authGuestProfile) ? authGuestProfile : null;
+  const currentActor = currentUser || currentGuestProfile;
+  const currentUserChecked = Boolean(authChecked || userChecked);
   const queryInviteId = useMemo(
     () => new URLSearchParams(location.search).get('inviteId') || '',
     [location.search],
@@ -76,16 +83,16 @@ export default function LobbyRoom() {
   const [activeLobby, setActiveLobby] = useState(null);
 
   useEffect(() => {
-    if (lobby || queryInviteId || !user?.email) {
+    if (lobby || queryInviteId || !currentUser?.email) {
       setActiveLobby(null);
       return undefined;
     }
     let cancelled = false;
-    loadActiveLobbyForUser(user).then((found) => {
+    loadActiveLobbyForUser(currentUser).then((found) => {
       if (!cancelled) setActiveLobby(found);
     });
     return () => { cancelled = true; };
-  }, [user?.email, lobby, queryInviteId]);
+  }, [currentUser?.email, lobby, queryInviteId]);
 
   const handleResumeActiveLobby = (target) => {
     if (!target) return;
@@ -121,13 +128,13 @@ export default function LobbyRoom() {
   // For backwards-compat (e.g. if called with no payload), we fall back to playerName state.
   const handleCreate = async (payload = {}) => {
     const { maxPlayers, inviteTargets, invitedEmails, selectedCategories } = payload || {};
-    const derivedName = user
-      ? deriveDisplayName(user)
-      : (playerName && playerName.trim()) || '';
+    const derivedName = currentUser
+      ? deriveDisplayName(currentUser)
+      : (currentGuestProfile?.username || playerName || 'Oyuncu').trim();
 
     // Only validate when we have to (guest with no user). Authenticated users skip the regex
     // because their display name may legitimately contain spaces/punctuation we don't control.
-    if (!user) {
+    if (!currentUser && !currentGuestProfile) {
       const err = validatePlayerName(derivedName);
       if (err) return setNameError(err);
     }
@@ -137,7 +144,7 @@ export default function LobbyRoom() {
     // Logical unique guard: query-before-create via findLobbyByCode lookup-only
     // mode so two lobbies never share the same live code.
     const code = await generateUniqueLobbyCode();
-    const { identity, player } = buildPlayerPayload(user, derivedName);
+    const { identity, player } = buildPlayerPayload(currentActor, derivedName);
     const createdAt = new Date();
 
     const lobbyPayload = {
@@ -184,7 +191,7 @@ export default function LobbyRoom() {
     if ((Array.isArray(inviteTargets) && inviteTargets.length) || (Array.isArray(invitedEmails) && invitedEmails.length)) {
       try {
         const summary = await createGameInvites({
-          host: user,
+          host: identity,
           lobby: newLobby,
           toEmails: invitedEmails,
           inviteTargets,
@@ -235,7 +242,7 @@ export default function LobbyRoom() {
   }, [location.state]);
 
   useEffect(() => {
-    if (!queryInviteId || !user?.email || lobby) return undefined;
+    if (!queryInviteId || !currentUser?.email || lobby) return undefined;
     let cancelled = false;
     setDeepLinkMessage('Davet kontrol ediliyor...');
     setDeepLinkInvite(null);
@@ -244,7 +251,7 @@ export default function LobbyRoom() {
       try {
         const invite = await base44.entities.GameInvite.get(queryInviteId);
         if (cancelled) return;
-        const myEmail = String(user.email || '').toLowerCase();
+        const myEmail = String(currentUser.email || '').toLowerCase();
         const toEmail = String(invite?.to_email || '').toLowerCase();
         if (!invite || toEmail !== myEmail) {
           setDeepLinkMessage('Bu davet bulunamadı veya sana ait değil.');
@@ -284,7 +291,7 @@ export default function LobbyRoom() {
 
     loadInvite();
     return () => { cancelled = true; };
-  }, [lobby, navigate, queryInviteId, setLobby, user?.email]);
+  }, [currentUser?.email, lobby, navigate, queryInviteId, setLobby]);
 
   const handleDeepLinkAccept = async () => {
     if (!deepLinkInvite?.id || deepLinkBusy) return;
@@ -380,14 +387,19 @@ export default function LobbyRoom() {
 
   const handleLeave = async () => {
     if (!lobby) return;
-    const lobbyIsHost = isHost(lobby, user) || isGuestHost(lobby, user, playerName);
+    const lobbyIsHost = isHost(lobby, currentUser) || isGuestHost(lobby, currentGuestProfile, playerName);
     if (lobbyIsHost) {
       await base44.entities.Lobby.delete(lobby.id);
     } else {
+      const leaveEmail = currentUser?.email || (
+        currentGuestProfile
+          ? buildPlayerPayload(currentGuestProfile, currentGuestProfile.username || playerName || 'Oyuncu').identity.email
+          : ''
+      );
       await base44.entities.Lobby.update(lobby.id, {
         players: removePlayerByIdentity(lobby.players, {
-          email: user?.email,
-          name: playerName,
+          email: leaveEmail,
+          name: currentGuestProfile?.username || playerName,
         })
       });
     }
@@ -407,7 +419,7 @@ export default function LobbyRoom() {
     }, 2000);
   };
 
-  const lobbyIsHost = isHost(lobby, user) || isGuestHost(lobby, user, playerName);
+  const lobbyIsHost = isHost(lobby, currentUser) || isGuestHost(lobby, currentGuestProfile, playerName);
 
   if (lobby) {
     return (
@@ -415,9 +427,9 @@ export default function LobbyRoom() {
         lobby={lobby}
         setLobby={setLobby}
         playerName={playerName}
-        user={user}
+        user={currentUser}
         isHost={lobbyIsHost}
-        canStart={canStartLobby(lobby, user, playerName)}
+        canStart={canStartLobby(lobby, currentActor, playerName)}
         onLeave={handleLeave}
         onCopyCode={handleCopyCode}
         copied={copied}
@@ -429,8 +441,8 @@ export default function LobbyRoom() {
   if (queryInviteId) {
     return (
       <DeepLinkedInvitePanel
-        user={user}
-        userChecked={userChecked}
+        user={currentUser}
+        userChecked={currentUserChecked}
         invite={deepLinkInvite}
         message={deepLinkMessage}
         busy={deepLinkBusy}
@@ -468,7 +480,7 @@ export default function LobbyRoom() {
           setMode(null);
           setError('');
         }}
-        user={user}
+        user={currentUser}
         onGoFriends={() => navigate('/friends')}
       />
     );
@@ -476,7 +488,8 @@ export default function LobbyRoom() {
 
   return (
     <OnlineChallengeScreen
-      user={user}
+      user={currentUser}
+      guestProfile={currentGuestProfile}
       loading={loading}
       error={error}
       onStartChallenge={({ selectedCategories, inviteTargets }) => {
@@ -493,7 +506,7 @@ export default function LobbyRoom() {
       onJoinOpenLobby={() => setMode('join')}
       onGoFriends={() => navigate('/friends')}
       activeLobby={activeLobby}
-      isActiveLobbyHost={Boolean(activeLobby && user && activeLobby.host_email === user.email)}
+      isActiveLobbyHost={Boolean(activeLobby && currentUser && activeLobby.host_email === currentUser.email)}
       onResumeActiveLobby={handleResumeActiveLobby}
     />
   );

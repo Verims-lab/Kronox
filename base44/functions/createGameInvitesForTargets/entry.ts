@@ -3,7 +3,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 const GAME_INVITE_TTL_MS = 10 * 60 * 1000;
 const LOBBY_STALE_AFTER_MS = 10 * 60 * 1000;
 const PRESENCE_ONLINE_TTL_MS = 75 * 1000;
-const TARGET_REF_PATTERN = /^u_[a-z0-9]{3,32}$/;
+const TARGET_REF_PATTERN = /^[ug]_[a-z0-9]{3,32}$/;
 const KRONOX_ID_PATTERN = /^KX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
 
 const normalizeEmail = (value: unknown) => String(value || '').trim().toLowerCase();
@@ -163,7 +163,7 @@ async function resolveTarget(base44: any, targetRef: string, {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
+    const user = await base44.auth.me().catch(() => null);
     if (!user?.email) return json({ ok: false, error: 'Unauthorized' }, 401);
 
     const body = await req.json().catch(() => ({}));

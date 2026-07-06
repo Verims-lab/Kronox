@@ -359,21 +359,33 @@ export const getFriendPresenceFnSource = `
 `;
 
 export const getOnlinePlayerSelectionFnSource = `
-  const user = await base44.auth.me();
-  if (!user?.email) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const user = await base44.auth.me().catch(() => null);
+  async function verifyGuestProfile(base44, body) {
+    const guestId = normalizeGuestId(body?.guest_id);
+    const guestToken = normalizeGuestToken(body?.guest_token);
+    const expectedHash = String(guest?.guest_token_hash || '');
+    const providedHash = await hashGuestToken(guestId, guestToken);
+    return { ok: true, actor: { ownerKeyHash: makeGuestOwnerKeyHash(guestId), myEmail: '', playerType: 'guest' } };
+  }
+  async function resolveSelectionActor(base44, body) {
+    if (user?.email) return { ok: true, actor: { ownerKeyHash: makeOwnerKeyHash(user.email), myEmail: normalizeEmail(user.email), playerType: 'linked' } };
+    return verifyGuestProfile(base44, body);
+  }
   const friends = await getAcceptedFriends(base44, myEmail);
   const onlinePresenceRows = await base44.asServiceRole.entities.PlayerPresence.filter({ status: 'online' }, '-last_seen_at', limit);
-  if (!targetEmail || targetEmail === myEmail) continue;
+  const inviteEnabled = Boolean(targetEmail);
+  if (targetEmail && targetEmail === myEmail) continue;
   buildPublicRow({ targetRef, username, relation: 'friend', online });
-  buildPublicRow({ targetRef, username, relation: 'not_friend', online: true });
+  buildPublicRow({ targetRef, username, relation: 'not_friend', online: true, inviteEnabled, selectionDisabledReason: inviteEnabled ? '' : 'code_join_only' });
   const order = { online_friend: 0, online_non_friend: 1, offline_friend: 2 };
   rows.sort((a, b) => (order[a.group] ?? 99) - (order[b.group] ?? 99));
-  return json({ ok: true, players: rows, privacy: { targetEmailReturned: false, publicIdentity: 'username', targetReference: 'opaque_presence_key' } });
+  return json({ ok: true, players: rows, privacy: { targetEmailReturned: false, publicIdentity: 'username', targetReference: 'opaque_presence_key', rawGuestIdReturned: false, ownerKeyReturned: false } });
 `;
 
 export const createGameInvitesForTargetsFnSource = `
   const GAME_INVITE_TTL_MS = 10 * 60 * 1000;
-  const user = await base44.auth.me();
+  const TARGET_REF_PATTERN = /^[ug]_[a-z0-9]{3,32}$/;
+  const user = await base44.auth.me().catch(() => null);
   if (!user?.email) return json({ ok: false, error: 'Unauthorized' }, 401);
   const targetRefs = normalizeTargetRefs(body?.target_refs || body?.invite_targets || body?.targets);
   if (normalizeEmail(lobby.host_email) !== myEmail) return json({ ok: false, error: 'Bu lobi için davet oluşturamazsın.' }, 403);

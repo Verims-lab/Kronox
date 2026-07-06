@@ -32,7 +32,7 @@ fallback polling/refetch.
 | Online start | Confirms source has merge/retry/start/recovery markers | Does not simulate four live accounts or Base44 realtime delivery |
 | Invite accept | Confirms `verifiedLobby`/`joinedLobby` contract | Does not prove deployed function freshness |
 | Notifications | Executable merge helpers cover stale empty fetches | Does not prove push delivery or service worker behavior on real devices |
-| Online presence / player selection | Confirms PlayerPresence owner binding, GuestProfile token proof for guest heartbeat, 75s TTL/25s heartbeat/12s visible refresh, accepted-friend lookup, backend-owned player selection, username-only labels, opaque target refs, and offline fallback | Does not prove deployed function freshness, two-device heartbeat timing, or live non-friend invite delivery |
+| Online presence / player selection | Confirms PlayerPresence owner binding, GuestProfile token proof for guest heartbeat and player selection, 75s TTL/25s heartbeat/12s visible refresh, accepted-friend lookup, backend-owned player selection, username-only labels, opaque `u_`/`g_` target refs, non-routable guest row safety, safe retry copy, and offline fallback | Does not prove deployed function freshness, two-device heartbeat timing, or live non-friend invite delivery |
 | Solo records | Confirms backend context and copy | Does not prove production data has multi-user records |
 | Economy | Confirms idempotency guards, Daily Wheel V2 no-Puan weighted reward rules, Daily Calendar / Streak Diamond-only rules, and function-level economy lock/recheck guards | Does not prove DB uniqueness or two-device race safety |
 | Leaderboard privacy | Confirms sanitized public payload shape | Does not prove live RLS prevents direct entity reads |
@@ -70,9 +70,10 @@ fallback polling/refetch.
   suppression, function-level `FriendRequestOperationLock` race hardening, and
   username-safe responses.
 - Added focused Online player-selection coverage for online friend / online
-  non-friend / offline friend ordering, current-user/unroutable exclusion,
-  opaque target refs, backend-only invite recipient resolution, and no
-  client-visible recipient email.
+  non-friend / offline friend ordering, completed-guest actor proof,
+  `u_`/`g_` opaque target refs, non-routable guest row handling, backend-only
+  invite recipient resolution, safe retry copy, and no client-visible
+  recipient email/private identity fields.
 - Added Security Pass 1 coverage for exact Base44 SDK pin/alignment, no
   `react-markdown`/`rehype-raw` raw HTML markdown path, guarded chart CSS
   generation without `dangerouslySetInnerHTML`, and Base44 access-token URL

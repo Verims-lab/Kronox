@@ -178,8 +178,11 @@ Phase 1 foundation:
 - Online player selection goes through `getOnlinePlayerSelection` and
   `src/lib/onlinePlayerSelection.js`. The picker order is online friends,
   online non-friends, then offline friends; offline non-friends are excluded.
-  The UI stores opaque `target_ref` values only. `createGameInvitesForTargets`
-  resolves those refs backend-side to existing `GameInvite` recipients.
+  Linked actors use `auth.me`; completed guests can use the same picker with
+  `guest_id + guest_token` proof. The UI stores opaque `u_`/`g_` `target_ref`
+  values only. `createGameInvitesForTargets` resolves routable refs
+  backend-side to existing `GameInvite` recipients; non-email-routable guest
+  presence rows stay visible but disabled for direct invite creation.
   Player-selection and friend-presence UI refresh while visible, refetch on
   focus/reconnect, and preserve previous safe rows through transient failures.
 

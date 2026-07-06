@@ -640,7 +640,14 @@ export const EXTRA_TESTS = [
         'online_friend',
         'online_non_friend',
         'offline_friend',
-        'if (!targetEmail || targetEmail === myEmail) continue',
+        'resolveSelectionActor',
+        'verifyGuestProfile',
+        'hashGuestToken',
+        'makeGuestOwnerKeyHash',
+        'const inviteEnabled = Boolean(targetEmail)',
+        'selectionDisabledReason',
+        'code_join_only',
+        'rawGuestIdReturned: false',
       ];
       const missingClient = requiredClient.filter((token) => !client.includes(token));
       const missingBackend = requiredBackend.filter((token) => !backend.includes(token));
@@ -653,7 +660,7 @@ export const EXTRA_TESTS = [
           missingBackend,
         });
       }
-      return pass('Player selection preserves online friend → online player → offline friend ordering and excludes unroutable/self rows.', {
+      return pass('Player selection preserves online friend → online player → offline friend ordering, supports guest-proofed actors, and keeps non-routable rows safe.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
       });
@@ -668,9 +675,11 @@ export const EXTRA_TESTS = [
         'normalizeInviteTargetRef',
         'target_refs',
         "functions.invoke('createGameInvitesForTargets'",
+        'TARGET_REF_PATTERN = /^[ug]',
         'targetEmailReturned: false',
         "targetResolution: 'backend_only'",
         'freshPresence.user_email',
+        'target_not_routable',
         'recipient_relation: target.relation',
         "created_source: 'online_player_selection'",
       ];
@@ -692,6 +701,47 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Online non-friend invite creation is backend-resolved from opaque target refs and returns no recipient email.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('invite_delivery', 'online_player_selection_guest_safe_retry_contract',
+    'Online player selection supports completed guests and safe retry copy instead of raw 500 text',
+    () => {
+      const src = `${safeStr(friendSelectModalSource)}\n${safeStr(onlinePlayerSelectionSource)}\n${safeStr(getOnlinePlayerSelectionFnSource)}\n${safeStr(createGameInvitesForTargetsFnSource)}`;
+      const required = [
+        'getCompletedGuestCredentialsPayload',
+        'hasPlayerContext',
+        'loadOnlinePlayerSelection({ guestCredentials })',
+        'Oyuncu listesi alınamadı. Tekrar dene.',
+        'Tekrar Dene',
+        'resolveSelectionActor',
+        'verifyGuestProfile',
+        'guest_token_hash',
+        'makeGuestOwnerKeyHash',
+        'TARGET_REF_PATTERN = /^[ug]',
+        'invite_enabled',
+        'selection_disabled_reason',
+      ];
+      const forbidden = [
+        'Request failed with status code ' + '500',
+        'if (!user?.email) return undefined',
+        'const user = await base44.auth.me();\n  if (!user?.email)',
+      ];
+      const missing = required.filter((token) => !src.includes(token));
+      const foundForbidden = forbidden.filter((token) => src.includes(token));
+      if (missing.length || foundForbidden.length) {
+        return fail('Online player selection can still be login-gated or expose raw backend failures.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          missing,
+          foundForbidden,
+        });
+      }
+      return pass('Online player selection accepts completed guest proof and uses safe retry UI for backend failures.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
       });

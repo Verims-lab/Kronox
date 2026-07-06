@@ -35,6 +35,7 @@ const DEFAULT_CATEGORIES = [];
 
 export default function OnlineChallengeScreen({
   user,
+  guestProfile = null,
   loading,
   error,
   onStartChallenge,
@@ -284,6 +285,7 @@ export default function OnlineChallengeScreen({
         open={friendModalOpen}
         onClose={() => setFriendModalOpen(false)}
         user={user}
+        guestProfile={guestProfile}
         initialSelectedTargets={inviteTargets}
         onConfirm={(targets) => setInviteTargets(targets)}
         onGoFriends={onGoFriends}

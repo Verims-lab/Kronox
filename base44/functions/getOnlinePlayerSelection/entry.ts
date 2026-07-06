@@ -3,6 +3,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 const PRESENCE_ONLINE_TTL_MS = 75 * 1000;
 const MAX_SELECTION_ROWS = 200;
 const PRESENCE_SCAN_LIMIT = 600;
+const KRONOX_ID_PATTERN = /^KX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
 const AVATAR_TYPE_VALUES = new Set(['icon', 'photo']);
 const AVATAR_ICON_IDS = new Set([
   'shield', 'helmet', 'sword', 'crown', 'trophy', 'hourglass', 'clock', 'timer',
@@ -26,6 +27,17 @@ function makeOwnerKeyHash(email: unknown) {
   return `u_${(hash >>> 0).toString(36)}`;
 }
 
+function makeGuestOwnerKeyHash(guestId: unknown) {
+  const normalized = String(guestId || '').trim().toLowerCase();
+  if (!normalized) return '';
+  let hash = 2166136261;
+  for (let i = 0; i < normalized.length; i += 1) {
+    hash ^= normalized.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `g_${(hash >>> 0).toString(36)}`;
+}
+
 function makeUsernameFallback(seed: unknown) {
   const text = String(seed || '').trim();
   let hash = 2166136261;
@@ -34,6 +46,46 @@ function makeUsernameFallback(seed: unknown) {
     hash = Math.imul(hash, 16777619);
   }
   return `KronoxUser${1000 + ((hash >>> 0) % 90000)}`;
+}
+
+function normalizeKronoxUserId(value: unknown) {
+  const text = String(value || '').trim().toUpperCase();
+  return KRONOX_ID_PATTERN.test(text) ? text : '';
+}
+
+function safeCredentialText(value: unknown, maxLength = 180) {
+  const text = String(value || '').trim();
+  if (!text || text.length > maxLength) return '';
+  return /^[A-Za-z0-9_-]+$/.test(text) ? text : '';
+}
+
+function normalizeGuestId(value: unknown) {
+  const text = safeCredentialText(value, 80);
+  return text.startsWith('guest_') ? text : '';
+}
+
+function normalizeGuestToken(value: unknown) {
+  return safeCredentialText(value, 220);
+}
+
+function bytesToBase64Url(bytes: Uint8Array) {
+  let binary = '';
+  bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+async function sha256Base64Url(input: string) {
+  const data = new TextEncoder().encode(input);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return bytesToBase64Url(new Uint8Array(digest));
+}
+
+async function hashGuestToken(guestId: string, guestToken: string) {
+  return sha256Base64Url(`kronox_guest_v1:${guestId}:${guestToken}`);
+}
+
+function guestProfileEntity(base44: any) {
+  return base44?.asServiceRole?.entities?.GuestProfile || base44?.entities?.GuestProfile || null;
 }
 
 function safePublicUsername(value: unknown, fallbackSeed: unknown) {
@@ -126,6 +178,8 @@ function buildPublicRow({
   lastSeenAt,
   expiresAt,
   avatarSource,
+  inviteEnabled = true,
+  selectionDisabledReason = '',
 }: {
   targetRef: string;
   username: string;
@@ -134,6 +188,8 @@ function buildPublicRow({
   lastSeenAt?: string | null;
   expiresAt?: string | null;
   avatarSource?: any;
+  inviteEnabled?: boolean;
+  selectionDisabledReason?: string;
 }) {
   const group = relation === 'friend'
     ? (online ? 'online_friend' : 'offline_friend')
@@ -145,6 +201,8 @@ function buildPublicRow({
     online,
     status: online ? 'online' : 'offline',
     group,
+    invite_enabled: inviteEnabled,
+    selection_disabled_reason: selectionDisabledReason,
     last_seen_at: lastSeenAt || null,
     expires_at: expiresAt || null,
     ...pickPublicAvatarFields(avatarSource),
@@ -158,7 +216,75 @@ async function getUserPublicProfile(base44: any, email: string) {
   return rows?.[0] || null;
 }
 
+async function findCurrentUserRow(base44: any, user: any, email: string) {
+  const rows = await base44.asServiceRole.entities.User.filter({ email }, '-updated_date', 1).catch(() => []);
+  return rows?.[0] || user || null;
+}
+
+async function verifyGuestProfile(base44: any, body: any) {
+  const guestId = normalizeGuestId(body?.guest_id);
+  const guestToken = normalizeGuestToken(body?.guest_token);
+  if (!guestId || !guestToken) {
+    return { ok: false, response: json({ ok: false, error: 'Unauthorized' }, 401), actor: null };
+  }
+
+  const entity = guestProfileEntity(base44);
+  if (!entity?.filter) {
+    return { ok: false, response: json({ ok: false, error: 'GuestProfile unavailable' }, 503), actor: null };
+  }
+
+  const rows = await entity.filter({ guest_id: guestId }, '-created_at', 5).catch(() => []);
+  const guest = Array.isArray(rows) && rows[0] ? rows[0] : null;
+  const expectedHash = String(guest?.guest_token_hash || '');
+  const providedHash = await hashGuestToken(guestId, guestToken);
+  if (!guest || !expectedHash || expectedHash !== providedHash) {
+    return { ok: false, response: json({ ok: false, error: 'invalid_guest_token' }, 401), actor: null };
+  }
+
+  const ownerKeyHash = makeGuestOwnerKeyHash(guestId);
+  return {
+    ok: true,
+    response: null,
+    actor: {
+      ownerKeyHash,
+      kronoxUserId: normalizeKronoxUserId(guest?.kronox_user_id),
+      myEmail: '',
+      playerType: 'guest',
+      username: safePublicUsername(guest?.username || guest?.display_name, guestId),
+    },
+  };
+}
+
+async function resolveSelectionActor(base44: any, body: any) {
+  const user = await base44.auth.me().catch(() => null);
+  if (user?.email) {
+    const myEmail = normalizeEmail(user.email);
+    const storedUser = await findCurrentUserRow(base44, user, myEmail);
+    const ownerKeyHash = makeOwnerKeyHash(myEmail);
+    if (!ownerKeyHash) {
+      return { ok: false, response: json({ ok: false, error: 'Invalid actor' }, 400), actor: null };
+    }
+    return {
+      ok: true,
+      response: null,
+      actor: {
+        ownerKeyHash,
+        kronoxUserId: normalizeKronoxUserId(storedUser?.kronox_user_id || user?.kronox_user_id),
+        myEmail,
+        playerType: 'linked',
+        username: safePublicUsername(
+          storedUser?.username || storedUser?.public_username || storedUser?.display_name || user.username || user.public_username || user.display_name || user.full_name,
+          myEmail,
+        ),
+      },
+    };
+  }
+
+  return verifyGuestProfile(base44, body);
+}
+
 async function getAcceptedFriends(base44: any, myEmail: string) {
+  if (!myEmail) return [];
   const [incomingAccepted, outgoingAccepted] = await Promise.all([
     base44.asServiceRole.entities.FriendRequest.filter({ to_email: myEmail, status: 'accepted' }, '-updated_date', 200),
     base44.asServiceRole.entities.FriendRequest.filter({ from_email: myEmail, status: 'accepted' }, '-updated_date', 200),
@@ -203,13 +329,13 @@ function latestPresenceByOwner(rows: any[], nowMs: number) {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user?.email) return json({ ok: false, error: 'Unauthorized' }, 401);
-
     const body = await req.json().catch(() => ({}));
     const limit = normalizeLimit(body?.limit);
-    const myEmail = normalizeEmail(user.email);
-    const myPresenceKey = makeOwnerKeyHash(myEmail);
+    const resolved = await resolveSelectionActor(base44, body);
+    if (!resolved.ok) return resolved.response;
+    const actor = resolved.actor;
+    const myEmail = normalizeEmail(actor?.myEmail);
+    const myPresenceKey = String(actor?.ownerKeyHash || '');
     if (!myPresenceKey) return json({ ok: false, error: 'Invalid actor' }, 400);
 
     const nowMs = Date.now();
@@ -259,8 +385,9 @@ Deno.serve(async (req) => {
     for (const [targetRef, presence] of freshOnline.entries()) {
       if (!targetRef || targetRef === myPresenceKey || friendKeys.has(targetRef)) continue;
       const targetEmail = normalizeEmail(presence?.user_email || presence?.backend_recipient_email);
-      if (!targetEmail || targetEmail === myEmail) continue;
-      const targetProfile = await getUserPublicProfile(base44, targetEmail);
+      if (targetEmail && targetEmail === myEmail) continue;
+      const targetProfile = targetEmail ? await getUserPublicProfile(base44, targetEmail) : null;
+      const inviteEnabled = Boolean(targetEmail);
       addRow(buildPublicRow({
         targetRef,
         username: safePublicUsername(presence?.username || targetProfile?.username || targetProfile?.public_username, targetRef),
@@ -269,6 +396,8 @@ Deno.serve(async (req) => {
         lastSeenAt: presence?.last_heartbeat_at || presence?.last_seen_at || null,
         expiresAt: presence?.presence_expires_at || presence?.expires_at || null,
         avatarSource: targetProfile || presence,
+        inviteEnabled,
+        selectionDisabledReason: inviteEnabled ? '' : 'code_join_only',
       }));
     }
 
@@ -290,6 +419,8 @@ Deno.serve(async (req) => {
         targetEmailReturned: false,
         publicIdentity: 'username',
         targetReference: 'opaque_presence_key',
+        rawGuestIdReturned: false,
+        ownerKeyReturned: false,
       },
     });
   } catch {

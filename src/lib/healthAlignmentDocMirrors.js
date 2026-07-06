@@ -119,10 +119,12 @@ useFriendPresence, and src/lib/onlinePlayerSelection.js. Presence uses a 25s
 visible heartbeat, 75s server-owned TTL, runtime session ids, and token-proven
 GuestProfile support. Presence writes are current-user-bound, friend reads are
 accepted-friend-scoped, player selection returns online friends, online
-non-friends, then offline friends as username + opaque target_ref only,
-stale/missing presence displays offline, transient refresh failures preserve
-previous safe rows, and public surfaces render username-safe labels instead of
-email/provider/internal id fallbacks.
+non-friends, then offline friends as username + opaque u_/g_ target_ref only,
+completed guests can load the picker with guest_id + guest_token proof,
+non-routable guest presence rows stay visible but disabled for direct invite
+creation, stale/missing presence displays offline, transient refresh failures
+preserve previous safe rows, and public surfaces render username-safe labels
+instead of email/provider/internal id fallbacks.
 
 Friend add now uses backend-owned sendFriendRequest so email or username input
 shares one server-side path for target resolution, self/duplicate/pending
@@ -200,11 +202,13 @@ session, linked actors derive identity from auth.me, guest actors require
 GuestProfile token proof, friend lookup is restricted to accepted FriendRequest
 rows, and stale/missing presence displays offline rather than online. Explicit
 offline is session-scoped and TTL is the final safety net. Online non-friend
-discovery is fresh-presence-only. Friend, invite, lobby, notification, presence,
-and player selection surfaces render username-safe labels only; email, provider
-ID, raw guest ID, kronox_user_id, owner_key, and internal player_key values are
-never public display fallbacks. The UI stores opaque target_ref values and
-backend functions resolve recipient email privately for GameInvite creation.
+discovery is fresh-presence-only and supports token-proven guest actors in the
+picker. Friend, invite, lobby, notification, presence, and player selection
+surfaces render username-safe labels only; email, provider ID, raw guest ID,
+kronox_user_id, owner_key, and internal player_key values are never public
+display fallbacks. The UI stores opaque u_/g_ target_ref values and backend
+functions resolve recipient email privately for routable GameInvite creation;
+non-routable guest rows return safe disabled state instead of a raw 500.
 Profile avatar fields are public visual metadata only. Public rows may carry
 only sanitized avatar_type, avatar_icon_id, avatar_color_id, and avatar_url;
 username remains the public identity, and email/provider/owner/raw guest/internal
@@ -603,7 +607,7 @@ Status: Active product contract.
 - getQuestions serves an authenticated bounded server attempt candidate buffer for signed-in Solo and an explicit capped guest_gameplay_runtime minimal deck for first-time guest Solo; admin/full-bank/diagnostics still require active AdminUser owner/admin authorization. Authenticated candidate reads are bounded to 96 * 3 = 288 rows per active category/query variant before projection.
 - startLobbyGame requires authenticated host, no legacy guest, no client identity override.
 - sendFriendRequest requires authenticated user context, resolves email or username targets server-side, checks self/friend/open-pending guards under FriendRequestOperationLock, requires deletion of expired outgoing invites before resend, sets FriendRequest.expires_at at least 72 hours after creation, keeps open reverse-pending requests actionable through Gelen İstekler, ignores/expires stale reverse-pending rows, creates the FriendRequest row before SendEmail, treats email delivery failure as a soft failure that does not roll back the request, stores username-safe labels, and never returns the target email for username-based add. FriendRequestOperationLock is a function-level guard, not DB unique/index proof.
-- Online non-friend game invites use opaque target_ref values in the client. createGameInvitesForTargets resolves target refs backend-side to routable recipients, while public player-selection, lobby, invite, notification, and push payloads use username-safe labels and never expose target email, provider IDs, owner keys, raw guest IDs, or internal player keys.
+- Online non-friend game invites use opaque u_/g_ target_ref values in the client. getOnlinePlayerSelection supports authenticated users and token-proven completed guests; createGameInvitesForTargets resolves routable target refs backend-side, while non-routable guest refs return safe disabled/failure state. Public player-selection, lobby, invite, notification, and push payloads use username-safe labels and never expose target email, provider IDs, owner keys, raw guest IDs, or internal player keys.
 - DailyWheelSpin, GameInvite, and FriendRequest direct client create is not part of the secure product contract. Their RLS create rules allow only admin/service-role writes; callers must use claimDailyWheelReward, linkGuestAccount, createGameInvitesForTargets, or sendFriendRequest so the backend derives the actor, validates guest-token proof where applicable, and returns only privacy-safe response shapes.
 - Security Pass 1 pins @base44/sdk exactly at 0.8.34 and aligns Base44 Deno function imports to npm:@base44/sdk@0.8.34. Do not reintroduce frontend ^ SDK ranges, unversioned function SDK imports, or npm:@base44/sdk@0.8.25 without a documented Base44 runtime compatibility split.
 - User/admin/question markdown is not rendered as raw HTML. react-markdown is not a runtime dependency, rehype-raw is forbidden for user/content markdown, and dangerouslySetInnerHTML must not be used for user-generated, backend-provided, or markdown-provided content. Static generated CSS should use guarded text children instead of raw HTML injection.

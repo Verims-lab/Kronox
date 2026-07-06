@@ -64,6 +64,13 @@ Implemented now:
   - `LobbyMatchStats`
 - `QuestionPublicProjection` as an opt-in public-safe SEO/GEO projection.
   Raw `Question` remains protected and is not a public content source.
+- `PlayerPresence` is the backend-owned Online/social presence source.
+  `updatePlayerPresence` writes linked actors from `auth.me` or completed
+  guests from `guest_id + guest_token` proof, stores anonymized
+  `owner_key_hash`, and keeps `user_email` backend-private for routable linked
+  invites only. `getOnlinePlayerSelection` returns username-safe player rows
+  with opaque `u_`/`g_` target refs; non-routable guest presence is visible but
+  disabled for direct `GameInvite` creation instead of causing raw 500 errors.
 - `SoloLeaderboardEntry` is the current internal leaderboard projection source.
   Despite the historical name, `total_kronox_score` is unified Kronox Puan.
   Public consumption goes through `getSoloLeaderboard`, which returns

@@ -1,5 +1,14 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex569 — Online player selection guest/presence safety:
+//   • getOnlinePlayerSelection now resolves linked auth or completed
+//     GuestProfile token actors, accepts u_/g_ opaque target refs, and keeps
+//     non-routable guest presence visible without raw 500 failures.
+//   • FriendSelectModal sends guest credentials, shows safe Turkish retry UI,
+//     and disables non-routable rows instead of leaking private recipient data.
+//   • Docs/mirrors/Health guard guest-valid Online selection, safe retry copy,
+//     presence/login separation, and sanitized player-list responses.
+//
 // Codex568 — Solo Hint popup usability:
 //   • Solo Hint launcher touch target now owns pointer events and is not
 //     disabled by the joker-only post-drag guard.
@@ -537,7 +546,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex568';
+const BUILD_MARKER = 'Codex569';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
