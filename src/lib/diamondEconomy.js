@@ -93,8 +93,12 @@ function hasPersistedGrantGuard(user, source, dateKey) {
 async function findDiamondTransaction(userEmail, idempotencyKey) {
   const email = normalizeEconomyEmail(userEmail);
   if (!email || !idempotencyKey) return null;
+  // Canonical-row semantics: the EARLIEST ledger row per idempotency_key is
+  // canonical (ascending sort). If a client-side race ever produced a second
+  // row, all readers/recoveries converge on the same canonical record and the
+  // duplicate is never credited twice (balance guards live on User fields).
   const rows = await base44.entities.DiamondTransaction
-    .filter({ user_email: email, idempotency_key: idempotencyKey }, '-created_at', 1)
+    .filter({ user_email: email, idempotency_key: idempotencyKey }, 'created_at', 1)
     .catch(() => []);
   return Array.isArray(rows) && rows.length ? rows[0] : null;
 }

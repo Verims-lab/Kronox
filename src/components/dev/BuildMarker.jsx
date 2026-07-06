@@ -1,5 +1,25 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex563 — GFable 5 permanent code-level logical unique guards:
+//   • Verified all cleaned unique keys keep permanent function-level guards:
+//     DailyWheelSpin reserve-first + pre/post-lock findSpin + post-create
+//     re-read; DiamondTransaction/JokerTransaction/HintTransaction ledgers
+//     find-before-create + confirm-after-write inside EconomyOperationLock;
+//     UserJokerInventory query-then-upsert by user+joker_type;
+//     UserDailyQuestProgress findProgressByAssignment + catch-recover.
+//   • New guards added: Lobby.code now goes through generateUniqueLobbyCode
+//     (lookup-only findLobbyByCode query-before-create with regeneration);
+//     publishSoloLeaderboardEntry re-reads the canonical owner_key row after
+//     create; client Diamond ledger reads converge on the EARLIEST canonical
+//     row per idempotency_key (ascending created_at).
+//   • Read-time dedupe fallbacks (dedupeSpinRows, selectPrimaryInventoryRow,
+//     getSoloLeaderboard owner_key dedupe, duplicate-row repair) preserved —
+//     cleanup alone is not treated as sufficient.
+//   • Docs/mirror record the permanent guard contract; new Health suite
+//     logical_unique_guards statically proves every guard plus the admin-gated
+//     read-only duplicate monitor. No reward, price, probability, scoring,
+//     identity, or navigation behavior changed; no production data mutated.
+//
 // Codex562 — GFable 5 approved duplicate cleanup executed:
 //   • New AdminUser-gated adminDuplicateKeyCleanup executor: dry_run default
 //     with full masked deletion plan; execute requires confirm
@@ -481,7 +501,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex562';
+const BUILD_MARKER = 'Codex563';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

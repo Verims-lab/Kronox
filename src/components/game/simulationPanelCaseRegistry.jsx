@@ -235,6 +235,10 @@ import * as startupStatusCacheCases from './simulationPanelStartupStatusCacheCas
 // gate, duplicate-dry-run-before-unique rule, and the AdminUser-gated
 // read-only adminDuplicateKeyReport tool contract.
 import * as dbIndexReadinessCases from './simulationPanelDbIndexReadinessCases';
+// GFable 5 — Permanent code-level logical unique guards after duplicate
+// cleanup: query-before-create, reserve-first DailyWheelSpin, economy locks,
+// ledger idempotency, canonical-record returns, read-time dedupe fallback.
+import * as logicalUniqueGuardCases from './simulationPanelLogicalUniqueGuardCases';
 
 const MODULES = [
   soloProgressCases,
@@ -294,6 +298,7 @@ const MODULES = [
   profileAvatarCases,
   startupStatusCacheCases,
   dbIndexReadinessCases,
+  logicalUniqueGuardCases,
 ];
 
 function flatten(key) {

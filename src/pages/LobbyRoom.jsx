@@ -9,7 +9,6 @@ import {
   buildPlayerPayload,
   canStartLobby,
   deriveDisplayName,
-  generateCode,
   isGuestHost,
   isHost,
   normalizeCode,
@@ -27,6 +26,7 @@ import {
   rejectGameInvite,
 } from '@/lib/inviteApi';
 import { loadActiveLobbyForUser } from '@/lib/activeLobby';
+import { generateUniqueLobbyCode } from '@/lib/lobbyCodeGuard';
 import { debugLog, debugWarn } from '@/lib/debugLog';
 import { setBottomNavHidden } from '@/lib/bottomNavVisibility';
 import { getSafeNotificationActorName } from '@/lib/notificationIdentity';
@@ -134,7 +134,9 @@ export default function LobbyRoom() {
 
     setLoading(true);
     setError('');
-    const code = normalizeCode(generateCode());
+    // Logical unique guard: query-before-create via findLobbyByCode lookup-only
+    // mode so two lobbies never share the same live code.
+    const code = await generateUniqueLobbyCode();
     const { identity, player } = buildPlayerPayload(user, derivedName);
     const createdAt = new Date();
 

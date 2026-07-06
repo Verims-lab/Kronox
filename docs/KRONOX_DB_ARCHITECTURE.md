@@ -734,6 +734,26 @@ duplicates across all P0/P1 keys, so platform unique-key configuration is
 unblocked for every documented key (re-verify with a fresh dry-run at
 configuration time).
 
+Permanent code-level logical unique guards: Base44 has no repo-level unique
+index support, so duplicate cleanup is not enough by itself — logical
+uniqueness is enforced permanently at function/code level. Every unique-key
+create path uses query-before-create; `DailyWheelSpin` uses reserve-first
+(spin row reserved before rewards, existing spin recovered, post-create
+re-read); economy mutations run inside `EconomyOperationLock`; ledger writes
+(`DiamondTransaction`, `JokerTransaction`, `HintTransaction`) check
+`idempotency_key` before create and re-read after write where race risk
+exists; `UserDailyQuestProgress` assignments check `findProgressByAssignment`
+before create with catch-recover; `SoloLeaderboardEntry` publishes filter by
+`owner_key` before update/create and re-read the canonical row after create;
+`Lobby.code` is generated through `generateUniqueLobbyCode` (lookup-only
+`findLobbyByCode` query-before-create). Duplicate-key hits return the
+existing canonical record — never a second row. Read-time dedupe
+(`selectPrimaryInventoryRow`, `dedupeSpinRows`, `getSoloLeaderboard`
+owner_key dedupe, duplicate-row repair after spend) is preserved as the
+safety fallback. `adminDuplicateKeyReport` remains the duplicate monitor; if
+platform unique indexes become available later, configure them as manual
+release gates after a fresh zero-duplicate dry-run.
+
 | Entity | Index or unique key | Priority | Why |
 | --- | --- | --- | --- |
 | `Category` | unique `category_id` | P0 | Seed/backfill and question references. |

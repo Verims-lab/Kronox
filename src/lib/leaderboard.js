@@ -225,7 +225,17 @@ export async function publishSoloLeaderboardEntry(user, progress, totalLevels = 
     if (ownRow?.id) {
       return base44.entities.SoloLeaderboardEntry.update(ownRow.id, payload);
     }
-    return base44.entities.SoloLeaderboardEntry.create(payload);
+    const created = await base44.entities.SoloLeaderboardEntry.create(payload);
+    // Re-read after write: if a concurrent publish raced this create, converge
+    // on the canonical (newest-updated) row for this owner_key instead of
+    // treating the extra row as authoritative. getSoloLeaderboard additionally
+    // dedupes owner_key rows server-side as the read-time safety fallback.
+    const confirmed = await base44.entities.SoloLeaderboardEntry.filter(
+      { owner_key: payload.owner_key },
+      '-updated_at',
+      5,
+    ).catch(() => null);
+    return confirmed?.[0] || created;
   } catch (error) {
     if (isMissingSoloLeaderboardEntityError(error)) return null;
     throw error;
