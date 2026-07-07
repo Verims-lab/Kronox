@@ -748,7 +748,7 @@ export const EXTRA_TESTS = [
         'Joker Çantası',
         'getUserJokerBalances(user, { ensureStarter: false, forceRefresh: jokerReloadKey > 0 })',
         'ensureStarterJokers(user, { forceEnsure: true, forceRefresh: jokerReloadKey > 0 })',
-        'balances?.[joker.type]',
+        'Number(balances?.[item.type]) || 0',
         'balances={soloJokers?.balances || null}',
         'balances?.[inventoryType]',
       ]);

@@ -12,6 +12,14 @@ export const HINT_INVENTORY_CONTRACT = [
   'Guest players use a token-proven internal guest:<g_owner_key> economy key and receive sanitized responses only.',
 ].join(' ');
 
+export const HINT_LEDGER_IDEMPOTENCY_AUDIT_CONTRACT = [
+  'ledger/idempotency audit',
+  'UserHintInventory.quantity is the read-only Profile current balance source.',
+  'HintTransaction is ledger-only for Profile and is not scanned during render.',
+  'ensureUserHintInventory and consumeUserHint own starter_grant and solo_use idempotency.',
+  'Profile never calls Hint inventory grant, consume, create, or update paths.',
+].join(' ');
+
 export function normalizeHintQuantity(value) {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? Math.max(0, Math.floor(numeric)) : 0;

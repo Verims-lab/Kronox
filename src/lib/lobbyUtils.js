@@ -88,13 +88,12 @@ export function buildPlayerPayload(user, playerName) {
  * Used by the new invite/create-lobby flow where the user no longer types a name.
  */
 export function deriveDisplayName(user) {
-  const raw = (user?.full_name || '').trim();
+  const raw = (user?.username || '').trim();
   if (raw) {
     // Trim to 15 chars to stay within existing UI assumptions.
     return raw.length > 15 ? raw.slice(0, 15) : raw;
   }
-  const fromEmail = (user?.email || '').split('@')[0] || 'Oyuncu';
-  return fromEmail.length > 15 ? fromEmail.slice(0, 15) : fromEmail;
+  return 'Oyuncu';
 }
 
 export function isHost(lobby, user) {

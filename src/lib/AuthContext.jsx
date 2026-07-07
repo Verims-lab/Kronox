@@ -3,6 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { withAdminStatus } from '@/lib/admin';
 import { ensureDiamondEconomyForUser, getDiamondDailyKey } from '@/lib/diamondEconomy';
 import { clearJokerInventoryCache, ensureStarterJokers, normalizeJokerEmail } from '@/lib/jokerInventory';
+import { clearHintBalanceCache } from '@/lib/hintInventory';
 import { applyUserProgressResetMarker } from '@/lib/progressResetCache';
 import { ensureGuestProfile, getCachedGuestProfile, linkPendingGuestAccount, repairGuestOnboardingCompletionIfNeeded } from '@/lib/guestProfile';
 import { readSoloProgress } from '@/lib/soloLevels';
@@ -192,6 +193,11 @@ export const AuthProvider = ({ children }) => {
       }
 
       const jokerKey = normalizeJokerEmail(workingUser.email);
+      if (jokerKey && jokerEnsureKeyRef.current && jokerEnsureKeyRef.current !== jokerKey) {
+        clearJokerInventoryCache();
+        clearHintBalanceCache();
+        jokerEnsurePromiseRef.current = null;
+      }
       if (jokerKey && jokerEnsureKeyRef.current !== jokerKey) {
         try {
           if (!jokerEnsurePromiseRef.current) {
@@ -409,6 +415,7 @@ export const AuthProvider = ({ children }) => {
     jokerEnsureKeyRef.current = '';
     jokerEnsurePromiseRef.current = null;
     clearJokerInventoryCache();
+    clearHintBalanceCache();
     
     if (shouldRedirect) {
       // Use the SDK's logout method which handles token cleanup and redirect

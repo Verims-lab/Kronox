@@ -55,6 +55,7 @@ import profilePageSource from '../../pages/ProfilePage.jsx?raw';
 import createLobbyInvitePanelSource from '../lobby/CreateLobbyInvitePanel.jsx?raw';
 import lobbyCreateJoinPanelSource from '../lobby/LobbyCreateJoinPanel.jsx?raw';
 import lobbyRoomSource from '../../pages/LobbyRoom.jsx?raw';
+import lobbyUtilsSource from '../../lib/lobbyUtils.js?raw';
 import onlineChallengeScreenSource from '../lobby/OnlineChallengeScreen.jsx?raw';
 import onlineCategoryCarouselSource from '../lobby/OnlineCategoryCarousel.jsx?raw';
 // Codex132 follow-up — new override sources for the three re-targeted cases.
@@ -147,6 +148,8 @@ export const OVERRIDDEN_CASE_KEYS = new Set([
   'online_category_taxonomy.lobby_panel_consumes_centralized_taxonomy',
   'friends_validation.clear_success_and_error_messages',
   'kronox_game_feel.error_states_network_flows',
+  'online_lobby_setup.authenticated_user_identity_used',
+  'game_invites.invites_created_after_lobby',
   // Codex132 follow-up — three stale visual/code-ux contracts that still
   // pointed at the pre-Codex127 lobby surface. Re-targeted below.
   'lobby_code_ux.acik_lobiye_gir_preserved',
@@ -535,7 +538,8 @@ export const EXTRA_TESTS = [
       const source = `${safeStr(profilePageSource)}\n${safeStr(diamondEconomySource)}`;
       const required = [
         'emptyJokerBalances()',
-        'Number(balances?.[joker.type]) || 0',
+        'Number(balances?.[item.type]) || 0',
+        'normalizeHintQuantity(hintBalance)',
         'getProfileDiamondValue(user)',
         "label: 'Elmas'",
       ];
@@ -558,6 +562,78 @@ export const EXTRA_TESTS = [
       });
     },
     { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true },
+  ),
+
+  makeCase(
+    'online_lobby_setup', 'Online Lobby Setup Suite',
+    'authenticated_user_identity_used',
+    'Current app player identity is resolved automatically for guest and logged-in users',
+    () => {
+      const source = `${safeStr(createLobbyInvitePanelSource)}\n${safeStr(lobbyRoomSource)}\n${safeStr(lobbyUtilsSource)}\n${safeStr(onlineChallengeScreenSource)}`;
+      const required = [
+        'const currentActor = currentUser || currentGuestProfile',
+        'deriveDisplayName(currentUser)',
+        'buildPlayerPayload(currentActor, derivedName)',
+        'guestProfile={currentGuestProfile}',
+        'getCompletedGuestCredentialsPayload(guestProfile)',
+        'username || playerName || \'Oyuncu\'',
+        'pickPublicAvatarFields(player)',
+      ];
+      const missing = required.filter((token) => !source.includes(token));
+      if (missing.length) {
+        return fail('Online lobby identity can drift from the current app-player contract.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'LobbyRoom.jsx + lobbyUtils.js + OnlineChallengeScreen.jsx + CreateLobbyInvitePanel.jsx',
+          expected: required,
+          actual: { missing },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Online lobby create flow resolves currentUser or completed guest profile automatically without product-login requirement.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        file: 'LobbyRoom.jsx + lobbyUtils.js',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX },
+  ),
+
+  makeCase(
+    'game_invites', 'Game Invites Suite',
+    'invites_created_after_lobby',
+    'Lobby creation triggers backend-owned GameInvite row creation for selected routable players',
+    () => {
+      const source = `${safeStr(lobbyRoomSource)}\n${safeStr(inviteApiSource)}\n${safeStr(createGameInvitesForTargetsFnSource)}`;
+      const required = [
+        'const newLobby = await base44.entities.Lobby.create(lobbyPayload)',
+        'createGameInvites({',
+        'host: identity',
+        'lobby: newLobby',
+        'inviteTargets',
+        'createGameInvitesForTargets',
+        'target_refs: unique',
+      ];
+      const missing = required.filter((token) => !source.includes(token));
+      if (missing.length) {
+        return fail('Lobby creation no longer proves selected invite rows are created after the lobby exists.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'LobbyRoom.jsx + inviteApi.js + createGameInvitesForTargets',
+          expected: required,
+          actual: { missing },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Lobby creation uses the safe resolved host identity and then calls backend-owned target-ref invite creation for selected players.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        file: 'LobbyRoom.jsx + inviteApi.js',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX },
   ),
 
   /* ------------------------------------------------------------------

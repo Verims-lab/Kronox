@@ -77,10 +77,11 @@ provider IDs, owner keys, raw guest IDs, or internal player keys.
 ## Base44 SDK alignment
 
 Security Pass 1 pins the frontend `@base44/sdk` dependency exactly at
-`0.8.34` and aligns Base44 Deno function imports to
-`npm:@base44/sdk@0.8.34`. Do not reintroduce `^` on the frontend SDK package
-or older `npm:@base44/sdk@0.8.25` function imports unless a Base44 runtime
-compatibility incident requires an explicit documented split.
+`0.8.34`, keeps the package-lock root spec exactly at `0.8.34`, and aligns
+Base44 Deno function imports to `npm:@base44/sdk@0.8.34`. Do not reintroduce
+`^` on the frontend SDK package or older `npm:@base44/sdk@0.8.25` function
+imports unless a Base44 runtime compatibility incident requires an explicit
+documented split.
 
 `@base44/vite-plugin` remains unchanged in this pass; it is build/runtime
 tooling, not the SDK auth/entity/function client.
@@ -870,10 +871,12 @@ Joker inventory is user-owned data:
 * Mağaza Store Diamond-spend purchases use `purchaseJokerWithDiamonds`; users
   purchase only for themselves, the backend owns the trusted Store product/price
   table, and sufficient Diamonds are validated server-side
-* real-money/TL Store products, KronoClub, and Reklamları Kaldır are visible but
-  disabled with exact `Yakında` button copy unless an approved IAP/payment
-  verification path exists; no fake real-money success path may grant Diamonds
-  or benefits
+* real-money/TL Store products are visible but disabled with
+  `reason: 'real_money_unavailable'`; KronoClub and Reklamları Kaldır are
+  visible but disabled with `reason: 'future_feature'`. These reasons drive the
+  exact `Yakında` button copy, accessibility disabled state, click guard, and
+  no-grant behavior unless an approved IAP/payment verification path exists; no
+  fake real-money success path may grant Diamonds or benefits
 * successful Mağaza purchases write `DiamondTransaction` plus matching
   `JokerTransaction` and/or `HintTransaction` grant rows with `market_purchase`;
   insufficient Diamonds must not change balances or write successful purchase

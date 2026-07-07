@@ -86,6 +86,7 @@ export const MARKET_DIAMOND_PACKAGES = Object.freeze([
     unitPrice: '₺0,22',
     assetKind: 'diamond_pile',
     available: false,
+    reason: 'real_money_unavailable',
   },
   {
     id: 'diamonds_1100',
@@ -100,6 +101,7 @@ export const MARKET_DIAMOND_PACKAGES = Object.freeze([
     badge: 'EN POPÜLER',
     assetKind: 'diamond_bag',
     available: false,
+    reason: 'real_money_unavailable',
   },
   {
     id: 'diamonds_2400',
@@ -113,6 +115,7 @@ export const MARKET_DIAMOND_PACKAGES = Object.freeze([
     unitPrice: '₺0,15',
     assetKind: 'diamond_chest',
     available: false,
+    reason: 'real_money_unavailable',
   },
   {
     id: 'diamonds_6200',
@@ -126,6 +129,7 @@ export const MARKET_DIAMOND_PACKAGES = Object.freeze([
     unitPrice: '₺0,13',
     assetKind: 'diamond_chest_large',
     available: false,
+    reason: 'real_money_unavailable',
   },
   {
     id: 'diamonds_13000',
@@ -140,6 +144,7 @@ export const MARKET_DIAMOND_PACKAGES = Object.freeze([
     badge: 'EN İYİ DEĞER',
     assetKind: 'diamond_vault',
     available: false,
+    reason: 'real_money_unavailable',
   },
 ]);
 
@@ -278,6 +283,7 @@ export const MARKET_FUTURE_PRODUCTS = Object.freeze([
     displayPrice: 'Yakında',
     assetKind: 'club',
     available: false,
+    reason: 'future_feature',
   },
   {
     id: 'remove_ads_future',
@@ -289,6 +295,7 @@ export const MARKET_FUTURE_PRODUCTS = Object.freeze([
     displayPrice: 'Yakında',
     assetKind: 'remove_ads',
     available: false,
+    reason: 'future_feature',
   },
 ]);
 
@@ -363,9 +370,10 @@ export function getMarketPurchaseReadiness(options = {}) {
     return { disabled: true, reason: 'missing_item_data', label: 'HAZIRLANIYOR' };
   }
   if (isMarketRealMoneyPurchaseDisabled(product)) {
+    const reason = product.reason || (product.priceType === MARKET_PRICE_TYPES.FUTURE_REAL_MONEY ? 'future_feature' : 'real_money_unavailable');
     return {
       disabled: true,
-      reason: product.priceType === MARKET_PRICE_TYPES.FUTURE_REAL_MONEY ? 'future_feature' : 'real_money_unavailable',
+      reason,
       label: 'Yakında',
       purchaseBlocked: true,
     };
@@ -467,9 +475,10 @@ export async function purchaseMarketProduct(user, options = {}) {
     return { ok: false, code: 'invalid_product_id', error: 'Ürün geçersiz.', balances: emptyJokerBalances() };
   }
   if (isMarketRealMoneyPurchaseDisabled(product)) {
+    const reason = product.reason || (product.priceType === MARKET_PRICE_TYPES.FUTURE_REAL_MONEY ? 'future_feature' : 'real_money_unavailable');
     return {
       ok: false,
-      code: product.priceType === MARKET_PRICE_TYPES.FUTURE_REAL_MONEY ? 'future_feature' : 'real_money_unavailable',
+      code: reason,
       error: 'Yakında',
       product,
       balances: emptyJokerBalances(),

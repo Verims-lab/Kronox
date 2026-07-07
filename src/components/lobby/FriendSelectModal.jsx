@@ -74,7 +74,7 @@ export default function FriendSelectModal({
         const rows = await loadOnlinePlayerSelection({ guestCredentials });
         if (!cancelled) setPlayers(rows || []);
       } catch (err) {
-        if (!cancelled) setError(err?.message || 'Oyuncu listesi alınamadı. Tekrar dene.');
+        if (!cancelled) setError(err?.message || 'Oyuncular yüklenemedi.');
       } finally {
         if (!cancelled && showLoading) setLoading(false);
       }
@@ -230,7 +230,7 @@ export default function FriendSelectModal({
                   setError('');
                   loadOnlinePlayerSelection({ guestCredentials })
                     .then((rows) => setPlayers(rows || []))
-                    .catch((err) => setError(err?.message || 'Oyuncu listesi alınamadı. Tekrar dene.'))
+                    .catch((err) => setError(err?.message || 'Oyuncular yüklenemedi.'))
                     .finally(() => setLoading(false));
                 }} />
               ) : players.length === 0 ? (
@@ -451,7 +451,7 @@ function ErrorHint({ text, onRetry }) {
     >
       <div className="flex items-start gap-2">
         <AlertCircle className="h-4 w-4 text-rose-300 flex-shrink-0 mt-0.5" />
-        <p className="font-inter text-xs text-rose-100/90">{text || 'Oyuncu listesi alınamadı. Tekrar dene.'}</p>
+        <p className="font-inter text-xs text-rose-100/90">{text || 'Oyuncular yüklenemedi.'}</p>
       </div>
       {onRetry && (
         <button

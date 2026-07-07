@@ -491,7 +491,8 @@ Checklist:
 * Profile must not scan or sum `JokerTransaction` rows to display balances.
 * Profile `İpucu` count uses read-only `UserHintInventory.quantity`; Profile
   must not call `ensureUserHintInventory`, `consumeUserHint`, or any Hint grant
-  mutation from the display path.
+  mutation from the display path. `HintTransaction` remains the
+  ledger/idempotency audit trail, not a Profile balance source.
 * Profile Joker Çantası has its own loading/error/retry state and must not
   block the rest of Profile.
 * Mağaza purchase and Solo spend must refresh/update the shared joker balance
@@ -533,10 +534,11 @@ Checklist:
   `2.400 ELMAS — ₺349,99`, `6.200 ELMAS — ₺799,99`, `13.000 ELMAS —
   ₺1.499,99`), Diamond-spend Joker packages, Diamond-spend Hint packages,
   Diamond-spend Advantage packages, and future KronoClub / Reklamları Kaldır.
-* Real-money/TL package buttons, KronoClub, and Reklamları Kaldır are visible
-  but disabled with exact `Yakında` button copy until an approved IAP/payment
-  success path exists; they must not attach a purchase handler or grant
-  Diamonds/benefits.
+* Real-money/TL package buttons are visible but disabled with exact `Yakında`
+  button copy and `reason: 'real_money_unavailable'`; KronoClub and Reklamları
+  Kaldır are visible but disabled with exact `Yakında` button copy and
+  `reason: 'future_feature'` until an approved IAP/payment success path exists;
+  they must not attach a purchase handler or grant Diamonds/benefits.
 * Mağaza Diamond-spend purchases use `purchaseJokerWithDiamonds`; the client
   displays price but the backend owns the trusted product/price table and
   sufficient-Diamond check.
@@ -572,9 +574,10 @@ Checklist:
   4. Confirm all Diamond package amounts/prices/unit prices and badges:
      360/1.100/2.400/6.200/13.000 ELMAS, EN POPÜLER on 1.100, EN İYİ DEĞER
      on 13.000.
-  5. Confirm each real-money/TL Diamond package, KronoClub, and Reklamları
-     Kaldır button is disabled with exact `Yakında` copy and cannot grant
-     Diamonds or benefits.
+  5. Confirm each real-money/TL Diamond package button is disabled with exact
+     `Yakında` copy, `real_money_unavailable` reason, and cannot grant Diamonds;
+     confirm KronoClub and Reklamları Kaldır are disabled with
+     `future_feature` reason and cannot grant benefits.
   6. Buy one Joker package with sufficient Diamonds and confirm Diamonds
      decrease and the matching joker inventory increases.
   7. Buy one Hint package and one Advantage package with sufficient Diamonds;
