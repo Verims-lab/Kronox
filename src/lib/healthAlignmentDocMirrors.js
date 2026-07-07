@@ -243,10 +243,11 @@ Diamond-spend Joker packages, Diamond-spend Hint packages, Diamond-spend
 Advantage packages, and future KronoClub / Reklamları Kaldır sections. It may
 be cached/prefetched for fast open, but purchase remains server-authoritative:
 the client is never trusted for price, cost, user identity, reward, or target
-account. Real-money/TL packages, KronoClub, and Reklamları Kaldır stay visible
-but disabled with exact Yakında button copy and must not grant Diamonds/benefits
-without approved IAP/payment verification. Diamond-spend Satın Al readiness
-should depend only on auth/user, item data, sufficient Diamonds, item
+account. Real-money/TL packages carry reason: 'real_money_unavailable';
+KronoClub and Reklamları Kaldır carry reason: 'future_feature'. Those reasons
+drive the disabled Yakında state, accessibility disabled state, click guard, and
+no-grant behavior until approved IAP/payment verification exists. Diamond-spend
+Satın Al readiness should depend only on auth/user, item data, sufficient Diamonds, item
 availability, and purchase in-flight state; slow non-critical inventory count
 refresh or starter self-heal must not silently disable an otherwise valid
 Diamond purchase button.
@@ -545,7 +546,7 @@ Status: Active profile/onboarding contract.
 - Puan uses the shared visible Kronox Puan helper.
 - Seviye uses the same Solo progress helper as the Solo level path.
 - Elmas uses persisted User.diamonds through the shared Diamond display helper.
-- Joker Çantası uses UserJokerInventory current joker balances through getUserJokerBalances and UserHintInventory.quantity for the separate İpucu card; JokerTransaction and HintTransaction are ledger/audit only and are not Profile render-time balance sources.
+- Joker Çantası uses UserJokerInventory current joker balances through getUserJokerBalances and UserHintInventory.quantity for the separate İpucu card; JokerTransaction and HintTransaction are ledger/idempotency audit only and are not Profile render-time balance sources.
 - User Category preferences are Solo-only soft 70/30 weighting input when at least 3 active valid preferences exist. Empty or fewer-than-3 preferences use all active categories for Solo. Online question selection is not affected. Kategori seçimi is edited from Profile > Profil Bilgileri for authenticated users through UserCategoryPreference; Settings owns privacy/account actions instead.
 - GuestProfile public identity uses username; display_name is only a legacy/internal projection mirror and is not a public fallback identity. Email, Google ID, Apple ID, provider UID, raw guest id, kronox_user_id, internal owner_key, and internal player_key values are not public display names outside the current player's own Profile Info support row.
 - Profile avatar is public visual metadata only: avatar_type, avatar_icon_id, avatar_color_id, and https avatar_url may propagate to leaderboard, friends, Online player selection, lobby, invites, notifications, and header rows; username remains the public identity. Profile avatar saves refresh existing SoloLeaderboardEntry rows with the same safe avatar quartet, and Leaderboard hydration may overlay current-player plus accepted-friend avatars from already-safe sources without private per-row profile reads.
@@ -609,7 +610,7 @@ Status: Active product contract.
 - sendFriendRequest requires authenticated user context, resolves email or username targets server-side, checks self/friend/open-pending guards under FriendRequestOperationLock, requires deletion of expired outgoing invites before resend, sets FriendRequest.expires_at at least 72 hours after creation, keeps open reverse-pending requests actionable through Gelen İstekler, ignores/expires stale reverse-pending rows, creates the FriendRequest row before SendEmail, treats email delivery failure as a soft failure that does not roll back the request, stores username-safe labels, and never returns the target email for username-based add. FriendRequestOperationLock is a function-level guard, not DB unique/index proof.
 - Online non-friend game invites use opaque u_/g_ target_ref values in the client. getOnlinePlayerSelection supports authenticated users and token-proven completed guests; createGameInvitesForTargets resolves routable target refs backend-side, while non-routable guest refs return safe disabled/failure state. Public player-selection, lobby, invite, notification, and push payloads use username-safe labels and never expose target email, provider IDs, owner keys, raw guest IDs, or internal player keys.
 - DailyWheelSpin, GameInvite, and FriendRequest direct client create is not part of the secure product contract. Their RLS create rules allow only admin/service-role writes; callers must use claimDailyWheelReward, linkGuestAccount, createGameInvitesForTargets, or sendFriendRequest so the backend derives the actor, validates guest-token proof where applicable, and returns only privacy-safe response shapes.
-- Security Pass 1 pins @base44/sdk exactly at 0.8.34 and aligns Base44 Deno function imports to npm:@base44/sdk@0.8.34. Do not reintroduce frontend ^ SDK ranges, unversioned function SDK imports, or npm:@base44/sdk@0.8.25 without a documented Base44 runtime compatibility split.
+- Security Pass 1 pins @base44/sdk exactly at 0.8.34, keeps the package-lock root spec exactly at 0.8.34, and aligns Base44 Deno function imports to npm:@base44/sdk@0.8.34. Do not reintroduce frontend ^ SDK ranges, unversioned function SDK imports, or npm:@base44/sdk@0.8.25 without a documented Base44 runtime compatibility split.
 - User/admin/question markdown is not rendered as raw HTML. react-markdown is not a runtime dependency, rehype-raw is forbidden for user/content markdown, and dangerouslySetInnerHTML must not be used for user-generated, backend-provided, or markdown-provided content. Static generated CSS should use guarded text children instead of raw HTML injection.
 - The remaining Base44 access_token URL/localStorage pattern is a known Base44-managed auth pattern; current mitigation keeps access_token removed from the URL immediately, avoids token logging/rendering, and avoids a custom token store.
 - Service-role usage is scoped to admin/maintenance backend functions.
@@ -659,10 +660,10 @@ Status: Active product contract.
 - spendUserJoker uses EconomyOperationLock, post-lock idempotency recheck, and a fresh UserJokerInventory read before decrementing; guided/tutorial joker demos remain tutorial-only and do not spend real inventory.
 - Profile Joker Çantası shows Kronokalkan, Kart Değiştir, Zaman Dondur, and İpucu as four compact cards in one non-scrolling row; normal users must not see other users' balances or transaction ledger rows.
 - Mağaza Store Diamond-spend purchases use purchaseJokerWithDiamonds; users purchase only for themselves, backend owns trusted Store product prices, sufficient Diamonds are validated server-side, and successful purchases write DiamondTransaction plus JokerTransaction and/or HintTransaction with market_purchase.
-- Solo Hint / İpucu is separate from Joker: Profile reads İpucu from UserHintInventory.quantity through a display-only helper, while ensureUserHintInventory initializes exactly 3 starter Hints once for authenticated and token-proven completed guests, consumeUserHint spends one Hint server-side with HintTransaction.reason = solo_use, source = solo_hint, EconomyOperationLock, and idempotency re-checks, and responses do not expose actor keys, raw guest IDs/tokens, answer years, or the full question bank. The gameplay Hint launcher only opens the popup; the popup has one clear hammer action, keeps stage 0 fully covered from first render, closes on stale active-card changes, and reveal/count/Daily hint_used advances only after server confirmation. Hint use never counts as Joker use, grants Kronox Puan, or affects leaderboard. Opening the Hint popup pauses the visible Solo timer; if Zaman Dondur is already active, the Hint pause is overlap-aware and never subtracts the same frozen seconds twice.
+- Solo Hint / İpucu is separate from Joker: Profile reads İpucu from UserHintInventory.quantity through a display-only helper, while HintTransaction remains the ledger/idempotency audit trail and is not scanned for Profile balance. ensureUserHintInventory initializes exactly 3 starter Hints once for authenticated and token-proven completed guests, consumeUserHint spends one Hint server-side with HintTransaction.reason = solo_use, source = solo_hint, EconomyOperationLock, and idempotency re-checks, and responses do not expose actor keys, raw guest IDs/tokens, answer years, or the full question bank. The gameplay Hint launcher only opens the popup; the popup has one clear hammer action, keeps stage 0 fully covered from first render, closes on stale active-card changes, and reveal/count/Daily hint_used advances only after server confirmation. Hint use never counts as Joker use, grants Kronox Puan, or affects leaderboard. Opening the Hint popup pauses the visible Solo timer; if Zaman Dondur is already active, the Hint pause is overlap-aware and never subtracts the same frozen seconds twice.
 - Mağaza purchases are server-authoritative economy actions: the client is not trusted for price, cost, user identity, or target account; service-role writes stay scoped to the authenticated user.
 - Mağaza purchase idempotency keys, EconomyOperationLock, refreshed server balance reads, and post-lock ledger rechecks protect double-tap/retry/concurrent request flows; real two-device/backend race proof remains manual unless Base44 uniqueness is proven.
-- Real-money/TL Store products, KronoClub, and Reklamları Kaldır are visible but disabled with exact Yakında button copy unless approved IAP/payment verification exists; no fake real-money success path grants Diamonds, KronoClub, or ad-removal benefits.
+- Real-money/TL Store products are visible but disabled with reason: 'real_money_unavailable'; KronoClub and Reklamları Kaldır are visible but disabled with reason: 'future_feature'. These reasons drive exact Yakında button copy, accessibility disabled state, click guard, and no-grant behavior unless approved IAP/payment verification exists; no fake real-money success path grants Diamonds, KronoClub, or ad-removal benefits.
 - Mağaza Store does not expose cosmetics, random boxes, score/leaderboard boosts, real-money fulfillment without approved IAP/payment verification, or Online-mode joker usage.
 - Daily Quest Definition management UI is removed from Profile / Admin Ekranı; Daily Calendar runtime no longer depends on Admin-created quest definitions.
 - createDailyQuestDefinition is a Base44 callable with an inline AdminUser-backed guard for active owner/admin rows; normal users and disabled admins are rejected.
@@ -772,9 +773,10 @@ real-money Diamond packages (360 ELMAS — ₺79,99; 1.100 ELMAS — ₺199,99 w
 POPÜLER; 2.400 ELMAS — ₺349,99; 6.200 ELMAS — ₺799,99; 13.000 ELMAS —
 ₺1.499,99 with EN İYİ DEĞER), Diamond-spend Joker packages, Diamond-spend Hint
 packages, Diamond-spend Advantage packages, and future KronoClub / Reklamları
-Kaldır sections. Real-money/TL packages, KronoClub, and Reklamları Kaldır show
-disabled Yakında buttons and do not grant Diamonds or benefits until approved
-IAP/payment verification exists.
+Kaldır sections. Real-money/TL packages show disabled Yakında buttons with
+real_money_unavailable reason, KronoClub/Reklamları Kaldır show disabled
+Yakında buttons with future_feature reason, and none grant Diamonds or benefits
+until approved IAP/payment verification exists.
 Home uses a larger centered transparent local Kronox logo, a larger centered
 transparent hourglass visual balanced between left GÜNLÜK and right Çark,
 compact shortcuts with ready badges, centered GÜNLÜK/Çark surfaces, a content-free

@@ -185,6 +185,8 @@ Phase 1 foundation:
   presence rows stay visible but disabled for direct invite creation.
   Player-selection and friend-presence UI refresh while visible, refetch on
   focus/reconnect, and preserve previous safe rows through transient failures.
+  Recoverable player-list failures show `Oyuncular yüklenemedi.` with retry
+  instead of raw network/Axios messages.
 
 Parity plan:
 - Preserve exact user-facing behavior: dismissing a toast is visual only;
@@ -244,10 +246,12 @@ Parity plan:
   Advantage packages, and future KronoClub / Reklamları Kaldır sections. It may
   be cached/prefetched for fast open, but purchase remains
   server-authoritative: the client is never trusted for price, cost, user
-  identity, reward, or target account. Real-money/TL packages, KronoClub, and
-  Reklamları Kaldır must stay visible but disabled with exact `Yakında` button
-  copy and must not grant Diamonds/benefits without approved IAP/payment
-  verification. Diamond-spend `Satın Al` readiness should depend only on
+  identity, reward, or target account. Real-money/TL packages carry
+  `reason: 'real_money_unavailable'`; KronoClub and Reklamları Kaldır carry
+  `reason: 'future_feature'`. Those reasons must drive the disabled
+  `Yakında` state, accessibility disabled state, click guard, and no-grant
+  behavior until approved IAP/payment verification exists. Diamond-spend
+  `Satın Al` readiness should depend only on
   auth/user, item data, sufficient Diamonds, item availability, and purchase
   in-flight state; slow non-critical inventory count refresh or starter
   self-heal must not silently disable an otherwise valid Diamond purchase

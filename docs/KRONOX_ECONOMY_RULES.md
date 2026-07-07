@@ -694,10 +694,13 @@ Purchase rules:
   approved joker grant source, while Mağaza Diamond-spend purchases are Diamond
   sinks
 * Mağaza purchase is a Diamond sink
-* real-money Diamond packages, KronoClub, Reklamları Kaldır, and any future
-  TL/IAP product must render as disabled `Yakında` buttons unless a real
-  approved IAP/payment success path exists; current no-IAP behavior must not
-  attach a purchase handler or grant Diamonds/benefits
+* real-money Diamond packages and any future TL/IAP product must render as
+  disabled `Yakında` buttons with `reason: 'real_money_unavailable'` unless a
+  real approved IAP/payment success path exists; current no-IAP behavior must
+  not attach a purchase handler or grant Diamonds/benefits
+* KronoClub and Reklamları Kaldır must render as disabled `Yakında` future
+  products with `reason: 'future_feature'` and must not grant subscriptions,
+  ad-removal, Diamonds, or other benefits
 * `purchaseJokerWithDiamonds` owns the trusted Store product and price table
 * purchase validation is server-authoritative; Client is not trusted for price
   and client-provided price/cost is ignored
@@ -752,8 +755,8 @@ Joker balance read-performance contract:
 Hint balance read-performance contract:
 
 * `UserHintInventory` is the current-balance source for Solo Hint / İpucu.
-* `HintTransaction` is the ledger/audit trail and must not be summed on Solo
-  open.
+* `HintTransaction` is the ledger/idempotency audit trail and must not be
+  summed on Solo open.
 * Profile `Joker Çantası` displays `İpucu` beside Kronokalkan, Kart Değiştir,
   and Zaman Dondur as a separate inventory item in one mobile row.
 * Profile reads the `İpucu` count from `UserHintInventory.quantity` only; the

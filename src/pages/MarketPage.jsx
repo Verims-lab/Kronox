@@ -416,6 +416,8 @@ function MarketProductCard({
             letterSpacing: 0,
           }}
           aria-label={`${product.title} ${buttonLabel}`}
+          aria-disabled={disabled}
+          data-market-disabled-reason={disabled ? readiness.reason : ''}
         >
           {pending && <Loader2 className="h-4 w-4 animate-spin" />}
           <span className="truncate">{buttonLabel}</span>

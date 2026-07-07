@@ -120,7 +120,7 @@ export async function loadOnlinePlayerSelection({ limit = 200, guestCredentials 
     const rows = Array.isArray(data?.players) ? data.players : [];
     return normalizeOnlinePlayerSelectionRows(rows);
   } catch (error) {
-    const safeError = new Error('Oyuncu listesi alınamadı. Tekrar dene.');
+    const safeError = new Error('Oyuncular yüklenemedi.');
     safeError.code = error?.response?.status || error?.status || error?.code || 'player_selection_failed';
     throw safeError;
   }

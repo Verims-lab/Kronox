@@ -1,5 +1,14 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex570 — MR9UN4G7 Health contract alignment:
+//   • Online lobby identity and invite Health now target the active
+//     app-player contract: username-safe logged-in users and completed
+//     GuestProfile actors can create lobbies without product-login gates.
+//   • Player-selection failures use recoverable Turkish retry copy while
+//     preserving previous safe rows through transient presence/list failures.
+//   • SDK pin, Store disabled reason codes, Hint read-only/ledger contracts,
+//     and shared Joker/Hint cache invalidation are aligned in source/docs/Health.
+//
 // Codex569 — Online player selection guest/presence safety:
 //   • getOnlinePlayerSelection now resolves linked auth or completed
 //     GuestProfile token actors, accepts u_/g_ opaque target refs, and keeps
@@ -546,7 +555,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex569';
+const BUILD_MARKER = 'Codex570';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

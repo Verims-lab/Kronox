@@ -74,6 +74,12 @@ fallback polling/refetch.
   `u_`/`g_` opaque target refs, non-routable guest row handling, backend-only
   invite recipient resolution, safe retry copy, and no client-visible
   recipient email/private identity fields.
+- Retargeted the stale auth-only Online lobby/create-invite checks to the
+  current app-player contract: logged-in users and completed GuestProfile
+  users resolve through the same lobby creation path, public names remain
+  username-safe, GameInvite rows are created after the lobby row exists, and
+  player-list failures preserve previous safe rows while showing
+  `Oyuncular yüklenemedi.` / `Tekrar Dene`.
 - Added Security Pass 1 coverage for exact Base44 SDK pin/alignment, no
   `react-markdown`/`rehype-raw` raw HTML markdown path, guarded chart CSS
   generation without `dangerouslySetInnerHTML`, and Base44 access-token URL

@@ -14,6 +14,7 @@ import { sounds } from '@/lib/gameSounds';
 import IncomingInvitesPanel from '@/components/invites/IncomingInvitesPanel';
 import { loadOnlinePlayerSelection } from '@/lib/onlinePlayerSelection';
 import { PRESENCE_REFRESH_MS } from '@/lib/presence';
+import { getCompletedGuestCredentialsPayload } from '@/lib/guestProfile';
 import KronoxAvatar from '@/components/profile/KronoxAvatar';
 
 /**
@@ -38,6 +39,7 @@ import KronoxAvatar from '@/components/profile/KronoxAvatar';
  */
 export default function CreateLobbyInvitePanel({
   user,
+  guestProfile = null,
   loading,
   error,
   selectedCategories,
@@ -52,6 +54,8 @@ export default function CreateLobbyInvitePanel({
   const [playersError, setPlayersError] = useState('');
   const [autoTrimNote, setAutoTrimNote] = useState('');
   const autoTrimTimerRef = useRef(null);
+  const guestCredentials = getCompletedGuestCredentialsPayload(guestProfile);
+  const hasPlayerContext = Boolean(user?.email || guestCredentials);
 
   const showAutoTrimNote = useCallback((message, durationMs = 2400) => {
     if (autoTrimTimerRef.current) {
@@ -73,7 +77,7 @@ export default function CreateLobbyInvitePanel({
   /* ---------------- load selectable players once user is known ---------------- */
   useEffect(() => {
     let cancelled = false;
-    if (!user?.email) {
+    if (!hasPlayerContext) {
       setPlayers([]);
       setPlayersLoading(false);
       setPlayersError('');
@@ -84,10 +88,10 @@ export default function CreateLobbyInvitePanel({
       if (showLoading) setPlayersLoading(true);
       setPlayersError('');
       try {
-        const rows = await loadOnlinePlayerSelection();
+        const rows = await loadOnlinePlayerSelection({ guestCredentials });
         if (!cancelled) setPlayers(rows || []);
       } catch (err) {
-        if (!cancelled) setPlayersError(err?.message || 'Oyuncu listesi alınamadı. Tekrar dene.');
+        if (!cancelled) setPlayersError(err?.message || 'Oyuncular yüklenemedi.');
       } finally {
         if (!cancelled && showLoading) setPlayersLoading(false);
       }
@@ -107,7 +111,7 @@ export default function CreateLobbyInvitePanel({
       window.removeEventListener('focus', refreshIfVisible);
       window.removeEventListener('online', refreshIfVisible);
     };
-  }, [user?.email]);
+  }, [guestCredentials?.guest_id, guestCredentials?.guest_token, hasPlayerContext]);
 
   const inviteCap = Math.max(0, maxPlayers - 1);
 
@@ -209,7 +213,15 @@ export default function CreateLobbyInvitePanel({
         {playersLoading && players.length === 0 ? (
           <FriendsSkeleton />
         ) : playersError && players.length === 0 ? (
-          <ErrorHint text={playersError} />
+          <ErrorHint text={playersError} onRetry={() => {
+            sounds.tap();
+            setPlayersLoading(true);
+            setPlayersError('');
+            loadOnlinePlayerSelection({ guestCredentials })
+              .then((rows) => setPlayers(rows || []))
+              .catch((err) => setPlayersError(err?.message || 'Oyuncular yüklenemedi.'))
+              .finally(() => setPlayersLoading(false));
+          }} />
         ) : players.length === 0 ? (
           <EmptyPlayers onGoFriends={onGoFriends} />
         ) : (
@@ -536,14 +548,29 @@ function EmptyPlayers({ onGoFriends }) {
   );
 }
 
-function ErrorHint({ text }) {
+function ErrorHint({ text, onRetry }) {
   return (
     <div
-      className="flex items-start gap-2 rounded-xl px-3 py-2"
+      className="rounded-xl px-3 py-2"
       style={{ background: 'rgba(244,63,94,0.10)', boxShadow: 'inset 0 0 0 1px rgba(244,63,94,0.35)' }}
     >
-      <AlertCircle className="h-4 w-4 text-rose-300 flex-shrink-0 mt-0.5" />
-      <p className="font-inter text-xs text-rose-100/90">{text}</p>
+      <div className="flex items-start gap-2">
+        <AlertCircle className="h-4 w-4 text-rose-300 flex-shrink-0 mt-0.5" />
+        <p className="font-inter text-xs text-rose-100/90">{text || 'Oyuncular yüklenemedi.'}</p>
+      </div>
+      {onRetry && (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="mt-3 min-h-9 w-full rounded-xl px-3 py-2 font-inter text-[12px] font-black text-amber-950"
+          style={{
+            background: 'linear-gradient(180deg,#ffe066,#b97a06)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.45), 0 0 12px rgba(250,204,21,0.30)',
+          }}
+        >
+          Tekrar Dene
+        </button>
+      )}
     </div>
   );
 }
