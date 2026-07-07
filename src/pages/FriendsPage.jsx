@@ -11,6 +11,8 @@ import {
   rejectIncomingRequest,
   cancelOutgoingRequest,
   removeFriend,
+  normalizeEmail,
+  getSafeFriendsErrorMessage,
   OPEN_INVITE_EXISTS_MESSAGE,
 } from '@/lib/friendsApi';
 
@@ -85,7 +87,9 @@ export default function FriendsPage() {
       setIncoming(inc);
       setOutgoing(out);
     } catch (err) {
-      setLoadError(err.message || 'Arkadaş verisi yüklenemedi.');
+      // Codex571 — Never show raw backend/SDK errors (e.g. "Rate limit
+      // exceeded") on the Friends screen; always a safe Turkish message.
+      setLoadError(getSafeFriendsErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -154,8 +158,21 @@ export default function FriendsPage() {
     await refresh(user.email);
   };
   const handleRemove = async (friendEmail) => {
-    await removeFriend(friendEmail);
-    await refresh(user.email);
+    // Codex571 — Rate-limit-safe delete: remove the row optimistically and
+    // do NOT trigger a full list reload (loadFriends + loadIncoming +
+    // loadOutgoing) after every single delete. Deleting many friends back
+    // to back previously fired 3 extra reads per delete, which could hit
+    // the backend rate limit. A single removeFriend call per delete, with
+    // local state update, keeps deleting many friends safe.
+    const target = normalizeEmail(friendEmail);
+    const previousFriends = friends;
+    setFriends((current) => current.filter((f) => normalizeEmail(f.friend_email) !== target));
+    try {
+      await removeFriend(friendEmail);
+    } catch (err) {
+      setFriends(previousFriends);
+      throw err;
+    }
   };
 
   /* ---- render ---- */

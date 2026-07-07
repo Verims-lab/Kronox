@@ -555,7 +555,27 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex570';
+// Codex571 — Friends delete rate-limit safety, Solo Hint error surfacing,
+// and two Health blocker fixes:
+//   • FriendsPage delete no longer triggers a full 3-call reload after every
+//     single delete (optimistic local removal instead), and every Friends
+//     read/mutation error is normalized through getSafeFriendsErrorMessage
+//     so raw backend/SDK text (e.g. "Rate limit exceeded") can never reach
+//     the UI; a rate-limited request now shows a safe Turkish recoverable
+//     message instead.
+//   • Solo Hint consume failures now surface the backend's own safe Turkish
+//     error when base44.functions.invoke throws on a non-2xx response,
+//     instead of always overwriting it with the same generic copy — a
+//     transient/lock-collision failure is no longer indistinguishable from
+//     a permanent one.
+//   • invite_delivery.online_player_selection_guest_safe_retry_contract:
+//     retargeted the stale expected error-copy token to the actual current
+//     UI string ("Oyuncular yüklenemedi." + "Tekrar Dene"); the guest/backend
+//     safe-retry contract itself was already correctly implemented.
+//   • security_cleanup_health.base44_sdk_versions_exact_and_aligned:
+//     package.json now exact-pins "@base44/sdk": "0.8.34" (was "^0.8.35").
+
+const BUILD_MARKER = 'Codex571';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

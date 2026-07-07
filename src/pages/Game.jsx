@@ -2415,8 +2415,8 @@ export default function Game() {
       }).catch((error) => {
         debugLog('[Game] daily hint task progress failed:', error?.message || error);
       });
-    } catch {
-      setHintError('İpucu kullanılamadı. Lütfen tekrar dene.');
+    } catch (err) {
+      setHintError(typeof err?.response?.data?.error === 'string' && err.response.data.error.trim() ? err.response.data.error : 'İpucu kullanılamadı. Lütfen tekrar dene.');
     } finally {
       hintConsumePendingRef.current = false;
       setHintConsumePending(false);

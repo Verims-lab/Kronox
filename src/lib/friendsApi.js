@@ -19,6 +19,22 @@ export function normalizeEmail(raw) {
   return String(raw || '').trim().toLowerCase();
 }
 
+// Codex571 — Friends rate-limit safety. Raw backend/SDK errors (e.g. a
+// literal "Rate limit exceeded" string) must never reach the UI. Every
+// Friends mutation/read error is normalized into a safe, recoverable
+// Turkish message before it can be shown.
+const FRIENDS_RATE_LIMIT_MESSAGE = 'Çok hızlı işlem yapıldı. Lütfen biraz bekleyip tekrar dene.';
+const FRIENDS_GENERIC_ERROR_MESSAGE = 'İşlem tamamlanamadı. Lütfen tekrar dene.';
+
+export function getSafeFriendsErrorMessage(err) {
+  const status = Number(err?.response?.status ?? err?.status ?? 0);
+  const rawMessage = String(err?.response?.data?.error || err?.message || '').toLowerCase();
+  if (status === 429 || rawMessage.includes('rate limit') || rawMessage.includes('too many requests')) {
+    return FRIENDS_RATE_LIMIT_MESSAGE;
+  }
+  return FRIENDS_GENERIC_ERROR_MESSAGE;
+}
+
 export function isValidEmail(raw) {
   const email = normalizeEmail(raw);
   // Minimal, safe RFC-ish check — good enough for client-side gating.
@@ -305,7 +321,14 @@ export async function acceptIncomingRequest(requestOrId) {
 export async function removeFriend(friendEmail) {
   const target = normalizeEmail(friendEmail);
   if (!target) throw new Error('Geçersiz e-posta.');
-  const res = await base44.functions.invoke('removeFriend', { friendEmail: target });
-  if (res?.data?.error) throw new Error(res.data.error);
+  let res;
+  try {
+    res = await base44.functions.invoke('removeFriend', { friendEmail: target });
+  } catch (err) {
+    // Codex571 — Never surface raw SDK/network errors (e.g. "Rate limit
+    // exceeded") to the UI. Always throw a safe, recoverable Turkish message.
+    throw new Error(getSafeFriendsErrorMessage(err));
+  }
+  if (res?.data?.error) throw new Error(getSafeFriendsErrorMessage({ message: res.data.error }));
   return res?.data;
 }

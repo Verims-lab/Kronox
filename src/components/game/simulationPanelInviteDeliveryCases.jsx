@@ -715,7 +715,7 @@ export const EXTRA_TESTS = [
         'getCompletedGuestCredentialsPayload',
         'hasPlayerContext',
         'loadOnlinePlayerSelection({ guestCredentials })',
-        'Oyuncu listesi alınamadı. Tekrar dene.',
+        'Oyuncular yüklenemedi.',
         'Tekrar Dene',
         'resolveSelectionActor',
         'verifyGuestProfile',
