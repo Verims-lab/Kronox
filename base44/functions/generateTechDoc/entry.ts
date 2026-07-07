@@ -957,11 +957,16 @@ Deno.serve(async (req) => {
 
     const pdfBytes = await pdfDoc.save();
 
+    // Security (CWE-942): no wildcard/reflected CORS. This admin-only PDF is
+    // never fetched cross-origin by the app itself, so we explicitly omit any
+    // Access-Control-Allow-Origin header (no header = browsers block
+    // cross-origin script access; same-origin/direct download still works).
     return new Response(pdfBytes, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': 'attachment; filename=kronox-teknik-dokuman.pdf',
+        'X-Content-Type-Options': 'nosniff',
       },
     });
   } catch (error) {
