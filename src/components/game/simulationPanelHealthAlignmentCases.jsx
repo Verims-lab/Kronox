@@ -806,7 +806,7 @@ export const EXTRA_TESTS = [
       ]);
       const missingLink = missingTokens(settingsPageSource, [
         'Gizlilik Politikası',
-        "navigate('/privacy')",
+        "navigate('/privacy'",
       ]);
       const missingDocs = missingTokens(combinedDocs, [
         'https://kronoxgame.com/privacy',

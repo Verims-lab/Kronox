@@ -742,7 +742,7 @@ export const EXTRA_TESTS = [
       const combined = `${appSource}\n${profilePageSource}\n${profileEditPageSource}\n${profileSettingsClientSource}\n${updateProfileSettingsSource}`;
       const missing = missingTokens(combined, [
         'path="/profile/edit"',
-        'navigate(\'/profile/edit\')',
+        "navigate('/profile/edit'",
         'aria-label="Profili düzenle"',
         'Takma Ad',
         'Cinsiyet',
@@ -900,13 +900,13 @@ export const EXTRA_TESTS = [
         'title="Profil Bilgileri"',
         'onClick={goProfileEdit}',
         'title="Arkadaşlarım"',
-        "navigate('/friends')",
+        "navigate('/friends'",
         'title="Ayarlar"',
         'onClick={goSettings}',
       ]);
       const settingsMissing = missingTokens(settingsPageSource, [
         'title="Gizlilik Politikası"',
-        "navigate('/privacy')",
+        "navigate('/privacy'",
         'title="Hesabı Sil"',
         'requestAccountDeletion(base44, user)',
         'accountSectionRef',
