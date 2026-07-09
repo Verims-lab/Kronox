@@ -7,6 +7,8 @@
 import mainMenuSource from '../../pages/MainMenu.jsx?raw';
 import appSource from '../../App.jsx?raw';
 import marketPageSource from '../../pages/MarketPage.jsx?raw';
+import soloHintButtonSource from './SoloHintButton.jsx?raw';
+import soloJokerBarSource from './SoloJokerBar.jsx?raw';
 import standardTopBarSource from '../layout/StandardTopBar.jsx?raw';
 import bottomNavSource from '../layout/BottomNav.jsx?raw';
 import marketSource from '../../lib/market.js?raw';
@@ -86,7 +88,7 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(`${mainMenuSource}\n${standardTopBarSource}`, [
         'showMarket',
         'onMarket={handleMarket}',
-        "navigate('/market')",
+        "navigate('/market', { state: createParentRouteState('home', '/') })",
         'aria-label="Mağaza"',
         'Store',
         'justify-center',
@@ -148,6 +150,38 @@ export const EXTRA_TESTS = [
         missing,
       });
       return pass('Store screen is scrollable and carries the approved premium visual tokens.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('store_joker_hint_visual_tokens_match_game',
+    'Store Zamanı Dondur and İpucu icons match requested game visual tokens',
+    () => {
+      const combined = `${marketSource}\n${marketPageSource}\n${soloJokerBarSource}\n${soloHintButtonSource}`;
+      const missing = missingTokens(combined, [
+        "label: 'Zamanı Dondur'",
+        "MARKET_TIME_FREEZE_ACCENT = '#e31717'",
+        'accent: MARKET_TIME_FREEZE_ACCENT',
+        "accent: '#e31717'",
+        "MARKET_HINT_ICON_ACCENT = '#facc15'",
+        'accent: MARKET_HINT_ICON_ACCENT',
+        "const accent = '#facc15'",
+        'hint: Hammer',
+        'hint_stack: Hammer',
+        'hint_bundle: Hammer',
+      ]);
+      const forbidden = forbiddenTokens(`${marketSource}\n${marketPageSource}\n${soloJokerBarSource}`, [
+        "label: 'Zaman Dondur'",
+        "name: 'Zaman Dondur'",
+        "accent: '#38bdf8'",
+        'hint: Lightbulb',
+        'hint_stack: Lightbulb',
+        'hint_bundle: Sparkles',
+      ]);
+      if (missing.length || forbidden.length) return fail('Store/Game joker visual tokens drifted from the Zamanı Dondur red and İpucu hammer contract.', {
+        verification: 'STATIC_CONTRACT',
+        files: ['src/lib/market.js', 'src/pages/MarketPage.jsx', 'src/components/game/SoloJokerBar.jsx', 'src/components/game/SoloHintButton.jsx'],
+        actual: { missing, forbidden },
+      });
+      return pass('Zamanı Dondur uses #e31717 in game/store, and Store İpucu packages use the in-game yellow hammer icon.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('store_simplified_copy_and_success_banner_removed',
@@ -471,7 +505,7 @@ export const EXTRA_TESTS = [
         'Liderlik',
         'Profil',
         'ONLINE KAPIŞ',
-        "navigate('/market')",
+        "navigate('/market', { state: createParentRouteState('home', '/') })",
       ]);
       // Inspect BottomNav TAB entries only — comments legitimately explain
       // that Online stays Home CTA-owned, so a whole-file 'Online' scan is

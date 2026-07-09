@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 // bardan kaldırıldı (kullanıcı talebi). Ekran başlığı içerik alanında
 // merkezi Liderlik markası olarak çizilir.
 import StandardTopBar from '@/components/layout/StandardTopBar';
+import { createParentRouteState } from '@/lib/NavigationStackContext';
 import { useAuth } from '@/lib/AuthContext';
 import { ensureSoloProgressBackfill, getSoloLevelCount, readSoloProgress } from '@/lib/soloLevels';
 import { summarizeSoloProgress } from '@/lib/soloProgressHelpers';
@@ -385,6 +386,7 @@ export default function LeaderboardPage() {
   const openCurrentUserProfileSettings = useCallback(() => {
     navigate('/profile/edit', {
       state: {
+        ...createParentRouteState('leaderboard', '/leaderboard'),
         source: 'leaderboard_self_row',
       },
     });

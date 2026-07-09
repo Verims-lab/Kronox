@@ -23,6 +23,11 @@ checks that source code and static Health cannot honestly prove alone.
   BottomNav taps, form inputs, or modal actions.
 * Pull-to-refresh/overscroll guards are scoped to the relevant container or
   active gameplay drag only.
+* BottomNav visible tabs are exactly `Ana Sayfa`, `Liderlik`, and `Profil`.
+  Tapping any tab opens that tab root, never a cached/sticky subpage. Profile
+  subpages, Friends, Settings, Admin, Market, Daily, and similar main-tab
+  subpages use a top-left back arrow with explicit parent/root fallback; the
+  top-right remains reserved for notifications/actions.
 * Reduced motion keeps functional feedback without relying on long animations.
 * Loading/error/retry states must be local to the affected section when possible
   so one slow data source does not blank an entire screen.
@@ -48,10 +53,24 @@ checks that source code and static Health cannot honestly prove alone.
 * Solo gameplay shows the remaining move counter as `10 HAMLE`, `9 HAMLE`,
   etc. on onboarding and normal levels and `13 HAMLE`, `12 HAMLE`, etc. on
   special levels; result popups show `HAMLE` instead of `HATA`.
+* Solo and Mağaza display the Time Freeze joker as `Zamanı Dondur`; its icon
+  color is `#e31717`. Store `İpucu` package icons use the in-game yellow
+  hammer treatment, not a bulb or generic sparkle icon.
+* Home `Çark` shortcut keeps the same outer circular shortcut size while the
+  inner mini wheel artwork is 30% larger, centered, and unclipped.
 * Solo `before_after` onboarding levels keep `ÖNCESİ` and `SONRASI` as fully
   visible/readable full slot shapes around the centered reference card on
   mobile; the regular timeline edge-peek treatment must not clip these two
   teaching slots.
+* The Level 1 start popup video is the local
+  `/assets/tutorials/Seviye1tutorial.mp4` asset rendered inside the existing
+  mobile-safe video slot; title/copy are `Önce mi, Sonra mı` and
+  `Kartı doğru tarafa sürükle`, and the effective timer remains paused until
+  the popup is closed.
+* Solo drop slots in `before_after`, `timeline_basic`, and normal timeline are
+  static: no blinking, pulsing, flashing, shimmering, or pre-drop correct-slot
+  guidance. Drag-over feedback is allowed only while actively dragging over a
+  slot and must remain non-blinking.
 * Manual mobile proof must confirm touch, slight drag, invalid drop, tutorial
   hand/finger animation, tutorial popups, and joker activation do not decrement
   the remaining move counter.

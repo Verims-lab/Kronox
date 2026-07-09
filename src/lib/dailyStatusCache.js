@@ -53,6 +53,32 @@ export function createDailyStatusStore(ttlMs = DAILY_STATUS_CACHE_TTL_MS) {
   };
 }
 
+export const DAILY_QUEST_STATUS_CHANGED_EVENT = 'kronox:daily-quest-status-changed';
+export const dailyQuestStatusStore = createDailyStatusStore();
+
+export function notifyDailyQuestStatusChanged(detail = {}) {
+  if (typeof window === 'undefined' || typeof window.dispatchEvent !== 'function') return;
+  window.dispatchEvent(new CustomEvent(DAILY_QUEST_STATUS_CHANGED_EVENT, {
+    detail: {
+      source: 'daily_task_event',
+      ...detail,
+    },
+  }));
+}
+
+export function markDailyQuestStatusStale(detail = {}) {
+  dailyQuestStatusStore.invalidate(detail?.cacheKey || '');
+  notifyDailyQuestStatusChanged(detail);
+}
+
+export function subscribeDailyQuestStatusChanged(listener) {
+  if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') {
+    return () => {};
+  }
+  window.addEventListener(DAILY_QUEST_STATUS_CHANGED_EVENT, listener);
+  return () => window.removeEventListener(DAILY_QUEST_STATUS_CHANGED_EVENT, listener);
+}
+
 // Post-paint refresh scheduling: requestIdleCallback when available so the
 // status fetch never competes with first render; setTimeout fallback keeps
 // older WebViews working. Returns a cancel function for unmount cleanup.

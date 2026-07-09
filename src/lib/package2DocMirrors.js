@@ -159,7 +159,8 @@ not shown as a persistent Store banner/list. The Home middle
 section keeps left GÜNLÜK,
 centered transparent hourglass, and right Çark balanced, with a content-free
 mini wheel visual for the Çark shortcut, centered shortcut popups, and CTA
-stack spacing balanced between the hourglass and fixed BottomNav. The primary
+stack spacing balanced between the hourglass and fixed BottomNav; the mini
+wheel artwork is 30% larger inside the unchanged shortcut circle. The primary
 Home CTA is OYNA / dynamic Seviye X from the canonical Solo progress helper
 and direct-starts that resolved Solo level; the secondary CTA is ONLINE KAPIŞ,
 remains Home-owned, and matches the primary CTA dimensions. The Home
@@ -173,7 +174,7 @@ DiamondTransaction, JokerTransaction, and HintTransaction. Double-tap, network
 retry, insufficient Diamonds, and two tabs/devices proof remains manual. Market
 purchase is a Diamond sink. Mağaza purchase is a Diamond sink; Store purchases do not grant Kronox Puan and do not
 affect Leaderboard. Daily Wheel V2 can be a Diamond source and approved joker grant source. Profile
-Joker Çantası shows Kronokalkan, Kart Değiştir, Zaman Dondur, and İpucu as four
+Joker Çantası shows Kronokalkan, Kart Değiştir, Zamanı Dondur, and İpucu as four
 compact cards in one row. Joker cards and the Solo joker bar use the shared
 getUserJokerBalances path; the Profile İpucu card uses read-only
 UserHintInventory.quantity. Complete UserJokerInventory rows use a fast

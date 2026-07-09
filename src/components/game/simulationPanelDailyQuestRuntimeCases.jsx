@@ -13,6 +13,7 @@ import recordDailyQuestProgressSource from '../../../base44/functions/recordDail
 import claimDailyQuestRewardSource from '../../../base44/functions/claimDailyQuestReward/entry.ts?raw';
 import cleanupLegacyDailyQuestsSource from '../../../base44/functions/cleanupLegacyDailyQuests/entry.ts?raw';
 import dailyQuestGatewaySource from '../../lib/dbGateway/dailyQuestGateway.js?raw';
+import dailyStatusCacheSource from '../../lib/dailyStatusCache.js?raw';
 import dailyCalendarSource from '../../lib/dailyCalendar.js?raw';
 import useDailyQuestsSource from '../../hooks/useDailyQuests.js?raw';
 import useDailyWheelSource from '../../hooks/useDailyWheel.js?raw';
@@ -77,6 +78,7 @@ const runtimeSources = [
   recordDailyQuestProgressSource,
   claimDailyQuestRewardSource,
   dailyQuestGatewaySource,
+  dailyStatusCacheSource,
   useDailyQuestsSource,
   dailyPageSource,
   mainMenuSource,
@@ -297,6 +299,95 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Progress updates are event-based, source-verified where possible, deduped, and never grant Diamonds/Puan directly.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('daily_wheel_claim_completes_task_and_refreshes_status',
+    'Successful Daily Wheel claim completes Çark çevir and refreshes Daily status',
+    () => {
+      const combined = `${getDailyQuestStatusSource}\n${recordDailyQuestProgressSource}\n${useDailyWheelSource}\n${useDailyQuestsSource}\n${dailyStatusCacheSource}\n${docsCombined}`;
+      const missing = missingTokens(combined, [
+        'reconcileDailyWheelTaskFromClaim',
+        'findDailyWheelClaimForDate',
+        'DailyWheelSpin',
+        'TASK_TYPES.DAILY_WHEEL_CLAIM',
+        'reconciledFromDailyWheelSpin: true',
+        "eventType: 'daily_wheel_claim'",
+        "reason: 'daily_wheel_claim_success'",
+        'markDailyQuestStatusStale',
+        'DAILY_QUEST_STATUS_CHANGED_EVENT',
+        'dailyQuestStatusStore.invalidate',
+        'subscribeDailyQuestStatusChanged',
+        'refresh({ ignoreCache: true })',
+        'refreshVersionRef',
+        'same-player/same-day DailyWheelSpin',
+        'opening or reopening the wheel does not create Daily progress',
+      ]);
+      const forbidden = forbiddenTokens(useDailyWheelSource, [
+        "openClaimedResult = useCallback(async () => {\n    recordDailyQuestProgress",
+        "setShowPrompt(false);\n    recordDailyQuestProgress",
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Daily Wheel can still claim a reward without completing or refreshing Çark çevir safely.', {
+          verification: 'STATIC_CONTRACT',
+          files: [
+            'base44/functions/getDailyQuestStatus/entry.ts',
+            'src/hooks/useDailyWheel.js',
+            'src/hooks/useDailyQuests.js',
+            'src/lib/dailyStatusCache.js',
+          ],
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('Successful wheel claims stale Daily status immediately, record progress best-effort, and status reconciles from DailyWheelSpin without wheel-open false positives.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('daily_task_event_source_matrix_and_training_exclusions',
+    'All Daily task event sources are wired and training Joker/Hint use is excluded',
+    () => {
+      const combined = `${dailyCalendarSource}\n${getDailyQuestStatusSource}\n${recordDailyQuestProgressSource}\n${gameSource}\n${friendsApiSource}`;
+      const missing = missingTokens(combined, [
+        'daily_wheel_claim',
+        'solo_level_complete',
+        'correct_answer',
+        'consecutive_correct_4',
+        'joker_used',
+        'time_freeze_joker_used',
+        'hint_used',
+        'jokerless_solo_level_complete',
+        'profile_complete',
+        'friend_invite_sent',
+        'friend_added',
+        "recordDailyQuestSoloEvent('solo_level_complete'",
+        "recordDailyQuestSoloEvent('correct_answer'",
+        "recordDailyQuestSoloEvent('consecutive_correct_4'",
+        "recordDailyQuestSoloEvent('jokerless_solo_level_complete'",
+        "eventType: 'joker_used'",
+        "eventType: 'time_freeze_joker_used'",
+        "eventType: 'hint_used'",
+        "eventType: 'friend_invite_sent'",
+        "eventType: 'friend_added'",
+        'isSoloTrainingConsumables',
+        'soloTrainingConsumableUsedRef.current = true',
+        'hintUseSeparateFromJoker: true',
+        'JokerTransaction',
+        'HintTransaction',
+        'joker_used_in_attempt',
+        'hint_transaction_verified',
+      ]);
+      const forbidden = forbiddenTokens(combined, [
+        "eventType: 'joker_used',\n        mode: 'solo_hint'",
+        "eventType: 'hint_used',\n        mode: 'joker'",
+        'clientMarkedComplete',
+        'trainingJokerCompletesDaily',
+        'trainingHintCompletesDaily',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Daily task event coverage can regress or training Hint/Joker use can complete tasks.', {
+          verification: 'STATIC_CONTRACT',
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('Daily task sources cover wheel, level, correct/streak, joker, hint, profile, friend invite/add, and training consumables are excluded from real ledger-backed tasks.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('guest_and_logged_in_paths_are_supported',

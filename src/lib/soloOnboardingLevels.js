@@ -251,8 +251,9 @@ export function getSoloLevelStartTutorialConfig(levelNumber) {
     return {
       key: 'before_after_intro',
       eventType: 'before_after_tutorial_skip',
-      title: 'Önce mi, sonra mı?',
-      copy: 'Kartı referans olayın öncesine ya da sonrasına bırak.',
+      title: 'Önce mi, Sonra mı',
+      copy: 'Kartı doğru tarafa sürükle',
+      videoSrc: '/assets/tutorials/Seviye1tutorial.mp4',
       videoLabel: 'Before / After demo',
     };
   }

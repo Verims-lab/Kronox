@@ -15,6 +15,8 @@ export const MARKET_PURCHASE_REASON = 'market_purchase';
 export const MARKET_PURCHASE_RELATED_ENTITY_TYPE = 'market_purchase';
 export const MARKET_CATALOG_CACHE_STALE_MS = 10 * 60 * 1000;
 export const MARKET_REAL_MONEY_IAP_AVAILABLE = false;
+export const MARKET_TIME_FREEZE_ACCENT = '#e31717';
+export const MARKET_HINT_ICON_ACCENT = '#facc15';
 
 export const MARKET_PRICE_TYPES = Object.freeze({
   REAL_MONEY: 'real_money',
@@ -161,9 +163,9 @@ export const MARKET_JOKER_PRODUCTS = Object.freeze([
   makeJokerProduct({ id: 'joker_mistake_shield_1', jokerType: JOKER_TYPES.MISTAKE_SHIELD, name: 'Kronokalkan', quantity: 1, diamondCost: 60, accent: '#60a5fa' }),
   makeJokerProduct({ id: 'joker_mistake_shield_5', jokerType: JOKER_TYPES.MISTAKE_SHIELD, name: 'Kronokalkan', quantity: 5, diamondCost: 270, accent: '#60a5fa' }),
   makeJokerProduct({ id: 'joker_mistake_shield_15', jokerType: JOKER_TYPES.MISTAKE_SHIELD, name: 'Kronokalkan', quantity: 15, diamondCost: 720, accent: '#60a5fa' }),
-  makeJokerProduct({ id: 'joker_time_freeze_1', jokerType: JOKER_TYPES.TIME_FREEZE, name: 'Zamanı Dondur', quantity: 1, diamondCost: 40, accent: '#38bdf8' }),
-  makeJokerProduct({ id: 'joker_time_freeze_5', jokerType: JOKER_TYPES.TIME_FREEZE, name: 'Zamanı Dondur', quantity: 5, diamondCost: 180, accent: '#38bdf8' }),
-  makeJokerProduct({ id: 'joker_time_freeze_15', jokerType: JOKER_TYPES.TIME_FREEZE, name: 'Zamanı Dondur', quantity: 15, diamondCost: 480, accent: '#38bdf8' }),
+  makeJokerProduct({ id: 'joker_time_freeze_1', jokerType: JOKER_TYPES.TIME_FREEZE, name: 'Zamanı Dondur', quantity: 1, diamondCost: 40, accent: MARKET_TIME_FREEZE_ACCENT }),
+  makeJokerProduct({ id: 'joker_time_freeze_5', jokerType: JOKER_TYPES.TIME_FREEZE, name: 'Zamanı Dondur', quantity: 5, diamondCost: 180, accent: MARKET_TIME_FREEZE_ACCENT }),
+  makeJokerProduct({ id: 'joker_time_freeze_15', jokerType: JOKER_TYPES.TIME_FREEZE, name: 'Zamanı Dondur', quantity: 15, diamondCost: 480, accent: MARKET_TIME_FREEZE_ACCENT }),
   makeJokerProduct({ id: 'joker_card_swap_1', jokerType: JOKER_TYPES.CARD_SWAP, name: 'Kart Değiştir', quantity: 1, diamondCost: 50, accent: '#84cc16' }),
   makeJokerProduct({ id: 'joker_card_swap_5', jokerType: JOKER_TYPES.CARD_SWAP, name: 'Kart Değiştir', quantity: 5, diamondCost: 225, accent: '#84cc16' }),
   makeJokerProduct({ id: 'joker_card_swap_15', jokerType: JOKER_TYPES.CARD_SWAP, name: 'Kart Değiştir', quantity: 15, diamondCost: 600, accent: '#84cc16' }),
@@ -181,6 +183,7 @@ export const MARKET_HINT_PRODUCTS = Object.freeze([
     diamondCost: 150,
     displayPrice: '💎 150',
     assetKind: 'hint',
+    accent: MARKET_HINT_ICON_ACCENT,
     grants: Object.freeze({ jokers: Object.freeze({}), hints: 5 }),
     available: true,
   },
@@ -195,6 +198,7 @@ export const MARKET_HINT_PRODUCTS = Object.freeze([
     diamondCost: 400,
     displayPrice: '💎 400',
     assetKind: 'hint_stack',
+    accent: MARKET_HINT_ICON_ACCENT,
     grants: Object.freeze({ jokers: Object.freeze({}), hints: 15 }),
     available: true,
   },
@@ -209,6 +213,7 @@ export const MARKET_HINT_PRODUCTS = Object.freeze([
     diamondCost: 800,
     displayPrice: '💎 800',
     assetKind: 'hint_bundle',
+    accent: MARKET_HINT_ICON_ACCENT,
     grants: Object.freeze({ jokers: Object.freeze({}), hints: 40 }),
     available: true,
   },

@@ -404,7 +404,7 @@ function jokerDisplayName(value) {
   const type = normalizeJokerType(value);
   if (type === "mistake_shield") return "Kronokalkan";
   if (type === "card_swap") return "Kart Değiştir";
-  if (type === "time_freeze") return "Zaman Dondur";
+  if (type === "time_freeze") return "Zamanı Dondur";
   return displayValue(value, "Bilinmeyen joker");
 }
 function correctRateLabel(bucket) {
@@ -1283,7 +1283,7 @@ function buildReport({
   const jokerTypes = [
     { type: "mistake_shield", name: "Kronokalkan" },
     { type: "card_swap", name: "Kart Değiştir" },
-    { type: "time_freeze", name: "Zaman Dondur" }
+    { type: "time_freeze", name: "Zamanı Dondur" }
   ];
   const inventoryByType = /* @__PURE__ */ new Map();
   const depletedUsersByType = /* @__PURE__ */ new Map();

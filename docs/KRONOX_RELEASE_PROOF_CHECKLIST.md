@@ -152,6 +152,9 @@ Checklist:
 * Special Solo levels win after 10 correct timeline cards, including seed cards already on the timeline.
 * Live Solo shows remaining moves as `10 HAMLE`, `9 HAMLE`, and so on for normal levels, and `13 HAMLE`, `12 HAMLE`, and so on for special levels.
 * Touch, slight drag, cancelled drag, invalid drop, tutorial hand animation, and tutorial popup reading do not decrement moves.
+* Level 1 start popup uses local `/assets/tutorials/Seviye1tutorial.mp4`,
+  title `Önce mi, Sonra mı`, and subtitle `Kartı doğru tarafa sürükle` with no
+  final period; closing the popup starts/resumes the effective timer.
 * A valid evaluated timeline placement decrements remaining moves.
 * Fail occurs when the level-specific evaluated move limit is used before the target card count is reached.
 * Timeout at 180 seconds fails the level.
@@ -246,8 +249,10 @@ Checklist:
 * Replay variety diagnostics can detect repeated first-5 sequences without weakening hard deck rules.
 * Deck feels category/subcategory/theme balanced where the pool allows.
 * Deck feels era/year balanced rather than clustered.
-* Levels 1-3 show beginner-friendly year spacing and a subtle correct-slot pulse while dragging.
-* Level 4+ shows no placement pulse unless a future onboarding rule enables it.
+* Levels 1-3 keep beginner-friendly year spacing, but no Solo mode may show
+  blinking/pulsing/flashing slot guidance or a pre-drop correct-slot hint.
+* Levels 4-6 and level 7+ also keep static readable slots; drag-over feedback
+  is allowed only during active drag and must stay non-blinking.
 * Old completed Solo results are not retroactively recalculated.
 
 ---
@@ -272,15 +277,15 @@ Checklist:
 * Result screen does not clip on small phones.
 * Solo Joker bar appears below the timeline and above `KARTI YERLEŞTİR`.
 * Solo Joker bar reads `UserJokerInventory` and shows current owned counts for
-  `Kronokalkan`, `Kart Değiştir`, and `Zaman Dondur`.
+  `Kronokalkan`, `Kart Değiştir`, and `Zamanı Dondur`.
 * A joker with balance 0 is disabled and cannot apply an effect.
 * Multiple jokers can be used across one Solo level when the player owns them.
 * Only one joker can be used for the current question/card; the guard resets on
   the next card and survives `Kart Değiştir` replacement for the same decision.
 * `Kronokalkan` forgives the next wrong placement without incrementing mistakes.
 * `Kart Değiştir` replaces the current card from the prebuilt deck/reserve, does not fetch mid-attempt, does not immediately re-show the swapped-out card, respects visible timeline spacing, prefers a balanced replacement, and has helper-only diagnostics for replacement source/no-safe-replacement state.
-* `Zaman Dondur` freezes the Solo timer for 10 seconds and cleans up after result/replay.
-* Guided first Solo tutorial cards 3, 4, and 5 teach `Zaman Dondur`, `Kart
+* `Zamanı Dondur` freezes the Solo timer for 10 seconds and cleans up after result/replay.
+* Guided first Solo tutorial cards 3, 4, and 5 teach `Zamanı Dondur`, `Kart
   Değiştir`, and `Kronokalkan` with tutorial-only interactive demos and
   repeating hand/tap hints; demos must not consume real `UserJokerInventory` or
   write real `solo_use` `JokerTransaction` rows.
@@ -405,6 +410,8 @@ Checklist:
   `OYNA` / dynamic `Seviye X` Solo CTA; tapping `GÜNLÜK` opens `/daily`, and
   tapping `Çark` opens the Daily Wheel popup without rendering an expanded
   `Günlük Ödüller` panel on first Home render.
+* The Home `Çark` shortcut keeps its outer circular shortcut size unchanged;
+  only the simplified mini wheel artwork inside the circle is enlarged by 30%.
 * Home logo and hourglass visuals use local `/assets/ui/` PNG assets on the
   dark blue background; neither is wrapped in a visible card/panel/container or
   hotlinked from a remote URL. The middle section stays balanced as left
@@ -467,7 +474,7 @@ Checklist:
 * `UserJokerInventory` exists as the current user-owned joker balance entity.
 * `JokerTransaction` exists as the append-only joker ledger/idempotency audit.
 * Every authenticated user receives exactly 3 `mistake_shield` / Kronokalkan,
-  3 `card_swap` / Kart Değiştir, and 3 `time_freeze` / Zaman Dondur once.
+  3 `card_swap` / Kart Değiştir, and 3 `time_freeze` / Zamanı Dondur once.
 * Starter grants use idempotency keys shaped like
   `starter_jokers:<email>:<joker_type>` and do not repeat on refresh, login,
   app reopen, or Profile reopen.
@@ -483,7 +490,7 @@ Checklist:
   same normalized lowercase `user_email` owner convention.
 * Profile displays balances under `Joker Çantası`, not `Envanter`.
 * Profile `Joker Çantası` shows four compact cards in one non-scrolling row:
-  `Kronokalkan`, `Kart Değiştir`, `Zaman Dondur`, and `İpucu`.
+  `Kronokalkan`, `Kart Değiştir`, `Zamanı Dondur`, and `İpucu`.
 * Profile shows only current balances and does not expose `JokerTransaction` or
   `HintTransaction` ledger rows to normal users.
 * Profile/Solo/Mağaza use the shared `getUserJokerBalances` path; complete
@@ -526,7 +533,9 @@ Checklist:
   / `Çark` shortcuts with ready badges, centered shortcut popups, and large
   `OYNA` / dynamic `Seviye X` and `ONLINE KAPIŞ` CTAs with equal dimensions
   balanced above BottomNav. The `Çark` shortcut uses a simplified mini wheel
-  visual with no reward icons, numbers, or Diamond symbols inside the slices.
+  visual with no reward icons, numbers, or Diamond symbols inside the slices;
+  its inner wheel artwork is 30% larger while the shortcut circle stays the
+  same size.
   The Home notification panel uses Barlow Condensed bold italic title
   typography and Inter body/empty/error typography.
   The Solo CTA direct-starts the resolved current/next Solo level; Online
@@ -575,6 +584,11 @@ Checklist:
   the viewport, and keeps the purchase CTA above BottomNav.
 * Hint package prices are 5/15/40 İpucu = 150/400/800 Diamonds in both the
   client catalog and `purchaseJokerWithDiamonds`.
+* `Zamanı Dondur` display copy is used for game, Profile, Daily Wheel, and
+  Mağaza surfaces. Its in-game and Mağaza package icon color is `#e31717`.
+* Mağaza `İpucu` package cards use the same hammer icon and `#facc15` color as
+  the in-game `İpucu` control; this is visual-only and does not change Hint
+  price, inventory, or purchase behavior.
 * Manual Mağaza Store proof:
   1. Open Home on mobile browser/PWA.
   2. Confirm Mağaza top-left, Diamonds center, notifications right.
@@ -647,7 +661,11 @@ Checklist:
   follow a successful wheel claim, Solo level/correct/jokerless tasks must
   follow valid gameplay events, Joker tasks must follow successful
   JokerTransaction-backed usage, and friend tasks must follow friends API
-  success events.
+  success events. Manual proof: when today includes `Çark çevir`, a successful
+  Daily Wheel reward claim marks it complete without app restart; opening the
+  wheel or viewing an already-claimed result does not create a new completion.
+  `getDailyQuestStatus` reconciles the task from `DailyWheelSpin` if the
+  progress event write was missed.
 * Per-task progress does not grant Diamonds. A day is complete only when all 3
   task rows are complete. Missing a UTC day breaks the computed streak.
 * `claimDailyQuestReward` grants only the 7-day streak reward, writes
@@ -730,10 +748,16 @@ Checklist:
   horizontal auto-scroll still work after the global zoom guard is active.
 * Bottom nav does not collide with home indicator.
 * BottomNav visible tabs are Ana Sayfa, Liderlik, and Profil only. Online is
-  launched from Home through Online Kapışma, not from BottomNav. Switching
-  visible tabs preserves the previous subroute/scroll state; tapping the active
-  tab resets that tab to its root. `/game` remains outside tab stacks and
-  full-screen according to existing gameplay rules.
+  launched from Home through Online Kapışma, not from BottomNav. Every
+  BottomNav tab tap opens that tab root (`/`, `/leaderboard`, `/profile`);
+  Profile/Friends/Settings subpages must not reopen as sticky hidden tab state
+  after returning Home and tapping Profil again. `/game` remains outside tab
+  stacks and full-screen according to existing gameplay rules.
+* Subpages opened from Profile or another main tab use a top-left back arrow.
+  The arrow returns to the immediate parent/root route through explicit
+  `parentRoute` / `returnTo` state when needed. It must not be hardcoded to
+  Home unless Home is the actual parent, and default shared back behavior must
+  fall back to the current tab root rather than blind browser history.
 * Top bar does not clip under notch/status bar.
 * Popups fit small screens.
 * Keyboard does not crush input flows.

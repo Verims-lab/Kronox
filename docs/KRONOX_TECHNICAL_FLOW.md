@@ -87,6 +87,14 @@ BottomNav visible tabs:
 
 Online is not a BottomNav tab. Online starts from Home.
 
+BottomNav taps are root navigation: Ana Sayfa opens `/`, Liderlik opens
+`/leaderboard`, and Profil opens `/profile`. BottomNav must not restore a
+cached Profile/Friends/Settings subpage after the user changes tabs.
+
+Subpages opened from a tab root carry explicit parent route state. Their
+top-left back arrow returns to that parent/root route, not blindly to Home and
+not through browser-history back if that could jump tabs or reopen stale state.
+
 BottomNav is hidden or minimized where the game/onboarding shell requires it.
 
 ---
@@ -335,7 +343,7 @@ Deck formula:
 * Kart Değiştir replacement buffer
 * Kronokalkan / Hata Affı buffer
 
-Zaman Dondur does not add a card requirement.
+Zamanı Dondur does not add a card requirement.
 
 Runtime consumes `soloAttemptDeck` in order. Active attempts must not be
 replaced by refetch/loading fallback.
@@ -386,7 +394,7 @@ Ledger:
 
 Types:
 
-* `time_freeze` - Zaman Dondur
+* `time_freeze` - Zamanı Dondur
 * `card_swap` - Kart Değiştir
 * `mistake_shield` - Kronokalkan / Hata Affı
 
@@ -406,7 +414,7 @@ Market:
 
 * function: `purchaseJokerWithDiamonds`
 * prices are server-owned
-* Zaman Dondur 40, Kart Değiştir 50, Kronokalkan 60
+* Zamanı Dondur 40, Kart Değiştir 50, Kronokalkan 60
 * validates authenticated user and sufficient Diamonds
 * writes `DiamondTransaction` and `JokerTransaction`
 

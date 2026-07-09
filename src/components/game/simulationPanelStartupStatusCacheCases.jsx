@@ -123,8 +123,10 @@ export const EXTRA_TESTS = [
     () => {
       const missing = missingTokens(useDailyQuestsSource, [
         "from '@/lib/dailyStatusCache'",
-        'createDailyStatusStore()',
+        'dailyQuestStatusStore',
         'scheduleIdleStatusRefresh(',
+        'subscribeDailyQuestStatusChanged',
+        'refresh({ ignoreCache: true })',
         'buildDailyStatusCacheKey(user, guestCredentials)',
         // invalidation export stays available for cross-hook cache busting
         'export function invalidateDailyQuestStatusCache',

@@ -29,7 +29,7 @@ export const JOKER_TRANSACTION_REASONS = Object.freeze({
 export const JOKER_DEFINITIONS = Object.freeze([
   { type: JOKER_TYPES.MISTAKE_SHIELD, label: 'Kronokalkan', shortLabel: 'Kalkan' },
   { type: JOKER_TYPES.CARD_SWAP, label: 'Kart Değiştir', shortLabel: 'Değiştir' },
-  { type: JOKER_TYPES.TIME_FREEZE, label: 'Zaman Dondur', shortLabel: 'Dondur' },
+  { type: JOKER_TYPES.TIME_FREEZE, label: 'Zamanı Dondur', shortLabel: 'Dondur' },
 ]);
 
 export const SOLO_UI_JOKER_TYPES = Object.freeze({

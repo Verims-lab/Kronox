@@ -93,6 +93,8 @@ export const EXTRA_TESTS = [
         'element={<DailyPage />}',
         'label="Çark"',
         "'wheel'",
+        'width: 44',
+        'height: 44',
         'activeShortcut',
         'completedGuestProfile',
         'guestProfile={guestProfile}',
@@ -116,6 +118,9 @@ export const EXTRA_TESTS = [
         : '';
       const miniWheelMissing = missingTokens(miniWheelSource, [
         'data-kronox-home-mini-wheel-icon',
+        'data-kronox-home-mini-wheel-inner-scale="1.3"',
+        'const wheelInnerScale = 1.3',
+        "transform: `scale(${wheelInnerScale})`",
         '<svg',
         '<clipPath',
         '<path',

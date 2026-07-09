@@ -6,6 +6,7 @@ import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
 import { useAuth } from '@/lib/AuthContext';
 import StandardTopBar from '@/components/layout/StandardTopBar';
+import { createParentRouteState } from '@/lib/NavigationStackContext';
 import DailyWheelCard from '@/components/dailyWheel/DailyWheelCard';
 import { useDailyWheel } from '@/hooks/useDailyWheel';
 import { useDailyQuests } from '@/hooks/useDailyQuests';
@@ -169,12 +170,12 @@ export default function MainMenu() {
   };
 
   const handleMarket = () => {
-    navigate('/market');
+    navigate('/market', { state: createParentRouteState('home', '/') });
   };
 
   const handleDaily = () => {
     sounds.tap();
-    navigate('/daily');
+    navigate('/daily', { state: createParentRouteState('home', '/') });
   };
 
   const handleShortcut = (shortcut) => {
@@ -381,6 +382,7 @@ function HomeShortcut({ label, icon: Icon, tone, ready = false, onClick }) {
 }
 
 function HomeMiniDailyWheelIcon(props) {
+  const wheelInnerScale = 1.3;
   return (
     <svg
       viewBox="0 0 24 24"
@@ -390,25 +392,30 @@ function HomeMiniDailyWheelIcon(props) {
       data-kronox-home-mini-wheel-icon="true"
       {...props}
     >
-      <defs>
-        <clipPath id="home-mini-wheel-clip">
-          <circle cx="12" cy="12" r="7.2" />
-        </clipPath>
-      </defs>
-      <g clipPath="url(#home-mini-wheel-clip)">
-        <path d="M12 12 L12 4.8 A7.2 7.2 0 0 1 17.1 6.9 Z" fill="#1fb6ff" />
-        <path d="M12 12 L17.1 6.9 A7.2 7.2 0 0 1 19.2 12 Z" fill="#f97316" />
-        <path d="M12 12 L19.2 12 A7.2 7.2 0 0 1 17.1 17.1 Z" fill="#facc15" />
-        <path d="M12 12 L17.1 17.1 A7.2 7.2 0 0 1 12 19.2 Z" fill="#dc2626" />
-        <path d="M12 12 L12 19.2 A7.2 7.2 0 0 1 6.9 17.1 Z" fill="#8b5cf6" />
-        <path d="M12 12 L6.9 17.1 A7.2 7.2 0 0 1 4.8 12 Z" fill="#16a34a" />
-        <path d="M12 12 L4.8 12 A7.2 7.2 0 0 1 6.9 6.9 Z" fill="#0ea5e9" />
-        <path d="M12 12 L6.9 6.9 A7.2 7.2 0 0 1 12 4.8 Z" fill="#7c3aed" />
+      <g
+        data-kronox-home-mini-wheel-inner-scale="1.3"
+        style={{ transformOrigin: 'center', transform: `scale(${wheelInnerScale})` }}
+      >
+        <defs>
+          <clipPath id="home-mini-wheel-clip">
+            <circle cx="12" cy="12" r="7.2" />
+          </clipPath>
+        </defs>
+        <g clipPath="url(#home-mini-wheel-clip)">
+          <path d="M12 12 L12 4.8 A7.2 7.2 0 0 1 17.1 6.9 Z" fill="#1fb6ff" />
+          <path d="M12 12 L17.1 6.9 A7.2 7.2 0 0 1 19.2 12 Z" fill="#f97316" />
+          <path d="M12 12 L19.2 12 A7.2 7.2 0 0 1 17.1 17.1 Z" fill="#facc15" />
+          <path d="M12 12 L17.1 17.1 A7.2 7.2 0 0 1 12 19.2 Z" fill="#dc2626" />
+          <path d="M12 12 L12 19.2 A7.2 7.2 0 0 1 6.9 17.1 Z" fill="#8b5cf6" />
+          <path d="M12 12 L6.9 17.1 A7.2 7.2 0 0 1 4.8 12 Z" fill="#16a34a" />
+          <path d="M12 12 L4.8 12 A7.2 7.2 0 0 1 6.9 6.9 Z" fill="#0ea5e9" />
+          <path d="M12 12 L6.9 6.9 A7.2 7.2 0 0 1 12 4.8 Z" fill="#7c3aed" />
+        </g>
+        <circle cx="12" cy="12" r="7.55" fill="none" stroke="#FFC928" strokeWidth="1.65" />
+        <circle cx="12" cy="12" r="5.15" fill="none" stroke="rgba(7,21,47,0.62)" strokeWidth="0.65" />
+        <circle cx="12" cy="12" r="2.15" fill="url(#home-mini-wheel-hub)" stroke="#FFE77A" strokeWidth="0.75" />
+        <path d="M12 2.9 L14.25 6.55 H9.75 Z" fill="#FFE77A" stroke="#8A5C00" strokeWidth="0.55" />
       </g>
-      <circle cx="12" cy="12" r="7.55" fill="none" stroke="#FFC928" strokeWidth="1.65" />
-      <circle cx="12" cy="12" r="5.15" fill="none" stroke="rgba(7,21,47,0.62)" strokeWidth="0.65" />
-      <circle cx="12" cy="12" r="2.15" fill="url(#home-mini-wheel-hub)" stroke="#FFE77A" strokeWidth="0.75" />
-      <path d="M12 2.9 L14.25 6.55 H9.75 Z" fill="#FFE77A" stroke="#8A5C00" strokeWidth="0.55" />
       <defs>
         <radialGradient id="home-mini-wheel-hub" cx="35%" cy="28%" r="70%">
           <stop offset="0" stopColor="#FFF3A3" />

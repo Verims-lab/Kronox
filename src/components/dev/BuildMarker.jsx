@@ -1,5 +1,43 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex582 — Level 1 tutorial popup video/copy update:
+//   • Level 1 start popup uses local /assets/tutorials/Seviye1tutorial.mp4.
+//   • Level 1 copy is "Önce mi, Sonra mı" / "Kartı doğru tarafa sürükle".
+//   • Docs/Health guard the local video, no remote/autoplay path, unchanged
+//     later tutorial popups, and timer pause contract.
+//
+// Codex581 — Solo slot guidance animation removal:
+//   • Disabled beginner/correct-slot guidance and removed the old Timeline
+//     slot pulse CSS plus guided target halos from drop slots.
+//   • Guided tutorial finger is generic drag teaching only, not correct-slot
+//     targeted.
+//   • Docs/Health now guard static drop slots across before_after,
+//     timeline_basic, and normal timeline.
+//
+// Codex580 — Daily Calendar task event refresh/reconciliation pass:
+//   • Daily Wheel successful claim now marks Daily status stale immediately
+//     and getDailyQuestStatus reconciles Çark çevir from same-day
+//     DailyWheelSpin rows when the progress event write was missed.
+//   • Daily task progress events invalidate/refresh the Daily Calendar status
+//     cache and useDailyQuests ignores stale status responses.
+//   • Docs/Health now guard wheel-claim completion, event-source coverage,
+//     training Joker/Hint exclusions, and no Puan/Leaderboard side effects.
+//
+// Codex579 — Freeze/Hint/Home shortcut visual token pass:
+//   • Zamanı Dondur display copy stays stable while time_freeze remains the
+//     internal inventory id; game/store icon color is #e31717.
+//   • Store İpucu packages use the in-game yellow hammer treatment without
+//     changing prices, quantities, grants, or purchase semantics.
+//   • Home Çark shortcut keeps the same outer circle and enlarges only the
+//     mini wheel artwork by 30%.
+//
+// Codex578 — Profile subpage navigation root/back fix:
+//   • BottomNav taps now open tab roots only: Ana Sayfa, Liderlik, Profil.
+//   • Profile/Friends/Settings/Admin/Profile Edit subpages carry explicit
+//     parentRoute/returnTo state so top-left back returns to the parent/root.
+//   • Shared top-bar fallback uses parent route or current tab root instead of
+//     blind browser history, preventing sticky Profile subpage reopen.
+//
 // Codex577 — Onboarding move allowance, before_after slots, Store modal safety:
 //   • Levels 1-6 keep a 6-correct onboarding progress target while using
 //     the 10-HAMLE evaluated move allowance and larger prepared attempt decks.
@@ -10,7 +48,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex577';
+const BUILD_MARKER = 'Codex582';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

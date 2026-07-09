@@ -323,13 +323,13 @@ Visible scoring language:
 Current Solo jokers:
 
 * Kart Değiştir
-* Zaman Dondur
+* Zamanı Dondur
 * Kronokalkan / Hata Affı
 
 Move model:
 
 * Kart Değiştir does not consume a move
-* Zaman Dondur does not consume a move
+* Zamanı Dondur does not consume a move
 * Kronokalkan protects one wrong valid placement from move decrement
 
 Normal Solo:

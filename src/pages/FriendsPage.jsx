@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Loader2, Users, Inbox, Send, UserPlus } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import {
@@ -26,6 +26,7 @@ import useFriendPresence from '@/hooks/useFriendPresence';
 import StandardTopBar from '@/components/layout/StandardTopBar';
 import PullToRefresh from '@/components/mobile/PullToRefresh';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
+import { getSafeBackRoute } from '@/lib/NavigationStackContext';
 
 const FRIENDS_LOAD_ERROR_MESSAGE = 'Arkadaş verisi yüklenemedi.';
 
@@ -37,6 +38,7 @@ const FRIENDS_LOAD_ERROR_MESSAGE = 'Arkadaş verisi yüklenemedi.';
  */
 export default function FriendsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [user, setUser] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
 
@@ -181,6 +183,9 @@ export default function FriendsPage() {
       throw err;
     }
   };
+  const handleBack = () => {
+    navigate(getSafeBackRoute(location, '/profile'), { replace: true });
+  };
 
   /* ---- render ---- */
   if (!authChecked) {
@@ -220,7 +225,7 @@ export default function FriendsPage() {
     <PageShell>
       <PullToRefresh onRefresh={() => refresh(user.email)} disabled={!user?.email}>
         <div className="space-y-5">
-          <StandardTopBar showBack onBack={() => navigate('/profile')} diamonds={getLeaderboardDiamondValue(user)} user={user} />
+          <StandardTopBar showBack onBack={handleBack} diamonds={getLeaderboardDiamondValue(user)} user={user} />
           {/* Header subtitle */}
           <p className="font-inter text-xs text-blue-100/60 px-1">
             Arkadaşlarını yönet, davet et, isteklerini gör.

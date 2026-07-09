@@ -32,7 +32,7 @@ Internal deck sizing is before_after 1 reference + 10 attempt cards + Kart Deği
 buffer + Kronokalkan buffer, timeline_basic 2 references + 10 attempt cards +
 Kart Değiştir buffer + Kronokalkan buffer, normal 2 anchors + 10 playable moves
 + Kart Değiştir buffer + Kronokalkan buffer, and special 2 anchors + 13
-playable moves + Kart Değiştir buffer + Kronokalkan buffer. Zaman Dondur does not require extra card buffer.
+playable moves + Kart Değiştir buffer + Kronokalkan buffer. Zamanı Dondur does not require extra card buffer.
 Deck sizing is 2 anchors + 10 playable moves + Kart Değiştir buffer + Kronokalkan buffer for normal levels.
 Extra Kart Değiştir or Kronokalkan use beyond the per-attempt buffer fails
 safely before spend; there is no raw client question list fallback.
@@ -45,6 +45,12 @@ Onboarding levels 1-6 show Joker and Hint controls in training mode: no
 spendUserJoker, no consumeUserHint, no JokerTransaction or HintTransaction
 spend row, no real inventory decrement, and no Daily Calendar joker/hint task
 progress. Level 7 and later use normal inventory-consuming Joker/Hint behavior.
+Daily Calendar task progress is event-based and idempotent: Çark çevir
+completes after a successful Daily Wheel claim, getDailyQuestStatus reconciles
+the task from same-player/same-day DailyWheelSpin rows if the progress event
+write was missed, opening or reopening the wheel does not create Daily
+progress, and task-relevant events mark the Daily status cache stale for a
+fresh status read.
 
 Question loading bootstrap first attempts online getQuestions when the browser
 is online or network state is unknown. The default gameplay response is an
@@ -79,6 +85,12 @@ unused prebuilt-deck card whose answer year is at least 5 years away from
 already visible timeline years, including placed cards and seed/preplaced
 cards. This avoids player-facing 1-4 year conflicts such as 1996/1997,
 1998/1999, and 1913/1914 where a safe alternative exists.
+
+Solo placement slots are static and readable in before_after, timeline_basic,
+and normal timeline play. Kronox does not blink, pulse, flash, shimmer, or
+automatically emphasize a correct slot before the player drops the card.
+Drag-over feedback may appear only while actively dragging over a slot and must
+remain non-blinking; correct/wrong effects stay post-drop only.
 
 Hard deck rules:
 - 17 questions for before_after onboarding.
@@ -220,7 +232,7 @@ successfully applied.
 
 Solo jokers are user-owned and Solo-only. Solo joker buttons read
 UserJokerInventory and show owned counts for Kronokalkan, Kart Değiştir, and
-Zaman Dondur; Profile Joker Çantası also shows the separate İpucu balance from
+Zamanı Dondur; Profile Joker Çantası also shows the separate İpucu balance from
 UserHintInventory.quantity. A player may use multiple jokers across a Solo level when they
 own enough balance, but only one joker may be used for the current
 question/card decision. Kart Değiştir keeps the same current-card guard for
@@ -262,7 +274,7 @@ solo_use, source = solo_hint, and an idempotency key. The left-card Hint
 launcher opens the popup without consuming. The popup has one hammer action,
 pauses the effective Solo timer, keeps stage 0 fully covered from first render,
 reveals only the active card year in 1/3, 2/3, and full stages after server
-confirmation, is overlap-aware when Zaman Dondur is active so the same frozen
+confirmation, is overlap-aware when Zamanı Dondur is active so the same frozen
 seconds are never subtracted twice, can satisfy Daily hint_used, and never
 counts as Joker use, changes scoring, grants Kronox Puan, affects leaderboard,
 or exposes the full question bank.
@@ -280,7 +292,7 @@ should not reappear while unused deck cards are available. Replacement must
 respect visible timeline spacing and prefers a balanced reserve card that does
 not worsen category/subcategory/theme repetition; if no safe replacement
 exists, the joker is not consumed and the player sees Bu kart şu anda
-değiştirilemiyor. Zaman Dondur freezes the Solo timer for 10 seconds and does not consume a move.
+değiştirilemiyor. Zamanı Dondur freezes the Solo timer for 10 seconds and does not consume a move.
 
 ## Per-Player Anti-Repeat Selection
 

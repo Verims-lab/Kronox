@@ -9,7 +9,7 @@ placeholders after authentication.
 * `Seviye` uses the same Solo progress helper as the Solo level path.
 * `Elmas` uses persisted `User.diamonds` through the shared Diamond display
   helper.
-* `Joker Çantası` shows Kronokalkan, Kart Değiştir, Zaman Dondur, and
+* `Joker Çantası` shows Kronokalkan, Kart Değiştir, Zamanı Dondur, and
   `İpucu` as four compact cards in one non-scrolling row.
 * Joker cards use `UserJokerInventory` current balances through
   `getUserJokerBalances`; the `İpucu` card uses read-only

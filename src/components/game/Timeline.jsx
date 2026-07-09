@@ -9,14 +9,12 @@ import PlacementFeedbackOverlay from './PlacementFeedbackOverlay.jsx';
 const SOLO_TIMELINE_CARD_WIDTH_VAR = 'var(--solo-timeline-card-width, 80px)';
 const SOLO_TIMELINE_CARD_HEIGHT_VAR = 'var(--solo-timeline-card-height, 108px)';
 
-function DropZone({ index, label = '', isActive, isDragMode, isMagnetic, isBeginnerHint, isGuidedTarget, onSelect, isTimeUp, isEdgePeek }) {
-  const showBeginnerHint = Boolean(isBeginnerHint && isDragMode && !isActive && !isTimeUp);
-  const showGuidedTarget = Boolean(isGuidedTarget && !isActive && !isTimeUp);
+function DropZone({ index, label = '', isActive, isDragMode, isMagnetic, onSelect, isTimeUp, isEdgePeek }) {
   // Resting "+" insertion slot: only when the timeline is idle (no drag, not
-  // the selected zone, no hint). Drag-mode sizing/hit-testing is untouched —
+  // the selected zone). Drag-mode sizing/hit-testing is untouched —
   // this purely affects the at-rest visual so the empty gap reads as a
   // card-sized "kart buraya gelecek" target.
-  const showPlusSlot = Boolean(!isDragMode && !isActive && !isTimeUp && !showBeginnerHint && !showGuidedTarget);
+  const showPlusSlot = Boolean(!isDragMode && !isActive && !isTimeUp);
   // At-rest outer slots (the first and last drop zones) render as a narrow
   // peek so the opening viewport shows: partial slot · card · full slot ·
   // card · partial slot. Middle resting slots stay full card-sized. Visual
@@ -30,35 +28,27 @@ function DropZone({ index, label = '', isActive, isDragMode, isMagnetic, isBegin
     : SOLO_TIMELINE_CARD_WIDTH_VAR;
   const restingBoxWidth = `calc(${SOLO_TIMELINE_CARD_WIDTH_VAR} * 0.9)`;
   // Cyan timeline slot visual contract. Idle/drag-available/hovered states use
-  // the unified cyan palette; active-selection (yellow), guided, beginner, and
-  // time-up states keep their existing tokens (Health/tutorial depend on them).
+  // static tokens only: no idle, beginner, or guided target animation is
+  // allowed before the player places a card.
   const isHovered = isMagnetic; // valid slot the dragged card is over
   const borderColor = isTimeUp
     ? '#ef4444'
     : isActive
       ? '#facc15'
-      : showGuidedTarget
-        ? 'rgba(250,204,21,0.98)'
-      : showBeginnerHint
-        ? 'rgba(125,211,252,0.78)'
-        : isHovered
-          ? '#55D8FF'
-          : isDragMode
-            ? 'rgba(85,216,255,0.52)'
-            : 'rgba(167,196,229,0.36)';
+      : isHovered
+        ? '#55D8FF'
+        : isDragMode
+          ? 'rgba(85,216,255,0.52)'
+          : 'rgba(167,196,229,0.36)';
   const bgColor = isTimeUp
     ? 'rgba(239,68,68,0.06)'
     : isActive
       ? 'rgba(250,204,21,0.14)'
-      : showGuidedTarget
-        ? 'rgba(250,204,21,0.16)'
-      : showBeginnerHint
-        ? 'rgba(56,189,248,0.08)'
-        : isHovered
-          ? 'rgba(85,216,255,0.09)'
-          : isDragMode
-            ? 'rgba(85,216,255,0.035)'
-            : 'rgba(255,255,255,0.015)';
+      : isHovered
+        ? 'rgba(85,216,255,0.09)'
+        : isDragMode
+          ? 'rgba(85,216,255,0.035)'
+          : 'rgba(255,255,255,0.015)';
 
   return (
     <div
@@ -97,9 +87,9 @@ function DropZone({ index, label = '', isActive, isDragMode, isMagnetic, isBegin
       </AnimatePresence>
       <motion.div
         animate={{
-          scale: isActive ? 1 : (isMagnetic || showBeginnerHint || showGuidedTarget) ? [1, showGuidedTarget ? 1.055 : showBeginnerHint ? 1.035 : 1.04, 1] : 1,
+          scale: 1,
         }}
-        transition={(isMagnetic || showBeginnerHint || showGuidedTarget) && !isActive ? { duration: showGuidedTarget ? 1.2 : showBeginnerHint ? 1.15 : 0.7, repeat: Infinity, ease: 'easeInOut' } : {}}
+        transition={{ duration: 0.12, ease: 'easeOut' }}
         className="rounded-2xl flex items-center justify-center"
         style={{
           width: isActive
@@ -120,10 +110,6 @@ function DropZone({ index, label = '', isActive, isDragMode, isMagnetic, isBegin
           background: bgColor,
           boxShadow: isActive
             ? `0 0 24px rgba(250,204,21,0.5), inset 0 0 16px rgba(250,204,21,0.08)`
-            : showGuidedTarget
-              ? `0 0 30px rgba(250,204,21,0.66), 0 0 54px rgba(250,204,21,0.28), inset 0 0 18px rgba(250,204,21,0.16)`
-            : showBeginnerHint
-              ? `0 0 16px rgba(56,189,248,0.34), inset 0 0 14px rgba(56,189,248,0.08)`
             : isHovered
               ? `0 0 14px rgba(85,216,255,0.34), inset 0 0 16px rgba(85,216,255,0.09)`
             : showPlusSlot
@@ -148,48 +134,13 @@ function DropZone({ index, label = '', isActive, isDragMode, isMagnetic, isBegin
                   ? 'rgba(167,236,255,0.80)'
                   : 'rgba(255,255,255,0.42)',
               transform: isHovered ? 'scale(1.12)' : 'none',
-              animation: isHovered ? 'slotPulse 1.1s ease-in-out infinite' : 'none',
+              animation: 'none',
               textShadow: '0 0 10px rgba(85,216,255,0.18)',
             }}
           >
             {label || '+'}
           </span>
         )}
-        <AnimatePresence>
-          {showBeginnerHint && (
-            <motion.div
-              aria-hidden="true"
-              className="pointer-events-none rounded-2xl"
-              initial={{ opacity: 0, scale: 0.86 }}
-              animate={{ opacity: [0.18, 0.45, 0.18], scale: [0.9, 1.12, 0.9] }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ duration: 1.15, repeat: Infinity, ease: 'easeInOut' }}
-              style={{
-                position: 'absolute',
-                inset: '-4px',
-                border: '1px solid rgba(125,211,252,0.42)',
-                boxShadow: '0 0 18px rgba(56,189,248,0.26)',
-              }}
-            />
-          )}
-          {showGuidedTarget && (
-            <motion.div
-              aria-hidden="true"
-              data-kronox-guided-correct-target-slot="true"
-              className="pointer-events-none rounded-2xl"
-              initial={{ opacity: 0, scale: 0.86 }}
-              animate={{ opacity: [0.32, 0.88, 0.32], scale: [0.9, 1.2, 0.9] }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
-              style={{
-                position: 'absolute',
-                inset: '-5px',
-                border: '1px solid rgba(250,204,21,0.76)',
-                boxShadow: '0 0 28px rgba(250,204,21,0.52)',
-              }}
-            />
-          )}
-        </AnimatePresence>
       </motion.div>
     </div>
   );
@@ -235,9 +186,6 @@ export default function Timeline({
   // and is consumed by PlacementFeedbackOverlay. It never affects sort,
   // hit-testing, or which cards are rendered.
   placementFeedback = null,
-  beginnerPlacementHintZone = null,
-  guidedTargetZone = null,
-  onGuidedTargetSlotPosition,
   guidedScrollHintActive = false,
   onGuidedScrollHintInteraction,
   correctStreak = 0,
@@ -334,72 +282,6 @@ export default function Timeline({
       if (frameId) cancelAnimationFrame(frameId);
     };
   }, [guidedScrollHintActive, groupedCards.length, isDragMode, reducedMotion]);
-
-  // Codex — Guided tutorial: make the correct target slot VISIBLE.
-  // During the placement step the correct drop zone may be offscreen on a
-  // narrow timeline. We auto-scroll it horizontally into the centre so the
-  // user (and the animated hand) can clearly see the exact placement
-  // location. Tutorial-only: gated by guidedTargetZone, never runs in
-  // normal play, and never fights an active drag (isDragMode).
-  useEffect(() => {
-    if (guidedTargetZone == null || isDragMode) return undefined;
-    const scroller = scrollRef.current;
-    if (!scroller) return undefined;
-    let frame = 0;
-    const align = () => {
-      const target = dropZoneRefs.current[guidedTargetZone];
-      if (!target) return;
-      const containerRect = scroller.getBoundingClientRect();
-      const targetRect = target.getBoundingClientRect();
-      const targetWorldCX = (targetRect.left + targetRect.right) / 2 - containerRect.left + scroller.scrollLeft;
-      const desired = targetWorldCX - scroller.clientWidth / 2;
-      const maxScroll = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
-      const next = Math.max(0, Math.min(maxScroll, desired));
-      if (Math.abs(next - scroller.scrollLeft) > 2) {
-        scroller.scrollTo({ left: next, behavior: 'smooth' });
-      }
-    };
-    // Defer one frame so refs/layout are settled, then keep aligned if the
-    // timeline reflows (e.g. a card was just placed).
-    frame = requestAnimationFrame(align);
-    return () => { if (frame) cancelAnimationFrame(frame); };
-  }, [guidedTargetZone, isDragMode, groupedCards.length]);
-
-  // Codex — Report the guided target slot's live viewport-center X/Y so the
-  // tutorial hand (rendered by GameLayout) can move INTO the real correct
-  // slot instead of assuming dead screen-center. Recomputed on scroll +
-  // animation frames while the guided target is active so it stays glued to
-  // the slot even as the auto-scroll above centres it. Tutorial-only and
-  // visual-only — never touches hit-testing (which reads finger coords).
-  useEffect(() => {
-    if (!onGuidedTargetSlotPosition) return undefined;
-    if (guidedTargetZone == null) {
-      onGuidedTargetSlotPosition(null);
-      return undefined;
-    }
-    const scroller = scrollRef.current;
-    if (!scroller) return undefined;
-    let frame = 0;
-    let lastX = null;
-    const report = () => {
-      const target = dropZoneRefs.current[guidedTargetZone];
-      if (target) {
-        const rect = target.getBoundingClientRect();
-        const cx = (rect.left + rect.right) / 2;
-        const cy = (rect.top + rect.bottom) / 2;
-        if (lastX === null || Math.abs(cx - lastX) > 1) {
-          lastX = cx;
-          onGuidedTargetSlotPosition({ centerX: cx, centerY: cy });
-        }
-      }
-      frame = requestAnimationFrame(report);
-    };
-    frame = requestAnimationFrame(report);
-    return () => {
-      if (frame) cancelAnimationFrame(frame);
-      onGuidedTargetSlotPosition(null);
-    };
-  }, [guidedTargetZone, groupedCards.length, onGuidedTargetSlotPosition]);
 
   // Expose scroll ref to parent (for ghost card offset)
   useEffect(() => {
@@ -561,16 +443,6 @@ export default function Timeline({
   if (isBeforeAfterTimeline) {
     const beforeAfterItems = [0, 1].map((zoneIndex) => {
       const isThisActive = displayActiveZone === zoneIndex;
-      const isBeginnerHint = isDragMode
-        && beginnerPlacementHintZone === zoneIndex
-        && displayActiveZone !== zoneIndex
-        && selectedZone !== zoneIndex
-        && !isTimeUp;
-      const isGuidedTarget = guidedTargetZone === zoneIndex
-        && displayActiveZone !== zoneIndex
-        && selectedZone !== zoneIndex
-        && !isTimeUp;
-
       return (
         <div key={`before-after-dz-${zoneIndex}`} ref={el => (dropZoneRefs.current[zoneIndex] = el)} className="flex min-w-0 justify-center">
           {isThisActive ? (
@@ -587,8 +459,6 @@ export default function Timeline({
                 isActive={selectedZone === zoneIndex && !isDragMode}
                 isDragMode={isDragMode}
                 isMagnetic={isDragMode && activeZone === zoneIndex && displayActiveZone !== zoneIndex}
-                isBeginnerHint={isBeginnerHint}
-                isGuidedTarget={isGuidedTarget}
                 onSelect={onSelectZone}
                 isTimeUp={isTimeUp}
                 isEdgePeek={false}
@@ -671,15 +541,6 @@ export default function Timeline({
 
   for (let i = 0; i < totalZones; i++) {
     const isThisActive = displayActiveZone === i;
-    const isBeginnerHint = isDragMode
-      && beginnerPlacementHintZone === i
-      && displayActiveZone !== i
-      && selectedZone !== i
-      && !isTimeUp;
-    const isGuidedTarget = guidedTargetZone === i
-      && displayActiveZone !== i
-      && selectedZone !== i
-      && !isTimeUp;
     cardRowItems.push(
       <div key={`dz-${i}`} ref={el => (dropZoneRefs.current[i] = el)}>
       {isThisActive ? (
@@ -696,8 +557,6 @@ export default function Timeline({
             isActive={selectedZone === i && !isDragMode}
             isDragMode={isDragMode}
             isMagnetic={isDragMode && (activeZone === i - 1 || activeZone === i || activeZone === i + 1) && displayActiveZone !== i}
-            isBeginnerHint={isBeginnerHint}
-            isGuidedTarget={isGuidedTarget}
             onSelect={onSelectZone}
             isTimeUp={isTimeUp}
             isEdgePeek={i === 0 ? 'left' : (i === totalZones - 1 ? 'right' : false)}

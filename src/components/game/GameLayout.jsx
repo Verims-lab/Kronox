@@ -78,48 +78,22 @@ function CTAButton({ active, onClick, disabled }) {
   );
 }
 
-function GuidedDragFingerHint({ active, reducedMotion, targetSlotPosition = null, containerRef = null }) {
+function GuidedDragFingerHint({ active, reducedMotion }) {
   if (!active) return null;
 
-  // The hand must travel from the question card DOWN INTO the actual correct
-  // timeline slot. The Timeline reports that slot's live viewport-center X/Y
-  // (targetSlotPosition) — we convert it to coordinates relative to the
-  // gameplay container so the hand lands inside the real slot, not a guessed
-  // dead-center position. If the position isn't available yet, we fall back
-  // to the previous straight-down behavior. Visual-only; hit-testing is
-  // unaffected (it reads finger coordinates).
-  const container = containerRef?.current || null;
-  let endX = null;
-  let endY = null;
-  if (targetSlotPosition && container) {
-    const rect = container.getBoundingClientRect();
-    endX = targetSlotPosition.centerX - rect.left;
-    endY = targetSlotPosition.centerY - rect.top;
-  }
-  const hasResolvedTarget = endX !== null && endY !== null;
-
-  // Start point: just under the question card area (~46% of container height),
-  // centered. End point: the real slot center (or straight down as fallback).
-  const startLeft = hasResolvedTarget ? endX : null;
-
+  // Generic drag teaching only: this finger never targets a computed correct
+  // slot, so onboarding cannot reveal the answer before placement.
   const pathAnimation = reducedMotion
     ? {
         opacity: [0.72, 1, 0.72],
         scale: [1, 1.04, 1],
       }
-    : hasResolvedTarget
-      ? {
-          x: [0, 0, 0, 0],
-          y: [0, 0, Math.max(40, endY - (container.getBoundingClientRect().height * 0.46)), Math.max(40, endY - (container.getBoundingClientRect().height * 0.46))],
-          opacity: [0, 1, 1, 0],
-          scale: [0.92, 1, 1, 0.96],
-        }
-      : {
-          x: [0, 0, 0, 0],
-          y: [0, 0, 188, 188],
-          opacity: [0, 1, 1, 0],
-          scale: [0.92, 1, 1, 0.96],
-        };
+    : {
+        x: [0, 0, 0, 0],
+        y: [0, 0, 188, 188],
+        opacity: [0, 1, 1, 0],
+        scale: [0.92, 1, 1, 0.96],
+      };
 
   return (
     <motion.div
@@ -138,7 +112,7 @@ function GuidedDragFingerHint({ active, reducedMotion, targetSlotPosition = null
         ease: 'easeInOut',
       }}
       style={{
-        left: hasResolvedTarget ? startLeft : '50%',
+        left: '50%',
         top: '46%',
         marginLeft: -24,
         marginTop: -24,
@@ -226,9 +200,7 @@ export default function GameLayout({
   soloJokers: rawSoloJokers = null,
   soloHint = null,
   balances = null,
-  beginnerPlacementHintZone,
   guidedDragHintActive = false,
-  guidedDragTargetZone = null,
   guidedTimelineScrollHintActive = false,
   guidedTimelineSwipeHintMinimumElapsed = false,
   interactionPaused = false,
@@ -270,7 +242,6 @@ export default function GameLayout({
   const [progressPulseActive, setProgressPulseActive] = useState(false);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const gameplayRootRef = useRef(null);
-  const [guidedTargetSlotPosition, setGuidedTargetSlotPosition] = useState(null);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return undefined;
@@ -672,8 +643,6 @@ export default function GameLayout({
               <GuidedDragFingerHint
                 active={Boolean(guidedDragHintActive && isMyTurn && !isDragging && !feedback && !winner && !interactionPaused)}
                 reducedMotion={prefersReducedMotion}
-                targetSlotPosition={guidedTargetSlotPosition}
-                containerRef={gameplayRootRef}
               />
               {isSpectatingQuestion && (
                 <div
@@ -755,9 +724,6 @@ export default function GameLayout({
                   ? { result: feedback.result, year: feedback.year, key: feedback.guessedYear ?? '' }
                   : null
               }
-              beginnerPlacementHintZone={beginnerPlacementHintZone}
-              guidedTargetZone={guidedDragHintActive ? guidedDragTargetZone : null}
-              onGuidedTargetSlotPosition={guidedDragHintActive ? setGuidedTargetSlotPosition : undefined}
               guidedScrollHintActive={timelineSwipeHintVisible}
               onGuidedScrollHintInteraction={guidedTimelineScrollHintActive ? onTimelineSwipeHintInteraction : undefined}
               correctStreak={correctStreak}

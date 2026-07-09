@@ -30,7 +30,7 @@ Internal deck buffer formula:
 - normal: `2 + 10 + 3 + 3 = 18 questions`
 - special: `2 + 13 + 3 + 3 = 21 questions`
 - Deck sizing is 2 anchors + 10 playable moves + Kart Değiştir buffer + Kronokalkan buffer for normal levels.
-- Zaman Dondur does not require a card buffer
+- Zamanı Dondur does not require a card buffer
 - Kart Değiştir uses the card-swap buffer and does not consume a move
 - Kronokalkan uses the shield buffer and protects one wrong valid placement from consuming a move
 - If a user owns more jokers than the per-attempt buffer, extra Kart Değiştir/Kronokalkan attempts fail safely before spend; no raw client question list or full-bank fallback is used.
@@ -68,10 +68,13 @@ joker/hint task progress. Level 7 and later use normal inventory-consuming
 Joker/Hint behavior.
 
 Level-start tutorial popups appear every time levels 1, 2, 3, 4, and 7 start.
-Levels 5, 6, and 8+ do not show this popup. The popup has a safe video
-placeholder/config slot, no remote dependency, an X close button, and pauses the
-effective Solo timer until closed. It must not consume questions, inventory,
-score, or Daily progress.
+Levels 5, 6, and 8+ do not show this popup. Level 1 uses the local
+`/assets/tutorials/Seviye1tutorial.mp4` asset in the existing video slot, with
+title `Önce mi, Sonra mı` and subtitle `Kartı doğru tarafa sürükle` (no final
+period). Other tutorial popup levels keep their existing copy/video config. The
+popup has a safe video/config slot, no remote dependency, an X close button, and
+pauses the effective Solo timer until closed. It must not consume questions,
+inventory, score, or Daily progress.
 
 Onboarding analytics are best-effort/local and privacy-safe. Events may record
 level number, level type, slot type, correctness, elapsed seconds, first-drag
@@ -379,15 +382,15 @@ questions mid-attempt or hard-filter the deck to only selected categories.
 
 Replay and next-level actions clear the current attempt deck and create a new deck. Replay after this change uses the new Solo v2 rules.
 
-## Placement Assist
+## Placement Slots
 
-The subtle placement hint remains visual-only for levels 1-3:
-- active only while dragging a Solo card
-- highlights the already-computed correct placement zone
-- disappears after placement or drag end
-- no score penalty
-- no hit-testing, drag behavior, or validation changes
-- disabled for level 4+ and Online mode
+Solo drop slots are static and readable in every placement mode. Kronox no
+longer uses blinking, pulsing, flashing, shimmering, or automatic correct-slot
+guidance in `before_after`, `timeline_basic`, or normal timeline play. The
+level-start tutorial popup/video copy explains the rule; the slots themselves
+must not reveal or suggest the correct answer before the player drops the card.
+Drag-over feedback may remain only while the player is actively dragging over a
+slot and must stay non-blinking. Correct/wrong feedback remains post-drop only.
 
 ## Mobile Browser Drag Guard
 
@@ -411,7 +414,7 @@ Solo card dragging on mobile web uses a gameplay-scoped pull-to-refresh guard:
 Solo jokers are user-owned and Solo-only:
 - Online mode has no joker UI or joker effects
 - Solo joker buttons read `UserJokerInventory` balances and show the owned
-  counts for `Kronokalkan`, `Kart Değiştir`, and `Zaman Dondur`
+  counts for `Kronokalkan`, `Kart Değiştir`, and `Zamanı Dondur`
 - a player may use multiple jokers across one Solo level when they own enough
   balance
 - only one joker may be used for the current question/card decision
@@ -428,7 +431,7 @@ Inventory foundation:
 - `UserJokerInventory` stores current owned balances per user and joker type
 - `JokerTransaction` stores the joker ledger/idempotency audit
 - every authenticated user receives 3 `mistake_shield` / Kronokalkan, 3
-  `card_swap` / Kart Değiştir, and 3 `time_freeze` / Zaman Dondur once
+  `card_swap` / Kart Değiştir, and 3 `time_freeze` / Zamanı Dondur once
 - starter grant keys are idempotent (`starter_jokers:<email>:<joker_type>`)
 - missing inventory for existing users self-heals through the authenticated
   `ensureUserJokerInventory` path; partial missing joker-type rows are repaired
@@ -439,7 +442,7 @@ Inventory foundation:
   `JokerTransaction.balance_after` so spent jokers are not refunded
 - duplicate, unknown, or malformed inventory rows must not crash Profile or
   Solo loading; valid known balances are still displayed
-- Profile displays Kronokalkan, Kart Değiştir, Zaman Dondur, and separate
+- Profile displays Kronokalkan, Kart Değiştir, Zamanı Dondur, and separate
   `İpucu` balances under `Joker Çantası`
 - Mağaza Store sells Solo joker packages with Diamonds, may grant Hint balances
   through server-owned Hint inventory, and shows real-money Diamond packages
@@ -483,9 +486,15 @@ Streak:
   completion.
 - Daily Wheel and Friends emit their own event progress; Solo does not fake
   those tasks.
+- `Çark çevir` is completed by a successful Daily Wheel claim and can be
+  reconciled by `getDailyQuestStatus` from the same-day `DailyWheelSpin` row;
+  opening/reopening the wheel does not count as a task event.
 - Hint tasks use the real `hint_used` event and require a matching
   `HintTransaction.reason = solo_use` row, so opening the popup or a failed
   consume cannot complete the task.
+- Daily task-relevant events invalidate the Daily status cache so `/daily`
+  refreshes without app restart while older background status responses are
+  ignored.
 - `recordDailyQuestProgress` is idempotent and never grants Diamonds.
 - A day is complete only after all 3 task rows are complete; missing a UTC day
   breaks the computed streak.
@@ -503,11 +512,11 @@ Streak:
 Joker behavior:
 - `Kronokalkan`: activates one-time protection. The next wrong valid placement does not consume a move; correct placements do not consume the shield.
 - `Kart Değiştir`: replaces the current active card using the already prepared Solo attempt deck/reserve and does not consume a move. It must not fetch a raw client question list, rebuild the deck, or rerandomize the attempt mid-game, and the swapped-out card should not reappear later in the same attempt while unused deck cards are available. Replacement must respect visible timeline spacing and prefers a balanced reserve card that does not worsen category/subcategory/theme repetition. If no safe replacement exists, the joker is not consumed and the player sees `Bu kart şu anda değiştirilemiyor.`
-- `Zaman Dondur`: freezes the Solo level timer for 10 seconds and does not consume a move. It does not add score, add extra time, or alter timeout rules beyond pausing the elapsed timer during the freeze window.
+- `Zamanı Dondur`: freezes the Solo level timer for 10 seconds and does not consume a move. It does not add score, add extra time, or alter timeout rules beyond pausing the elapsed timer during the freeze window.
 - `İpucu`: opens the active-card Hint popup without consuming, pauses the
   visible Solo timer, renders one hammer action, keeps stage 0 fully covered
   from first render, and reveals only the active card year in 1/3, 2/3, and
-  full stages after server-confirmed Hint spends. If `Zaman Dondur` is already
+  full stages after server-confirmed Hint spends. If `Zamanı Dondur` is already
   active, the Hint pause is overlap-aware and must not subtract the same frozen
   seconds twice.
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   AlertTriangle,
@@ -8,14 +8,13 @@ import {
   Crown,
   Gem,
   Gift,
-  Lightbulb,
+  Hammer,
   Loader2,
   Package,
   RefreshCw,
   Shield,
   ShoppingBag,
   Snowflake,
-  Sparkles,
   X,
 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
@@ -38,6 +37,7 @@ import {
   MARKET_PRICE_TYPES,
   purchaseMarketProduct,
 } from '@/lib/market';
+import { getSafeBackRoute } from '@/lib/NavigationStackContext';
 
 const Barlow = '"Barlow Condensed", "Arial Narrow", sans-serif';
 const KronoxYellow = '#FFD24A';
@@ -51,9 +51,9 @@ const ICON_BY_ASSET_KIND = {
   [JOKER_TYPES.MISTAKE_SHIELD]: Shield,
   [JOKER_TYPES.CARD_SWAP]: RefreshCw,
   [JOKER_TYPES.TIME_FREEZE]: Snowflake,
-  hint: Lightbulb,
-  hint_stack: Lightbulb,
-  hint_bundle: Sparkles,
+  hint: Hammer,
+  hint_stack: Hammer,
+  hint_bundle: Hammer,
   starter_pack: Gift,
   mega_pack: Gift,
   club: Crown,
@@ -62,6 +62,7 @@ const ICON_BY_ASSET_KIND = {
 
 export default function MarketPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user: authUser, isLoadingAuth, checkUserAuth, setUser } = useAuth();
   const [localUserPatch, setLocalUserPatch] = useState(null);
   const [balances, setBalances] = useState(emptyJokerBalances());
@@ -139,7 +140,7 @@ export default function MarketPage() {
 
   const handleBack = () => {
     sounds.tap();
-    navigate('/');
+    navigate(getSafeBackRoute(location, '/'), { replace: true });
   };
 
   const updateUserDiamonds = (result) => {
