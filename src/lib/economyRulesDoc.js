@@ -192,6 +192,9 @@ Advantage Packages are Başlangıç Paketi = 2 Kronokalkan + 2 Kart Değiştir +
 Zamanı Dondur + 10 İpucu for 250 Diamonds and Mega Paket = 10 Kronokalkan + 10
 Kart Değiştir + 10 Zamanı Dondur + 30 İpucu for 1.000 Diamonds. KronoClub and
 Reklamları Kaldır are future/disabled Yakında buttons and grant no benefits.
+Zamanı Dondur keeps the stable internal time_freeze id and uses #e31717 for its
+game/Store icon. Store İpucu packages use the in-game yellow hammer icon/color;
+prices, quantities, grants, and purchase validation stay unchanged.
 Mağaza keeps the main MAĞAZA title but removes subtitle and section
 explanatory copy above/under Elmas, Joker, İpucu, Avantaj, and Yakında
 sections. Diamond package cards render amount plus Elmas as two lines, show TL
@@ -246,14 +249,14 @@ only after server confirmation.
 Hint use is separate from Joker use. Real Hint use can satisfy Daily hint_used
 after the ledger row exists; training Hint use in levels 1-6 cannot. Hint use
 never grants Kronox Puan or affects Leaderboard.
-Opening the Hint popup pauses the visible Solo timer; if Zaman Dondur is
+Opening the Hint popup pauses the visible Solo timer; if Zamanı Dondur is
 already active, the Hint pause is overlap-aware and never subtracts the same
 frozen seconds twice.
 Joker balance read-performance contract: UserJokerInventory is the Profile/Solo current-balance source. JokerTransaction is the ledger/audit trail and must not be summed on Profile open. Profile, Solo, and Mağaza use the shared getUserJokerBalances / mutation-result cache path keyed by normalized user email. Complete inventory rows render through a fast current-balance read; missing or partial rows trigger idempotent starter/self-heal. Mağaza purchase and Solo spend must update or invalidate the shared balance cache so Profile and Solo do not show stale counts. spendUserJoker validates Solo context, uses deploy-safe UserJokerInventory/JokerTransaction entity fallback, and returns safe user-facing errors. Normal Solo joker spend uses EconomyOperationLock, rechecks the JokerTransaction idempotency key after the lock, then re-reads UserJokerInventory and refuses to decrement a zero balance. Admin/static reconciliation can compare UserJokerInventory.quantity against JokerTransaction summed deltas and latest balance_after without mutating data. Guest/no-login paths must not query user-owned joker inventory. Live performance proof remains manual: login, open Profile, confirm Joker Çantası loads quickly, purchase/spend a joker, and confirm Profile/Solo counts refresh.
 Hint balance read-performance contract: UserHintInventory is the current-balance
 source for Solo Hint / İpucu. HintTransaction is the ledger/idempotency audit trail and must
 not be summed on Solo open or Profile open. Profile Joker Çantası displays
-Kronokalkan, Kart Değiştir, Zaman Dondur, and İpucu as four compact cards in one
+Kronokalkan, Kart Değiştir, Zamanı Dondur, and İpucu as four compact cards in one
 non-scrolling row; the İpucu card reads UserHintInventory.quantity through a
 display-only helper and must not initialize, consume, grant, or mutate Hint
 inventory. ensureUserHintInventory is idempotent and must preserve spent

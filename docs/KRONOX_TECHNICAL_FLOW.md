@@ -343,7 +343,7 @@ Deck formula:
 * Kart Değiştir replacement buffer
 * Kronokalkan / Hata Affı buffer
 
-Zaman Dondur does not add a card requirement.
+Zamanı Dondur does not add a card requirement.
 
 Runtime consumes `soloAttemptDeck` in order. Active attempts must not be
 replaced by refetch/loading fallback.
@@ -394,7 +394,7 @@ Ledger:
 
 Types:
 
-* `time_freeze` - Zaman Dondur
+* `time_freeze` - Zamanı Dondur
 * `card_swap` - Kart Değiştir
 * `mistake_shield` - Kronokalkan / Hata Affı
 
@@ -414,7 +414,7 @@ Market:
 
 * function: `purchaseJokerWithDiamonds`
 * prices are server-owned
-* Zaman Dondur 40, Kart Değiştir 50, Kronokalkan 60
+* Zamanı Dondur 40, Kart Değiştir 50, Kronokalkan 60
 * validates authenticated user and sufficient Diamonds
 * writes `DiamondTransaction` and `JokerTransaction`
 

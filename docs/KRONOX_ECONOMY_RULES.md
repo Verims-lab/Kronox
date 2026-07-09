@@ -205,7 +205,7 @@ diamond_20 — 20 Diamonds — weight 28
 diamond_60 — 60 Diamonds — weight 20
 diamond_100 — 100 Diamonds — weight 15
 joker_krono_kalkan — 1 Kronokalkan — weight 12
-joker_zamani_dondur — 1 Zaman Dondur — weight 10
+joker_zamani_dondur — 1 Zamanı Dondur — weight 10
 joker_kart_degistir — 1 Kart Değiştir — weight 8
 gift_box — server-resolved Gift Box — weight 5
 diamond_250 — 250 Diamonds — weight 2
@@ -284,7 +284,7 @@ Result screen:
 ```text
 💎 +60 Elmas
 🛡 Kronokalkan
-⏳ Zaman Dondur
+⏳ Zamanı Dondur
 🔄 Kart Değiştir
 🎁 Hediye Kutusu
 ```
@@ -685,6 +685,11 @@ Store UI simplification contract:
   includes the Diamond price. The detail popup is centered, safe-area-aware,
   bounded by `100dvh` minus safe areas, internally scrollable if needed, and
   kept above BottomNav so the purchase CTA remains tappable.
+* `Zamanı Dondur` cards use the display label `Zamanı Dondur` while preserving
+  the internal `time_freeze` id; its game and Store icon color is `#e31717`.
+* Store `İpucu` cards use a hammer icon in the same `#facc15` color as the
+  in-game Hint control; prices, quantities, grants, and purchase validation are
+  unchanged.
 * Purchase success is not shown as a persistent Store banner/list; only safe
   failure/info states may render.
 * Real-money/TL and future products stay disabled `Yakında` and do not open a
@@ -693,7 +698,7 @@ Store UI simplification contract:
 Solo move interaction:
 
 * Kart Değiştir does not consume a Solo move; it uses the deck's card-swap buffer.
-* Zaman Dondur does not consume a Solo move and does not require extra deck cards.
+* Zamanı Dondur does not consume a Solo move and does not require extra deck cards.
 * Kronokalkan does not consume a Solo move when activated; it protects the next wrong valid placement from consuming one move.
 * Kart Değiştir and Kronokalkan are capped by the per-attempt deck buffer; extra use beyond that buffer fails safely before any joker spend.
 * Solo onboarding levels 1-6 (`before_after` and `timeline_basic`) show Joker
@@ -717,7 +722,7 @@ Solo move interaction:
   ledger row exists, but training Hint use in levels 1-6 cannot. Hint use never
   counts as Joker use, grants Kronox Puan, affects Leaderboard, changes Solo
   scoring, or exposes answer-year/question-bank data through backend reports.
-* Opening the Hint popup pauses the visible Solo timer; if Zaman Dondur is
+* Opening the Hint popup pauses the visible Solo timer; if Zamanı Dondur is
   already active, the Hint pause must be overlap-aware and must not subtract
   the same frozen seconds twice.
 
@@ -791,7 +796,7 @@ Hint balance read-performance contract:
 * `HintTransaction` is the ledger/idempotency audit trail and must not be
   summed on Solo open.
 * Profile `Joker Çantası` displays `İpucu` beside Kronokalkan, Kart Değiştir,
-  and Zaman Dondur as a separate inventory item in one mobile row.
+  and Zamanı Dondur as a separate inventory item in one mobile row.
 * Profile reads the `İpucu` count from `UserHintInventory.quantity` only; the
   display path is read-only and must not initialize, consume, grant, or mutate
   Hint inventory.

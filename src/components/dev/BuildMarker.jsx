@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex579 — Freeze/Hint/Home shortcut visual token pass:
+//   • Zamanı Dondur display copy stays stable while time_freeze remains the
+//     internal inventory id; game/store icon color is #e31717.
+//   • Store İpucu packages use the in-game yellow hammer treatment without
+//     changing prices, quantities, grants, or purchase semantics.
+//   • Home Çark shortcut keeps the same outer circle and enlarges only the
+//     mini wheel artwork by 30%.
+//
 // Codex578 — Profile subpage navigation root/back fix:
 //   • BottomNav taps now open tab roots only: Ana Sayfa, Liderlik, Profil.
 //   • Profile/Friends/Settings/Admin/Profile Edit subpages carry explicit
@@ -17,7 +25,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex578';
+const BUILD_MARKER = 'Codex579';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

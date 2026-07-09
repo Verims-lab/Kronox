@@ -24,10 +24,10 @@ const JOKERS = [
   {
     type: 'freezeTime',
     inventoryType: JOKER_TYPES.TIME_FREEZE,
-    label: 'Zaman Dondur',
+    label: 'Zamanı Dondur',
     icon: Snowflake,
-    accent: '#facc15',
-    glow: 'rgba(250,204,21,0.36)',
+    accent: '#e31717',
+    glow: 'rgba(227,23,23,0.36)',
   },
 ];
 

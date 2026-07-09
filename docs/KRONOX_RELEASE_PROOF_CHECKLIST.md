@@ -272,15 +272,15 @@ Checklist:
 * Result screen does not clip on small phones.
 * Solo Joker bar appears below the timeline and above `KARTI YERLEŞTİR`.
 * Solo Joker bar reads `UserJokerInventory` and shows current owned counts for
-  `Kronokalkan`, `Kart Değiştir`, and `Zaman Dondur`.
+  `Kronokalkan`, `Kart Değiştir`, and `Zamanı Dondur`.
 * A joker with balance 0 is disabled and cannot apply an effect.
 * Multiple jokers can be used across one Solo level when the player owns them.
 * Only one joker can be used for the current question/card; the guard resets on
   the next card and survives `Kart Değiştir` replacement for the same decision.
 * `Kronokalkan` forgives the next wrong placement without incrementing mistakes.
 * `Kart Değiştir` replaces the current card from the prebuilt deck/reserve, does not fetch mid-attempt, does not immediately re-show the swapped-out card, respects visible timeline spacing, prefers a balanced replacement, and has helper-only diagnostics for replacement source/no-safe-replacement state.
-* `Zaman Dondur` freezes the Solo timer for 10 seconds and cleans up after result/replay.
-* Guided first Solo tutorial cards 3, 4, and 5 teach `Zaman Dondur`, `Kart
+* `Zamanı Dondur` freezes the Solo timer for 10 seconds and cleans up after result/replay.
+* Guided first Solo tutorial cards 3, 4, and 5 teach `Zamanı Dondur`, `Kart
   Değiştir`, and `Kronokalkan` with tutorial-only interactive demos and
   repeating hand/tap hints; demos must not consume real `UserJokerInventory` or
   write real `solo_use` `JokerTransaction` rows.
@@ -405,6 +405,8 @@ Checklist:
   `OYNA` / dynamic `Seviye X` Solo CTA; tapping `GÜNLÜK` opens `/daily`, and
   tapping `Çark` opens the Daily Wheel popup without rendering an expanded
   `Günlük Ödüller` panel on first Home render.
+* The Home `Çark` shortcut keeps its outer circular shortcut size unchanged;
+  only the simplified mini wheel artwork inside the circle is enlarged by 30%.
 * Home logo and hourglass visuals use local `/assets/ui/` PNG assets on the
   dark blue background; neither is wrapped in a visible card/panel/container or
   hotlinked from a remote URL. The middle section stays balanced as left
@@ -467,7 +469,7 @@ Checklist:
 * `UserJokerInventory` exists as the current user-owned joker balance entity.
 * `JokerTransaction` exists as the append-only joker ledger/idempotency audit.
 * Every authenticated user receives exactly 3 `mistake_shield` / Kronokalkan,
-  3 `card_swap` / Kart Değiştir, and 3 `time_freeze` / Zaman Dondur once.
+  3 `card_swap` / Kart Değiştir, and 3 `time_freeze` / Zamanı Dondur once.
 * Starter grants use idempotency keys shaped like
   `starter_jokers:<email>:<joker_type>` and do not repeat on refresh, login,
   app reopen, or Profile reopen.
@@ -483,7 +485,7 @@ Checklist:
   same normalized lowercase `user_email` owner convention.
 * Profile displays balances under `Joker Çantası`, not `Envanter`.
 * Profile `Joker Çantası` shows four compact cards in one non-scrolling row:
-  `Kronokalkan`, `Kart Değiştir`, `Zaman Dondur`, and `İpucu`.
+  `Kronokalkan`, `Kart Değiştir`, `Zamanı Dondur`, and `İpucu`.
 * Profile shows only current balances and does not expose `JokerTransaction` or
   `HintTransaction` ledger rows to normal users.
 * Profile/Solo/Mağaza use the shared `getUserJokerBalances` path; complete
@@ -526,7 +528,9 @@ Checklist:
   / `Çark` shortcuts with ready badges, centered shortcut popups, and large
   `OYNA` / dynamic `Seviye X` and `ONLINE KAPIŞ` CTAs with equal dimensions
   balanced above BottomNav. The `Çark` shortcut uses a simplified mini wheel
-  visual with no reward icons, numbers, or Diamond symbols inside the slices.
+  visual with no reward icons, numbers, or Diamond symbols inside the slices;
+  its inner wheel artwork is 30% larger while the shortcut circle stays the
+  same size.
   The Home notification panel uses Barlow Condensed bold italic title
   typography and Inter body/empty/error typography.
   The Solo CTA direct-starts the resolved current/next Solo level; Online
@@ -575,6 +579,11 @@ Checklist:
   the viewport, and keeps the purchase CTA above BottomNav.
 * Hint package prices are 5/15/40 İpucu = 150/400/800 Diamonds in both the
   client catalog and `purchaseJokerWithDiamonds`.
+* `Zamanı Dondur` display copy is used for game, Profile, Daily Wheel, and
+  Mağaza surfaces. Its in-game and Mağaza package icon color is `#e31717`.
+* Mağaza `İpucu` package cards use the same hammer icon and `#facc15` color as
+  the in-game `İpucu` control; this is visual-only and does not change Hint
+  price, inventory, or purchase behavior.
 * Manual Mağaza Store proof:
   1. Open Home on mobile browser/PWA.
   2. Confirm Mağaza top-left, Diamonds center, notifications right.

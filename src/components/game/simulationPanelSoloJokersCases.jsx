@@ -78,7 +78,8 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(soloJokerBarSource, [
         'Kronokalkan',
         'Kart Değiştir',
-        'Zaman Dondur',
+        'Zamanı Dondur',
+        "accent: '#e31717'",
         'Shield',
         'RefreshCw',
         'Snowflake',
@@ -88,7 +89,7 @@ export const EXTRA_TESTS = [
         file: 'components/game/SoloJokerBar.jsx',
         missing,
       });
-      return pass('SoloJokerBar renders Kronokalkan, Kart Değiştir, and Zaman Dondur.', { verification: 'STATIC_CONTRACT' });
+      return pass('SoloJokerBar renders Kronokalkan, Kart Değiştir, and Zamanı Dondur.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('solo_hint_left_rail_and_jokers_right_rail',
@@ -309,11 +310,11 @@ export const EXTRA_TESTS = [
     () => {
       const combined = `${gameSource}\n${soloJokerBarSource}`;
       const forbidden = forbiddenTokens(combined, [
-        'Zaman Dondur tamamlandı.',
+        'Zamanı Dondur tamamlandı.',
         'Süre 10 saniye durdu.',
         'Kronokalkan aktif.',
         'Kronokalkan aktif:',
-        'Zaman Dondur aktif:',
+        'Zamanı Dondur aktif:',
         'Kart Değiştir aktif:',
         'Kart değiştirildi.',
         'Kronokalkan hamle hakkını korudu!',
@@ -541,27 +542,27 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('zaman_dondur_spends_after_freeze_validation',
-    'Zaman Dondur consumes only after freeze can start and cannot stack',
+    'Zamanı Dondur consumes only after freeze can start and cannot stack',
     () => {
       const handleSource = getHandleUseSoloJokerSource();
       const missing = missingTokens(handleSource, [
         "jokerType === SOLO_UI_JOKER_TYPES.TIME_FREEZE",
         'if (isSoloTimerFrozen || timerFreezeStartRef.current)',
-        'Zaman Dondur zaten aktif.',
+        'Zamanı Dondur zaten aktif.',
         'const spent = await spendOrTrainCurrentJoker()',
         'if (!spent) return',
         'startSoloTimerFreeze()',
       ]);
-      if (missing.length) return fail('Zaman Dondur no longer validates no-stack state before spend/start.', {
+      if (missing.length) return fail('Zamanı Dondur no longer validates no-stack state before spend/start.', {
         verification: 'STATIC_CONTRACT',
         file: 'pages/Game.jsx',
         missing,
       });
-      return pass('Zaman Dondur rejects stacking, spends inventory, and then starts freeze.', { verification: 'STATIC_CONTRACT' });
+      return pass('Zamanı Dondur rejects stacking, spends inventory, and then starts freeze.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('zaman_dondur_freezes_timer_10_seconds',
-    'Zaman Dondur freezes the Solo timer for 10 seconds',
+    'Zamanı Dondur freezes the Solo timer for 10 seconds',
     () => {
       const missing = missingTokens(gameSource, [
         'startSoloTimerFreeze',
@@ -571,16 +572,16 @@ export const EXTRA_TESTS = [
         'soloEffectiveElapsedSeconds',
       ]);
       const timerMissing = missingTokens(soloTimerSource, ['frozen = false', 'Donduruldu']);
-      if (missing.length || timerMissing.length) return fail('Zaman Dondur lost its 10-second effective-timer freeze contract.', {
+      if (missing.length || timerMissing.length) return fail('Zamanı Dondur lost its 10-second effective-timer freeze contract.', {
         verification: 'STATIC_CONTRACT',
         files: ['pages/Game.jsx', 'components/game/SoloLevelTimer.jsx'],
         actual: { missing, timerMissing },
       });
-      return pass('Zaman Dondur subtracts a frozen offset from Solo elapsed time and marks the timer as frozen.', { verification: 'STATIC_CONTRACT' });
+      return pass('Zamanı Dondur subtracts a frozen offset from Solo elapsed time and marks the timer as frozen.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('zaman_dondur_cleans_up_on_level_end',
-    'Zaman Dondur timers are cleaned up on reset/unmount',
+    'Zamanı Dondur timers are cleaned up on reset/unmount',
     () => {
       const missing = missingTokens(gameSource, [
         'clearSoloTimerFreeze',
@@ -589,7 +590,7 @@ export const EXTRA_TESTS = [
         'resetSoloJokers();',
         'clearSoloTimerFreeze(false, false)',
       ]);
-      if (missing.length) return fail('Zaman Dondur cleanup/reset contract drifted.', {
+      if (missing.length) return fail('Zamanı Dondur cleanup/reset contract drifted.', {
         verification: 'STATIC_CONTRACT',
         file: 'pages/Game.jsx',
         missing,

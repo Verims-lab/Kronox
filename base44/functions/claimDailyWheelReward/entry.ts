@@ -17,7 +17,7 @@ const REWARD_TABLE = [
   { rewardId: 'diamond_60', rewardType: 'diamonds', amount: 60, weight: 20, segmentIndex: 1, label: '+60 Elmas' },
   { rewardId: 'diamond_100', rewardType: 'diamonds', amount: 100, weight: 15, segmentIndex: 2, label: '+100 Elmas' },
   { rewardId: 'joker_krono_kalkan', rewardType: 'joker', jokerType: 'mistake_shield', quantity: 1, weight: 12, segmentIndex: 3, label: 'Kronokalkan' },
-  { rewardId: 'joker_zamani_dondur', rewardType: 'joker', jokerType: 'time_freeze', quantity: 1, weight: 10, segmentIndex: 4, label: 'Zaman Dondur' },
+  { rewardId: 'joker_zamani_dondur', rewardType: 'joker', jokerType: 'time_freeze', quantity: 1, weight: 10, segmentIndex: 4, label: 'Zamanı Dondur' },
   { rewardId: 'joker_kart_degistir', rewardType: 'joker', jokerType: 'card_swap', quantity: 1, weight: 8, segmentIndex: 5, label: 'Kart Değiştir' },
   { rewardId: 'gift_box', rewardType: 'gift_box', weight: 5, segmentIndex: 6, label: 'Hediye Kutusu' },
   { rewardId: 'diamond_250', rewardType: 'diamonds', amount: 250, weight: 2, segmentIndex: 7, label: '+250 Elmas' },
@@ -37,7 +37,7 @@ const GIFT_BOX_REWARD_TABLE = [
 
 const JOKER_LABELS: Record<string, string> = {
   mistake_shield: 'Kronokalkan',
-  time_freeze: 'Zaman Dondur',
+  time_freeze: 'Zamanı Dondur',
   card_swap: 'Kart Değiştir',
 };
 

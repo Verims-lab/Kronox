@@ -30,7 +30,7 @@ Internal deck buffer formula:
 - normal: `2 + 10 + 3 + 3 = 18 questions`
 - special: `2 + 13 + 3 + 3 = 21 questions`
 - Deck sizing is 2 anchors + 10 playable moves + Kart Değiştir buffer + Kronokalkan buffer for normal levels.
-- Zaman Dondur does not require a card buffer
+- Zamanı Dondur does not require a card buffer
 - Kart Değiştir uses the card-swap buffer and does not consume a move
 - Kronokalkan uses the shield buffer and protects one wrong valid placement from consuming a move
 - If a user owns more jokers than the per-attempt buffer, extra Kart Değiştir/Kronokalkan attempts fail safely before spend; no raw client question list or full-bank fallback is used.
@@ -411,7 +411,7 @@ Solo card dragging on mobile web uses a gameplay-scoped pull-to-refresh guard:
 Solo jokers are user-owned and Solo-only:
 - Online mode has no joker UI or joker effects
 - Solo joker buttons read `UserJokerInventory` balances and show the owned
-  counts for `Kronokalkan`, `Kart Değiştir`, and `Zaman Dondur`
+  counts for `Kronokalkan`, `Kart Değiştir`, and `Zamanı Dondur`
 - a player may use multiple jokers across one Solo level when they own enough
   balance
 - only one joker may be used for the current question/card decision
@@ -428,7 +428,7 @@ Inventory foundation:
 - `UserJokerInventory` stores current owned balances per user and joker type
 - `JokerTransaction` stores the joker ledger/idempotency audit
 - every authenticated user receives 3 `mistake_shield` / Kronokalkan, 3
-  `card_swap` / Kart Değiştir, and 3 `time_freeze` / Zaman Dondur once
+  `card_swap` / Kart Değiştir, and 3 `time_freeze` / Zamanı Dondur once
 - starter grant keys are idempotent (`starter_jokers:<email>:<joker_type>`)
 - missing inventory for existing users self-heals through the authenticated
   `ensureUserJokerInventory` path; partial missing joker-type rows are repaired
@@ -439,7 +439,7 @@ Inventory foundation:
   `JokerTransaction.balance_after` so spent jokers are not refunded
 - duplicate, unknown, or malformed inventory rows must not crash Profile or
   Solo loading; valid known balances are still displayed
-- Profile displays Kronokalkan, Kart Değiştir, Zaman Dondur, and separate
+- Profile displays Kronokalkan, Kart Değiştir, Zamanı Dondur, and separate
   `İpucu` balances under `Joker Çantası`
 - Mağaza Store sells Solo joker packages with Diamonds, may grant Hint balances
   through server-owned Hint inventory, and shows real-money Diamond packages
@@ -503,11 +503,11 @@ Streak:
 Joker behavior:
 - `Kronokalkan`: activates one-time protection. The next wrong valid placement does not consume a move; correct placements do not consume the shield.
 - `Kart Değiştir`: replaces the current active card using the already prepared Solo attempt deck/reserve and does not consume a move. It must not fetch a raw client question list, rebuild the deck, or rerandomize the attempt mid-game, and the swapped-out card should not reappear later in the same attempt while unused deck cards are available. Replacement must respect visible timeline spacing and prefers a balanced reserve card that does not worsen category/subcategory/theme repetition. If no safe replacement exists, the joker is not consumed and the player sees `Bu kart şu anda değiştirilemiyor.`
-- `Zaman Dondur`: freezes the Solo level timer for 10 seconds and does not consume a move. It does not add score, add extra time, or alter timeout rules beyond pausing the elapsed timer during the freeze window.
+- `Zamanı Dondur`: freezes the Solo level timer for 10 seconds and does not consume a move. It does not add score, add extra time, or alter timeout rules beyond pausing the elapsed timer during the freeze window.
 - `İpucu`: opens the active-card Hint popup without consuming, pauses the
   visible Solo timer, renders one hammer action, keeps stage 0 fully covered
   from first render, and reveals only the active card year in 1/3, 2/3, and
-  full stages after server-confirmed Hint spends. If `Zaman Dondur` is already
+  full stages after server-confirmed Hint spends. If `Zamanı Dondur` is already
   active, the Hint pause is overlap-aware and must not subtract the same frozen
   seconds twice.
 

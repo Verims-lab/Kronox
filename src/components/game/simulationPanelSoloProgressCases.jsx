@@ -801,8 +801,8 @@ export const EXTRA_TESTS = [
       ];
       const forbiddenVisibleJokerOverlays = [
         'Kronokalkan hamle hakkını korudu!',
-        'Zaman Dondur tamamlandı.',
-        'Zaman Dondur aktif:',
+        'Zamanı Dondur tamamlandı.',
+        'Zamanı Dondur aktif:',
         'Kart Değiştir aktif:',
         'Kronokalkan aktif:',
       ].filter((token) => `${gamePageSource}\n${soloJokerBarSource}`.includes(token));

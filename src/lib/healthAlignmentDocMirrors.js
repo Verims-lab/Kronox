@@ -305,7 +305,7 @@ direct Home shell import, cached GuestProfile repeat-launch support, post-paint
 AuthContext maintenance, deferred presence/invite/category modules, idle
 Market/Liderlik warm-up, and delayed Daily Wheel/Daily Calendar status refresh.
 Solo joker inventory merge coverage now executable-checks that Kart Değiştir,
-Kronokalkan, and Zaman Dondur decrement only the selected joker, preserve
+Kronokalkan, and Zamanı Dondur decrement only the selected joker, preserve
 untouched counts through partial mutation payloads, avoid double-spend on
 idempotent retries, and keep guided tutorial demos separate from real inventory
 spend.
@@ -655,12 +655,16 @@ Status: Active product contract.
 - Manual Required / P0 release gate: physical Apple parity must be proven on a physical iOS/TestFlight/App Store build before iOS/App Store release. Sign in with Apple must be visible wherever Google login is offered; static repo checks are not enough and must not be treated as automated proof.
 - UserJokerInventory stores current balances for mistake_shield, card_swap, and time_freeze.
 - JokerTransaction stores the append-only joker grant/spend ledger.
-- ensureUserJokerInventory grants 3 Kronokalkan, 3 Kart Değiştir, and 3 Zaman Dondur once per authenticated user using starter_jokers:<email>:<joker_type> idempotency keys; missing or partial UserJokerInventory rows self-heal, existing balances are preserved, owner email is normalized, and duplicate/malformed rows do not crash Joker Çantası.
+- ensureUserJokerInventory grants 3 Kronokalkan, 3 Kart Değiştir, and 3 Zamanı Dondur once per authenticated user using starter_jokers:<email>:<joker_type> idempotency keys; missing or partial UserJokerInventory rows self-heal, existing balances are preserved, owner email is normalized, and duplicate/malformed rows do not crash Joker Çantası.
 - spendUserJoker spends one owned Solo joker using authenticated user context, positive-balance validation, Solo-context validation, deploy-safe UserJokerInventory/JokerTransaction entity fallback, reason solo_use, source solo, quantity_delta -1, safe user-facing errors, and an idempotency key.
 - spendUserJoker uses EconomyOperationLock, post-lock idempotency recheck, and a fresh UserJokerInventory read before decrementing; guided/tutorial joker demos remain tutorial-only and do not spend real inventory.
-- Profile Joker Çantası shows Kronokalkan, Kart Değiştir, Zaman Dondur, and İpucu as four compact cards in one non-scrolling row; normal users must not see other users' balances or transaction ledger rows.
+- Profile Joker Çantası shows Kronokalkan, Kart Değiştir, Zamanı Dondur, and İpucu as four compact cards in one non-scrolling row; normal users must not see other users' balances or transaction ledger rows.
+- Zamanı Dondur keeps the stable internal time_freeze id but uses #e31717 for
+  the in-game and Mağaza package icon. Mağaza İpucu packages use the in-game
+  yellow hammer icon/color and do not change Hint price, quantity, inventory,
+  or purchase behavior.
 - Mağaza Store Diamond-spend purchases use purchaseJokerWithDiamonds; users purchase only for themselves, backend owns trusted Store product prices, sufficient Diamonds are validated server-side, and successful purchases write DiamondTransaction plus JokerTransaction and/or HintTransaction with market_purchase.
-- Solo Hint / İpucu is separate from Joker: Profile reads İpucu from UserHintInventory.quantity through a display-only helper, while HintTransaction remains the ledger/idempotency audit trail and is not scanned for Profile balance. ensureUserHintInventory initializes exactly 3 starter Hints once for authenticated and token-proven completed guests, consumeUserHint spends one Hint server-side with HintTransaction.reason = solo_use, source = solo_hint, EconomyOperationLock, and idempotency re-checks, and responses do not expose actor keys, raw guest IDs/tokens, answer years, or the full question bank. The gameplay Hint launcher only opens the popup; the popup has one clear hammer action, keeps stage 0 fully covered from first render, closes on stale active-card changes, and reveal/count/Daily hint_used advances only after server confirmation. Hint use never counts as Joker use, grants Kronox Puan, or affects leaderboard. Opening the Hint popup pauses the visible Solo timer; if Zaman Dondur is already active, the Hint pause is overlap-aware and never subtracts the same frozen seconds twice.
+- Solo Hint / İpucu is separate from Joker: Profile reads İpucu from UserHintInventory.quantity through a display-only helper, while HintTransaction remains the ledger/idempotency audit trail and is not scanned for Profile balance. ensureUserHintInventory initializes exactly 3 starter Hints once for authenticated and token-proven completed guests, consumeUserHint spends one Hint server-side with HintTransaction.reason = solo_use, source = solo_hint, EconomyOperationLock, and idempotency re-checks, and responses do not expose actor keys, raw guest IDs/tokens, answer years, or the full question bank. The gameplay Hint launcher only opens the popup; the popup has one clear hammer action, keeps stage 0 fully covered from first render, closes on stale active-card changes, and reveal/count/Daily hint_used advances only after server confirmation. Hint use never counts as Joker use, grants Kronox Puan, or affects leaderboard. Opening the Hint popup pauses the visible Solo timer; if Zamanı Dondur is already active, the Hint pause is overlap-aware and never subtracts the same frozen seconds twice.
 - Mağaza purchases are server-authoritative economy actions: the client is not trusted for price, cost, user identity, or target account; service-role writes stay scoped to the authenticated user.
 - Mağaza purchase idempotency keys, EconomyOperationLock, refreshed server balance reads, and post-lock ledger rechecks protect double-tap/retry/concurrent request flows; real two-device/backend race proof remains manual unless Base44 uniqueness is proven.
 - Real-money/TL Store products are visible but disabled with reason: 'real_money_unavailable'; KronoClub and Reklamları Kaldır are visible but disabled with reason: 'future_feature'. These reasons drive exact Yakında button copy, accessibility disabled state, click guard, and no-grant behavior unless approved IAP/payment verification exists; no fake real-money success path grants Diamonds, KronoClub, or ad-removal benefits.
@@ -784,7 +788,8 @@ until approved IAP/payment verification exists.
 Home uses a larger centered transparent local Kronox logo, a larger centered
 transparent hourglass visual balanced between left GÜNLÜK and right Çark,
 compact shortcuts with ready badges, centered GÜNLÜK/Çark surfaces, a content-free
-mini wheel icon for Çark, and large OYNA / dynamic Seviye X and ONLINE KAPIŞ
+mini wheel icon for Çark whose inner wheel artwork is 30% larger while the
+outer shortcut circle stays unchanged, and large OYNA / dynamic Seviye X and ONLINE KAPIŞ
 CTAs whose stack position balances the hourglass-to-Solo gap with the Online-to-BottomNav gap; the expanded Günlük
 Ödüller panel is not rendered on first Home paint. The Home notification panel
 uses Barlow Condensed bold italic title typography and Inter body/empty/error

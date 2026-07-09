@@ -50,7 +50,7 @@ export const DAILY_WHEEL_REWARD_SEGMENTS = Object.freeze([
     segmentIndex: 4,
     type: 'joker',
     jokerType: 'time_freeze',
-    label: 'Zaman Dondur',
+    label: 'Zamanı Dondur',
     shortLabel: 'Dondur',
     iconKey: 'snowflake',
     segmentColor: '#b8171f',
@@ -91,7 +91,7 @@ export const DAILY_WHEEL_REWARD_SEGMENT_IDS = DAILY_WHEEL_REWARD_SEGMENTS.map((s
 
 export const DAILY_WHEEL_JOKER_LABELS = Object.freeze({
   mistake_shield: 'Kronokalkan',
-  time_freeze: 'Zaman Dondur',
+  time_freeze: 'Zamanı Dondur',
   card_swap: 'Kart Değiştir',
 });
 

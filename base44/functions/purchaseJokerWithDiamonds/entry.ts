@@ -15,7 +15,7 @@ const JOKER_NON_NEGATIVE_BALANCE_CONTRACT = Object.freeze({
 });
 
 const JOKER_MARKET_PRODUCTS = Object.freeze({
-  time_freeze: { productId: 'joker_time_freeze_1', jokerType: 'time_freeze', label: 'Zaman Dondur', price: 40 },
+  time_freeze: { productId: 'joker_time_freeze_1', jokerType: 'time_freeze', label: 'Zamanı Dondur', price: 40 },
   card_swap: { productId: 'joker_card_swap_1', jokerType: 'card_swap', label: 'Kart Değiştir', price: 50 },
   mistake_shield: { productId: 'joker_mistake_shield_1', jokerType: 'mistake_shield', label: 'Kronokalkan', price: 60 },
 });

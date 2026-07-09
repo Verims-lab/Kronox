@@ -145,7 +145,7 @@ const GUIDED_TUTORIAL_JOKER_SEQUENCE = Object.freeze({
 
 const GUIDED_TUTORIAL_JOKER_COPY = Object.freeze({
   [SOLO_UI_JOKER_TYPES.TIME_FREEZE]: {
-    label: 'Zaman Dondur',
+    label: 'Zamanı Dondur',
     instruction: 'Zamanı Dondur jokerini kullan. Süreyi 10 saniye boyunca durdurur.',
   },
   [SOLO_UI_JOKER_TYPES.CARD_SWAP]: {
@@ -2423,7 +2423,7 @@ export default function Game() {
 
     if (jokerType === SOLO_UI_JOKER_TYPES.TIME_FREEZE) {
       if (isSoloTimerFrozen || timerFreezeStartRef.current) {
-        setJokerError('Zaman Dondur zaten aktif.');
+        setJokerError('Zamanı Dondur zaten aktif.');
         return;
       }
       const spent = await spendOrTrainCurrentJoker();

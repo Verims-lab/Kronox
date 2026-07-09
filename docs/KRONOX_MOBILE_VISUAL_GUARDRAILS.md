@@ -53,6 +53,11 @@ checks that source code and static Health cannot honestly prove alone.
 * Solo gameplay shows the remaining move counter as `10 HAMLE`, `9 HAMLE`,
   etc. on onboarding and normal levels and `13 HAMLE`, `12 HAMLE`, etc. on
   special levels; result popups show `HAMLE` instead of `HATA`.
+* Solo and Mağaza display the Time Freeze joker as `Zamanı Dondur`; its icon
+  color is `#e31717`. Store `İpucu` package icons use the in-game yellow
+  hammer treatment, not a bulb or generic sparkle icon.
+* Home `Çark` shortcut keeps the same outer circular shortcut size while the
+  inner mini wheel artwork is 30% larger, centered, and unclipped.
 * Solo `before_after` onboarding levels keep `ÖNCESİ` and `SONRASI` as fully
   visible/readable full slot shapes around the centered reference card on
   mobile; the regular timeline edge-peek treatment must not clip these two

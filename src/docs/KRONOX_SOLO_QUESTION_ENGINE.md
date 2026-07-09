@@ -20,10 +20,10 @@ Hard deck rules:
 - onboarding levels use 10 evaluated moves while progress remains 6 correct placements
 - normal: 2 anchor cards + 10 playable moves + Kart Değiştir buffer + Kronokalkan buffer
 - special: 2 anchor cards + 13 playable moves + Kart Değiştir buffer + Kronokalkan buffer
-- Zaman Dondur does not require an extra card
+- Zamanı Dondur does not require an extra card
 - İpucu opens the active-card Hint popup, pauses the visible Solo timer, reveals
   only the active card year in 1/3, 2/3, and full stages after server-confirmed
-  Hint spends, and is overlap-aware with Zaman Dondur so the same frozen seconds
+  Hint spends, and is overlap-aware with Zamanı Dondur so the same frozen seconds
   are not subtracted twice.
 - Extra Kart Değiştir/Kronokalkan use beyond the per-attempt buffer fails safely before spend; there is no raw client question list fallback.
 - unique question IDs

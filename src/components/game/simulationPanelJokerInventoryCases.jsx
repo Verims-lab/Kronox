@@ -125,7 +125,7 @@ export const EXTRA_TESTS = [
         'time_freeze',
         'Kronokalkan',
         'Kart Değiştir',
-        'Zaman Dondur',
+        'Zamanı Dondur',
       ]);
       if (missing.length) return fail('Stable joker type values or player-facing labels drifted.', {
         verification: 'STATIC_CONTRACT',
@@ -150,7 +150,7 @@ export const EXTRA_TESTS = [
         verification: 'STATIC_CONTRACT',
         missing,
       });
-      return pass('Starter grant contract initializes 3 Kronokalkan, 3 Kart Değiştir, and 3 Zaman Dondur.', { verification: 'STATIC_CONTRACT' });
+      return pass('Starter grant contract initializes 3 Kronokalkan, 3 Kart Değiştir, and 3 Zamanı Dondur.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('starter_grant_is_idempotent',
@@ -501,7 +501,7 @@ export const EXTRA_TESTS = [
         "kind: 'hint'",
         'Kronokalkan',
         'Kart Değiştir',
-        'Zaman Dondur',
+        'Zamanı Dondur',
         'İpucu',
         'grid-cols-4',
         'data-kronox-profile-inventory-row="four-items"',
@@ -522,7 +522,7 @@ export const EXTRA_TESTS = [
         file: 'src/pages/ProfilePage.jsx',
         actual: { missing, forbidden },
       });
-      return pass('Profile renders Kronokalkan, Kart Değiştir, Zaman Dondur, and İpucu as four compact non-scrolling row cards.', { verification: 'STATIC_CONTRACT' });
+      return pass('Profile renders Kronokalkan, Kart Değiştir, Zamanı Dondur, and İpucu as four compact non-scrolling row cards.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('profile_hint_balance_uses_read_only_current_inventory',
@@ -965,7 +965,7 @@ export const EXTRA_TESTS = [
         files: ['src/lib/jokerInventorySpendMerge.js', 'src/pages/Game.jsx', 'base44/functions/spendUserJoker/entry.ts'],
         actual: { failed, missing },
       });
-      return pass('Executable merge matrix preserves untouched counts after Kart Değiştir, Kronokalkan, Zaman Dondur, partial payloads, idempotent retries, and tutorial no-spend baseline.', {
+      return pass('Executable merge matrix preserves untouched counts after Kart Değiştir, Kronokalkan, Zamanı Dondur, partial payloads, idempotent retries, and tutorial no-spend baseline.', {
         verification: 'EXECUTABLE_HELPER_AND_STATIC_CONTRACT',
         scenarios: runJokerSpendMergeMatrix().map((scenario) => scenario.id),
       });

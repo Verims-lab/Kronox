@@ -14,7 +14,7 @@ import { sounds } from '@/lib/gameSounds';
  * Props:
  *   - totalSeconds:    number  total budget (180 for solo levels)
  *   - elapsedSeconds:  number  seconds elapsed so far
- *   - frozen:          boolean Zaman Dondur visual-only timer state
+ *   - frozen:          boolean Zamanı Dondur visual-only timer state
  *
  * Styling rules:
  *   - Mobile-friendly: fixed compact size, lives in the existing top-right
