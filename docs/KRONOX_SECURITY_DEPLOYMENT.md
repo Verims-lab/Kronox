@@ -306,7 +306,7 @@ Daily Calendar runtime and legacy Daily Quest definition management:
 * rewards are Diamonds only; Daily Quest definitions must not grant Kronox
   Puan and must not affect leaderboard
 * Daily Calendar / Streak grants Diamonds only through the 7-day
-  `claimDailyQuestReward` Gift Box path and
+  `claimDailyQuestReward` streak reward path and
   `DiamondTransaction.source = daily_calendar_streak_reward`
 * Daily Calendar does not grant Kronox Puan and does not affect Leaderboard
 * Home `getDailyQuestStatus` ensures 3 `daily_calendar:*`

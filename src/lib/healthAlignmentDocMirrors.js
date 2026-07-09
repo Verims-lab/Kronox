@@ -814,17 +814,20 @@ HintTransaction.reason = solo_use row before progress advances.
 Registered-only friend/joker tasks fall back for completed guests when needed
 so the runtime never creates impossible active tasks.
 
-The Daily page shows the current month calendar, today with a yellow ring,
-completed days with checks, future days uncompleted, today’s 3 tasks, and a
-Zaman Serisi / 7-day Gift Box panel. A day is complete only when all 3 task
-rows are complete. Missing a UTC day breaks the computed streak. Progress is
+The Daily page shows the simplified UI contract: Daily header shows only GÜNLÜK.
+Calendar legend shows only Tamamlandı and Bugün. Daily task cards show title-only rows.
+The current month calendar still shows today with a yellow
+ring, completed days with checks, future days uncompleted, today’s 3 tasks with
+no renewal countdown, and Zaman Serisi streak progress with only 200 Elmas in
+the 7-day reward UI. Gift Box icon/name is not displayed. A day is complete
+only when all 3 task rows are complete. Missing a UTC day breaks the computed streak. Progress is
 real-event-based and idempotent: Daily Wheel claim is verified from
 DailyWheelSpin, Joker tasks from JokerTransaction, Solo level/correct/jokerless
 events from gameplay completion, and friend tasks from the friends API success
 path. recordDailyQuestProgress never grants Diamonds.
 
 claimDailyQuestReward is the only Daily Calendar reward path. It grants the
-7-day Gift Box server-side and idempotently through
+7-day streak reward server-side and idempotently through
 DiamondTransaction.source = daily_calendar_streak_reward for exactly 200
 Diamonds, guarded by the streak cycle id, DiamondTransaction re-read, and the
 economy lock path. Daily Calendar grants Diamonds only, does not grant Kronox

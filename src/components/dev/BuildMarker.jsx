@@ -172,7 +172,7 @@ import React, { useEffect, useState } from 'react';
 //   • Home GÜNLÜK now opens /daily with a calendar/streak screen instead of the
 //     old embedded Daily Quest card; BottomNav remains Ana Sayfa/Liderlik/Profil.
 //   • Daily tasks come from a code-owned 9-day cycle, progress through verified
-//     real events, and the 7-day Gift Box grants exactly 200 Diamonds through
+//     real events, and the 7-day streak reward grants exactly 200 Diamonds through
 //     daily_calendar_streak_reward with no Kronox Puan or leaderboard impact.
 //   • Legacy DailyQuestDefinition/UserDailyQuestProgress data is ignored at
 //     runtime and has an admin-gated dry-run/delete cleanup path.
@@ -555,6 +555,16 @@ import React, { useEffect, useState } from 'react';
 //
 
 
+// Codex572 — Daily screen copy and reward UI simplification:
+//   • DailyPage removes the GÜNLÜK subtitle, future-day legend item, renewal
+//     countdown text, and task-card description rendering while preserving
+//     task/progress/check behavior.
+//   • Zaman Serisi reward display now shows only 200 Elmas with no Gift Box
+//     icon/name, while claimDailyQuestReward remains the 200-Diamond
+//     server-side source and still has no Puan/leaderboard impact.
+//   • Docs, mirrors, schema descriptions, and targeted Health now guard the
+//     simplified Daily UI contract.
+//
 // Codex571 — Friends delete rate-limit safety, Solo Hint error surfacing,
 // and two Health blocker fixes:
 //   • FriendsPage delete no longer triggers a full 3-call reload after every
@@ -575,7 +585,7 @@ import React, { useEffect, useState } from 'react';
 //   • security_cleanup_health.base44_sdk_versions_exact_and_aligned:
 //     package.json now exact-pins "@base44/sdk": "0.8.34" (was "^0.8.35").
 
-const BUILD_MARKER = 'Codex571';
+const BUILD_MARKER = 'Codex572';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

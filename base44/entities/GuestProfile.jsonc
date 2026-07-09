@@ -243,7 +243,7 @@
     "daily_calendar_last_reward_claim_at": {
       "type": "string",
       "format": "date-time",
-      "description": "Latest completed guest Daily Calendar 7-day Gift Box claim timestamp. Claims write DiamondTransaction source daily_calendar_streak_reward."
+      "description": "Latest completed guest Daily Calendar 7-day streak reward claim timestamp. Claims write DiamondTransaction source daily_calendar_streak_reward."
     },
     "joker_balances": {
       "type": "object",

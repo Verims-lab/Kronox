@@ -2,7 +2,7 @@
 //
 // Scope: the legacy Daily Quest/Görevler runtime has been replaced by the
 // Home GÜNLÜK shortcut, a calendar screen, real-event-based daily tasks, and
-// a server-side 7-day Gift Box Diamond reward.
+// a server-side 7-day streak Diamond reward.
 
 import userEntitySource from '../../../base44/entities/User.jsonc?raw';
 import guestProfileEntitySource from '../../../base44/entities/GuestProfile.jsonc?raw';
@@ -154,33 +154,45 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('daily_screen_calendar_and_task_ui',
-    'Daily screen renders month calendar, today highlight, completed checks, 3 tasks, and streak reward panel',
+    'Daily screen renders simplified calendar, title-only tasks, and 200-Elmas streak reward UI',
     () => {
       const missing = missingTokens(dailyPageSource, [
         'GÜNLÜK',
-        'Serini koru, ödülünü kazan!',
         'calendarDays',
         'CalendarCell',
         'isToday',
         'completed',
-        'future',
+        'label="Tamamlandı"',
+        'label="Bugün"',
         'BUGÜNKÜ GÖREVLER',
         'DAILY_CALENDAR_TASKS_PER_DAY',
+        'data-kronox-daily-task-title="true"',
         'ZAMAN SERİSİ',
         'DAILY_STREAK_REWARD_DAYS',
         'DAILY_STREAK_REWARD_DIAMONDS',
-        'Hediye Kutusu',
-        'Hediye Kutusunu Aç',
+        'data-kronox-daily-streak-reward-amount="true"',
+        '{DAILY_STREAK_REWARD_DIAMONDS} Elmas',
         'daily.claim',
       ]);
-      if (missing.length) {
-        return fail('Daily screen UI is missing required calendar/task/streak elements.', {
+      const forbidden = forbiddenTokens(dailyPageSource, [
+        'Serini koru',
+        'ödülünü kazan',
+        'label="Gelecek Gün"',
+        'Görevler ${resetTimer} sonra yenilenecek',
+        'UTC gün sonunda yenilenir',
+        'task.description',
+        '<Gift',
+        'Hediye Kutusu',
+        'Hediye Kutusunu Aç',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Daily screen UI is missing the simplified calendar/task/streak contract or still renders removed copy.', {
           verification: 'STATIC_CONTRACT',
           file: 'src/pages/DailyPage.jsx',
-          missing,
+          actual: { missing, forbidden },
         });
       }
-      return pass('DailyPage renders the new mobile Daily calendar, task list, and 7-day Gift Box surface.', { verification: 'STATIC_CONTRACT' });
+      return pass('DailyPage keeps the calendar and task/progress controls while removing subtitle, future legend, renewal timer, task descriptions, and Gift Box UI.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('daily_screen_mobile_width_fit_contract',
@@ -319,7 +331,7 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('seven_day_reward_is_server_side_200_diamonds_idempotent',
-    '7-day Gift Box grants exactly 200 Diamonds server-side and idempotently',
+    '7-day streak reward grants exactly 200 Diamonds server-side and idempotently',
     () => {
       const missing = missingTokens(`${claimDailyQuestRewardSource}\n${diamondTransactionEntitySource}\n${dailyQuestGatewaySource}`, [
         'DAILY_STREAK_REWARD_DIAMONDS = 200',
@@ -351,7 +363,7 @@ export const EXTRA_TESTS = [
           actual: { missing, forbidden },
         });
       }
-      return pass('Gift Box claim requires 7 completed days, writes one daily_calendar_streak_reward DiamondTransaction for 200 Diamonds, and is idempotent.', { verification: 'STATIC_CONTRACT' });
+      return pass('Streak reward claim requires 7 completed days, writes one daily_calendar_streak_reward DiamondTransaction for 200 Diamonds, and is idempotent.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('legacy_daily_quest_cleanup_path_is_scoped_and_admin_gated',
@@ -421,7 +433,11 @@ export const EXTRA_TESTS = [
         'Home GÜNLÜK shortcut',
         '9-day rotating task template cycle',
         '3 tasks per server day',
-        '7-day Gift Box',
+        'Daily header shows only GÜNLÜK',
+        'Calendar legend shows only Tamamlandı and Bugün',
+        'task cards show title-only rows',
+        '7-day streak reward',
+        '200 Elmas',
         '200 Diamonds',
         'daily_calendar_streak_reward',
         'does not grant Kronox Puan',
@@ -445,7 +461,7 @@ export const EXTRA_TESTS = [
   makeCase('runtime_manual_rls_and_cleanup_proof',
     'Daily Calendar deployed RLS/race/cleanup proof remains manual',
     () => notAutomatable(
-      'Static Health verifies source contracts. Live proof still requires deployed Base44 checks: two-account ownership/RLS, duplicate Gift Box claim race, completed guest claim, and cleanupLegacyDailyQuests dry-run/delete counts against production data.',
+      'Static Health verifies source contracts. Live proof still requires deployed Base44 checks: two-account ownership/RLS, duplicate streak reward claim race, completed guest claim, and cleanupLegacyDailyQuests dry-run/delete counts against production data.',
       {
         verification: 'NOT_AUTOMATABLE',
         classification: 'RUNTIME_BACKEND_PROBE_REQUIRED',

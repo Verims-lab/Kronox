@@ -371,7 +371,7 @@
     "daily_calendar_last_reward_claim_at": {
       "type": "string",
       "format": "date-time",
-      "description": "Latest server-side Daily Calendar 7-day Gift Box claim timestamp. Claims write DiamondTransaction source daily_calendar_streak_reward."
+      "description": "Latest server-side Daily Calendar 7-day streak reward claim timestamp. Claims write DiamondTransaction source daily_calendar_streak_reward."
     },
     "economy_updated_at": {
       "type": "string",

@@ -433,7 +433,7 @@ export const EXTRA_TESTS = [
           actual: { accidentalGrant, missing },
         });
       }
-      return pass('Daily Calendar Gift Box is visible through /daily and claims Diamonds through daily_calendar_streak_reward backend source.', { verification: 'STATIC_CONTRACT' });
+      return pass('Daily Calendar 200-Elmas streak reward is visible through /daily and claims Diamonds through daily_calendar_streak_reward backend source.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('market_purchase_is_diamond_sink',

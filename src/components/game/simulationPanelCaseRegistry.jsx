@@ -208,7 +208,7 @@ import * as marketCases from './simulationPanelMarketCases';
 // active task templates are code-owned and event-based.
 import * as dailyQuestDefinitionCases from './simulationPanelDailyQuestDefinitionCases';
 // Daily Calendar / Streak runtime: user-owned UTC daily_calendar task rows,
-// Diamond-only 7-day Gift Box claim flow, and Home GÜNLÜK route surface.
+// Diamond-only 7-day streak reward claim flow, and Home GÜNLÜK route surface.
 import * as dailyQuestRuntimeCases from './simulationPanelDailyQuestRuntimeCases';
 // iOS/mobile compatibility: scoped pull-to-refresh, independent tab stacks,
 // and Kronox bottom-sheet selectors for preference/admin selection controls.

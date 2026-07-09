@@ -107,13 +107,20 @@ Streak through the Home `GÜNLÜK` calendar shortcut. Daily Calendar creates 3
 idempotent; `recordDailyQuestProgress` never grants Diamonds.
 
 Daily Calendar grants Diamonds only through the server-backed
-`claimDailyQuestReward` callable when the 7-day Gift Box is ready. Claims write
+`claimDailyQuestReward` callable when the 7-day streak reward is ready. Claims write
 `DiamondTransaction.source = daily_calendar_streak_reward` with
 `direction = earn`, grant exactly 200 Diamonds, and use an idempotency key
 shaped like
 `daily_calendar_streak:<playerKey>:<streak_anchor_date>:<claim_number>:200`.
 The client must not control reward amount. Daily Calendar does not grant Kronox
 Puan and does not affect Leaderboard.
+
+Daily Calendar screen UI is display-only around this reward: the header shows
+only `GÜNLÜK`, the calendar legend shows only `Tamamlandı` and `Bugün`, the
+today tasks heading shows no renewal countdown, task cards show title-only
+rows, and the 7-day reward UI displays only `200 Elmas` with no Gift Box
+icon/name. This UI simplification does not change the 200-Diamond backend
+reward, task cycle, streak computation, Puan, or Leaderboard behavior.
 
 Legacy `DailyQuestDefinition` rows are ignored by the active runtime. Use the
 admin-gated `cleanupLegacyDailyQuests` path for old Daily Quest data; it
@@ -260,7 +267,7 @@ Diamond rewards or the same joker twice.
 ```
 
 This Daily Wheel spin-streak bonus is separate from the Daily Calendar /
-Streak Gift Box, which grants 200 Diamonds through
+Streak 200-Diamond streak reward, which grants 200 Diamonds through
 `daily_calendar_streak_reward`. If the user misses a UTC day, the next
 successful spin resets the Daily Wheel streak to 1.
 
@@ -831,8 +838,8 @@ Manual/release proof should verify:
 * Daily Wheel grants once per UTC server day
 * Daily Wheel does not grant Kronox Puan
 * 7th consecutive Daily Wheel spin grants +150 extra Diamonds
-* Daily Calendar / Streak Gift Box is a separate 7-day reward and grants 200
-  Diamonds through `daily_calendar_streak_reward`
+* Daily Calendar / Streak 200-Diamond streak reward is a separate 7-day reward
+  and grants 200 Diamonds through `daily_calendar_streak_reward`
 * two-device duplicate prevention is probed
 * ledger recovery does not double grant
 ## GuestProfile And Economy Boundary

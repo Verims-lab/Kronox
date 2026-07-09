@@ -1,7 +1,7 @@
 {
   "name": "DailyQuestDefinition",
   "type": "object",
-  "description": "Legacy/admin-only Daily Quest template definitions. Current Daily Calendar/Streak Runtime v1 ignores these rows and assigns 3 daily_calendar:* UserDailyQuestProgress task rows from code to avoid duplicate-definition DB bloat. Definitions do not grant rewards. claimDailyQuestReward now grants only the 7-day Gift Box through daily_calendar_streak_reward. Daily Calendar grants Diamonds only and has no Kronox Puan or leaderboard impact.",
+  "description": "Legacy/admin-only Daily Quest template definitions. Current Daily Calendar/Streak Runtime v1 ignores these rows and assigns 3 daily_calendar:* UserDailyQuestProgress task rows from code to avoid duplicate-definition DB bloat. Definitions do not grant rewards. claimDailyQuestReward now grants only the 7-day streak reward through daily_calendar_streak_reward. Daily Calendar grants Diamonds only and has no Kronox Puan or leaderboard impact.",
   "properties": {
     "quest_key": {
       "type": "string",

@@ -425,7 +425,7 @@ Daily Calendar / Streak:
   GuestProfile
 * creates 3 `daily_calendar:*` `UserDailyQuestProgress` rows per UTC day from
   the code-owned 9-day template cycle
-* uses real event progress plus `claimDailyQuestReward` for the 7-day Gift Box
+* uses real event progress plus `claimDailyQuestReward` for the 7-day streak reward
 * grants exactly 200 Diamonds through `daily_calendar_streak_reward` only after
   7 completed days
 * ignores stale/duplicate `DailyQuestDefinition` rows at runtime and cleans

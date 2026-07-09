@@ -169,7 +169,7 @@ export const EXTRA_TESTS = [
     () => {
       const missing = missingTokens(`${diamondTransactionEntitySource}\n${claimDailyQuestRewardSource}`, [
         '"daily_calendar_streak_reward"',
-        'Daily Calendar 7-day Gift Box claims write daily_calendar_streak_reward',
+        'Daily Calendar 7-day streak reward claims write daily_calendar_streak_reward',
         'DAILY_STREAK_REWARD_DIAMONDS = 200',
         'source: DAILY_CALENDAR_REWARD_SOURCE',
         "direction: 'earn'",
@@ -183,7 +183,7 @@ export const EXTRA_TESTS = [
           missing,
         });
       }
-      return pass('Gift Box reward has a dedicated DiamondTransaction source and server-side 200-Diamond claim path.', { verification: 'STATIC_CONTRACT' });
+      return pass('Daily Calendar streak reward has a dedicated DiamondTransaction source and server-side 200-Diamond claim path.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('legacy_cleanup_function_safe_scope',

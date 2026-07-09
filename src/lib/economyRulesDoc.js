@@ -43,7 +43,7 @@ records a DailyWheelSpin row plus DiamondTransaction.source = daily_wheel for
 Diamond portions and JokerTransaction.reason = daily_wheel for approved joker
 portions, and grants a 7-day streak bonus: +150 diamonds when applicable
 (7 günlük seri bonusu: +150 elmas). This Daily Wheel spin-streak bonus is
-separate from the Daily Calendar / Streak Gift Box. It grants no Kronox Puan
+separate from the Daily Calendar / Streak 200-Diamond streak reward. It grants no Kronox Puan
 and does not affect leaderboard sorting or rank. Daily
 Wheel same-day duplicate
 prevention uses key/date lookup, reserve-first DailyWheelSpin rows, canonical
@@ -133,14 +133,18 @@ Streak through the Home GÜNLÜK shortcut. Daily Calendar creates 3
 daily_calendar:* UserDailyQuestProgress rows per UTC server day from a 9-day
 rotating task template cycle. Task progress is real-event-based and idempotent;
 recordDailyQuestProgress does not grant Diamonds. claimDailyQuestReward grants
-only the 7-day Gift Box, writes DiamondTransaction.source =
+only the 7-day streak reward, writes DiamondTransaction.source =
 daily_calendar_streak_reward with direction = earn, grants exactly 200
 Diamonds, uses a daily_calendar_streak:<playerKey>:<streak_anchor_date>:<claim_number>:200
 idempotency key, and updates User.daily_calendar_* /
 GuestProfile.daily_calendar_* fields instead of Daily Wheel fields. Daily
-Calendar does not grant Kronox Puan and does not affect Leaderboard. Completed
-guests can see, progress, and claim Daily Calendar rewards through guest_id +
-guest_token proof; guest rewards persist on GuestProfile.diamonds.
+Calendar does not grant Kronox Puan and does not affect Leaderboard.
+Daily Calendar screen UI is display-only: Daily header shows only GÜNLÜK,
+Calendar legend shows only Tamamlandı and Bugün, today tasks have no renewal
+countdown, task cards show title-only rows, and the 7-day reward UI shows only
+200 Elmas with no Gift Box icon/name. Completed guests can see, progress, and
+claim Daily Calendar rewards through guest_id + guest_token proof; guest rewards
+persist on GuestProfile.diamonds.
 
 Legacy DailyQuestDefinition rows are ignored by the active runtime. The
 admin-gated cleanupLegacyDailyQuests path defaults to dry_run and only deletes

@@ -585,7 +585,7 @@ Daily Calendar / Streak:
 * progress: real-event-based and idempotent
 * claim function: `claimDailyQuestReward`
 * ledger source: `daily_calendar_streak_reward`
-* 7-day Gift Box reward: exactly 200 Diamonds
+* 7-day streak reward: exactly 200 Diamonds
 * grants no Kronox Puan
 * no leaderboard impact
 * separate from Daily Wheel

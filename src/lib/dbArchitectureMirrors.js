@@ -48,7 +48,7 @@ Analytics/statistics entities implemented now:
 - cleanupLegacyDailyQuests is AdminUser-gated, defaults to dry_run, requires DELETE_LEGACY_DAILY_QUESTS for destructive deletion, and only targets legacy DailyQuestDefinition plus non-daily_calendar UserDailyQuestProgress rows.
 - Daily Calendar / Streak uses UserDailyQuestProgress daily_calendar:* rows: 3 tasks per server day, 9-day rotating task template cycle, event-based idempotent progress, and zero per-task reward_diamonds.
 - Home GÜNLÜK shortcut opens /daily; Günlük is not added to BottomNav.
-- claimDailyQuestReward grants the 7-day Gift Box server-side with DiamondTransaction source daily_calendar_streak_reward for exactly 200 Diamonds, updates daily_calendar_* fields, does not grant Kronox Puan, and does not affect Leaderboard.
+- claimDailyQuestReward grants the 7-day streak reward server-side with DiamondTransaction source daily_calendar_streak_reward for exactly 200 Diamonds, updates daily_calendar_* fields, does not grant Kronox Puan, and does not affect Leaderboard. DailyPage shows only GÜNLÜK in the header, only Tamamlandı and Bugün in the legend, no renewal countdown, title-only task rows, and only 200 Elmas for the 7-day reward UI with no Gift Box icon/name.
 - Completed guests use token-proven GuestProfile.diamonds and internal guest keys without exposing raw guest tokens. Daily Wheel remains separate from Daily Calendar. daily_wheel:<playerKey>:<YYYY-MM-DD>. daily_calendar_streak:<playerKey>:<streak_anchor_date>:<claim_number>:200.
 
 Category preference status:

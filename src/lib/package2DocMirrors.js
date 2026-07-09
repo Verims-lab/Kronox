@@ -108,10 +108,12 @@ Home exposes Daily Wheel through the Çark shortcut and the Daily Calendar /
 Streak through the Home GÜNLÜK shortcut. Daily Calendar / Streak is opened at
 /daily, is not a BottomNav item, creates 3 daily_calendar:* tasks per UTC
 server day from a 9-day rotating task template cycle, and advances only through
-real/idempotent events. claimDailyQuestReward grants only the 7-day Gift Box
-through DiamondTransaction.source = daily_calendar_streak_reward for exactly
-200 Diamonds. Daily Calendar does not grant Kronox Puan and does not affect
-Leaderboard.
+real/idempotent events. claimDailyQuestReward grants only the 7-day streak
+reward through DiamondTransaction.source = daily_calendar_streak_reward for
+exactly 200 Diamonds. Daily Calendar screen UI shows a title-only GÜNLÜK header,
+Tamamlandı/Bugün legend only, no renewal countdown, title-only task cards, and
+only 200 Elmas for the reward UI with no Gift Box icon/name. Daily Calendar
+does not grant Kronox Puan and does not affect Leaderboard.
 Runtime ignores stale/duplicate DailyQuestDefinition rows and does not seed
 definition rows on app/Home open. cleanupLegacyDailyQuests is admin-gated,
 defaults to dry_run, requires DELETE_LEGACY_DAILY_QUESTS for destructive

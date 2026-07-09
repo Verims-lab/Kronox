@@ -413,7 +413,7 @@ Checklist:
 * Daily Wheel V2 grants server-selected Diamonds, approved Solo jokers, or Gift
   Box rewards only; it never grants Kronox Puan and never affects leaderboard.
 * Daily Calendar / Streak grants Diamonds only through the server-backed
-  `claimDailyQuestReward` 7-day Gift Box path.
+  `claimDailyQuestReward` 7-day streak reward path.
 * Daily Wheel and Daily Calendar use separate guard fields/idempotency keys:
   `daily_wheel:<playerKey>:<YYYY-MM-DD>` and
   `daily_calendar_streak:<playerKey>:<streak_anchor_date>:<claim_number>:200`
@@ -444,8 +444,8 @@ Checklist:
   `DailyWheelSpin.user_email + spin_date` unless Base44/platform configuration
   is attached.
 * Daily Wheel 7-day streak bonus grants `+150` Diamonds on every 7th consecutive daily spin (`7 günlük seri bonusu: +150 elmas`).
-* Daily Calendar / Streak Gift Box is separate and grants exactly 200 Diamonds
-  through `daily_calendar_streak_reward`.
+* Daily Calendar / Streak 200-Diamond streak reward is separate and grants
+  exactly 200 Diamonds through `daily_calendar_streak_reward`.
 * Missing a UTC day resets the Daily Wheel streak gracefully to 1 on next spin
   and breaks the Daily Calendar / Streak chain.
 * Manual economy idempotency proof:
@@ -624,9 +624,12 @@ Checklist:
   `Profilini tamamla` only while the profile is incomplete, otherwise it falls
   back to `5 soruyu doğru cevapla`. Hint tasks use the real `hint_used` event
   and require a matching `HintTransaction.reason = solo_use` row.
-* Daily page proof: current month calendar appears, today has a yellow ring,
-  completed days have checks, future days are not completed, today shows 3
-  tasks, and Zaman Serisi shows 7-day Gift Box progress.
+* Daily page proof: Daily header shows only `GÜNLÜK` with no subtitle, current
+  month calendar appears, today has a yellow ring, completed days have checks,
+  future days are not completed, the calendar legend shows only `Tamamlandı`
+  and `Bugün`, today shows 3 title-only task cards, the section does not show a
+  renewal countdown, and Zaman Serisi shows streak progress plus only
+  `200 Elmas` for the 7-day reward UI. Gift Box icon/name is not displayed.
 * Task completion is real-event-based and idempotent. Daily Wheel progress must
   follow a successful wheel claim, Solo level/correct/jokerless tasks must
   follow valid gameplay events, Joker tasks must follow successful
@@ -634,7 +637,7 @@ Checklist:
   success events.
 * Per-task progress does not grant Diamonds. A day is complete only when all 3
   task rows are complete. Missing a UTC day breaks the computed streak.
-* `claimDailyQuestReward` grants only the 7-day Gift Box, writes
+* `claimDailyQuestReward` grants only the 7-day streak reward, writes
   `DiamondTransaction.source = daily_calendar_streak_reward`, grants exactly
   200 Diamonds, updates visible `User.diamonds` or completed-guest
   `GuestProfile.diamonds`, and is idempotent.
@@ -648,9 +651,9 @@ Checklist:
 * Manual proof: open Home, see compact `GÜNLÜK` and `Çark` shortcuts, open
   `/daily`, confirm current month calendar and exactly 3 tasks, complete
   relevant real events, confirm completed task/day checkmarks, reach 7/7,
-  claim Gift Box, confirm exactly one `daily_calendar_streak_reward`
-  DiamondTransaction for 200 Diamonds, retry duplicate claim, and confirm no
-  Kronox Puan/Leaderboard change.
+  claim the 7-day streak reward, confirm exactly one
+  `daily_calendar_streak_reward` DiamondTransaction for 200 Diamonds, retry
+  duplicate claim, and confirm no Kronox Puan/Leaderboard change.
 
 ---
 
