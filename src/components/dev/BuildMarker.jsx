@@ -555,6 +555,14 @@ import React, { useEffect, useState } from 'react';
 //
 
 
+// Codex574 — MRDCFLF0 Health blocker alignment:
+//   • FriendsPage load failures now expose the expected safe recoverable
+//     Turkish copy while keeping raw backend/rate-limit errors out of UI.
+//   • @base44/sdk is exact-pinned to 0.8.34 in package.json/package-lock,
+//     aligned with every critical Base44 function Deno import.
+//   • Store Health now targets the current popup purchase flow visual tokens,
+//     and future KronoClub source copy remains disabled Yakında/no-grant.
+//
 // Codex573 — Store UI simplification and popup purchase flow:
 //   • Mağaza removes subtitle/section explanatory copy, Diamond unit prices,
 //     decorative Diamond dots, and persistent purchase-success banners.
@@ -595,7 +603,7 @@ import React, { useEffect, useState } from 'react';
 //   • security_cleanup_health.base44_sdk_versions_exact_and_aligned:
 //     package.json now exact-pins "@base44/sdk": "0.8.34" (was "^0.8.35").
 
-const BUILD_MARKER = 'Codex573';
+const BUILD_MARKER = 'Codex574';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
