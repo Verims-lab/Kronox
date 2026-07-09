@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Play } from 'lucide-react';
 import { sounds } from '@/lib/gameSounds';
@@ -8,6 +8,14 @@ export default function SoloLevelStartTutorialPopup({
   config = null,
   onClose,
 }) {
+  const [videoFailed, setVideoFailed] = useState(false);
+  const videoSrc = typeof config?.videoSrc === 'string' ? config.videoSrc.trim() : '';
+  const showVideo = Boolean(videoSrc && !videoFailed);
+
+  useEffect(() => {
+    setVideoFailed(false);
+  }, [videoSrc, open]);
+
   if (!config) return null;
 
   return (
@@ -68,21 +76,38 @@ export default function SoloLevelStartTutorialPopup({
                 boxShadow: 'inset 0 0 24px rgba(85,216,255,0.06)',
               }}
             >
-              <div className="flex flex-col items-center gap-2 text-center">
-                <span
-                  className="flex h-12 w-12 items-center justify-center rounded-full"
+              {showVideo ? (
+                <video
+                  className="h-full w-full rounded-2xl"
+                  data-kronox-solo-level-start-tutorial-video="true"
+                  src={videoSrc}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  aria-label={config.videoLabel || config.title || 'Eğitim videosu'}
+                  onError={() => setVideoFailed(true)}
                   style={{
-                    color: '#0A1023',
-                    background: 'linear-gradient(180deg, #FFE26A, #FFC928 58%, #E7A900)',
-                    boxShadow: '0 0 18px rgba(250,204,21,0.32)',
+                    objectFit: 'contain',
+                    background: 'transparent',
                   }}
-                >
-                  <Play className="h-6 w-6" fill="currentColor" strokeWidth={2.5} />
-                </span>
-                <span className="font-inter text-xs font-semibold text-slate-300">
-                  {config.videoLabel || 'Eğitim videosu hazırlanıyor'}
-                </span>
-              </div>
+                />
+              ) : (
+                <div className="flex flex-col items-center gap-2 text-center">
+                  <span
+                    className="flex h-12 w-12 items-center justify-center rounded-full"
+                    style={{
+                      color: '#0A1023',
+                      background: 'linear-gradient(180deg, #FFE26A, #FFC928 58%, #E7A900)',
+                      boxShadow: '0 0 18px rgba(250,204,21,0.32)',
+                    }}
+                  >
+                    <Play className="h-6 w-6" fill="currentColor" strokeWidth={2.5} />
+                  </span>
+                  <span className="font-inter text-xs font-semibold text-slate-300">
+                    {config.videoLabel || 'Eğitim videosu hazırlanıyor'}
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2 text-center">

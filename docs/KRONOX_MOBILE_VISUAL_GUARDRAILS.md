@@ -62,6 +62,11 @@ checks that source code and static Health cannot honestly prove alone.
   visible/readable full slot shapes around the centered reference card on
   mobile; the regular timeline edge-peek treatment must not clip these two
   teaching slots.
+* The Level 1 start popup video is the local
+  `/assets/tutorials/Seviye1tutorial.mp4` asset rendered inside the existing
+  mobile-safe video slot; title/copy are `Önce mi, Sonra mı` and
+  `Kartı doğru tarafa sürükle`, and the effective timer remains paused until
+  the popup is closed.
 * Solo drop slots in `before_after`, `timeline_basic`, and normal timeline are
   static: no blinking, pulsing, flashing, shimmering, or pre-drop correct-slot
   guidance. Drag-over feedback is allowed only while actively dragging over a

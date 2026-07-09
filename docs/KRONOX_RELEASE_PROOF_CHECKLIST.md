@@ -152,6 +152,9 @@ Checklist:
 * Special Solo levels win after 10 correct timeline cards, including seed cards already on the timeline.
 * Live Solo shows remaining moves as `10 HAMLE`, `9 HAMLE`, and so on for normal levels, and `13 HAMLE`, `12 HAMLE`, and so on for special levels.
 * Touch, slight drag, cancelled drag, invalid drop, tutorial hand animation, and tutorial popup reading do not decrement moves.
+* Level 1 start popup uses local `/assets/tutorials/Seviye1tutorial.mp4`,
+  title `Önce mi, Sonra mı`, and subtitle `Kartı doğru tarafa sürükle` with no
+  final period; closing the popup starts/resumes the effective timer.
 * A valid evaluated timeline placement decrements remaining moves.
 * Fail occurs when the level-specific evaluated move limit is used before the target card count is reached.
 * Timeout at 180 seconds fails the level.

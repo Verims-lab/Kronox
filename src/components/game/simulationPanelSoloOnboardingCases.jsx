@@ -289,10 +289,34 @@ export const EXTRA_TESTS = [
     () => {
       const configByLevel = [1, 2, 3, 4, 7].map((level) => getSoloLevelStartTutorialConfig(level)?.key).filter(Boolean);
       const noPopupLevels = [5, 6, 8].every((level) => getSoloLevelStartTutorialConfig(level) === null);
+      const levelOneConfig = getSoloLevelStartTutorialConfig(1);
+      const otherTutorialsUnchanged = [
+        [2, 'Jokerleri dene', 'Bu eğitim seviyesinde joker kullanımı gerçek çantandan hak harcamaz.', null],
+        [3, 'İpucunu dene', 'İpucu yıl bilgisini kademe kademe açar; eğitimde gerçek hakkını harcamaz.', null],
+        [4, 'İki referans', 'Kartı önce, arası ya da sonrası alanına yerleştir.', null],
+        [7, 'Tam zaman çizgisi', 'Artık doğru kartlar zaman çizgisine eklenir. Joker ve İpucu gerçek haklarından kullanılır.', null],
+      ].every(([level, title, copy, videoSrc]) => {
+        const config = getSoloLevelStartTutorialConfig(level);
+        return config?.title === title && config?.copy === copy && (config?.videoSrc || null) === videoSrc;
+      });
+      const levelOneContract = Boolean(
+        levelOneConfig?.title === 'Önce mi, Sonra mı'
+        && levelOneConfig?.copy === 'Kartı doğru tarafa sürükle'
+        && !levelOneConfig.copy.endsWith('.')
+        && levelOneConfig?.videoSrc === '/assets/tutorials/Seviye1tutorial.mp4',
+      );
       const missing = missingTokens(`${gameSource}\n${soloLevelStartTutorialPopupSource}\n${soloOnboardingLevelsSource}\n${soloOnboardingAnalyticsSource}`, [
         'SoloLevelStartTutorialPopup',
         'data-kronox-solo-level-start-tutorial-popup',
         'data-kronox-solo-level-start-tutorial-video-placeholder',
+        'data-kronox-solo-level-start-tutorial-video',
+        'src={videoSrc}',
+        'controls',
+        'playsInline',
+        'preload="metadata"',
+        "objectFit: 'contain'",
+        'onError={() => setVideoFailed(true)}',
+        '/assets/tutorials/Seviye1tutorial.mp4',
         'soloLevelStartTutorialPopupOpen',
         'soloLevelStartTutorialPauseOffset',
         'closeSoloLevelStartTutorialPopup',
@@ -315,14 +339,15 @@ export const EXTRA_TESTS = [
       const forbidden = forbiddenTokens(soloLevelStartTutorialPopupSource, [
         'https://',
         'media.base44.com',
+        'autoPlay',
       ]);
-      if (missing.length || forbidden.length || configByLevel.length !== 5 || !noPopupLevels) {
+      if (missing.length || forbidden.length || configByLevel.length !== 5 || !noPopupLevels || !levelOneContract || !otherTutorialsUnchanged) {
         return fail('Level-start popup or privacy-safe analytics contract drifted.', {
           verification: 'STATIC_CONTRACT',
-          actual: { missing, forbidden, configByLevel, noPopupLevels },
+          actual: { missing, forbidden, configByLevel, noPopupLevels, levelOneContract, otherTutorialsUnchanged },
         });
       }
-      return pass('Levels 1/2/3/4/7 have safe start popups, 5/6/8 do not, and onboarding analytics strips private identifiers.', { verification: 'STATIC_CONTRACT' });
+      return pass('Level 1 uses the local Seviye1tutorial.mp4 asset with exact copy, other tutorial popups are unchanged, levels 5/6/8 do not show popups, and analytics strips private identifiers.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('onboarding_contract_documented_in_sources',

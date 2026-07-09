@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex582 — Level 1 tutorial popup video/copy update:
+//   • Level 1 start popup uses local /assets/tutorials/Seviye1tutorial.mp4.
+//   • Level 1 copy is "Önce mi, Sonra mı" / "Kartı doğru tarafa sürükle".
+//   • Docs/Health guard the local video, no remote/autoplay path, unchanged
+//     later tutorial popups, and timer pause contract.
+//
 // Codex581 — Solo slot guidance animation removal:
 //   • Disabled beginner/correct-slot guidance and removed the old Timeline
 //     slot pulse CSS plus guided target halos from drop slots.
@@ -42,7 +48,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex581';
+const BUILD_MARKER = 'Codex582';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
