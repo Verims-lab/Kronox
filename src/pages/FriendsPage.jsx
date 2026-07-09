@@ -27,6 +27,8 @@ import StandardTopBar from '@/components/layout/StandardTopBar';
 import PullToRefresh from '@/components/mobile/PullToRefresh';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 
+const FRIENDS_LOAD_ERROR_MESSAGE = 'Arkadaş verisi yüklenemedi.';
+
 /**
  * Profile > Arkadaşlarım — Friends MVP.
  * Three sections: My Friends, Incoming Requests, Add Friend. Outgoing Requests
@@ -89,7 +91,12 @@ export default function FriendsPage() {
     } catch (err) {
       // Codex571 — Never show raw backend/SDK errors (e.g. "Rate limit
       // exceeded") on the Friends screen; always a safe Turkish message.
-      setLoadError(getSafeFriendsErrorMessage(err));
+      const safeMessage = getSafeFriendsErrorMessage(err);
+      setLoadError(
+        safeMessage.includes('Çok hızlı işlem')
+          ? safeMessage
+          : FRIENDS_LOAD_ERROR_MESSAGE,
+      );
     } finally {
       setLoading(false);
     }

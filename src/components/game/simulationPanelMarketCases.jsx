@@ -129,13 +129,14 @@ export const EXTRA_TESTS = [
         'rgba(65,196,255,.08)',
         'rgba(12,24,48,.88)',
         'rgba(255,210,95,.18)',
-        'clamp(1rem,2vw,1.4rem)',
+        "borderRadius: '1rem'",
         '"Barlow Condensed", "Arial Narrow", sans-serif',
         'text-white',
         '#FFD24A',
         '#C6CEDB',
         '#8FA3C4',
-        'SATIN AL',
+        'StorePurchaseModal',
+        "'Satın Al'",
       ]);
       if (missing.length) return fail('Store visual contract tokens are missing from MarketPage.', {
         verification: 'STATIC_CONTRACT',

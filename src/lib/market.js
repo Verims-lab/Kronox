@@ -263,7 +263,7 @@ export const MARKET_FUTURE_PRODUCTS = Object.freeze([
     section: 'future',
     type: MARKET_PRODUCT_TYPES.KRONO_CLUB,
     priceType: MARKET_PRICE_TYPES.FUTURE_REAL_MONEY,
-    title: 'KRONOCLUB',
+    title: 'KronoClub',
     description: 'Üyelik avantajları yakında.',
     displayPrice: 'Yakında',
     assetKind: 'club',
