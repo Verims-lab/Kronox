@@ -1227,7 +1227,7 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('tutorial_joker_concept_does_not_spend_inventory',
-    'Guided tutorial teaches correct placement and all three jokers without spending real inventory',
+    'Guided tutorial teaches generic placement and all three jokers without spending real inventory',
     () => {
       const tutorialSources = `${gameSource}\n${onboardingPageSource}\n${gameLayoutSource}\n${timelineSource}\n${soloJokerBarSource}`;
       const missing = missingTokens(tutorialSources, [
@@ -1239,8 +1239,8 @@ export const EXTRA_TESTS = [
         'Zamanı Dondur jokerini kullan. Süreyi 10 saniye boyunca durdurur.',
         'Kart Değiştir jokerini kullan. Olay kartını başka bir olay ile değiştirir',
         'Kronokalkan jokerini kullan. Bu jokeri kullandığında bir sonraki yanlışın, hamle sayısından düşmez.',
-        'guidedTutorialCorrectTargetZone',
-        'data-kronox-guided-correct-target-slot',
+        'data-kronox-guided-drag-finger-hint',
+        'Generic drag teaching only',
         'GUIDED_JOKER_TAP_HINT_MIN_MS = 3000',
         'GUIDED_JOKER_TAP_HINT_MAX_MS = 10000',
         'guidedTutorialJokerRequiresTapBeforePlacement',
@@ -1260,18 +1260,24 @@ export const EXTRA_TESTS = [
         'data-kronox-guided-joker-focus-backdrop',
         'data-kronox-guided-joker-finger-hint',
       ]);
-      const forbidden = presentTokens(gameSource, [
+      const removedSlotAttr = 'data-kronox-guided-' + 'correct-target-slot';
+      const removedSlotProp = 'targetSlot' + 'Position={guided' + 'TargetSlotPosition}';
+      const removedZoneProp = 'guided' + 'TargetZone={guidedDragHintActive ? guided' + 'DragTargetZone : null}';
+      const forbidden = presentTokens(tutorialSources, [
         "setGuidedTutorialPopup({ type: 'joker'",
+        removedSlotAttr,
+        removedSlotProp,
+        removedZoneProp,
       ]);
       if (missing.length || forbidden.length) {
-        return fail('Guided first level no longer proves correct-slot hints, direct no-popup joker demos, or tutorial-only inventory behavior.', {
+        return fail('Guided first level no longer proves generic drag teaching, direct no-popup joker demos, tutorial-only inventory behavior, or no correct-slot target leakage.', {
           verification: 'STATIC_CONTRACT',
           files: ['src/pages/Game.jsx', 'src/components/game/GameLayout.jsx', 'src/components/game/Timeline.jsx', 'src/components/game/SoloJokerBar.jsx', 'src/pages/OnboardingPage.jsx'],
           actual: { missing, forbidden },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Guided first level points to correct slots, teaches all three jokers as direct tutorial-only demos with no joker popup, and avoids real UserJokerInventory spend.', {
+      return pass('Guided first level uses generic drag teaching, teaches all three jokers as direct tutorial-only demos with no joker popup, avoids correct-slot target leakage, and avoids real UserJokerInventory spend.', {
         verification: 'STATIC_CONTRACT',
         actionType: ACTION_TYPES.CODE_FIX,
       });

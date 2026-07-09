@@ -86,6 +86,12 @@ already visible timeline years, including placed cards and seed/preplaced
 cards. This avoids player-facing 1-4 year conflicts such as 1996/1997,
 1998/1999, and 1913/1914 where a safe alternative exists.
 
+Solo placement slots are static and readable in before_after, timeline_basic,
+and normal timeline play. Kronox does not blink, pulse, flash, shimmer, or
+automatically emphasize a correct slot before the player drops the card.
+Drag-over feedback may appear only while actively dragging over a slot and must
+remain non-blinking; correct/wrong effects stay post-drop only.
+
 Hard deck rules:
 - 17 questions for before_after onboarding.
 - 18 questions for timeline_basic onboarding.

@@ -212,6 +212,49 @@ export const EXTRA_TESTS = [
       return pass('Game uses virtual correct-card progress for onboarding, passes Turkish slot labels to Timeline, and keeps before_after slots fully visible without adding answer cards.', { verification: 'STATIC_CONTRACT' });
     }),
 
+  makeCase('solo_drop_slots_static_no_pre_drop_correct_hint',
+    'Solo drop slots are static before drop across onboarding and normal timeline',
+    () => {
+      const combined = `${gameSource}\n${gameLayoutSource}\n${timelineSource}\n${soloOnboardingLevelsSource}`;
+      const missing = missingTokens(combined, [
+        'data-kronox-before-after-timeline="full-slot-grid"',
+        "{label || '+'}",
+        'ÖNCESİ',
+        'ARASI',
+        'SONRASI',
+        "animation: 'none'",
+        'Generic drag teaching only',
+        'PlacementFeedbackOverlay',
+      ]);
+      const removedCssAnimationToken = 'slot' + 'Pulse';
+      const removedBeginnerHintToken = 'show' + 'BeginnerHint';
+      const removedGuidedHintToken = 'show' + 'GuidedTarget';
+      const removedSlotAttr = 'data-kronox-guided-' + 'correct-target-slot';
+      const removedBeginnerProp = 'beginner' + 'PlacementHintZone={';
+      const removedZoneProp = 'guided' + 'TargetZone=';
+      const removedPositionCallback = 'onGuided' + 'TargetSlotPosition=';
+      const removedSlotProp = 'targetSlot' + 'Position={guided' + 'TargetSlotPosition}';
+      const forbidden = forbiddenTokens(combined, [
+        removedCssAnimationToken,
+        removedBeginnerHintToken,
+        removedGuidedHintToken,
+        removedSlotAttr,
+        removedBeginnerProp,
+        removedZoneProp,
+        removedPositionCallback,
+        removedSlotProp,
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Solo Timeline/GameLayout still exposes animated or targeted pre-drop slot guidance.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['src/pages/Game.jsx', 'src/components/game/GameLayout.jsx', 'src/components/game/Timeline.jsx'],
+          expected: 'static drop slots, generic tutorial drag teaching only, and post-drop feedback only',
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('before_after, timeline_basic, and normal timeline slots are static before drop; tutorial drag teaching is generic and post-drop feedback remains available.', { verification: 'STATIC_CONTRACT' });
+    }),
+
   makeCase('training_consumables_bypass_real_spend_and_daily_use',
     'Levels 1-6 use Joker/Hint training mode without real inventory spend or Daily use events',
     () => {

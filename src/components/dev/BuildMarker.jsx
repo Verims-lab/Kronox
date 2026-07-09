@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex581 — Solo slot guidance animation removal:
+//   • Disabled beginner/correct-slot guidance and removed the old Timeline
+//     slot pulse CSS plus guided target halos from drop slots.
+//   • Guided tutorial finger is generic drag teaching only, not correct-slot
+//     targeted.
+//   • Docs/Health now guard static drop slots across before_after,
+//     timeline_basic, and normal timeline.
+//
 // Codex580 — Daily Calendar task event refresh/reconciliation pass:
 //   • Daily Wheel successful claim now marks Daily status stale immediately
 //     and getDailyQuestStatus reconciles Çark çevir from same-day
@@ -34,7 +42,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex580';
+const BUILD_MARKER = 'Codex581';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

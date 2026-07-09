@@ -379,15 +379,15 @@ questions mid-attempt or hard-filter the deck to only selected categories.
 
 Replay and next-level actions clear the current attempt deck and create a new deck. Replay after this change uses the new Solo v2 rules.
 
-## Placement Assist
+## Placement Slots
 
-The subtle placement hint remains visual-only for levels 1-3:
-- active only while dragging a Solo card
-- highlights the already-computed correct placement zone
-- disappears after placement or drag end
-- no score penalty
-- no hit-testing, drag behavior, or validation changes
-- disabled for level 4+ and Online mode
+Solo drop slots are static and readable in every placement mode. Kronox no
+longer uses blinking, pulsing, flashing, shimmering, or automatic correct-slot
+guidance in `before_after`, `timeline_basic`, or normal timeline play. The
+level-start tutorial popup/video copy explains the rule; the slots themselves
+must not reveal or suggest the correct answer before the player drops the card.
+Drag-over feedback may remain only while the player is actively dragging over a
+slot and must stay non-blinking. Correct/wrong feedback remains post-drop only.
 
 ## Mobile Browser Drag Guard
 

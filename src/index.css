@@ -210,19 +210,6 @@
     letter-spacing: 0.04em;
   }
 
-  /* Timeline active hovered slot "+" pulse — visual only, transform/opacity
-     so it never causes layout shift or affects hit-testing. */
-  @keyframes slotPulse {
-    0%, 100% {
-      opacity: 0.82;
-      transform: scale(1.08);
-    }
-    50% {
-      opacity: 1;
-      transform: scale(1.12);
-    }
-  }
-
   .kx-viewport-lock,
   [data-kx-route-locked="true"] {
     min-height: 100vh;

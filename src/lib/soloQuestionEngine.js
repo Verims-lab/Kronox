@@ -101,8 +101,11 @@ export function getBeginnerYearSpacingForLevel(levelNumber) {
 }
 
 export function shouldShowBeginnerPlacementHint(levelNumber) {
-  const level = Math.trunc(Number(levelNumber) || 0);
-  return level >= 1 && level <= 3;
+  // Slot guidance is intentionally disabled for every Solo level. Onboarding
+  // explanation lives in tutorial copy/video only; drop slots must not reveal
+  // or pulse the correct target before the player places the card.
+  void levelNumber;
+  return false;
 }
 
 // Deterministic-capable shuffler. If `random` is omitted, falls back to

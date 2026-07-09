@@ -2958,27 +2958,31 @@ export const EXTRA_TESTS = [
     },
   ),
 
-  /* 14. beginner_placement_hint_levels_1_to_3_only */
+  /* 14. solo_slot_guidance_disabled_all_levels */
   makeCase(
-    'beginner_placement_hint_levels_1_to_3_only',
-    'Placement hint is enabled only for Solo levels 1-3',
+    'solo_slot_guidance_disabled_all_levels',
+    'Automatic placement slot guidance is disabled for every Solo level',
     () => {
       const actual = {
         level1: shouldShowBeginnerPlacementHint(1),
         level3: shouldShowBeginnerPlacementHint(3),
         level4: shouldShowBeginnerPlacementHint(4),
+        level7: shouldShowBeginnerPlacementHint(7),
         legacy: shouldShowBeginnerPlacementHint(null),
       };
-      if (!actual.level1 || !actual.level3 || actual.level4 || actual.legacy) {
-        return fail('Beginner placement hint level gate drifted.', {
+      const enabled = Object.entries(actual)
+        .filter(([, value]) => value)
+        .map(([key]) => key);
+      if (enabled.length) {
+        return fail('Automatic Solo placement hint gate drifted back on.', {
           verification: 'RUNTIME_VERIFIED',
           classification: 'REAL_PRODUCT_RISK',
-          expected: 'true for 1-3 only',
-          actual,
+          expected: 'false for every level so no pre-drop correct-slot suggestion appears',
+          actual: { ...actual, enabled },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Beginner placement hint helper is limited to levels 1-3.', {
+      return pass('Beginner placement hint helper is hard-disabled so no level receives a pre-drop slot suggestion.', {
         verification: 'RUNTIME_VERIFIED', classification: 'RUNTIME_VERIFIED',
       });
     },

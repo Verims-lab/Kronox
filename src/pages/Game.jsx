@@ -58,7 +58,6 @@ import {
 // re-randomization. Online/legacy paths are untouched.
 import {
   buildSoloAttemptDeck,
-  shouldShowBeginnerPlacementHint,
 } from '@/lib/soloQuestionEngine';
 import {
   MIN_CATEGORY_SELECTION_COUNT,
@@ -99,7 +98,6 @@ import { mergeJokerSpendMutationBalances } from '@/lib/jokerInventorySpendMerge'
 import { getOrderedSoloDeckQuestion, getSoloSeedQuestions } from '@/lib/soloDeckRuntime';
 import {
   getSoloLevelStartTutorialConfig,
-  getSoloOnboardingCorrectSlotIndex,
   getSoloOnboardingSlotLabels,
   isCorrectSoloOnboardingPlacement,
   orderSoloDeckForOnboarding,
@@ -3103,34 +3101,6 @@ export default function Game() {
     </>
   ) : null;
 
-  const beginnerPlacementHintZone = useMemo(() => {
-    if (!isSoloLevelMode) return null;
-    if (!shouldShowBeginnerPlacementHint(soloLevel?.levelNumber)) return null;
-    if (!isDragging || !isMyTurn || feedback || winner || !currentQuestion || !currentPlayer) return null;
-
-    const questionYear = Number(currentQuestion.year);
-    const cards = Array.isArray(currentPlayer.cards) ? currentPlayer.cards : [];
-    if (!Number.isFinite(questionYear)) return null;
-    if (isSoloOnboardingMode) {
-      return getSoloOnboardingCorrectSlotIndex(soloLevel?.levelNumber, cards, questionYear);
-    }
-
-    for (let zoneIndex = 0; zoneIndex <= cards.length; zoneIndex += 1) {
-      if (isCorrectPlacement(cards, questionYear, zoneIndex)) return zoneIndex;
-    }
-    return null;
-  }, [
-    isSoloLevelMode,
-    soloLevel?.levelNumber,
-    isDragging,
-    isMyTurn,
-    feedback,
-    winner,
-    currentQuestion,
-    currentPlayer,
-    isSoloOnboardingMode,
-  ]);
-
   // ─── Diagnostics overlay (Codex084) ──────────────────────────────
   // Must be computed BEFORE every render guard so we can render it on any
   // gate. All inputs are non-hook derived values; safe to do here.
@@ -3701,9 +3671,7 @@ export default function Game() {
         soloHint={isSoloLevelMode ? soloHint : null}
         onSoloBack={isSoloLevelMode ? handleSoloGameplayBack : undefined}
         balances={soloJokers?.balances || null}
-        beginnerPlacementHintZone={beginnerPlacementHintZone}
         guidedDragHintActive={guidedDragHintActive}
-        guidedDragTargetZone={guidedTutorialCorrectTargetZone}
         guidedTimelineScrollHintActive={guidedTimelineScrollHintActive}
         guidedTimelineSwipeHintMinimumElapsed={hasTimelineSwipeHintMinimumElapsed}
         onTimelineSwipeHintInteraction={handleTimelineSwipeHintInteraction}

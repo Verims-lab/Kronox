@@ -246,8 +246,10 @@ Checklist:
 * Replay variety diagnostics can detect repeated first-5 sequences without weakening hard deck rules.
 * Deck feels category/subcategory/theme balanced where the pool allows.
 * Deck feels era/year balanced rather than clustered.
-* Levels 1-3 show beginner-friendly year spacing and a subtle correct-slot pulse while dragging.
-* Level 4+ shows no placement pulse unless a future onboarding rule enables it.
+* Levels 1-3 keep beginner-friendly year spacing, but no Solo mode may show
+  blinking/pulsing/flashing slot guidance or a pre-drop correct-slot hint.
+* Levels 4-6 and level 7+ also keep static readable slots; drag-over feedback
+  is allowed only during active drag and must stay non-blinking.
 * Old completed Solo results are not retroactively recalculated.
 
 ---
