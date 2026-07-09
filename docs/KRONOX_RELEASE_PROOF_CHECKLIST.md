@@ -140,8 +140,8 @@ Checklist:
 Checklist:
 
 * Normal Solo levels start with an 18-question deck.
-* Onboarding Solo levels 1-3 use `before_after` with a 13-question deck; levels
-  4-6 use `timeline_basic` with a 14-question deck.
+* Onboarding Solo levels 1-3 use `before_after` with a 17-question deck; levels
+  4-6 use `timeline_basic` with an 18-question deck.
 * Special Solo levels start with a 21-question deck.
 * The deck has unique question IDs.
 * The deck has unique years.
@@ -571,7 +571,8 @@ Checklist:
   explanatory copy are removed, real-money Diamond cards show amount + `Elmas`
   as two lines without unit price, and Diamond-spend Joker/Hint/Advantage cards
   open a detail popup before purchase instead of rendering direct card-level
-  `SATIN AL` buttons.
+  `SATIN AL` buttons. The popup is centered, safe-area-aware, bounded within
+  the viewport, and keeps the purchase CTA above BottomNav.
 * Hint package prices are 5/15/40 İpucu = 150/400/800 Diamonds in both the
   client catalog and `purchaseJokerWithDiamonds`.
 * Manual Mağaza Store proof:

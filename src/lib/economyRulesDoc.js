@@ -199,8 +199,11 @@ price, and do not render Birim fiyat, unit-price fields, or decorative extra
 Diamond dots. Diamond-spend Joker, Hint, and Advantage cards show the Diamond
 price on the right side and do not render direct card-level SATIN AL buttons;
 tapping the card opens a detail popup with package contents and a purchase CTA
-that includes the Diamond price. Purchase success is not shown as a persistent
-Store banner/list; only safe failure/info states may render.
+that includes the Diamond price. The detail popup is centered, safe-area-aware,
+bounded by 100dvh minus safe areas, internally scrollable if needed, and kept
+above BottomNav so the purchase CTA remains tappable. Purchase success is not
+shown as a persistent Store banner/list; only safe failure/info states may
+render.
 Diamond source/sink balance: Daily Wheel V2 can be a Diamond source and/or
 approved joker grant source, while Mağaza purchase is a Diamond sink —
 Mağaza Diamond-spend purchases only remove Diamonds server-side.

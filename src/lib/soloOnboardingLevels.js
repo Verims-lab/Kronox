@@ -1,6 +1,7 @@
 import {
   SOLO_LEVEL_TYPES,
   SOLO_ONBOARDING_CARD_TARGET,
+  getSoloMaxEvaluatedMovesForLevel,
   getSoloLevelType,
   getSoloReferenceCardCountForLevel,
   isSoloOnboardingLevel,
@@ -74,7 +75,8 @@ function fillToCount(primary = [], candidates = [], count = SOLO_ONBOARDING_CARD
 
 function buildBeforeAfterConfig(deck, levelNumber) {
   const sorted = uniqueYearQuestions(deck);
-  if (sorted.length < SOLO_ONBOARDING_CARD_TARGET + 1) return null;
+  const attemptQuestionCount = getSoloMaxEvaluatedMovesForLevel(levelNumber);
+  if (sorted.length < attemptQuestionCount + 1) return null;
 
   let bestAnchor = null;
   let bestScore = -Infinity;
@@ -99,9 +101,9 @@ function buildBeforeAfterConfig(deck, levelNumber) {
   const selectedQuestions = fillToCount(
     preferred,
     withoutQuestions(sorted, [anchor, ...preferred]),
-    SOLO_ONBOARDING_CARD_TARGET,
+    attemptQuestionCount,
   );
-  if (selectedQuestions.length < SOLO_ONBOARDING_CARD_TARGET) return null;
+  if (selectedQuestions.length < attemptQuestionCount) return null;
 
   const reserveQuestions = withoutQuestions(sorted, [anchor, ...selectedQuestions]);
   return {
@@ -112,6 +114,7 @@ function buildBeforeAfterConfig(deck, levelNumber) {
     questionCards: selectedQuestions,
     reserveCards: reserveQuestions,
     targetQuestionCount: SOLO_ONBOARDING_CARD_TARGET,
+    attemptQuestionCount,
     slotLabels: [SOLO_ONBOARDING_SLOT_LABELS.before, SOLO_ONBOARDING_SLOT_LABELS.after],
   };
 }
@@ -130,7 +133,8 @@ function scoreTimelineBasicAnchors(sorted, firstIndex, secondIndex) {
 
 function buildTimelineBasicConfig(deck, levelNumber) {
   const sorted = uniqueYearQuestions(deck);
-  if (sorted.length < SOLO_ONBOARDING_CARD_TARGET + 2) return null;
+  const attemptQuestionCount = getSoloMaxEvaluatedMovesForLevel(levelNumber);
+  if (sorted.length < attemptQuestionCount + 2) return null;
 
   let anchorIndexes = [Math.max(1, Math.floor(sorted.length / 3)), Math.min(sorted.length - 2, Math.floor((sorted.length * 2) / 3))];
   let bestScore = -Infinity;
@@ -163,9 +167,9 @@ function buildTimelineBasicConfig(deck, levelNumber) {
   const selectedQuestions = fillToCount(
     preferred,
     withoutQuestions(sorted, [...anchors, ...preferred]),
-    SOLO_ONBOARDING_CARD_TARGET,
+    attemptQuestionCount,
   );
-  if (selectedQuestions.length < SOLO_ONBOARDING_CARD_TARGET) return null;
+  if (selectedQuestions.length < attemptQuestionCount) return null;
 
   const reserveQuestions = withoutQuestions(sorted, [...anchors, ...selectedQuestions]);
   return {
@@ -176,6 +180,7 @@ function buildTimelineBasicConfig(deck, levelNumber) {
     questionCards: selectedQuestions,
     reserveCards: reserveQuestions,
     targetQuestionCount: SOLO_ONBOARDING_CARD_TARGET,
+    attemptQuestionCount,
     slotLabels: [
       SOLO_ONBOARDING_SLOT_LABELS.before,
       SOLO_ONBOARDING_SLOT_LABELS.middle,

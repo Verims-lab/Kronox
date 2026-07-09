@@ -1416,13 +1416,19 @@ export default function Game() {
     if (!isSoloLevelMode || !event?.question) return;
     const questionId = String(event.question.id);
     if (isSoloOnboardingMode) {
-      const nextAnsweredCount = Math.min(soloPlayableCardTarget, soloOnboardingAnsweredCountRef.current + 1);
-      soloOnboardingAnsweredCountRef.current = nextAnsweredCount;
-      setSoloOnboardingAnsweredCount(nextAnsweredCount);
+      const nextAnsweredCount = event.isCorrect
+        ? Math.min(soloPlayableCardTarget, soloOnboardingAnsweredCountRef.current + 1)
+        : soloOnboardingAnsweredCountRef.current;
+      if (event.isCorrect) {
+        soloOnboardingAnsweredCountRef.current = nextAnsweredCount;
+        setSoloOnboardingAnsweredCount(nextAnsweredCount);
+      }
       const analyticsPayload = {
         level_number: soloLevel?.levelNumber ?? null,
         level_type: soloLevelType,
-        question_sequence: nextAnsweredCount,
+        question_sequence: Math.min(soloMaxMoves, usedMoveCount + 1),
+        correct_progress: nextAnsweredCount,
+        target_progress: soloPlayableCardTarget,
         slot_index: Number.isFinite(Number(event.zone)) ? Math.trunc(Number(event.zone)) : null,
         correct: Boolean(event.isCorrect),
         elapsed_seconds: soloEffectiveElapsedSecondsRef.current,
@@ -1483,7 +1489,9 @@ export default function Game() {
     soloAttemptId,
     soloLevel?.levelNumber,
     soloLevelType,
+    soloMaxMoves,
     soloPlayableCardTarget,
+    usedMoveCount,
   ]);
 
   const evaluateSoloOnboardingPlacement = useCallback(({ cards, questionYear, zone }) => {
@@ -1493,8 +1501,8 @@ export default function Game() {
     };
   }, [isSoloOnboardingMode, soloLevel?.levelNumber]);
 
-  const getSoloOnboardingPlacementHasWon = useCallback(() => {
-    if (!isSoloOnboardingMode) return false;
+  const getSoloOnboardingPlacementHasWon = useCallback(({ isCorrect } = {}) => {
+    if (!isSoloOnboardingMode || !isCorrect) return false;
     return Math.min(soloPlayableCardTarget, soloOnboardingAnsweredCountRef.current + 1) >= soloPlayableCardTarget;
   }, [isSoloOnboardingMode, soloPlayableCardTarget]);
 

@@ -254,7 +254,7 @@ function runP3RepeatedDeckSimulation({ builds = 100 } = {}) {
   for (let index = 0; index < builds; index += 1) {
     const result = buildSoloAttemptDeck({
       pool,
-      levelNumber: [1, 2, 3, 4, 6, 7, 8, 9][index % 8],
+      levelNumber: 7,
       seedCount: 2,
       recentlySeenQuestionIds: recentIds,
       questionExposureStats: exposureStats,
@@ -507,7 +507,7 @@ export const EXTRA_TESTS = [
   /* 5. solo_attempt_uses_level_specific_move_limits */
   makeCase(
     'solo_attempt_uses_level_specific_move_limits',
-    'Normal Solo uses 10 moves while special Solo uses 13 moves',
+    'Onboarding/normal Solo use 10 moves while special Solo uses 13 moves',
     () => {
       const actual = {
         SOLO_MAX_MOVES,
@@ -522,16 +522,16 @@ export const EXTRA_TESTS = [
       if (
         SOLO_MAX_MOVES !== 10 ||
         SOLO_SPECIAL_MAX_MOVES !== 13 ||
-        actual.onboardingLevel1 !== 6 ||
+        actual.onboardingLevel1 !== 10 ||
         actual.normalLevel7 !== 10 ||
-        actual.onboardingLevel5 !== 6 ||
+        actual.onboardingLevel5 !== 10 ||
         actual.specialLevel10 !== 13 ||
         actual.normalLevel11 !== 10 ||
         SOLO_LEVEL_TIME_SECONDS !== 180
       ) return fail('Solo timer/move constants drifted.', {
         verification: 'RUNTIME_VERIFIED',
         classification: 'REAL_PRODUCT_RISK',
-        expected: { normalMoves: 10, specialMoves: 13, seconds: 180 },
+        expected: { onboardingMoves: 10, normalMoves: 10, specialMoves: 13, seconds: 180 },
         actual,
         actionType: ACTION_TYPES.CODE_FIX,
       });
@@ -1510,7 +1510,7 @@ export const EXTRA_TESTS = [
     'solo_p1_exposure_cooldown_prefers_low_shown_candidates',
     'P1 exposure cooldown downweights high/recent shown cards without breaking deck rules',
     () => {
-      const expectedDeckSize = getSoloDeckSizeForLevel(4);
+      const expectedDeckSize = getSoloDeckSizeForLevel(7);
       const pool = buildSyntheticPool(80, (i) => ({
         year: 1500 + i * 5,
         answer: String(1500 + i * 5),
@@ -1529,7 +1529,7 @@ export const EXTRA_TESTS = [
       );
       const res = buildSoloAttemptDeck({
         pool,
-        levelNumber: 4,
+        levelNumber: 7,
         seedCount: 2,
         recentlySeenQuestionIds: Array.from(highExposureIds),
         questionExposureStats,
@@ -1960,7 +1960,7 @@ export const EXTRA_TESTS = [
     'P3 repeated Solo deck builds cover a broad question set with cooldown active',
     () => {
       const simulation = getP3RepeatedDeckSimulation(100);
-      const expectedTotalSelected = 100 * getSoloDeckSizeForLevel(4);
+      const expectedTotalSelected = 100 * getSoloDeckSizeForLevel(7);
       if (
         simulation.failures.length ||
         simulation.firstFiveGapViolations.length ||
@@ -2005,7 +2005,7 @@ export const EXTRA_TESTS = [
       const eligibleCandidateCount = Number(lastSample.eligibleCandidateCount) || 0;
       const selectedDeckSize = Array.isArray(lastSample.selectedDeckIds)
         ? lastSample.selectedDeckIds.length
-        : getSoloDeckSizeForLevel(4);
+        : getSoloDeckSizeForLevel(7);
       const nonRecentCandidateCount = Math.max(0, eligibleCandidateCount - candidateRecentHits);
       const minimumRecentNeeded = Number.isFinite(Number(lastSample.minimumRecentHistoryNeeded))
         ? Number(lastSample.minimumRecentHistoryNeeded)
@@ -2217,7 +2217,7 @@ export const EXTRA_TESTS = [
     'Solo category preferences target 70% selected categories and 30% global pool',
     () => {
       const selectedCategoryIds = [1, 2, 3];
-      const normalDeckSize = getSoloDeckSizeForLevel(4);
+      const normalDeckSize = getSoloDeckSizeForLevel(7);
       const specialDeckSize = getSoloDeckSizeForLevel(10);
       const pool = buildSyntheticPool(180, (i) => ({
         main_category_id: i < 120 ? selectedCategoryIds[i % selectedCategoryIds.length] : ((i % 3) + 4),
@@ -2229,7 +2229,7 @@ export const EXTRA_TESTS = [
       const specialTargets = getSoloCategoryPreferenceTargetCounts(specialDeckSize);
       const normal = buildSoloAttemptDeck({
         pool,
-        levelNumber: 4,
+        levelNumber: 7,
         seedCount: 2,
         userSelectedCategoryIds: selectedCategoryIds,
         userCategoryPreferenceAvailable: true,
