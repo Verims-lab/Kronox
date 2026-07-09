@@ -29,6 +29,7 @@ Internal deck buffer formula:
 - timeline_basic onboarding: `2 references + 6 playable + 3 + 3 = 14 questions`
 - normal: `2 + 10 + 3 + 3 = 18 questions`
 - special: `2 + 13 + 3 + 3 = 21 questions`
+- Deck sizing is 2 anchors + 10 playable moves + Kart Değiştir buffer + Kronokalkan buffer for normal levels.
 - Zaman Dondur does not require a card buffer
 - Kart Değiştir uses the card-swap buffer and does not consume a move
 - Kronokalkan uses the shield buffer and protects one wrong valid placement from consuming a move

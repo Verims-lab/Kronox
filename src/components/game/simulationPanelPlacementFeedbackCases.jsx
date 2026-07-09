@@ -231,31 +231,31 @@ export const EXTRA_TESTS = [
     'Wrong placement does not insert the card into the timeline',
     () => {
       // useGameActions.doPlacement only adds the card to `newPlayers`
-      // INSIDE `if (isCorrect)`. The wrong branch must not push into
-      // `cards`. We assert both: (a) the insertion lives inside the
-      // isCorrect block, (b) there is no `cards: [...snapshotPlayer.cards,`
-      // append outside that block, AND (c) the timeline insertion
-      // helper that the overlay uses (placementFeedback) does not
-      // mutate `cards`.
+      // INSIDE `if (isCorrect && addCorrectPlacementToTimeline)`. The
+      // wrong branch must not push into `cards`, and onboarding modes pass
+      // addCorrectPlacementToTimeline=false so even correct onboarding
+      // answers are consumed without timeline insertion.
       const src = safeStr(gameActionsSource);
-      const correctBlockHasInsert = src.includes('if (isCorrect)')
+      const correctBlockHasInsert = src.includes('if (isCorrect && addCorrectPlacementToTimeline)')
         && src.includes('cards: [...snapshotPlayer.cards, {');
       // Forbidden: any unconditional `cards: [...snapshotPlayer.cards, ...]`
       // pattern outside the isCorrect block would mean wrong cards are
       // being inserted. The only such occurrence in our source is the
       // one inside isCorrect — count it.
       const insertOccurrences = (src.match(/cards: \[\.\.\.snapshotPlayer\.cards, \{/g) || []).length;
+      const onboardingNoInsertGuard = src.includes('addCorrectPlacementToTimeline = true')
+        && src.includes('if (isCorrect && addCorrectPlacementToTimeline)');
 
       const overlayInsertsCard = safeStr(overlaySource).match(/setLobbyData|setPlayers|onPlaceCard\(/);
 
-      if (!correctBlockHasInsert || insertOccurrences !== 1 || overlayInsertsCard) {
+      if (!correctBlockHasInsert || insertOccurrences !== 1 || !onboardingNoInsertGuard || overlayInsertsCard) {
         return fail('A code path can insert a card into the timeline outside the isCorrect block.', {
           verification: 'STATIC_CONTRACT',
           files: ['hooks/useGameActions.js', 'components/game/PlacementFeedbackOverlay.jsx'],
-          actual: { correctBlockHasInsert, insertOccurrences, overlayInsertsCard: Boolean(overlayInsertsCard) },
+          actual: { correctBlockHasInsert, insertOccurrences, onboardingNoInsertGuard, overlayInsertsCard: Boolean(overlayInsertsCard) },
         });
       }
-      return pass('Card insertion only happens in the isCorrect branch; overlay is purely visual.', { verification: 'STATIC_CONTRACT' });
+      return pass('Card insertion only happens in the correct normal-timeline branch; onboarding no-insert guard and visual-only overlay are preserved.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('feedback_state_is_temporary',

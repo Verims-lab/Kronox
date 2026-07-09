@@ -1,5 +1,15 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex576 — MRDNXHIS Health blocker alignment:
+//   • Base44 SDK frontend package and lockfile return to the exact 0.8.34 pin
+//     used by critical Base44 function Deno imports.
+//   • Placement feedback Health now verifies the real insertion guard:
+//     only correct normal-timeline placements insert; onboarding placements
+//     consume cards without timeline mutation and the overlay stays visual-only.
+//   • Solo question Health retargets "normal" deck simulations to level 7 after
+//     onboarding levels 1-6, and onboarding GuestProfile Health reads the real
+//     level-type helper sources for before_after / timeline_basic wiring.
+//
 // Codex575 — Solo onboarding level types:
 //   • Levels 1-3 use before_after and levels 4-6 use timeline_basic with fixed
 //     references, six playable cards, virtual progress, and real Solo scoring.
@@ -612,7 +622,7 @@ import React, { useEffect, useState } from 'react';
 //   • security_cleanup_health.base44_sdk_versions_exact_and_aligned:
 //     package.json now exact-pins "@base44/sdk": "0.8.34" (was "^0.8.35").
 
-const BUILD_MARKER = 'Codex575';
+const BUILD_MARKER = 'Codex576';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

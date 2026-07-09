@@ -28,6 +28,8 @@ import kronoxUserIdClientSource from '../../lib/kronoxUserId.js?raw';
 import profileSettingsClientSource from '../../lib/profileSettings.js?raw';
 import userProfileHydrationSource from '../../lib/userProfileHydration.js?raw';
 import userCategoryPreferencesSource from '../../lib/userCategoryPreferences.js?raw';
+import soloProgressHelpersSource from '../../lib/soloProgressHelpers.js?raw';
+import soloOnboardingLevelsSource from '../../lib/soloOnboardingLevels.js?raw';
 import authContextSource from '../../lib/AuthContext.jsx?raw';
 import leaderboardSource from '../../lib/leaderboard.js?raw';
 import authProviderButtonsSource from '../auth/AuthProviderButtons.jsx?raw';
@@ -991,7 +993,7 @@ export const EXTRA_TESTS = [
   makeCase('level_type_first_solo_replaces_old_standalone_tutorial',
     'Onboarding uses real level-type first Solo instead of old standalone tutorial',
     () => {
-      const missing = missingTokens(`${appSource}\n${onboardingPageSource}\n${gameSource}`, [
+      const missing = missingTokens(`${appSource}\n${onboardingPageSource}\n${gameSource}\n${soloProgressHelpersSource}\n${soloOnboardingLevelsSource}`, [
         'OnboardingPage',
         'path="/onboarding"',
         'onboardingTutorial',
@@ -1000,6 +1002,8 @@ export const EXTRA_TESTS = [
         'SoloLevelStartTutorialPopup',
         'getSoloLevelStartTutorialConfig',
         'before_after',
+        'timeline_basic',
+        'getSoloLevelType',
         'GUIDED_TUTORIAL_TIME_LIMIT_SECONDS = SOLO_LEVEL_TIME_SECONDS',
         'totalTimeSeconds: GUIDED_TUTORIAL_TIME_LIMIT_SECONDS',
         'tutorial_in_progress',

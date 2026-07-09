@@ -33,6 +33,7 @@ buffer + Kronokalkan buffer, timeline_basic 2 references + 6 playable cards +
 Kart Değiştir buffer + Kronokalkan buffer, normal 2 anchors + 10 playable moves
 + Kart Değiştir buffer + Kronokalkan buffer, and special 2 anchors + 13
 playable moves + Kart Değiştir buffer + Kronokalkan buffer. Zaman Dondur does not require extra card buffer.
+Deck sizing is 2 anchors + 10 playable moves + Kart Değiştir buffer + Kronokalkan buffer for normal levels.
 Extra Kart Değiştir or Kronokalkan use beyond the per-attempt buffer fails
 safely before spend; there is no raw client question list fallback.
 
