@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowLeft, Check, ChevronRight, Copy, Loader2, Pencil, RefreshCw, UserRound, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { sounds } from '@/lib/gameSounds';
 import { useAuth } from '@/lib/AuthContext';
 import CategoryPreferencesSection from '@/components/settings/CategoryPreferencesSection';
@@ -9,6 +9,7 @@ import KronoxAvatar from '@/components/profile/KronoxAvatar';
 import AvatarPickerSheet from '@/components/profile/AvatarPickerSheet';
 import { normalizeSafePublicUsernameInput, resolveSafePublicUsername } from '@/lib/guestProfile';
 import { ensureKronoxUserIdForCurrentActor, getKronoxUserId } from '@/lib/kronoxUserId';
+import { getSafeBackRoute } from '@/lib/NavigationStackContext';
 import {
   PROFILE_AGE_GROUP_OPTIONS,
   PROFILE_GENDER_OPTIONS,
@@ -21,6 +22,7 @@ import {
 
 export default function ProfileEditPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, guestProfile, isLoadingAuth, checkUserAuth } = useAuth();
   const [localProfile, setLocalProfile] = useState(user || guestProfile || null);
   const [editor, setEditor] = useState(null);
@@ -177,7 +179,7 @@ export default function ProfileEditPage() {
 
   const handleBack = () => {
     sounds.tap();
-    navigate('/profile');
+    navigate(getSafeBackRoute(location, '/profile'), { replace: true });
   };
 
   const openAvatarPicker = () => {

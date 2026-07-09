@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   AlertTriangle,
@@ -38,6 +38,7 @@ import {
   MARKET_PRICE_TYPES,
   purchaseMarketProduct,
 } from '@/lib/market';
+import { getSafeBackRoute } from '@/lib/NavigationStackContext';
 
 const Barlow = '"Barlow Condensed", "Arial Narrow", sans-serif';
 const KronoxYellow = '#FFD24A';
@@ -62,6 +63,7 @@ const ICON_BY_ASSET_KIND = {
 
 export default function MarketPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user: authUser, isLoadingAuth, checkUserAuth, setUser } = useAuth();
   const [localUserPatch, setLocalUserPatch] = useState(null);
   const [balances, setBalances] = useState(emptyJokerBalances());
@@ -139,7 +141,7 @@ export default function MarketPage() {
 
   const handleBack = () => {
     sounds.tap();
-    navigate('/');
+    navigate(getSafeBackRoute(location, '/'), { replace: true });
   };
 
   const updateUserDiamonds = (result) => {

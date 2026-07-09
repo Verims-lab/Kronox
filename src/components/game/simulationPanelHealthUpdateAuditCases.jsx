@@ -153,7 +153,9 @@ export const EXTRA_TESTS = [
         'path="/profile/edit"',
         'title="Profil Bilgileri"',
         'onClick={goProfileEdit}',
-        "onBack={() => navigate('/profile')}",
+        'getProfileParentRouteState',
+        "navigate('/friends', { state: getProfileParentRouteState() })",
+        "navigate(getSafeBackRoute(location, '/profile'), { replace: true })",
         'title="Arkadaşlarım"',
         'title="Ayarlar"',
         'Takma Ad',
@@ -163,6 +165,7 @@ export const EXTRA_TESTS = [
         'title="Gizlilik Politikası"',
         'title="Hesabı Sil"',
         "navigate('/profile/edit'",
+        "createParentRouteState('leaderboard', '/leaderboard')",
         "source: 'leaderboard_self_row'",
         'onCurrentUserRowOpenSettings',
         'row.isCurrentUser',
@@ -199,7 +202,7 @@ export const EXTRA_TESTS = [
             'src/components/leaderboard/KronoxRankingSection.jsx',
             'src/components/layout/BottomNav.jsx',
           ],
-          expected: 'BottomNav = Ana Sayfa/Liderlik/Profil; Online remains Home CTA-owned; Profile rows navigate; Friends back returns to /profile (Profile-owned); Settings owns privacy/delete; own leaderboard row alone opens /profile/edit.',
+          expected: 'BottomNav = Ana Sayfa/Liderlik/Profil; Online remains Home CTA-owned; Profile rows pass explicit parent route state; Friends/Settings/Profile edit back returns to parent/root; own leaderboard row opens /profile/edit with Leaderboard parent route.',
           actual: { missing, forbidden },
         });
       }

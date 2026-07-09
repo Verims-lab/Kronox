@@ -1,6 +1,7 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
+import { getSafeBackRoute } from '@/lib/NavigationStackContext';
 
 // Phase 3 audit (Codex124) — DEPRECATED.
 //   App.jsx Codex102 stopped rendering this component globally; every
@@ -34,8 +35,7 @@ export default function AppHeader({ onBack } = {}) {
 
   const handleBack = () => {
     if (onBack) { onBack(); return; }
-    if (window.history.length > 1) { navigate(-1); }
-    else { navigate('/'); }
+    navigate(getSafeBackRoute(location), { replace: true });
   };
 
   return (

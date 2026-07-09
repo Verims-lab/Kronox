@@ -87,6 +87,14 @@ BottomNav visible tabs:
 
 Online is not a BottomNav tab. Online starts from Home.
 
+BottomNav taps are root navigation: Ana Sayfa opens `/`, Liderlik opens
+`/leaderboard`, and Profil opens `/profile`. BottomNav must not restore a
+cached Profile/Friends/Settings subpage after the user changes tabs.
+
+Subpages opened from a tab root carry explicit parent route state. Their
+top-left back arrow returns to that parent/root route, not blindly to Home and
+not through browser-history back if that could jump tabs or reopen stale state.
+
 BottomNav is hidden or minimized where the game/onboarding shell requires it.
 
 ---

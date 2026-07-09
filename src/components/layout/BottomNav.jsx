@@ -1,7 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Home, Trophy, UserRound } from 'lucide-react';
-import { getTabRootForPathname, useNavigationStack } from '@/lib/NavigationStackContext';
+import {
+  getTabRootForPathname,
+  getTabRootNavigationState,
+  useNavigationStack,
+} from '@/lib/NavigationStackContext';
 import { getBottomNavHidden, subscribeBottomNavHidden } from '@/lib/bottomNavVisibility';
 
 // Codex305 — BottomNav has exactly three visible tabs. Online remains reachable
@@ -27,11 +31,8 @@ export default function BottomNav() {
   const {
     currentTab,
     switchTab,
-    getStackForTab,
     resetStack,
     rememberRoute,
-    getScrollForTab,
-    saveScrollForTab,
   } = useNavigationStack();
 
   // Codex103 — subscribe to runtime visibility overrides (set by LobbyRoom for
@@ -47,37 +48,13 @@ export default function BottomNav() {
   if (runtimeHidden) return null;
 
   const activeTab = getTabRootForPathname(location.pathname) || currentTab;
-  const saveCurrentTabState = () => {
-    const tabRoot = getTabRootForPathname(location.pathname);
-    if (!tabRoot) return;
-    rememberRoute(location);
-    saveScrollForTab(tabRoot, window.scrollY || document.documentElement.scrollTop || 0);
-  };
-
-  const restoreScrollForTab = (tabRoot) => {
-    const y = getScrollForTab(tabRoot);
-    window.requestAnimationFrame?.(() => {
-      window.requestAnimationFrame?.(() => {
-        window.scrollTo({ top: y, left: 0, behavior: 'auto' });
-      });
-    });
-  };
-
   const handleTabClick = (path) => {
-    if (activeTab === path) {
-      // Re-tapping current tab resets its stack/root without touching the other tabs.
-      resetStack(path);
-      switchTab(path);
-      navigate(path, { replace: true });
-      window.requestAnimationFrame?.(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }));
-    } else {
-      saveCurrentTabState();
-      switchTab(path);
-      const stack = getStackForTab(path);
-      const target = stack[stack.length - 1] || path;
-      navigate(target, { replace: true });
-      restoreScrollForTab(path);
-    }
+    // BottomNav is root navigation, not nested-route restoration. This keeps
+    // Profile/Friends/Settings subpages from becoming sticky after tab changes.
+    resetStack(path);
+    switchTab(path);
+    navigate(path, { replace: true, state: getTabRootNavigationState(path) });
+    window.requestAnimationFrame?.(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }));
   };
 
   return (

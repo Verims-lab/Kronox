@@ -23,6 +23,11 @@ checks that source code and static Health cannot honestly prove alone.
   BottomNav taps, form inputs, or modal actions.
 * Pull-to-refresh/overscroll guards are scoped to the relevant container or
   active gameplay drag only.
+* BottomNav visible tabs are exactly `Ana Sayfa`, `Liderlik`, and `Profil`.
+  Tapping any tab opens that tab root, never a cached/sticky subpage. Profile
+  subpages, Friends, Settings, Admin, Market, Daily, and similar main-tab
+  subpages use a top-left back arrow with explicit parent/root fallback; the
+  top-right remains reserved for notifications/actions.
 * Reduced motion keeps functional feedback without relying on long animations.
 * Loading/error/retry states must be local to the affected section when possible
   so one slow data source does not blank an entire screen.

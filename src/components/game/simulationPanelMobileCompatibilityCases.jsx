@@ -1,7 +1,7 @@
 // Kronox Health Center — iOS/mobile compatibility contracts.
 //
-// Static checks lock the scoped pull-to-refresh, independent tab stack, and
-// bottom-sheet selector contracts. Real iOS/PWA gesture, scroll restoration,
+// Static checks lock the scoped pull-to-refresh, root-tab BottomNav, explicit
+// parent-back route state, and bottom-sheet selector contracts. Real iOS/PWA gesture, scroll restoration,
 // and VoiceOver proof remains manual.
 
 import pullToRefreshSource from '../mobile/PullToRefresh.jsx?raw';
@@ -10,7 +10,12 @@ import bottomNavSource from '../layout/BottomNav.jsx?raw';
 import navigationStackSource from '../../lib/NavigationStackContext.jsx?raw';
 import friendsPageSource from '../../pages/FriendsPage.jsx?raw';
 import leaderboardPageSource from '../../pages/LeaderboardPage.jsx?raw';
+import profilePageSource from '../../pages/ProfilePage.jsx?raw';
+import profileEditPageSource from '../../pages/ProfileEditPage.jsx?raw';
+import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
 import adminPageSource from '../../pages/AdminPage.jsx?raw';
+import standardTopBarSource from '../layout/StandardTopBar.jsx?raw';
+import screenHeaderSource from '../layout/ScreenHeader.jsx?raw';
 import categoryPreferencesSource from '../settings/CategoryPreferencesSection.jsx?raw';
 import questionAnalyticsToolSource from '../admin/QuestionAnalyticsReportTool.jsx?raw';
 import resetUserProgressToolSource from '../admin/ResetUserProgressTool.jsx?raw';
@@ -155,53 +160,79 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('route_navigation_resilience', 'Route / Navigation Resilience Suite',
-    'bottom_nav_independent_tab_stacks_exist',
-    'BottomNav supports independent tab stacks for Home/Liderlik/Profile',
+    'bottom_nav_opens_tab_roots_without_stale_subpages',
+    'BottomNav opens Home/Liderlik/Profile roots and does not restore stale subpages',
     () => {
       const missing = missingTokens(tabStackSources, [
         'TAB_ROOTS',
         "leaderboard: '/leaderboard'",
         'getTabRootForPathname',
         'rememberRoute(location)',
-        'getStackForTab(path)',
-        'saveScrollForTab',
-        'getScrollForTab',
+        'getTabRootNavigationState',
+        'resetTabSubpage',
+        'navigate(path, { replace: true, state: getTabRootNavigationState(path) })',
+        'window.scrollTo({ top: 0',
       ]);
-      const forbidden = forbiddenTokens(bottomNavSource, ["label: 'Online'", 'path: TAB_ROOTS.online']);
-      if (missing.length || forbidden.length) return fail('BottomNav independent tab stack state or visible tab contract is incomplete.', {
+      const forbidden = forbiddenTokens(bottomNavSource, ["label: 'Online'", 'path: TAB_ROOTS.online', 'getStackForTab(path)']);
+      if (missing.length || forbidden.length) return fail('BottomNav root-tab or visible tab contract is incomplete.', {
         verification: 'STATIC_CONTRACT',
         actual: { missing, forbidden },
       });
-      return pass('BottomNav has stored route/scroll state for Home, Liderlik, and Profile, with no visible Online tab.', { verification: 'STATIC_CONTRACT' });
+      return pass('BottomNav always opens tab roots for Home, Liderlik, and Profile, with no visible Online tab and no stale Profile subpage restore.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('route_navigation_resilience', 'Route / Navigation Resilience Suite',
     'bottom_nav_active_retap_resets_root',
-    'Re-tapping active BottomNav tab resets that tab to its root',
+    'Tapping any BottomNav tab resets that tab to its root',
     () => {
       const missing = missingTokens(bottomNavSource, [
-        'activeTab === path',
         'resetStack(path)',
-        'navigate(path, { replace: true })',
+        'switchTab(path)',
+        'state: getTabRootNavigationState(path)',
         "window.scrollTo({ top: 0",
         "HIDDEN_ROUTES = ['/game']",
       ]);
       if (missing.length) return fail('Active tab re-tap reset or /game hidden rule is missing.', { verification: 'STATIC_CONTRACT', missing });
-      return pass('Active tab re-tap resets only the active tab root and scrolls to top; /game remains full-screen.', { verification: 'STATIC_CONTRACT' });
+      return pass('BottomNav taps reset the selected tab root and scroll to top; /game remains full-screen.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('route_navigation_resilience', 'Route / Navigation Resilience Suite',
-    'profile_and_home_route_ownership_preserves_subroutes',
-    'Profile subroutes preserve state and Online remains owned by the Home CTA flow',
+    'profile_and_home_route_ownership_uses_parent_back_state',
+    'Profile/Home subroutes use explicit parent route state and Online remains Home-owned',
     () => {
-      const missing = missingTokens(navigationStackSource, [
+      const combined = [
+        navigationStackSource,
+        profilePageSource,
+        profileEditPageSource,
+        friendsPageSource,
+        settingsPageSource,
+        leaderboardPageSource,
+        standardTopBarSource,
+        screenHeaderSource,
+      ].map(safeStr).join('\n');
+      const missing = missingTokens(combined, [
         "['/profile', '/profile/edit', '/friends', '/settings', '/admin', '/test-suite', '/account-deletion']",
         "if (pathname === '/lobby') return TAB_ROOTS.home",
         "if (['/', '/market', '/solo', '/setup'].includes(pathname)) return TAB_ROOTS.home",
-        'routeKeyFromLocation',
+        'createParentRouteState',
+        'getProfileParentRouteState',
+        'getSafeBackRoute(location, \'/profile\')',
+        "createParentRouteState('leaderboard', '/leaderboard')",
+        "navigate('/friends', { state: getProfileParentRouteState() })",
+        "navigate('/settings', { state: getProfileParentRouteState() })",
+        "navigate('/profile/edit', { state: getProfileParentRouteState() })",
+        'navigate(getSafeBackRoute(location), { replace: true })',
       ]);
-      if (missing.length) return fail('Tab route ownership no longer maps Profile/Home subroutes clearly.', { verification: 'STATIC_CONTRACT', missing });
-      return pass('Profile subroutes are owned by Profile and the Online lobby route stays in the Home CTA flow.', { verification: 'STATIC_CONTRACT' });
+      const forbidden = forbiddenTokens(`${profileEditPageSource}\n${settingsPageSource}\n${friendsPageSource}\n${standardTopBarSource}\n${screenHeaderSource}`, [
+        "navigate('/profile');",
+        'navigate(-1)',
+        'window.history.length',
+      ]);
+      if (missing.length || forbidden.length) return fail('Tab route ownership or parent-back route state drifted.', {
+        verification: 'STATIC_CONTRACT',
+        actual: { missing, forbidden },
+      });
+      return pass('Profile/Home subroutes carry explicit parent routes, back falls to parent/tab root instead of Home/browser history, and Online lobby stays Home-owned.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('category_preferences_health', 'Profile Info Category Preferences Suite',

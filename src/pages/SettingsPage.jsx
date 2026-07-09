@@ -8,6 +8,7 @@ import StandardTopBar from '@/components/layout/StandardTopBar';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 import { ACCOUNT_DELETION_ERROR_COPY, requestAccountDeletion } from '@/lib/accountDeletion';
 import { useAuth } from '@/lib/AuthContext';
+import { createParentRouteState, getSafeBackRoute } from '@/lib/NavigationStackContext';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -46,6 +47,9 @@ export default function SettingsPage() {
       setDeleteError(error?.message || ACCOUNT_DELETION_ERROR_COPY);
     }
   };
+  const handleBack = () => {
+    navigate(getSafeBackRoute(location, '/profile'), { replace: true });
+  };
 
   if (isLoadingAuth) {
     return (
@@ -71,7 +75,7 @@ export default function SettingsPage() {
         userSelect: 'none',
       }}
     >
-      <StandardTopBar diamonds={diamondValue} user={user} showBack />
+      <StandardTopBar diamonds={diamondValue} user={user} showBack onBack={handleBack} />
 
       <div className="mx-auto w-full max-w-md px-4 pb-1">
         <h1 className="font-cinzel text-2xl font-black tracking-wide text-foreground">Ayarlar</h1>
@@ -91,13 +95,13 @@ export default function SettingsPage() {
               icon={<FileText className="h-4 w-4" />}
               title="Gizlilik Politikası"
               desc="Veri kullanımı ve hakların"
-              onClick={() => navigate('/privacy')}
+              onClick={() => navigate('/privacy', { state: createParentRouteState('settings', '/settings') })}
             />
             <SettingsListRow
               icon={<ShieldCheck className="h-4 w-4" />}
               title="Hesabı Sil"
               desc={effectiveUser ? 'Tüm veriler kalıcı olarak silinir' : 'Bilgi ve destek kanalı'}
-              onClick={() => (effectiveUser ? setConfirmDelete(true) : navigate('/account-deletion'))}
+              onClick={() => (effectiveUser ? setConfirmDelete(true) : navigate('/account-deletion', { state: createParentRouteState('settings', '/settings') }))}
               danger={Boolean(effectiveUser)}
               isLast
             />

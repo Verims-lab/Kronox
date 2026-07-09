@@ -1,8 +1,9 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Gem, Store } from 'lucide-react';
 import { sounds } from '@/lib/gameSounds';
 import HeaderNotificationBell from '@/components/notifications/HeaderNotificationBell';
+import { createParentRouteState, getSafeBackRoute } from '@/lib/NavigationStackContext';
 
 /**
  * StandardTopBar — single shared top bar for app-shell screens.
@@ -32,19 +33,19 @@ export default function StandardTopBar({
   variant = 'default',
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const isHomeVariant = variant === 'home';
 
   const handleBack = () => {
     sounds.tap();
     if (onBack) { onBack(); return; }
-    if (typeof window !== 'undefined' && window.history.length > 1) navigate(-1);
-    else navigate('/');
+    navigate(getSafeBackRoute(location), { replace: true });
   };
 
   const handleMarket = () => {
     sounds.tap();
     if (onMarket) { onMarket(); return; }
-    navigate('/market');
+    navigate('/market', { state: createParentRouteState('home', '/') });
   };
 
   const handleDiamondClick = () => {

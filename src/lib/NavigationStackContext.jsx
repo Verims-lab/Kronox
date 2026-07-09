@@ -7,6 +7,42 @@ export const TAB_ROOTS = {
 };
 
 const TAB_ROOT_VALUES = Object.values(TAB_ROOTS);
+const SAFE_ROUTE_RE = /^\/(?!\/)/;
+
+export const TAB_ROOT_NAVIGATION_STATE = Object.freeze({
+  from: 'bottom_nav',
+  tabRootNavigation: true,
+  resetTabSubpage: true,
+});
+
+export function createParentRouteState(from, parentRoute, extra = {}) {
+  const safeParentRoute = sanitizeInternalRoute(parentRoute, TAB_ROOTS.home);
+  return {
+    from,
+    parentRoute: safeParentRoute,
+    returnTo: safeParentRoute,
+    ...extra,
+  };
+}
+
+export function getProfileParentRouteState(extra = {}) {
+  return createParentRouteState('profile', TAB_ROOTS.profile, extra);
+}
+
+export function getTabRootNavigationState(tabRoot) {
+  const safeTabRoot = TAB_ROOT_VALUES.includes(tabRoot) ? tabRoot : TAB_ROOTS.home;
+  return {
+    ...TAB_ROOT_NAVIGATION_STATE,
+    parentRoute: safeTabRoot,
+    returnTo: safeTabRoot,
+  };
+}
+
+export function sanitizeInternalRoute(route, fallback = TAB_ROOTS.home) {
+  const value = typeof route === 'string' ? route.trim() : '';
+  if (SAFE_ROUTE_RE.test(value)) return value;
+  return fallback;
+}
 
 function routeKeyFromLocation(locationLike) {
   if (!locationLike) return '/';
@@ -26,6 +62,18 @@ export function getTabRootForPathname(pathname = '/') {
   }
   if (['/', '/market', '/solo', '/setup'].includes(pathname)) return TAB_ROOTS.home;
   return TAB_ROOTS.home;
+}
+
+export function getSafeBackRoute(locationLike, fallbackRoute) {
+  const pathname = locationLike?.pathname || '/';
+  const fallback = sanitizeInternalRoute(
+    fallbackRoute || getTabRootForPathname(pathname) || TAB_ROOTS.home,
+    TAB_ROOTS.home,
+  );
+  const state = locationLike?.state && typeof locationLike.state === 'object'
+    ? locationLike.state
+    : {};
+  return sanitizeInternalRoute(state.returnTo || state.parentRoute, fallback);
 }
 
 const NavigationStackContext = createContext();

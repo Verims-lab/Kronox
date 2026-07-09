@@ -47,6 +47,7 @@ import { getUserHintBalance, normalizeHintQuantity } from '@/lib/hintInventory';
 import KronoxStatTile from '@/components/ui/KronoxStatTile';
 import AuthProviderButtons from '@/components/auth/AuthProviderButtons';
 import KronoxAvatar from '@/components/profile/KronoxAvatar';
+import { getProfileParentRouteState } from '@/lib/NavigationStackContext';
 
 const FIRST_LOGIN_REWARD_AMOUNT = 80;
 
@@ -207,9 +208,9 @@ export default function ProfilePage() {
 
   const isAdmin = isAdminUser(user);
 
-  const goSettings = () => { sounds.tap(); navigate('/settings'); };
-  const goProfileEdit = () => { sounds.tap(); navigate('/profile/edit'); };
-  const goAdmin = () => { sounds.tap(); navigate('/admin'); };
+  const goSettings = () => { sounds.tap(); navigate('/settings', { state: getProfileParentRouteState() }); };
+  const goProfileEdit = () => { sounds.tap(); navigate('/profile/edit', { state: getProfileParentRouteState() }); };
+  const goAdmin = () => { sounds.tap(); navigate('/admin', { state: getProfileParentRouteState() }); };
   const handleLogin = () => {
     sounds.tap();
     setLoginSheetOpen(true);
@@ -339,7 +340,7 @@ export default function ProfilePage() {
             icon={<Users className="w-4 h-4" />}
             title="Arkadaşlarım"
             desc="Arkadaş ekle, davet et, birlikte oyna"
-            onClick={() => { sounds.tap(); navigate('/friends'); }}
+            onClick={() => { sounds.tap(); navigate('/friends', { state: getProfileParentRouteState() }); }}
           />
         </Section>
 

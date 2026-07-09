@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex578 — Profile subpage navigation root/back fix:
+//   • BottomNav taps now open tab roots only: Ana Sayfa, Liderlik, Profil.
+//   • Profile/Friends/Settings/Admin/Profile Edit subpages carry explicit
+//     parentRoute/returnTo state so top-left back returns to the parent/root.
+//   • Shared top-bar fallback uses parent route or current tab root instead of
+//     blind browser history, preventing sticky Profile subpage reopen.
+//
 // Codex577 — Onboarding move allowance, before_after slots, Store modal safety:
 //   • Levels 1-6 keep a 6-correct onboarding progress target while using
 //     the 10-HAMLE evaluated move allowance and larger prepared attempt decks.
@@ -10,7 +17,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex577';
+const BUILD_MARKER = 'Codex578';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

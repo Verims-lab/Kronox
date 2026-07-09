@@ -62,7 +62,7 @@ export const TECHNICAL_FLOW_DOC = `# Kronox Technical Flow
 
 Status: Active technical flow contract.
 
-- App routes are owned by src/App.jsx; BottomNav visible tabs are Ana Sayfa, Liderlik, and Profil. Profile is guest-compatible and the app-level onboarding guard must not bounce normal /profile tab navigation while guest state is recoverable.
+- App routes are owned by src/App.jsx; BottomNav visible tabs are Ana Sayfa, Liderlik, and Profil. BottomNav taps open tab roots (/, /leaderboard, /profile) and must not restore sticky Profile/Friends/Settings subpages after a tab change. Profile is guest-compatible and the app-level onboarding guard must not bounce normal /profile tab navigation while guest state is recoverable. Main-tab subpages use explicit parentRoute/returnTo state and top-left back arrows that return to the immediate parent/root route instead of hardcoded Home or blind browser history.
 - createGuestProfile is public by design but narrow: it creates/verifies GuestProfile and stores guest_token_hash only. Guest mutations require guest_id + raw guest token.
 - linkGuestAccount is Profile-only and verifies guest token proof plus authenticated user before AccountLinkTransaction merge. It preserves the guest kronox_user_id as the canonical identity when linking, plus guest Diamonds, Daily Wheel/Daily Calendar same-day and streak guards/history, leaderboard username identity, category preferences, progress, and inventory where applicable.
 - getCategoryMetadata returns category_id, name, description, and status from current active Category rows only; it must not expose questions, answers, years, user data, admin fields, passive/deleted categories, or stale fallback arrays.

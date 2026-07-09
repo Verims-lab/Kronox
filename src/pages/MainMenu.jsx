@@ -6,6 +6,7 @@ import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
 import { useAuth } from '@/lib/AuthContext';
 import StandardTopBar from '@/components/layout/StandardTopBar';
+import { createParentRouteState } from '@/lib/NavigationStackContext';
 import DailyWheelCard from '@/components/dailyWheel/DailyWheelCard';
 import { useDailyWheel } from '@/hooks/useDailyWheel';
 import { useDailyQuests } from '@/hooks/useDailyQuests';
@@ -169,12 +170,12 @@ export default function MainMenu() {
   };
 
   const handleMarket = () => {
-    navigate('/market');
+    navigate('/market', { state: createParentRouteState('home', '/') });
   };
 
   const handleDaily = () => {
     sounds.tap();
-    navigate('/daily');
+    navigate('/daily', { state: createParentRouteState('home', '/') });
   };
 
   const handleShortcut = (shortcut) => {

@@ -14,6 +14,7 @@ import {
 import { useAuth } from '@/lib/AuthContext';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 import { isGuestOnboardingComplete } from '@/lib/guestProfile';
+import { createParentRouteState } from '@/lib/NavigationStackContext';
 import { useDailyQuests } from '@/hooks/useDailyQuests';
 import {
   DAILY_CALENDAR_TASKS_PER_DAY,
@@ -86,7 +87,7 @@ export default function DailyPage() {
       >
         <button
           type="button"
-          onClick={() => navigate('/')}
+          onClick={() => navigate('/', { replace: true })}
           className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-100 active:scale-95"
           style={{ background: 'rgba(7,18,38,0.72)', boxShadow: 'inset 0 0 0 1px rgba(148,163,184,0.22)' }}
           aria-label="Ana sayfaya dön"
@@ -114,7 +115,7 @@ export default function DailyPage() {
         </div>
         <button
           type="button"
-          onClick={() => navigate('/market')}
+          onClick={() => navigate('/market', { state: createParentRouteState('daily', '/daily') })}
           className="inline-flex h-11 max-w-[8.5rem] shrink-0 items-center gap-1.5 rounded-full px-2.5 text-sm font-black text-white active:scale-95"
           style={{ background: 'rgba(7,18,38,0.72)', boxShadow: 'inset 0 0 0 1px rgba(250,204,21,0.26)' }}
           aria-label="Elmas mağazası"

@@ -730,10 +730,16 @@ Checklist:
   horizontal auto-scroll still work after the global zoom guard is active.
 * Bottom nav does not collide with home indicator.
 * BottomNav visible tabs are Ana Sayfa, Liderlik, and Profil only. Online is
-  launched from Home through Online Kapışma, not from BottomNav. Switching
-  visible tabs preserves the previous subroute/scroll state; tapping the active
-  tab resets that tab to its root. `/game` remains outside tab stacks and
-  full-screen according to existing gameplay rules.
+  launched from Home through Online Kapışma, not from BottomNav. Every
+  BottomNav tab tap opens that tab root (`/`, `/leaderboard`, `/profile`);
+  Profile/Friends/Settings subpages must not reopen as sticky hidden tab state
+  after returning Home and tapping Profil again. `/game` remains outside tab
+  stacks and full-screen according to existing gameplay rules.
+* Subpages opened from Profile or another main tab use a top-left back arrow.
+  The arrow returns to the immediate parent/root route through explicit
+  `parentRoute` / `returnTo` state when needed. It must not be hardcoded to
+  Home unless Home is the actual parent, and default shared back behavior must
+  fall back to the current tab root rather than blind browser history.
 * Top bar does not clip under notch/status bar.
 * Popups fit small screens.
 * Keyboard does not crush input flows.

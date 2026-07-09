@@ -1,8 +1,9 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Gem, Trophy } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { sounds } from '@/lib/gameSounds';
+import { getSafeBackRoute, getTabRootNavigationState } from '@/lib/NavigationStackContext';
 // Codex134 — Shared real-time header notification bell.
 // Renders to the right of the chip area and to the left of the avatar.
 // Self-contained (data + subscriptions live in useHeaderNotifications),
@@ -57,17 +58,17 @@ export default function ScreenHeader({
   showProfile = true,
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleBack = () => {
     sounds.tap();
     if (onBack) { onBack(); return; }
-    if (typeof window !== 'undefined' && window.history.length > 1) navigate(-1);
-    else navigate('/');
+    navigate(getSafeBackRoute(location), { replace: true });
   };
 
   const handleAvatar = () => {
     sounds.tap();
-    navigate('/profile');
+    navigate('/profile', { state: getTabRootNavigationState('/profile') });
   };
 
   const displayName = user?.username || user?.public_username || user?.full_name || (user?.email ? user.email.split('@')[0] : '');

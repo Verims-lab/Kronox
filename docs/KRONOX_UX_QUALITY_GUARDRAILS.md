@@ -166,7 +166,13 @@ Leaderboard:
 - Primary touch targets should be comfortable for thumbs.
 - Fixed gameplay screens must not accidentally page-scroll.
 - Scrollable areas must be intentional and scoped.
-- Back navigation must be obvious on subroutes and sheets.
+- Back navigation must be obvious on subroutes and sheets. Main-tab subpages
+  use a top-left back arrow that returns to the immediate parent/root route
+  through explicit parent route state; it must not be hardcoded to Home unless
+  Home is the actual parent.
+- BottomNav taps are root navigation only: `Ana Sayfa`, `Liderlik`, and
+  `Profil` open `/`, `/leaderboard`, and `/profile` respectively, without
+  restoring sticky hidden subpages from a previous tab visit.
 - Loading states should preserve surrounding layout rather than blanking the
   whole screen.
 - Empty states should explain what can happen next without generic filler copy.
