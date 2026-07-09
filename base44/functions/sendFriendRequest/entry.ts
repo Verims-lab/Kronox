@@ -433,7 +433,10 @@ Deno.serve(async (req) => {
     if (!targetEmail) return json({ ok: false, code: 'target_not_found', error: USERNAME_NOT_FOUND_MESSAGE }, 404);
     if (targetEmail === fromEmail) return json({ ok: false, code: 'self_add', error: 'Kendini ekleyemezsin.' }, 400);
 
-    const lockKey = buildFriendRequestLockKey(fromKronoxUserId || fromEmail, targetKronoxUserId || targetEmail);
+    // Codex — always key the lock by the canonical normalized email pair
+    // (never by Kronox ID) so two requests for the same relationship using
+    // different identifier forms cannot generate different lock keys.
+    const lockKey = buildFriendRequestLockKey(fromEmail, targetEmail);
     return await withFriendRequestOperationLock(base44, lockKey, {
       actorKeyHash: hashLockComponent(fromEmail),
       targetKeyHash: hashLockComponent(targetEmail),

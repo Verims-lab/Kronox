@@ -42,7 +42,15 @@ Deno.serve(async (req) => {
     }
 
     // Flip every accepted request between the pair back to 'rejected'.
+    // Defense-in-depth: even though the filters above already scope rows to
+    // exactly (myEmail <-> friendEmail), re-verify each row belongs to the
+    // authenticated caller before the service-role update touches it.
     for (const row of acceptedRows) {
+      const rowFrom = String(row?.from_email || '').trim().toLowerCase();
+      const rowTo = String(row?.to_email || '').trim().toLowerCase();
+      const involvesMe = rowFrom === myEmail || rowTo === myEmail;
+      const involvesFriend = rowFrom === friendEmail || rowTo === friendEmail;
+      if (!involvesMe || !involvesFriend) continue;
       await base44.asServiceRole.entities.FriendRequest.update(row.id, { status: 'rejected' });
     }
 

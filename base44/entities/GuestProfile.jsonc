@@ -339,7 +339,10 @@
     "read": {
       "$or": [
         {
-          "data.guest_id": "{{guest.guest_id}}"
+          "data.guest_id": "{{user.id}}"
+        },
+        {
+          "data.linked_user_email": "{{user.email}}"
         },
         {
           "user_condition": {
@@ -351,7 +354,10 @@
     "update": {
       "$or": [
         {
-          "data.guest_id": "{{guest.guest_id}}"
+          "data.guest_id": "{{user.id}}"
+        },
+        {
+          "data.linked_user_email": "{{user.email}}"
         },
         {
           "user_condition": {

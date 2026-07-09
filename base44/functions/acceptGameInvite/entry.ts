@@ -81,14 +81,77 @@ function normalizeAvatarColorId(value: unknown) {
   return AVATAR_COLOR_IDS.has(text) ? text : 'gold';
 }
 
+function isIPv4Literal(host: string) {
+  const match = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (!match) return null;
+  const octets = match.slice(1, 5).map((part) => Number(part));
+  if (octets.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return null;
+  return octets;
+}
+
+function isPrivateOrReservedIPv4(octets: number[]) {
+  const [a, b] = octets;
+  if (a === 0) return true; // 0.0.0.0/8
+  if (a === 10) return true; // RFC1918
+  if (a === 127) return true; // loopback
+  if (a === 169 && b === 254) return true; // link-local
+  if (a === 172 && b >= 16 && b <= 31) return true; // RFC1918
+  if (a === 192 && b === 168) return true; // RFC1918
+  if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT
+  if (a === 192 && b === 0 && octets[2] === 0) return true; // IETF protocol assignments
+  if (a === 192 && b === 0 && octets[2] === 2) return true; // TEST-NET-1
+  if (a === 198 && (b === 18 || b === 19)) return true; // benchmarking
+  if (a === 198 && b === 51 && octets[2] === 100) return true; // TEST-NET-2
+  if (a === 203 && b === 0 && octets[2] === 113) return true; // TEST-NET-3
+  if (a >= 224) return true; // multicast (224-239) + reserved (240-255)
+  return false;
+}
+
+function isPrivateOrReservedIPv6(host: string) {
+  const text = host.toLowerCase();
+  if (text === '::1' || text === '::') return true; // loopback / unspecified
+  if (text.startsWith('fe80:') || text.startsWith('fe8') || text.startsWith('fe9') || text.startsWith('fea') || text.startsWith('feb')) return true; // link-local
+  if (text.startsWith('fc') || text.startsWith('fd')) return true; // unique local (ULA)
+  const mapped = text.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
+  if (mapped) {
+    const octets = isIPv4Literal(mapped[1]);
+    if (octets && isPrivateOrReservedIPv4(octets)) return true;
+  }
+  return false;
+}
+
 function isSafeAvatarPhotoUrl(value: unknown) {
   const text = String(value || '').trim();
   if (!text || text.length > 2048) return false;
+  let parsed: URL;
   try {
-    return new URL(text).protocol === 'https:';
+    parsed = new URL(text);
   } catch {
     return false;
   }
+  if (parsed.protocol !== 'https:') return false;
+
+  // Reject internal/private/loopback/link-local/metadata hosts so this
+  // user-supplied URL can never be used to target internal network
+  // services or cloud metadata endpoints (SSRF hardening).
+  const hostname = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  if (!hostname) return false;
+  if (hostname === 'localhost' || hostname.endsWith('.localhost')) return false;
+  if (hostname.endsWith('.local') || hostname.endsWith('.internal') || hostname.endsWith('.lan')) return false;
+
+  // Reject ANY raw IP-literal host (public or private), not only private
+  // ranges. A trusted avatar photo host must always be a real domain name;
+  // this also closes obfuscated-IP bypasses (decimal/octal/hex IPv4 forms
+  // are normalized into dotted-decimal by the URL parser before we get
+  // here, and IPv6 literals are rejected outright).
+  const ipv4 = isIPv4Literal(hostname);
+  if (ipv4) return false;
+  if (hostname.includes(':')) return false;
+  if (isPrivateOrReservedIPv6(hostname)) return false;
+  // Require a real FQDN (at least one dot) with no fully-numeric labels.
+  if (!hostname.includes('.') || /^[0-9.]+$/.test(hostname)) return false;
+
+  return true;
 }
 
 function readSafeAvatarPhotoUrl(row: any = {}) {
