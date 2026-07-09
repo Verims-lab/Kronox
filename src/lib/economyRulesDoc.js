@@ -187,11 +187,20 @@ reason: 'real_money_unavailable'; KronoClub and Reklamları Kaldır carry
 reason: 'future_feature'.
 Diamond-spend Joker packages are Kronokalkan 1/5/15 = 60/270/720 Diamonds,
 Zamanı Dondur 1/5/15 = 40/180/480 Diamonds, and Kart Değiştir 1/5/15 =
-50/225/600 Diamonds. Hint packages are 5/15/40 İpucu = 40/100/240 Diamonds.
+50/225/600 Diamonds. Hint packages are 5/15/40 İpucu = 150/400/800 Diamonds.
 Advantage Packages are Başlangıç Paketi = 2 Kronokalkan + 2 Kart Değiştir + 2
 Zamanı Dondur + 10 İpucu for 250 Diamonds and Mega Paket = 10 Kronokalkan + 10
 Kart Değiştir + 10 Zamanı Dondur + 30 İpucu for 1.000 Diamonds. KronoClub and
 Reklamları Kaldır are future/disabled Yakında buttons and grant no benefits.
+Mağaza keeps the main MAĞAZA title but removes subtitle and section
+explanatory copy above/under Elmas, Joker, İpucu, Avantaj, and Yakında
+sections. Diamond package cards render amount plus Elmas as two lines, show TL
+price, and do not render Birim fiyat, unit-price fields, or decorative extra
+Diamond dots. Diamond-spend Joker, Hint, and Advantage cards show the Diamond
+price on the right side and do not render direct card-level SATIN AL buttons;
+tapping the card opens a detail popup with package contents and a purchase CTA
+that includes the Diamond price. Purchase success is not shown as a persistent
+Store banner/list; only safe failure/info states may render.
 Diamond source/sink balance: Daily Wheel V2 can be a Diamond source and/or
 approved joker grant source, while Mağaza purchase is a Diamond sink —
 Mağaza Diamond-spend purchases only remove Diamonds server-side.

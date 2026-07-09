@@ -145,37 +145,71 @@ export const EXTRA_TESTS = [
       return pass('Store screen is scrollable and carries the approved premium visual tokens.', { verification: 'STATIC_CONTRACT' });
     }),
 
+  makeCase('store_simplified_copy_and_success_banner_removed',
+    'Store removes explanatory copy, unit prices, decorative Diamond dots, and purchase success banner',
+    () => {
+      const forbidden = forbiddenTokens(`${marketPageSource}\n${marketSource}`, [
+        'Elmas paketleri, jokerler ve avantaj paketleri.',
+        'Gerçek para paketleri',
+        'Elmas paketleri hazır',
+        'Elmas ile güçlen',
+        'Solo joker paketleri',
+        'Elmas ile ipucu',
+        'İpucu bakiyesi sunucuda tutulur',
+        'Karma paketler',
+        'Gelecek özellikler',
+        'Birim Fiyat',
+        'unitPrice',
+        '${product.title} alındı.',
+        'bottom-[18%] left-[18%]',
+        'bottom-[16%] right-[18%]',
+      ]);
+      const missing = missingTokens(marketPageSource, [
+        'function DiamondAmount',
+        'Number(amount).toLocaleString',
+        'Elmas',
+      ]);
+      if (forbidden.length || missing.length) return fail('Store simplified UI/copy contract drifted.', {
+        verification: 'STATIC_CONTRACT',
+        files: ['src/pages/MarketPage.jsx', 'src/lib/market.js'],
+        actual: { forbidden, missing },
+      });
+      return pass('Store keeps only section titles, removes unit/copy clutter and purchase success banner, and renders Diamond packages as amount + Elmas.', { verification: 'STATIC_CONTRACT' });
+    }),
+
   makeCase('real_money_diamond_packages_exact_display',
-    'Real-money Diamond packages display exact amounts and prices',
+    'Real-money Diamond packages display exact two-line amounts and prices without unit price',
     () => {
       const actual = MARKET_DIAMOND_PACKAGES.map((product) => ({
         id: product.id,
         title: product.title,
+        amount: product.amount,
         displayPrice: product.displayPrice,
-        unitPrice: product.unitPrice,
         badge: product.badge || '',
         priceType: product.priceType,
+        unitPrice: product.unitPrice,
       }));
       const expected = [
-        ['360 ELMAS', '₺79,99', '₺0,22', ''],
-        ['1.100 ELMAS', '₺199,99', '₺0,18', 'EN POPÜLER'],
-        ['2.400 ELMAS', '₺349,99', '₺0,15', ''],
-        ['6.200 ELMAS', '₺799,99', '₺0,13', ''],
-        ['13.000 ELMAS', '₺1.499,99', '₺0,12', 'EN İYİ DEĞER'],
+        ['360 ELMAS', 360, '₺79,99', ''],
+        ['1.100 ELMAS', 1100, '₺199,99', 'EN POPÜLER'],
+        ['2.400 ELMAS', 2400, '₺349,99', ''],
+        ['6.200 ELMAS', 6200, '₺799,99', ''],
+        ['13.000 ELMAS', 13000, '₺1.499,99', 'EN İYİ DEĞER'],
       ];
       const ok = MARKET_DIAMOND_PACKAGES.length === expected.length
-        && expected.every(([title, price, unit, badge]) => actual.some((product) => (
+        && expected.every(([title, amount, price, badge]) => actual.some((product) => (
           product.title === title
+          && product.amount === amount
           && product.displayPrice === price
-          && product.unitPrice === unit
           && product.badge === badge
+          && product.unitPrice == null
           && product.priceType === MARKET_PRICE_TYPES.REAL_MONEY
         )));
       if (!ok) return fail('Real-money Diamond package catalog drifted from the required display contract.', {
         verification: 'EXECUTABLE_STATIC_CONTRACT',
         actual,
       });
-      return pass('All real-money Diamond packages, prices, unit prices, and badges match the requested catalog.', {
+      return pass('All real-money Diamond packages, prices, amounts, and badges match the requested no-unit-price catalog.', {
         verification: 'EXECUTABLE_STATIC_CONTRACT',
       });
     }),
@@ -231,9 +265,9 @@ export const EXTRA_TESTS = [
         && MARKET_JOKER_PRODUCTS.some((p) => p.id === 'joker_time_freeze_5' && p.diamondCost === 180)
         && MARKET_JOKER_PRODUCTS.some((p) => p.id === 'joker_card_swap_15' && p.diamondCost === 600);
       const hintOk = MARKET_HINT_PRODUCTS.length === 3
-        && MARKET_HINT_PRODUCTS.some((p) => p.id === 'hint_5' && p.diamondCost === 40)
-        && MARKET_HINT_PRODUCTS.some((p) => p.id === 'hint_15' && p.diamondCost === 100)
-        && MARKET_HINT_PRODUCTS.some((p) => p.id === 'hint_40' && p.diamondCost === 240);
+        && MARKET_HINT_PRODUCTS.some((p) => p.id === 'hint_5' && p.diamondCost === 150)
+        && MARKET_HINT_PRODUCTS.some((p) => p.id === 'hint_15' && p.diamondCost === 400)
+        && MARKET_HINT_PRODUCTS.some((p) => p.id === 'hint_40' && p.diamondCost === 800);
       const advantageOk = MARKET_ADVANTAGE_PRODUCTS.length === 2
         && MARKET_ADVANTAGE_PRODUCTS.some((p) => p.id === 'advantage_starter' && p.diamondCost === 250 && p.grants.hints === 10)
         && MARKET_ADVANTAGE_PRODUCTS.some((p) => p.id === 'advantage_mega' && p.diamondCost === 1000 && p.grants.hints === 30);
@@ -246,6 +280,54 @@ export const EXTRA_TESTS = [
         },
       });
       return pass('Joker, Hint, and Advantage product catalogs match the requested Diamond prices.', { verification: 'EXECUTABLE_STATIC_CONTRACT' });
+    }),
+
+  makeCase('diamond_spend_cards_open_purchase_detail_popup',
+    'Diamond-spend Joker, Hint, and Advantage cards open detail popup before purchase',
+    () => {
+      const missing = missingTokens(marketPageSource, [
+        'selectedProduct',
+        'StorePurchaseModal',
+        'data-kronox-market-offer-card',
+        'data-kronox-market-offer-price',
+        'data-kronox-market-modal',
+        'data-kronox-market-modal-purchase',
+        'Paket İçeriği',
+        'closeModal',
+        'actionPrefix',
+        '{price} Elmas',
+      ]);
+      const forbidden = forbiddenTokens(marketPageSource, [
+        'Yeterli elmas yok.</span>',
+      ]);
+      if (missing.length || forbidden.length) return fail('Diamond-spend Store offers do not clearly use the required purchase detail popup flow.', {
+        verification: 'STATIC_CONTRACT',
+        file: 'src/pages/MarketPage.jsx',
+        actual: { missing, forbidden },
+      });
+      return pass('Diamond-priced Joker/Hint/Advantage cards show price on-card, open a detail popup, and purchase from the popup with the Diamond price in the CTA.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('hint_prices_match_client_and_backend_purchase_logic',
+    'Hint package prices are 150/400/800 in client catalog and backend purchase table',
+    () => {
+      const clientPrices = MARKET_HINT_PRODUCTS.reduce((acc, product) => {
+        acc[product.id] = product.diamondCost;
+        return acc;
+      }, {});
+      const backendOk = [
+        /hint_5:[\s\S]*?diamondCost:\s*150/.test(purchaseJokerWithDiamondsSource),
+        /hint_15:[\s\S]*?diamondCost:\s*400/.test(purchaseJokerWithDiamondsSource),
+        /hint_40:[\s\S]*?diamondCost:\s*800/.test(purchaseJokerWithDiamondsSource),
+      ].every(Boolean);
+      const clientOk = clientPrices.hint_5 === 150
+        && clientPrices.hint_15 === 400
+        && clientPrices.hint_40 === 800;
+      if (!clientOk || !backendOk) return fail('Hint package prices are not aligned between display catalog and trusted backend purchase logic.', {
+        verification: 'EXECUTABLE_STATIC_CONTRACT',
+        actual: { clientPrices, backendOk },
+      });
+      return pass('Hint package prices are 5/15/40 = 150/400/800 Diamonds in both client catalog and backend purchase table.', { verification: 'EXECUTABLE_STATIC_CONTRACT' });
     }),
 
   makeCase('client_does_not_control_trusted_price_or_grant_items',

@@ -233,6 +233,12 @@ Diamond packages are display/unavailable with `reason: 'real_money_unavailable'`
 until approved IAP/payment verification exists and must not fake a grant.
 KronoClub and Reklamları Kaldır remain future/disabled with
 `reason: 'future_feature'` and no benefit grant path.
+Store UI removes section subtitles/explanatory copy, Diamond unit prices,
+decorative Diamond dots, and persistent purchase-success banners. Real-money
+Diamond cards show amount + `Elmas` as two lines. Diamond-spend Joker, Hint,
+and Advantage cards show price on-card and open a package-detail popup before
+purchase. Hint package prices are 5/15/40 İpucu = 150/400/800 Diamonds in the
+client catalog and trusted backend purchase table.
 `purchaseJokerWithDiamonds` is server-authoritative for Store Diamond spends:
 it ignores client price/cost, validates authenticated self-owned user context
 and sufficient `User.diamonds`, explicitly binds `UserJokerInventory`,

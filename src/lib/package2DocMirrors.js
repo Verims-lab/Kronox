@@ -150,7 +150,12 @@ POPÜLER; 2.400 ELMAS — ₺349,99; 6.200 ELMAS — ₺799,99; 13.000 ELMAS —
 packages, Diamond-spend Advantage packages, and future KronoClub / Reklamları
 Kaldır sections. Real-money/TL packages, KronoClub, and Reklamları Kaldır show
 disabled Yakında buttons and do not grant Diamonds or benefits until approved
-IAP/payment verification exists. The Home middle
+IAP/payment verification exists. Mağaza removes subtitle/section explanatory
+copy, real-money Diamond cards show amount + Elmas as two lines without unit
+price, Diamond-spend Joker/Hint/Advantage cards show the Diamond price on the
+right and open a package-detail popup before purchase, Hint prices are
+5/15/40 İpucu = 150/400/800 Diamonds, and purchase success is not shown as a
+persistent Store banner/list. The Home middle
 section keeps left GÜNLÜK,
 centered transparent hourglass, and right Çark balanced, with a content-free
 mini wheel visual for the Çark shortcut, centered shortcut popups, and CTA

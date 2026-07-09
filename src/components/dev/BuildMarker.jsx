@@ -555,6 +555,16 @@ import React, { useEffect, useState } from 'react';
 //
 
 
+// Codex573 — Store UI simplification and popup purchase flow:
+//   • Mağaza removes subtitle/section explanatory copy, Diamond unit prices,
+//     decorative Diamond dots, and persistent purchase-success banners.
+//   • Diamond-spend Joker/Hint/Advantage cards open a detail popup before
+//     purchase, with server-backed Diamond purchase still owned by
+//     purchaseJokerWithDiamonds and protected by pending/idempotency guards.
+//   • Hint package prices are now 5/15/40 = 150/400/800 Diamonds in both the
+//     client catalog and trusted Base44 purchase table; TL/future products
+//     remain disabled Yakında with no fake grant path.
+//
 // Codex572 — Daily screen copy and reward UI simplification:
 //   • DailyPage removes the GÜNLÜK subtitle, future-day legend item, renewal
 //     countdown text, and task-card description rendering while preserving
@@ -585,7 +595,7 @@ import React, { useEffect, useState } from 'react';
 //   • security_cleanup_health.base44_sdk_versions_exact_and_aligned:
 //     package.json now exact-pins "@base44/sdk": "0.8.34" (was "^0.8.35").
 
-const BUILD_MARKER = 'Codex572';
+const BUILD_MARKER = 'Codex573';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

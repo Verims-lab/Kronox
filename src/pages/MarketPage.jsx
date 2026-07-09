@@ -16,6 +16,7 @@ import {
   ShoppingBag,
   Snowflake,
   Sparkles,
+  X,
 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import StandardTopBar from '@/components/layout/StandardTopBar';
@@ -72,6 +73,7 @@ export default function MarketPage() {
     error: '',
   });
   const [pendingProductId, setPendingProductId] = useState('');
+  const [selectedProduct, setSelectedProduct] = useState(null);
   const [notice, setNotice] = useState({ type: '', text: '' });
   const sections = useMemo(() => getMarketCatalogSections(), []);
   const user = useMemo(
@@ -158,7 +160,7 @@ export default function MarketPage() {
     }
   };
 
-  const handlePurchase = async (product) => {
+  const handlePurchase = async (product, options = {}) => {
     sounds.tap();
     if (pendingProductId) return;
 
@@ -203,7 +205,9 @@ export default function MarketPage() {
       }
       updateUserDiamonds(result);
       checkUserAuth?.();
-      setNotice({ type: 'success', text: `${product.title} alındı.` });
+      if (options.closeModal) {
+        setSelectedProduct(null);
+      }
     } catch {
       setNotice({ type: 'error', text: 'Satın alma tamamlanamadı. Tekrar dene.' });
     } finally {
@@ -243,9 +247,6 @@ export default function MarketPage() {
             >
               Mağaza
             </h1>
-            <p className="mt-1 font-inter text-[13px] font-medium leading-snug text-[#C6CEDB]">
-              Elmas paketleri, jokerler ve avantaj paketleri.
-            </p>
           </div>
           <div
             className="kronox-number flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-[15px] font-extrabold"
@@ -274,6 +275,11 @@ export default function MarketPage() {
             authLoading={isLoadingAuth}
             pendingProductId={pendingProductId}
             onPurchase={handlePurchase}
+            onOpenDetails={(product) => {
+              sounds.tap();
+              setNotice({ type: '', text: '' });
+              setSelectedProduct(product);
+            }}
           />
         ))}
 
@@ -284,6 +290,21 @@ export default function MarketPage() {
           </p>
         )}
       </div>
+      {selectedProduct && (
+        <StorePurchaseModal
+          product={selectedProduct}
+          diamonds={diamonds}
+          user={user}
+          authLoading={isLoadingAuth}
+          pending={pendingProductId === selectedProduct.id}
+          anyPending={Boolean(pendingProductId)}
+          onClose={() => {
+            sounds.tap();
+            setSelectedProduct(null);
+          }}
+          onPurchase={() => handlePurchase(selectedProduct, { closeModal: true })}
+        />
+      )}
     </main>
   );
 }
@@ -311,18 +332,25 @@ function Notice({ type, text }) {
   );
 }
 
-function MarketSection({ section, products, diamonds, user, authLoading, pendingProductId, onPurchase }) {
+function MarketSection({
+  section,
+  products,
+  diamonds,
+  user,
+  authLoading,
+  pendingProductId,
+  onPurchase,
+  onOpenDetails,
+}) {
   return (
     <section className="flex flex-col gap-2.5" aria-label={section.title}>
       <div className="px-1">
-        <p className="font-inter text-[11px] font-normal uppercase text-[#8FA3C4]">{section.eyebrow}</p>
         <h2
           className="uppercase text-white"
           style={{ fontFamily: Barlow, fontWeight: 800, fontSize: 'clamp(1.5rem, 5vw, 2rem)', letterSpacing: 0 }}
         >
           {section.title}
         </h2>
-        <p className="font-inter text-[12px] font-medium leading-snug text-[#C6CEDB]">{section.description}</p>
       </div>
       <div className="flex flex-col gap-2.5">
         {products.map((product) => (
@@ -335,6 +363,7 @@ function MarketSection({ section, products, diamonds, user, authLoading, pending
             pending={pendingProductId === product.id}
             anyPending={Boolean(pendingProductId)}
             onPurchase={() => onPurchase(product)}
+            onOpenDetails={() => onOpenDetails(product)}
           />
         ))}
       </div>
@@ -350,6 +379,7 @@ function MarketProductCard({
   pending,
   anyPending,
   onPurchase,
+  onOpenDetails,
 }) {
   const readiness = getMarketPurchaseReadiness({
     product,
@@ -361,21 +391,10 @@ function MarketProductCard({
   });
   const disabled = readiness.disabled;
   const buttonLabel = readiness.label;
+  const opensDetails = product.priceType === MARKET_PRICE_TYPES.DIAMONDS;
 
-  return (
-    <motion.article
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2 }}
-      className="relative grid items-center gap-3 px-3 py-3"
-      style={{
-        gridTemplateColumns: 'clamp(4.35rem, 17vw, 6.1rem) minmax(0, 1fr) minmax(5.7rem, 7.7rem)',
-        background: 'rgba(12,24,48,.88)',
-        border: '1px solid rgba(255,210,95,.18)',
-        borderRadius: 'clamp(1rem,2vw,1.4rem)',
-        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06), 0 16px 30px rgba(0,0,0,0.18)',
-      }}
-    >
+  const content = (
+    <>
       {product.badge && (
         <span
           className="absolute left-0 top-0 rounded-br-md rounded-tl-[inherit] px-2 py-0.5 uppercase text-slate-950"
@@ -388,42 +407,102 @@ function MarketProductCard({
       <ProductArt product={product} />
 
       <div className="min-w-0 py-1">
-        <h3
-          className="truncate uppercase text-white"
-          style={{ fontFamily: Barlow, fontWeight: 700, fontSize: 'clamp(1.15rem, 4.6vw, 1.72rem)', letterSpacing: 0 }}
-        >
-          {product.title}
-        </h3>
-        <p className="mt-1 line-clamp-2 font-inter text-[12px] font-medium leading-snug text-[#C6CEDB]">
-          {product.description}
-        </p>
+        {product.type === 'diamond_pack' ? (
+          <DiamondAmount amount={product.amount} />
+        ) : (
+          <h3
+            className="whitespace-normal break-words uppercase leading-tight text-white"
+            style={{ fontFamily: Barlow, fontWeight: 700, fontSize: '1.08rem', letterSpacing: 0 }}
+          >
+            {product.title}
+          </h3>
+        )}
+        {product.priceType !== MARKET_PRICE_TYPES.DIAMONDS && product.type !== 'diamond_pack' && product.description && (
+          <p className="mt-1 line-clamp-2 font-inter text-[12px] font-medium leading-snug text-[#C6CEDB]">
+            {product.description}
+          </p>
+        )}
       </div>
 
       <div className="flex min-w-0 flex-col items-end justify-center gap-2">
         <PriceLabel product={product} />
-        <button
-          type="button"
-          onClick={disabled ? undefined : onPurchase}
-          disabled={disabled}
-          className="flex min-h-10 w-full min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 text-center transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-55 disabled:active:scale-100"
-          style={{
-            background: disabled ? 'rgba(148,163,184,0.70)' : 'linear-gradient(180deg, #FFD95A 0%, #FFB026 100%)',
-            color: '#111111',
-            boxShadow: disabled ? 'none' : '0 8px 18px rgba(255,210,74,0.26), inset 0 1px 0 rgba(255,255,255,0.35)',
-            fontFamily: Barlow,
-            fontWeight: 700,
-            fontSize: 'clamp(0.95rem, 3.5vw, 1.15rem)',
-            letterSpacing: 0,
-          }}
-          aria-label={`${product.title} ${buttonLabel}`}
-          aria-disabled={disabled}
-          data-market-disabled-reason={disabled ? readiness.reason : ''}
-        >
-          {pending && <Loader2 className="h-4 w-4 animate-spin" />}
-          <span className="truncate">{buttonLabel}</span>
-        </button>
+        {!opensDetails && (
+          <button
+            type="button"
+            onClick={disabled ? undefined : onPurchase}
+            disabled={disabled}
+            className="flex min-h-10 w-full min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 text-center transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-55 disabled:active:scale-100"
+            style={{
+              background: disabled ? 'rgba(148,163,184,0.70)' : 'linear-gradient(180deg, #FFD95A 0%, #FFB026 100%)',
+              color: '#111111',
+              boxShadow: disabled ? 'none' : '0 8px 18px rgba(255,210,74,0.26), inset 0 1px 0 rgba(255,255,255,0.35)',
+              fontFamily: Barlow,
+              fontWeight: 700,
+              fontSize: '1rem',
+              letterSpacing: 0,
+            }}
+            aria-label={`${product.title} ${buttonLabel}`}
+            aria-disabled={disabled}
+            data-market-disabled-reason={disabled ? readiness.reason : ''}
+          >
+            {pending && <Loader2 className="h-4 w-4 animate-spin" />}
+            <span className="truncate">{buttonLabel}</span>
+          </button>
+        )}
       </div>
+    </>
+  );
+
+  const cardClassName = 'relative grid w-full items-center gap-3 px-3 py-3 text-left';
+  const cardStyle = {
+    gridTemplateColumns: '4.7rem minmax(0, 1fr) minmax(4.55rem, 6.05rem)',
+    background: 'rgba(12,24,48,.88)',
+    border: '1px solid rgba(255,210,95,.18)',
+    borderRadius: '1rem',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06), 0 16px 30px rgba(0,0,0,0.18)',
+  };
+
+  if (opensDetails) {
+    return (
+      <motion.button
+        type="button"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2 }}
+        className={`${cardClassName} transition-transform active:scale-[0.99]`}
+        style={cardStyle}
+        onClick={onOpenDetails}
+        aria-label={`${product.title} detayını aç`}
+        data-kronox-market-offer-card={product.id}
+      >
+        {content}
+      </motion.button>
+    );
+  }
+
+  return (
+    <motion.article
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2 }}
+      className={cardClassName}
+      style={cardStyle}
+    >
+      {content}
     </motion.article>
+  );
+}
+
+function DiamondAmount({ amount }) {
+  return (
+    <div className="flex min-w-0 flex-col uppercase leading-none text-white" style={{ fontFamily: Barlow, letterSpacing: 0 }}>
+      <span className="kronox-number text-[1.55rem] font-extrabold leading-none">
+        {Number(amount).toLocaleString('tr-TR')}
+      </span>
+      <span className="mt-1 text-[0.85rem] font-bold leading-none text-[#C6CEDB]">
+        Elmas
+      </span>
+    </div>
   );
 }
 
@@ -432,7 +511,8 @@ function PriceLabel({ product }) {
     return (
       <div
         className="flex items-center gap-1 text-right"
-        style={{ color: KronoxYellow, fontFamily: Barlow, fontWeight: 600, fontSize: 'clamp(1.05rem, 4.2vw, 1.5rem)', letterSpacing: 0 }}
+        style={{ color: KronoxYellow, fontFamily: Barlow, fontWeight: 700, fontSize: '1.25rem', letterSpacing: 0 }}
+        data-kronox-market-offer-price={product.id}
       >
         <Gem className="h-4 w-4 shrink-0" strokeWidth={2.5} />
         <span>{Number(product.diamondCost).toLocaleString('tr-TR')}</span>
@@ -442,7 +522,7 @@ function PriceLabel({ product }) {
   return (
     <p
       className="truncate text-right"
-      style={{ color: product.priceType === MARKET_PRICE_TYPES.FUTURE_REAL_MONEY ? '#8FA3C4' : KronoxYellow, fontFamily: Barlow, fontWeight: 600, fontSize: 'clamp(1.05rem, 4.2vw, 1.5rem)', letterSpacing: 0 }}
+      style={{ color: product.priceType === MARKET_PRICE_TYPES.FUTURE_REAL_MONEY ? '#8FA3C4' : KronoxYellow, fontFamily: Barlow, fontWeight: 700, fontSize: '1.25rem', letterSpacing: 0 }}
     >
       {product.displayPrice}
     </p>
@@ -470,12 +550,151 @@ function ProductArt({ product }) {
           filter: isDiamond ? 'drop-shadow(0 0 10px rgba(255,210,74,0.45))' : `drop-shadow(0 0 10px ${accent}55)`,
         }}
       />
-      {isDiamond && (
-        <>
-          <span className="absolute bottom-[18%] left-[18%] h-[22%] w-[22%] rotate-12 rounded-md bg-amber-300/80 shadow-[0_0_12px_rgba(255,210,74,0.55)]" />
-          <span className="absolute bottom-[16%] right-[18%] h-[18%] w-[18%] -rotate-12 rounded-md bg-yellow-500/75 shadow-[0_0_10px_rgba(255,176,38,0.48)]" />
-        </>
-      )}
+    </div>
+  );
+}
+
+const JOKER_LABELS = {
+  [JOKER_TYPES.MISTAKE_SHIELD]: 'Kronokalkan',
+  [JOKER_TYPES.CARD_SWAP]: 'Kart Değiştir',
+  [JOKER_TYPES.TIME_FREEZE]: 'Zamanı Dondur',
+};
+
+function getProductContents(product) {
+  const contents = [];
+  Object.entries(product?.grants?.jokers || {}).forEach(([jokerType, quantity]) => {
+    const count = normalizeJokerQuantity(quantity);
+    if (count > 0) contents.push(`${count} ${JOKER_LABELS[jokerType] || 'Joker'}`);
+  });
+  const hints = normalizeHintQuantity(product?.grants?.hints);
+  if (hints > 0) contents.push(`${hints} İpucu`);
+  if (!contents.length && product?.type === 'hint') {
+    contents.push(`${normalizeHintQuantity(product.quantity)} İpucu`);
+  }
+  return contents;
+}
+
+function StorePurchaseModal({
+  product,
+  diamonds,
+  user,
+  authLoading,
+  pending,
+  anyPending,
+  onClose,
+  onPurchase,
+}) {
+  const readiness = getMarketPurchaseReadiness({
+    product,
+    user,
+    authLoading,
+    diamonds,
+    pending,
+    anyPending,
+  });
+  const price = Number(product.diamondCost).toLocaleString('tr-TR');
+  const disabled = readiness.disabled;
+  const contents = getProductContents(product);
+  const Icon = ICON_BY_ASSET_KIND[product.assetKind] || ShoppingBag;
+  const actionPrefix = pending
+    ? 'İşleniyor'
+    : readiness.reason === 'insufficient_diamonds'
+      ? 'Yetersiz'
+      : readiness.reason === 'login_required'
+        ? 'Giriş Yap'
+        : 'Satın Al';
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/70 px-3 py-4 backdrop-blur-sm sm:items-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="store-purchase-title"
+      data-kronox-market-modal={product.id}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 18, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.16 }}
+        className="w-full max-w-sm rounded-2xl p-4 text-white"
+        style={{
+          background: 'linear-gradient(180deg, rgba(12,31,62,.98) 0%, rgba(7,18,38,.98) 100%)',
+          border: '1px solid rgba(255,210,95,.42)',
+          boxShadow: '0 24px 60px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.08)',
+        }}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <div
+              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl"
+              style={{
+                background: `radial-gradient(circle, ${(product.accent || KronoxYellow)}33, rgba(8,19,39,.42))`,
+                boxShadow: `inset 0 0 0 1px ${(product.accent || KronoxYellow)}55`,
+              }}
+              aria-hidden="true"
+            >
+              <Icon className="h-7 w-7" style={{ color: product.accent || KronoxYellow }} strokeWidth={2.4} />
+            </div>
+            <div className="min-w-0">
+              <h3
+                id="store-purchase-title"
+                className="whitespace-normal break-words uppercase leading-tight text-white"
+                style={{ fontFamily: Barlow, fontWeight: 800, fontSize: '1.45rem', letterSpacing: 0 }}
+              >
+                {product.title}
+              </h3>
+              <div className="mt-1 flex items-center gap-1 text-amber-300" style={{ fontFamily: Barlow, fontWeight: 800, fontSize: '1.2rem', letterSpacing: 0 }}>
+                <Gem className="h-4 w-4" strokeWidth={2.6} />
+                <span>{price} Elmas</span>
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-white/85"
+            aria-label="Kapat"
+          >
+            <X className="h-5 w-5" strokeWidth={2.3} />
+          </button>
+        </div>
+
+        <div className="mt-4 rounded-2xl px-3 py-3" style={{ background: 'rgba(255,255,255,.045)', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,.08)' }}>
+          <p className="font-inter text-[11px] font-black uppercase tracking-[0.08em] text-[#8FA3C4]">
+            Paket İçeriği
+          </p>
+          <div className="mt-2 flex flex-col gap-1.5">
+            {contents.map((item) => (
+              <div key={item} className="flex items-center gap-2 font-inter text-sm font-bold text-white">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-300" />
+                <span>{item}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={disabled ? undefined : onPurchase}
+          disabled={disabled}
+          className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl px-4 uppercase transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55 disabled:active:scale-100"
+          style={{
+            background: disabled ? 'rgba(148,163,184,0.70)' : 'linear-gradient(180deg, #FFD95A 0%, #FFB026 100%)',
+            color: '#111111',
+            boxShadow: disabled ? 'none' : '0 14px 24px rgba(255,210,74,0.25), inset 0 1px 0 rgba(255,255,255,0.35)',
+            fontFamily: Barlow,
+            fontWeight: 800,
+            fontSize: '1.2rem',
+            letterSpacing: 0,
+          }}
+          aria-label={`${product.title} ${actionPrefix} ${price} Elmas`}
+          data-kronox-market-modal-purchase={product.id}
+          data-market-disabled-reason={disabled ? readiness.reason : ''}
+        >
+          {pending && <Loader2 className="h-5 w-5 animate-spin" />}
+          <span>{actionPrefix} · {price} Elmas</span>
+        </button>
+      </motion.div>
     </div>
   );
 }

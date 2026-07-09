@@ -344,9 +344,11 @@ Mağaza Store catalog:
   Diamonds until approved IAP/payment verification exists
 * Joker packages: Kronokalkan 1/5/15 = 60/270/720 Diamonds, Zamanı Dondur
   1/5/15 = 40/180/480 Diamonds, Kart Değiştir 1/5/15 = 50/225/600 Diamonds
-* Hint packages: 5/15/40 İpucu = 40/100/240 Diamonds
+* Hint packages: 5/15/40 İpucu = 150/400/800 Diamonds
 * Advantage packages: Başlangıç Paketi = 250 Diamonds, Mega Paket = 1.000
   Diamonds
+* Diamond-spend Joker, Hint, and Advantage cards open a package-detail popup
+  before purchase and show the Diamond price in the popup CTA
 * Store purchases do not grant Kronox Puan and do not affect Leaderboard
 
 ---

@@ -565,33 +565,43 @@ Checklist:
   with `JokerTransaction` summed deltas/latest `balance_after` and report
   mismatches without mutating data.
 * Client is not trusted for price; purchase validation is server-authoritative.
+* Store UI is simplified: the main `MAĞAZA` title remains, section subtitles /
+  explanatory copy are removed, real-money Diamond cards show amount + `Elmas`
+  as two lines without unit price, and Diamond-spend Joker/Hint/Advantage cards
+  open a detail popup before purchase instead of rendering direct card-level
+  `SATIN AL` buttons.
+* Hint package prices are 5/15/40 İpucu = 150/400/800 Diamonds in both the
+  client catalog and `purchaseJokerWithDiamonds`.
 * Manual Mağaza Store proof:
   1. Open Home on mobile browser/PWA.
   2. Confirm Mağaza top-left, Diamonds center, notifications right.
   3. Open Mağaza and confirm vertical scroll, requested dark gradient/glow,
      target-style cards, Barlow Condensed headings/prices/buttons, and no
      horizontal overflow.
-  4. Confirm all Diamond package amounts/prices/unit prices and badges:
+  4. Confirm all Diamond package amounts/prices and badges:
      360/1.100/2.400/6.200/13.000 ELMAS, EN POPÜLER on 1.100, EN İYİ DEĞER
-     on 13.000.
+     on 13.000, with no `Birim fiyat` / unit-price copy.
   5. Confirm each real-money/TL Diamond package button is disabled with exact
      `Yakında` copy, `real_money_unavailable` reason, and cannot grant Diamonds;
      confirm KronoClub and Reklamları Kaldır are disabled with
      `future_feature` reason and cannot grant benefits.
-  6. Buy one Joker package with sufficient Diamonds and confirm Diamonds
+  6. Tap one Joker, Hint, and Advantage card and confirm each opens a detail
+     popup with package contents and a purchase CTA containing the Diamond
+     price; no Diamond-priced card has a direct card-level `SATIN AL` button.
+  7. Buy one Joker package with sufficient Diamonds and confirm Diamonds
      decrease and the matching joker inventory increases.
-  7. Buy one Hint package and one Advantage package with sufficient Diamonds;
+  8. Buy one Hint package and one Advantage package with sufficient Diamonds;
      confirm `UserHintInventory` / `HintTransaction` and all joker grant rows
      are written as applicable.
-  8. Confirm failed purchase copy is safe, e.g.
+  9. Confirm failed purchase copy is safe, e.g.
      `Satın alma tamamlanamadı. Tekrar dene.`
-  9. Return to Profile and confirm `Joker Çantası` updated.
-  10. Start Solo and confirm the purchased joker count appears in the joker bar.
-  11. Test an existing account with missing/partial joker rows and confirm
+  10. Return to Profile and confirm `Joker Çantası` updated.
+  11. Start Solo and confirm the purchased joker count appears in the joker bar.
+  12. Test an existing account with missing/partial joker rows and confirm
       `Joker Çantası` self-heals without duplicate starter grants.
-  12. Try insufficient Diamonds and confirm no balance changes.
-  13. Double-tap purchase and confirm no duplicate charge/grant.
-  14. Retry after a simulated network failure if possible and confirm no
+  13. Try insufficient Diamonds and confirm no balance changes.
+  14. Double-tap purchase and confirm no duplicate charge/grant.
+  15. Retry after a simulated network failure if possible and confirm no
       double-charge or double-grant.
   14. Repeat from two tabs/devices if possible; this is the live race proof.
   14. Verify Online mode remains unaffected.
