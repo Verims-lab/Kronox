@@ -10,6 +10,7 @@ import AvatarPickerSheet from '@/components/profile/AvatarPickerSheet';
 import { normalizeSafePublicUsernameInput, resolveSafePublicUsername } from '@/lib/guestProfile';
 import { ensureKronoxUserIdForCurrentActor, getKronoxUserId } from '@/lib/kronoxUserId';
 import { getSafeBackRoute } from '@/lib/NavigationStackContext';
+import { markDailyQuestStatusStale } from '@/lib/dailyStatusCache';
 import {
   PROFILE_AGE_GROUP_OPTIONS,
   PROFILE_GENDER_OPTIONS,
@@ -168,6 +169,10 @@ export default function ProfileEditPage() {
         age_group: nextAgeGroup,
       });
       await applyResult(result);
+      markDailyQuestStatusStale({
+        reason: 'profile_settings_saved',
+        eventType: 'profile_complete',
+      });
       setEditor(null);
       setMessage('Profil bilgilerin kaydedildi.');
     } catch (saveError) {

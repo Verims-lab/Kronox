@@ -461,6 +461,51 @@ function publicTask(row: any) {
   };
 }
 
+function dailyWheelSpinEntity(base44: any) {
+  return base44?.asServiceRole?.entities?.DailyWheelSpin || base44?.entities?.DailyWheelSpin || null;
+}
+
+async function findDailyWheelClaimForDate(base44: any, player: any, dateKey: string) {
+  const entity = dailyWheelSpinEntity(base44);
+  if (!entity?.filter) return null;
+  const rows = await entity.filter({ user_email: player.playerKey, spin_date: dateKey }, '-claimed_at', 5).catch(() => []);
+  return Array.isArray(rows)
+    ? rows.find((row: any) => rowId(row) && String(row?.spin_date || '').slice(0, 10) === dateKey)
+    : null;
+}
+
+async function reconcileDailyWheelTaskFromClaim(base44: any, player: any, rows: any[], dateKey: string) {
+  const wheelRow = rows.find((row: any) => String(row?.quest_type || '') === TASK_TYPES.DAILY_WHEEL_CLAIM);
+  if (!wheelRow || publicTask(wheelRow).completed) return { reconciled: false, reason: 'wheel_task_already_complete_or_absent' };
+  const claim = await findDailyWheelClaimForDate(base44, player, dateKey);
+  if (!claim) return { reconciled: false, reason: 'daily_wheel_claim_not_found' };
+
+  const entity = progressEntity(base44, player);
+  if (!entity?.update || !rowId(wheelRow)) return { reconciled: false, reason: 'daily_wheel_progress_update_unavailable' };
+
+  const timestamp = new Date().toISOString();
+  const metadata = wheelRow?.metadata && typeof wheelRow.metadata === 'object' ? wheelRow.metadata : {};
+  await entity.update(rowId(wheelRow), {
+    progress_value: Math.max(1, normalizeNumber(wheelRow?.target_value, 1)),
+    status: 'completed',
+    completed_at: wheelRow?.completed_at || claim?.claimed_at || timestamp,
+    updated_at: timestamp,
+    last_event_key: `daily_calendar_reconcile:${player.playerKey}:${dateKey}:daily_wheel_claim:${rowId(claim)}`,
+    metadata: {
+      ...metadata,
+      runtimeVersion: DAILY_CALENDAR_RUNTIME_VERSION,
+      reconciledFromDailyWheelSpin: true,
+      reconciliationSource: 'getDailyQuestStatus',
+      reconciledDailyWheelSpinId: rowId(claim),
+      lastVerificationReason: 'daily_wheel_spin_reconciled',
+      noDiamondGrantDuringProgress: true,
+      noKronoxPuan: true,
+      noLeaderboardImpact: true,
+    },
+  }).catch(() => null);
+  return { reconciled: true, reason: 'daily_wheel_spin_reconciled' };
+}
+
 async function ensureTodayTasks(base44: any, player: any, dateKey: string) {
   const tasks = resolveTaskTemplates(dateKey, player).slice(0, DAILY_CALENDAR_TASKS_PER_DAY);
   const rows = await readRowsForDate(base44, player, dateKey);
@@ -573,6 +618,8 @@ Deno.serve(async (req: Request) => {
         }).catch(() => null);
       }
     }
+
+    await reconcileDailyWheelTaskFromClaim(base44, player, todayRows, serverDate);
 
     const allRows = await readPlayerCalendarRows(base44, player);
     const groupedRows = groupRowsByDate(allRows);

@@ -105,6 +105,12 @@ Streak through the Home `GÜNLÜK` calendar shortcut. Daily Calendar creates 3
 `daily_calendar:*` `UserDailyQuestProgress` rows per UTC server day from a
 9-day rotating task template cycle. Task progress is real-event-based and
 idempotent; `recordDailyQuestProgress` never grants Diamonds.
+`Çark çevir` completes only after a successful server Daily Wheel claim for
+the same UTC day. Opening the Daily Wheel popup or reopening an already-claimed
+read-only result must not create progress. `getDailyQuestStatus` reconciles the
+wheel task from the same-player/same-day `DailyWheelSpin` row if the separate
+progress event write was missed, and task-relevant events invalidate/refresh
+the Daily status cache so completed tasks appear without an app restart.
 
 Daily Calendar grants Diamonds only through the server-backed
 `claimDailyQuestReward` callable when the 7-day streak reward is ready. Claims write

@@ -171,6 +171,11 @@ Cross-cutting query/performance audit rules:
   immediately, revalidate in the background, and preserve the cached body when
   a background refresh fails. Home derives shortcut ready badges from hook
   state only and never calls the Daily status backend functions directly.
+  Task-relevant events mark the Daily status cache stale and notify mounted
+  Daily views to re-fetch with stale-response protection. `Çark çevir`
+  completion reconciles from the same-player/same-day `DailyWheelSpin` row in
+  `getDailyQuestStatus`; opening the wheel or viewing an already-claimed result
+  cannot create a progress row by itself.
 
 ## 2. Current Entity Map
 

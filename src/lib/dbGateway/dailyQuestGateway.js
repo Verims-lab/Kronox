@@ -7,6 +7,7 @@ import {
   DAILY_STREAK_REWARD_DAYS,
   DAILY_TASK_TYPES,
 } from '@/lib/dailyCalendar';
+import { markDailyQuestStatusStale } from '@/lib/dailyStatusCache';
 
 export const DAILY_QUEST_V1_TYPES = Object.freeze(Object.values(DAILY_TASK_TYPES));
 
@@ -157,6 +158,15 @@ export async function recordDailyQuestProgress(payload = {}) {
     const error = new Error(safeRuntimeError(body, 'Günlük görev ilerlemesi kaydedilemedi.'));
     error.body = body;
     throw error;
+  }
+  if (body?.eventType && body?.skipped !== true) {
+    markDailyQuestStatusStale({
+      reason: 'daily_task_progress_recorded',
+      eventType: body.eventType,
+      mode: body.mode || payload?.mode || '',
+      serverDate: body.serverDate || '',
+      playerType: body.playerType || '',
+    });
   }
   return body;
 }

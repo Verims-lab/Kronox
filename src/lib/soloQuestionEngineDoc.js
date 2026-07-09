@@ -45,6 +45,12 @@ Onboarding levels 1-6 show Joker and Hint controls in training mode: no
 spendUserJoker, no consumeUserHint, no JokerTransaction or HintTransaction
 spend row, no real inventory decrement, and no Daily Calendar joker/hint task
 progress. Level 7 and later use normal inventory-consuming Joker/Hint behavior.
+Daily Calendar task progress is event-based and idempotent: Çark çevir
+completes after a successful Daily Wheel claim, getDailyQuestStatus reconciles
+the task from same-player/same-day DailyWheelSpin rows if the progress event
+write was missed, opening or reopening the wheel does not create Daily
+progress, and task-relevant events mark the Daily status cache stale for a
+fresh status read.
 
 Question loading bootstrap first attempts online getQuestions when the browser
 is online or network state is unknown. The default gameplay response is an

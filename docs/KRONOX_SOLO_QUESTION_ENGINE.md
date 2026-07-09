@@ -483,9 +483,15 @@ Streak:
   completion.
 - Daily Wheel and Friends emit their own event progress; Solo does not fake
   those tasks.
+- `Çark çevir` is completed by a successful Daily Wheel claim and can be
+  reconciled by `getDailyQuestStatus` from the same-day `DailyWheelSpin` row;
+  opening/reopening the wheel does not count as a task event.
 - Hint tasks use the real `hint_used` event and require a matching
   `HintTransaction.reason = solo_use` row, so opening the popup or a failed
   consume cannot complete the task.
+- Daily task-relevant events invalidate the Daily status cache so `/daily`
+  refreshes without app restart while older background status responses are
+  ignored.
 - `recordDailyQuestProgress` is idempotent and never grants Diamonds.
 - A day is complete only after all 3 task rows are complete; missing a UTC day
   breaks the computed streak.

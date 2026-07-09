@@ -4,10 +4,10 @@ import { claimDailyWheelReward, getDailyWheelStatus } from '@/lib/dbGateway/econ
 import { recordDailyQuestProgress } from '@/lib/dbGateway/dailyQuestGateway';
 import { getCompletedGuestCredentialsPayload } from '@/lib/guestProfile';
 import { normalizeDailyWheelJokerRewards } from '@/lib/dailyWheelRewards';
-import { invalidateDailyQuestStatusCache } from '@/hooks/useDailyQuests';
 import {
   buildDailyStatusCacheKey,
   createDailyStatusStore,
+  markDailyQuestStatusStale,
   scheduleIdleStatusRefresh,
   todayFallbackKey,
 } from '@/lib/dailyStatusCache';
@@ -234,6 +234,12 @@ export function useDailyWheel({ user, guestProfile, onUserUpdated } = {}) {
     setWheel(claimedWheelStatus);
     setStatus('claimed');
     if (body.userPatch && typeof onUserUpdated === 'function') onUserUpdated(body.userPatch);
+    markDailyQuestStatusStale({
+      cacheKey: dailyWheelCacheKey,
+      reason: 'daily_wheel_claim_success',
+      eventType: 'daily_wheel_claim',
+      serverDate: body?.serverDate || '',
+    });
     recordDailyQuestProgress({
       ...dailyWheelPayload,
       eventType: 'daily_wheel_claim',
@@ -245,7 +251,6 @@ export function useDailyWheel({ user, guestProfile, onUserUpdated } = {}) {
         buildMarker: KRONOX_BUILD_MARKER,
       },
     })
-      .then(() => invalidateDailyQuestStatusCache())
       .catch(() => null);
   }, [dailyWheelCacheKey, dailyWheelPayload, markPromptSeen, onUserUpdated]);
 

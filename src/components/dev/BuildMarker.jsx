@@ -1,5 +1,14 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex580 — Daily Calendar task event refresh/reconciliation pass:
+//   • Daily Wheel successful claim now marks Daily status stale immediately
+//     and getDailyQuestStatus reconciles Çark çevir from same-day
+//     DailyWheelSpin rows when the progress event write was missed.
+//   • Daily task progress events invalidate/refresh the Daily Calendar status
+//     cache and useDailyQuests ignores stale status responses.
+//   • Docs/Health now guard wheel-claim completion, event-source coverage,
+//     training Joker/Hint exclusions, and no Puan/Leaderboard side effects.
+//
 // Codex579 — Freeze/Hint/Home shortcut visual token pass:
 //   • Zamanı Dondur display copy stays stable while time_freeze remains the
 //     internal inventory id; game/store icon color is #e31717.
@@ -25,7 +34,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex579';
+const BUILD_MARKER = 'Codex580';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

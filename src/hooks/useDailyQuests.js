@@ -10,16 +10,15 @@ import {
 } from '@/lib/dailyCalendar';
 import {
   buildDailyStatusCacheKey,
-  createDailyStatusStore,
+  dailyQuestStatusStore,
   scheduleIdleStatusRefresh,
+  subscribeDailyQuestStatusChanged,
   todayFallbackKey,
 } from '@/lib/dailyStatusCache';
 
 // Shared Daily status cache contract (60s TTL + idle-scheduled refresh)
-// lives in src/lib/dailyStatusCache.js; the calendar keeps its own store
-// instance so wheel/calendar invalidations stay independent.
-const dailyQuestStatusStore = createDailyStatusStore();
-
+// lives in src/lib/dailyStatusCache.js so wheel/calendar invalidations can
+// refresh the same actor/day status without requiring an app restart.
 export function invalidateDailyQuestStatusCache(cacheKey = '') {
   dailyQuestStatusStore.invalidate(cacheKey);
 }
@@ -60,6 +59,7 @@ export function useDailyQuests({ user, guestProfile, onUserUpdated } = {}) {
   const [error, setError] = useState('');
   const [claimingId, setClaimingId] = useState(null);
   const claimPendingRef = useRef(new Set());
+  const refreshVersionRef = useRef(0);
 
   const guestCredentials = useMemo(() => getCompletedGuestCredentialsPayload(guestProfile), [guestProfile]);
   const dailyPayload = useMemo(() => guestCredentials || {}, [guestCredentials]);
@@ -76,14 +76,17 @@ export function useDailyQuests({ user, guestProfile, onUserUpdated } = {}) {
     return next;
   }, []);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (options = {}) => {
+    const ignoreCache = options?.ignoreCache === true;
+    const refreshVersion = refreshVersionRef.current + 1;
+    refreshVersionRef.current = refreshVersion;
     setError('');
     if (!isSignedIn) {
       setStatus('sign_in_required');
       setState(buildEmptyCalendarState());
       return null;
     }
-    const cachedBody = dailyQuestStatusStore.read(dailyCacheKey);
+    const cachedBody = ignoreCache ? null : dailyQuestStatusStore.read(dailyCacheKey);
     if (cachedBody) {
       applyDailyQuestStatusBody(cachedBody);
     } else {
@@ -91,9 +94,11 @@ export function useDailyQuests({ user, guestProfile, onUserUpdated } = {}) {
     }
     try {
       const body = await getDailyQuestStatus(dailyPayload);
+      if (refreshVersion !== refreshVersionRef.current) return null;
       dailyQuestStatusStore.write(dailyCacheKey, body);
       return applyDailyQuestStatusBody(body);
     } catch (err) {
+      if (refreshVersion !== refreshVersionRef.current) return null;
       if (!cachedBody) {
         setStatus('error');
         setState(buildEmptyCalendarState());
@@ -102,6 +107,28 @@ export function useDailyQuests({ user, guestProfile, onUserUpdated } = {}) {
       return null;
     }
   }, [applyDailyQuestStatusBody, dailyCacheKey, dailyPayload, isSignedIn]);
+
+  useEffect(() => {
+    if (!isSignedIn) return () => {};
+    let cancelled = false;
+    let queued = false;
+    const unsubscribe = subscribeDailyQuestStatusChanged((event) => {
+      const detail = event?.detail || {};
+      if (detail.cacheKey && detail.cacheKey !== dailyCacheKey) return;
+      dailyQuestStatusStore.invalidate(dailyCacheKey);
+      if (queued) return;
+      queued = true;
+      window.setTimeout(async () => {
+        queued = false;
+        if (cancelled) return;
+        await refresh({ ignoreCache: true });
+      }, 0);
+    });
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [dailyCacheKey, isSignedIn, refresh]);
 
   useEffect(() => {
     let cancelled = false;
