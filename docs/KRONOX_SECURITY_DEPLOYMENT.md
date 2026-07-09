@@ -1102,9 +1102,10 @@ provider credentials, or full request bodies. Optional `age_group` and `gender` 
 private profile fields and must not be returned in public leaderboard/projection
 payloads.
 
-The guided first Solo level is a guest-safe gameplay route. It must not expose
-diagnostics/full-bank data and must not spend real `UserJokerInventory` while
-teaching the joker concept.
+The real level-type first Solo levels are guest-safe gameplay routes. They must
+not expose diagnostics/full-bank data and must not spend real
+`UserJokerInventory` or `UserHintInventory` while teaching consumables in
+training mode.
 
 Account linking is implemented by `linkGuestAccount`. It must verify both the
 GuestProfile token proof and `base44.auth.me()`, never trust request-body role

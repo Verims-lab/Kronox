@@ -35,7 +35,7 @@
         "tutorial",
         "online"
       ],
-      "description": "Gameplay mode that produced the exposure. Normal Solo selection primarily reads mode=solo; guided onboarding writes mode=tutorial."
+      "description": "Gameplay mode that produced the exposure. Normal Solo selection and real level-type onboarding primarily read mode=solo; mode=tutorial is legacy-only."
     },
     "shown_count": {
       "type": "number",

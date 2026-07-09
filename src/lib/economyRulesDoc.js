@@ -225,15 +225,24 @@ starter self-heal error must not block a valid purchased joker balance and
 ledger write. Partial failure reconciliation: ledger write failure uses
 best-effort rollback of Diamond, joker, and hint balances, but live
 provider/backend consistency proof remains manual.
-Hint gameplay consumption is active only for Solo Hint / İpucu: each player
+Solo onboarding levels 1-6 (before_after and timeline_basic) show Joker and
+Hint controls in training mode. Training use applies the safe teaching effect
+but must not call spendUserJoker or consumeUserHint, must not decrement
+UserJokerInventory or UserHintInventory, must not write JokerTransaction.reason
+= solo_use or HintTransaction.reason = solo_use, and must not complete Daily
+Calendar joker/hint tasks. From level 7 onward, normal Solo joker use still
+spends UserJokerInventory and writes JokerTransaction.
+Hint gameplay consumption is active only for Solo Hint / İpucu from level 7
+onward: each player
 gets exactly 3 starter Hints once through ensureUserHintInventory, consumeUserHint
 spends one Hint server-side with HintTransaction.reason = solo_use and source =
 solo_hint, and double-tap/retry paths use idempotency plus EconomyOperationLock.
 The gameplay Hint launcher only opens the popup; the popup has one hammer action,
 keeps stage 0 fully covered from the first rendered frame, and reveal advances
 only after server confirmation.
-Hint use is separate from Joker use, can satisfy Daily hint_used after the
-ledger row exists, and never grants Kronox Puan or affects Leaderboard.
+Hint use is separate from Joker use. Real Hint use can satisfy Daily hint_used
+after the ledger row exists; training Hint use in levels 1-6 cannot. Hint use
+never grants Kronox Puan or affects Leaderboard.
 Opening the Hint popup pauses the visible Solo timer; if Zaman Dondur is
 already active, the Hint pause is overlap-aware and never subtracts the same
 frozen seconds twice.

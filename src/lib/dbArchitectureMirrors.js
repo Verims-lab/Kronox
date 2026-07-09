@@ -151,6 +151,7 @@ Legacy entity status:
 Implemented now:
 - QuestionAttemptEvent gateway exists and analytics writes are best-effort.
 - Solo runtime writes shown, answered, swapped_out, and replacement_shown events.
+- Solo onboarding level-type analytics for before_after and timeline_basic are Phase 1 local/no-op, privacy-safe events only. Durable SoloLevelAttemptEvent writes remain deferred until a backend-owned function path exists; the client must not write durable attempt-reporting rows.
 - aggregateQuestionStats counts shown/replacement_shown, answered, and swapped_out event types separately.
 - aggregateQuestionStats and sendQuestionAnalyticsReportEmail ignore stale analytics rows that reference deleted/missing Question IDs with diagnostics.
 - Question analytics report history is sourced from QuestionAttemptEvent raw events; QuestionStatsProjection and CategoryStatsProjection are manual aggregateQuestionStats outputs and may be empty.

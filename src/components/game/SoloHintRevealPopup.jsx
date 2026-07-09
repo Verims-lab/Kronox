@@ -63,6 +63,7 @@ export default function SoloHintRevealPopup({
   remaining = 0,
   pending = false,
   error = '',
+  trainingMode = false,
   onUseHint,
   onClose,
 }) {
@@ -92,7 +93,8 @@ export default function SoloHintRevealPopup({
     if (!open) previousStageRef.current = normalizedStage;
   }, [normalizedStage, open]);
 
-  const canAdvance = open && !pending && hintCount > 0 && normalizedStage < SOLO_HINT_REVEAL_STAGE_COUNT;
+  const canAdvance = open && !pending && (trainingMode || hintCount > 0) && normalizedStage < SOLO_HINT_REVEAL_STAGE_COUNT;
+  const hintCountLabel = trainingMode ? '∞' : hintCount;
   const coverWidth = coverWidthForStage(normalizedStage);
   const answerClipPath = answerClipPathForStage(normalizedStage);
   const hammerAnimate = strikeKey && !reducedMotion
@@ -108,6 +110,7 @@ export default function SoloHintRevealPopup({
         <motion.div
           className="fixed inset-0 z-[90] flex items-center justify-center px-4 py-8"
           data-kronox-solo-hint-popup="true"
+          data-kronox-solo-hint-popup-training-mode={trainingMode ? 'true' : undefined}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -213,7 +216,7 @@ export default function SoloHintRevealPopup({
                 disabled={!canAdvance}
                 aria-disabled={!canAdvance}
                 aria-busy={pending}
-                aria-label={`İpucu kullan, kalan ${hintCount}`}
+                aria-label={trainingMode ? 'İpucu kullan, eğitimde hak harcamaz' : `İpucu kullan, kalan ${hintCount}`}
                 onClick={() => {
                   if (!canAdvance || !onUseHint) return;
                   onUseHint();
@@ -258,7 +261,7 @@ export default function SoloHintRevealPopup({
                       border: `1px solid ${canAdvance ? 'rgba(250,204,21,0.82)' : 'rgba(148,163,184,0.38)'}`,
                     }}
                   >
-                    {hintCount}
+                    {hintCountLabel}
                   </span>
                 </motion.span>
                 <span className="mt-1 text-center font-inter text-[10px] font-black leading-tight">

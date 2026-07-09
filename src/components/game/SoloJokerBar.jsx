@@ -72,6 +72,7 @@ export default function SoloJokerBar({
   tutorialDemoType = null,
   tutorialDemoHintActive = false,
   tutorialFocusActive = false,
+  trainingMode = false,
   layout = 'bottom',
   dragLocked = false,
   onUseJoker,
@@ -118,6 +119,7 @@ export default function SoloJokerBar({
       className={rootClassName}
       data-kronox-solo-joker-right-rail={isQuestionRail ? 'true' : undefined}
       data-kronox-solo-joker-drag-locked={dragLocked ? 'true' : undefined}
+      data-kronox-solo-joker-training-mode={trainingMode ? 'true' : undefined}
     >
       <AnimatePresence>
         {tutorialFocusActive && (
@@ -138,7 +140,8 @@ export default function SoloJokerBar({
           const balance = normalizeJokerQuantity(balances?.[inventoryType]);
           const isPending = pendingType === type;
           const isMistakeShieldActive = Boolean(type === 'mistakeShield' && mistakeShieldActive);
-          const isLocked = disabled || dragLocked || loading || jokerUsedOnCurrentCard || isPending || balance <= 0;
+          const isLocked = disabled || dragLocked || loading || jokerUsedOnCurrentCard || isPending || (!trainingMode && balance <= 0);
+          const balanceLabel = trainingMode ? '∞' : balance;
           const active = !isLocked;
           const dimmed = isLocked && !isRecentlyUsed && !isMistakeShieldActive;
           const isTutorialDemoTarget = tutorialDemoType === type;
@@ -152,7 +155,7 @@ export default function SoloJokerBar({
               aria-disabled={isLocked}
               aria-pressed={isRecentlyUsed || isMistakeShieldActive}
               aria-busy={isPending}
-              aria-label={`${label}, kalan ${balance}`}
+              aria-label={trainingMode ? `${label}, eğitimde hak harcamaz` : `${label}, kalan ${balance}`}
               data-kronox-kronokalkan-button-active={isMistakeShieldActive ? 'true' : undefined}
               data-kronox-guided-joker-demo-target={isTutorialDemoTarget ? 'true' : undefined}
               onClick={() => {
@@ -229,7 +232,7 @@ export default function SoloJokerBar({
                       : '0 0 10px rgba(250,204,21,0.32), 0 2px 8px rgba(0,0,0,0.45)',
                   }}
                 >
-                  {balance}
+                  {balanceLabel}
                 </span>
               </span>
               <span

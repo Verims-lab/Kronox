@@ -988,17 +988,20 @@ export const EXTRA_TESTS = [
     }),
     { critical: true, runtimeProofRequired: true, actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE }),
 
-  makeCase('guided_first_solo_replaces_old_standalone_tutorial',
-    'Onboarding Phase 2 uses guided first Solo level instead of old standalone tutorial',
+  makeCase('level_type_first_solo_replaces_old_standalone_tutorial',
+    'Onboarding uses real level-type first Solo instead of old standalone tutorial',
     () => {
       const missing = missingTokens(`${appSource}\n${onboardingPageSource}\n${gameSource}`, [
         'OnboardingPage',
         'path="/onboarding"',
         'onboardingTutorial',
-        'guided_first_solo_level',
+        'isOnboardingTutorialFlow',
+        'const isGuidedSoloTutorial = false',
+        'SoloLevelStartTutorialPopup',
+        'getSoloLevelStartTutorialConfig',
+        'before_after',
         'GUIDED_TUTORIAL_TIME_LIMIT_SECONDS = SOLO_LEVEL_TIME_SECONDS',
         'totalTimeSeconds: GUIDED_TUTORIAL_TIME_LIMIT_SECONDS',
-        'GuidedSoloTutorialOverlay',
         'tutorial_in_progress',
         'guidedTutorialCompleted',
       ]);
@@ -1008,14 +1011,14 @@ export const EXTRA_TESTS = [
         'shouldShowTutorialForUser',
       ]);
       if (missing.length || forbidden.length) {
-        return fail('Old standalone tutorial can still be reached or guided first Solo wiring is missing.', {
+        return fail('Old standalone tutorial can still be reached or first Solo onboarding wiring is missing.', {
           verification: 'STATIC_CONTRACT',
           files: ['src/App.jsx', 'src/pages/OnboardingPage.jsx', 'src/pages/Game.jsx', 'src/pages/SettingsPage.jsx'],
           actual: { missing, forbidden },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('First-time guest onboarding is routed through a guided Solo level, not the old tutorial modal.', {
+      return pass('First-time guest onboarding routes through real level-type Solo onboarding, not the old tutorial modal.', {
         verification: 'STATIC_CONTRACT',
         actionType: ACTION_TYPES.CODE_FIX,
       });

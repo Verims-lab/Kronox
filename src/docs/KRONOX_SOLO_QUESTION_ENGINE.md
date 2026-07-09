@@ -6,13 +6,17 @@ This mirror matches `docs/KRONOX_SOLO_QUESTION_ENGINE.md` for in-app Health chec
 
 Normal Solo levels end at 7 correct timeline cards, including seed cards already on the timeline, start with 2 timeline anchor cards, use a 10 evaluated move limit, use an 18-question deck, use a 180 seconds timer, and fail when 10 evaluated moves are used before the target is reached.
 
-Special Solo levels start at level 5 and repeat every 5 levels: 5, 10, 15, 20, and so on. Special Solo levels end at 10 correct timeline cards, including seed cards already on the timeline, use a 13 evaluated move limit, use a 21-question deck, and use the same 180 seconds timer. The 3 extra moves are only a mistake buffer and do not change scoring.
+Solo onboarding levels 1-3 use level_type before_after with one fixed reference card and 6 playable cards. Levels 4-6 use level_type timeline_basic with two fixed reference cards and 6 playable cards. These levels are real scored Solo levels, use training-only Joker/Hint usage with no real inventory spend, and do not add answer cards to the persistent timeline. Level 7 returns to normal timeline play. Special Solo levels start at level 10 after onboarding and repeat every 5 levels: 10, 15, 20, and so on. Special Solo levels end at 10 correct timeline cards, including seed cards already on the timeline, use a 13 evaluated move limit, use a 21-question deck, and use the same 180 seconds timer. The 3 extra moves are only a mistake buffer and do not change scoring.
 
 The full attempt deck is built before gameplay starts and is consumed in order. There is no mid-attempt re-randomization. The first active player question card shown to the user is `soloAttemptDeck[0]`; seed/preplaced timeline cards do not count as the first 5 active player question cards unless they are actual player question cards, but they must not create close-year conflicts with those early active cards. Runtime also uses a visible timeline spacing guardrail: placed/seed timeline years and the current active card avoid 1-4 year conflicts such as 1996/1997, 1998/1999, and 1913/1914 where a safe prebuilt-deck alternative exists.
 
 Hard deck rules:
+- 13 questions for before_after onboarding levels
+- 14 questions for timeline_basic onboarding levels
 - 18 questions for normal levels
 - 21 questions for special levels
+- before_after onboarding: 1 fixed reference card + 6 playable cards + safe buffer
+- timeline_basic onboarding: 2 fixed reference cards + 6 playable cards + safe buffer
 - normal: 2 anchor cards + 10 playable moves + Kart Değiştir buffer + Kronokalkan buffer
 - special: 2 anchor cards + 13 playable moves + Kart Değiştir buffer + Kronokalkan buffer
 - Zaman Dondur does not require an extra card

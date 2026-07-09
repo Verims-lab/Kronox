@@ -215,6 +215,7 @@ export default function GameLayout({
   progressCardTarget,
   remainingMoves,
   maxMoves,
+  timelineSlotLabels = null,
   // Codex106-24 — Solo Level mode countdown. When provided, GameLayout
   // shows a total-level countdown in the top-right slot instead of the
   // per-question TurnTimer. Other modes (online, legacy solo) pass
@@ -610,6 +611,7 @@ export default function GameLayout({
                   pending={soloHint?.pending}
                   disabled={Boolean(soloHint?.disabled) || !isMyTurn || Boolean(feedback) || interactionPaused || isDragging}
                   revealStage={soloHint?.revealStage}
+                  trainingMode={Boolean(soloHint?.trainingMode)}
                   onOpen={soloHint?.onOpen}
                 />
               </div>
@@ -706,6 +708,7 @@ export default function GameLayout({
                   tutorialDemoType={soloJokers?.tutorialDemoType}
                   tutorialDemoHintActive={soloJokers?.tutorialDemoHintActive}
                   tutorialFocusActive={soloJokers?.tutorialFocusActive}
+                  trainingMode={Boolean(soloJokers?.trainingMode)}
                   layout="questionRail"
                   onUseJoker={soloJokers?.onUseJoker}
                 />
@@ -758,6 +761,7 @@ export default function GameLayout({
               guidedScrollHintActive={timelineSwipeHintVisible}
               onGuidedScrollHintInteraction={guidedTimelineScrollHintActive ? onTimelineSwipeHintInteraction : undefined}
               correctStreak={correctStreak}
+              slotLabels={timelineSlotLabels}
               soloYearOnlyCards
             />
           )}

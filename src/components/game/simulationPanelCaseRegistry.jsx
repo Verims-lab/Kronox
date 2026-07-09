@@ -160,9 +160,12 @@ import * as placementFeedbackCases from './simulationPanelPlacementFeedbackCases
 // TimerReset icon swap. Visual-only; popup props are unchanged.
 import * as soloPopupCases from './simulationPanelSoloPopupCases';
 // Codex166/Codex180 — Solo Question Selection Engine: controlled level-aware
-// attempt deck (16 normal / 19 special), unique ids + unique years,
+// attempt deck (13/14 onboarding, 18 normal, 21 special), unique ids + unique years,
 // active-only filtering, first-five spacing, and clean failure when invalid.
 import * as soloQuestionEngineCases from './simulationPanelSoloQuestionEngineCases';
+// Solo onboarding level types: before_after, timeline_basic, fixed references,
+// training consumables, start popups, and privacy-safe local analytics.
+import * as soloOnboardingCases from './simulationPanelSoloOnboardingCases';
 // Codex168 — Package 2 audit fixes: authenticated question access,
 // active-category Solo wiring, strict Online start filtering,
 // idempotency recovery, persisted leaderboard projection, and release
@@ -277,6 +280,7 @@ const MODULES = [
   placementFeedbackCases,
   soloPopupCases,
   soloQuestionEngineCases,
+  soloOnboardingCases,
   package2AuditCases,
   accountDeletionCases,
   dbArchitectureImplementationCases,

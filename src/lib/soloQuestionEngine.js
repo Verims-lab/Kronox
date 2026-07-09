@@ -6,10 +6,10 @@
 //   attempt deck of level-aware size per Solo attempt.
 //
 // CORE RULES (locked in by Health suite solo_question_engine_health):
-//   • Deck size               = normal 18, special 21
-//   • Win condition           = normal 7 correct timeline cards; special 10
+//   • Deck size               = onboarding 13/14, normal 18, special 21
+//   • Win condition           = onboarding 6 answered cards; normal 7 correct timeline cards; special 10
 //                                (seed cards already count on the timeline)
-//   • Special levels          = level 5, then every 5 levels
+//   • Special levels          = level 10, then every 5 levels after onboarding
 //   • Fail condition          = level-specific evaluated move limit without target OR 180s time expired
 //   • Unique question IDs     in the same deck
 //   • Unique answer/year      in the same deck             (HARD rule)
@@ -50,6 +50,7 @@
 import {
   getSoloAttemptDeckSizeForLevel,
   getSoloCardsRequiredForLevel,
+  getSoloLevelType,
   isSoloSpecialLevel,
   SOLO_MAX_EVALUATED_MOVES,
 } from './soloProgressHelpers';
@@ -1944,7 +1945,7 @@ export function buildSoloAttemptDeck(args = {}) {
       deckSize,
       seedCount,
       levelNumber: Math.max(1, Math.trunc(Number(args.levelNumber) || 1)),
-      levelType: isSoloSpecialLevel(args.levelNumber) ? 'special' : 'normal',
+      levelType: getSoloLevelType(args.levelNumber),
       categoriesUsed: new Set(
         finalDeck
           .map((q) => Number(q?.main_category_id))

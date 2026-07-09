@@ -158,7 +158,7 @@ export const EXTRA_TESTS = [
 
       const startReducer = (config = {}) => soloAttemptReducer(createSoloAttemptInitialState(), {
         type: SOLO_ATTEMPT_ACTIONS.ATTEMPT_STARTED,
-        levelNumber: config.levelNumber ?? 1,
+        levelNumber: config.levelNumber ?? 7,
         maxEvaluatedMoves: config.maxEvaluatedMoves,
       });
 
@@ -183,7 +183,7 @@ export const EXTRA_TESTS = [
         });
       }
 
-      let specialAtTen = startReducer({ levelNumber: 5 });
+      let specialAtTen = startReducer({ levelNumber: 10 });
       for (let i = 0; i < 10; i += 1) {
         specialAtTen = soloAttemptReducer(specialAtTen, {
           type: SOLO_ATTEMPT_ACTIONS.MOVE_EVALUATED,
@@ -662,21 +662,21 @@ export const EXTRA_TESTS = [
         completedCards: 9,
         elapsedSeconds: 75,
         requiredCards: 10,
-        maxMoves: getSoloMaxEvaluatedMovesForLevel(5),
+        maxMoves: getSoloMaxEvaluatedMovesForLevel(10),
       });
       const specialMove13Fail = calculateSoloAttemptResult({
         usedMoves: 13,
         completedCards: 9,
         elapsedSeconds: 75,
         requiredCards: 10,
-        maxMoves: getSoloMaxEvaluatedMovesForLevel(5),
+        maxMoves: getSoloMaxEvaluatedMovesForLevel(10),
       });
       const specialMove13Pass = calculateSoloAttemptResult({
         usedMoves: 13,
         completedCards: 10,
         elapsedSeconds: 150,
         requiredCards: 10,
-        maxMoves: getSoloMaxEvaluatedMovesForLevel(5),
+        maxMoves: getSoloMaxEvaluatedMovesForLevel(10),
       });
       if (
         mismatches.length ||
@@ -1386,21 +1386,21 @@ export const EXTRA_TESTS = [
         completedCards: 6,
         elapsedSeconds: 70,
         requiredCards: 7,
-        maxMoves: getSoloMaxEvaluatedMovesForLevel(1),
+        maxMoves: getSoloMaxEvaluatedMovesForLevel(7),
       });
       const tenthMoveNormalFail = calculateSoloAttemptResult({
         usedMoves: 10,
         completedCards: 6,
         elapsedSeconds: 70,
         requiredCards: 7,
-        maxMoves: getSoloMaxEvaluatedMovesForLevel(1),
+        maxMoves: getSoloMaxEvaluatedMovesForLevel(7),
       });
       const tenthMoveSpecialStillRunning = calculateSoloAttemptResult({
         usedMoves: 10,
         completedCards: 9,
         elapsedSeconds: 70,
         requiredCards: 10,
-        maxMoves: getSoloMaxEvaluatedMovesForLevel(5),
+        maxMoves: getSoloMaxEvaluatedMovesForLevel(10),
       });
       const failures = [];
       if (ninthMoveNormal.passed || ninthMoveNormal.failReason === 'moves') {
@@ -1409,7 +1409,7 @@ export const EXTRA_TESTS = [
       if (!tenthMoveNormalFail || tenthMoveNormalFail.passed || tenthMoveNormalFail.failReason !== 'moves' || tenthMoveNormalFail.levelScore !== 0) {
         failures.push('10th normal evaluated move without target did not fail with 0 score');
       }
-      if (getSoloMaxEvaluatedMovesForLevel(1) !== 10 || SOLO_SPECIAL_MAX_EVALUATED_MOVES !== 13) {
+      if (getSoloMaxEvaluatedMovesForLevel(7) !== 10 || SOLO_SPECIAL_MAX_EVALUATED_MOVES !== 13) {
         failures.push('normal 10 / special 13 evaluated move limits drifted');
       }
       if (tenthMoveSpecialStillRunning.failReason === 'moves') {

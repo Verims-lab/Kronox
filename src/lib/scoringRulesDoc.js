@@ -25,13 +25,18 @@ not fragment visible UI language into competing score names.
 Per-level best score is stored on User.solo_progress and projected into the
 leaderboard by getSoloLeaderboard.
 
-Normal Solo levels require 7 correct timeline cards, including seed cards
-already on the timeline. Special Solo levels start at level 5 and repeat
+Onboarding Solo levels 1-3 use before_after, levels 4-6 use timeline_basic, and
+all six are real scored Solo levels with 6 playable cards. Normal Solo levels
+from level 7 require 7 correct timeline cards, including seed cards already on
+the timeline. Special Solo levels start at level 10 after onboarding and repeat
 every 5 levels; they require 10 correct timeline cards, including seed cards
 already on the timeline.
 All new Solo attempts use a 180 seconds timer and 2 timeline anchor cards.
-Normal levels use 10 evaluated moves; special levels use 13 evaluated moves
-only as a mistake buffer. Deck sizing is 2 anchors + 10 playable moves + Kart Değiştir buffer + Kronokalkan buffer for normal levels, and 2 anchors + 13 playable moves + Kart Değiştir buffer + Kronokalkan buffer for special levels.
+Onboarding levels use 6 evaluated moves. Normal levels use 10 evaluated moves;
+special levels use 13 evaluated moves only as a mistake buffer. Deck sizing is
+1 reference + 6 playable + buffers for before_after, 2 references + 6 playable
++ buffers for timeline_basic, 2 anchors + 10 playable moves + buffers for normal
+levels, and 2 anchors + 13 playable moves + buffers for special levels.
 The visible counter is HAMLE /
 remaining moves. A valid evaluated placement consumes one move; touch, drag
 start, invalid drop, joker activation, and tutorial popups do not consume

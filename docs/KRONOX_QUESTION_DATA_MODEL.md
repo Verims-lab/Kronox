@@ -608,7 +608,8 @@ Write timing:
 
 * count active playable cards when shown
 * count `Kart Değiştir` replacement cards when the replacement becomes active
-* count guided tutorial cards as `mode=tutorial`
+* count real level-type onboarding cards as `mode=solo`; retired guided
+  tutorial cards may remain `mode=tutorial` only for legacy rows
 * do not count server candidate pool rows
 * do not count unused deck buffer/reserve cards
 * do not count never-shown joker replacement candidates

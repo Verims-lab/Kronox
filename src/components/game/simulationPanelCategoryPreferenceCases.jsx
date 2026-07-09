@@ -548,7 +548,7 @@ export const EXTRA_TESTS = [
           missing,
         });
       }
-      return pass('Category preference popup exists and is sequenced away from the guided onboarding route.', {
+      return pass('Category preference popup exists and is sequenced after the real level-type onboarding route.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

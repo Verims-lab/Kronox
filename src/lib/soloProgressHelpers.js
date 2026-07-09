@@ -33,17 +33,29 @@
 
 // ─── Solo attempt scoring constants ───────────────────────────────────
 export const SOLO_RULES_VERSION = 3;
+export const SOLO_LEVEL_TYPES = Object.freeze({
+  BEFORE_AFTER: 'before_after',
+  TIMELINE_BASIC: 'timeline_basic',
+  NORMAL: 'normal',
+  SPECIAL: 'special',
+});
 export const SOLO_NORMAL_CARD_TARGET = 7;
 export const SOLO_SPECIAL_CARD_TARGET = 10;
-export const SOLO_SPECIAL_START_LEVEL = 5;
+export const SOLO_ONBOARDING_CARD_TARGET = 6;
+export const SOLO_SPECIAL_START_LEVEL = 10;
 export const SOLO_SPECIAL_LEVEL_INTERVAL = 5;
+export const SOLO_ONBOARDING_BEFORE_AFTER_MAX_LEVEL = 3;
+export const SOLO_ONBOARDING_MAX_LEVEL = 6;
 export const SOLO_SCORE_CARD_TARGET = SOLO_SPECIAL_CARD_TARGET;
 export const SOLO_BEGINNER_CARD_TARGET = SOLO_NORMAL_CARD_TARGET;
 export const SOLO_BEGINNER_CARD_TARGET_MAX_LEVEL = 0;
 export const SOLO_SCORE_TIME_LIMIT_SECONDS = 180;
 export const SOLO_INITIAL_TIMELINE_CARDS = 2;
+export const SOLO_BEFORE_AFTER_REFERENCE_CARDS = 1;
+export const SOLO_TIMELINE_BASIC_REFERENCE_CARDS = 2;
 export const SOLO_NORMAL_MAX_EVALUATED_MOVES = 10;
 export const SOLO_SPECIAL_MAX_EVALUATED_MOVES = 13;
+export const SOLO_ONBOARDING_MAX_EVALUATED_MOVES = 6;
 export const SOLO_MAX_EVALUATED_MOVES = SOLO_NORMAL_MAX_EVALUATED_MOVES;
 export const SOLO_CORRECT_PLACEMENTS_NEEDED = SOLO_NORMAL_CARD_TARGET - SOLO_INITIAL_TIMELINE_CARDS;
 export const SOLO_CARD_SWAP_BUFFER_CARDS = 3;
@@ -52,6 +64,51 @@ export const SOLO_JOKER_BUFFER_CARDS = SOLO_CARD_SWAP_BUFFER_CARDS + SOLO_MISTAK
 export const SOLO_MAX_NON_FAILING_MISTAKES = SOLO_MAX_EVALUATED_MOVES - 1; // legacy progress metadata only
 export const SOLO_NORMAL_DECK_SIZE = SOLO_INITIAL_TIMELINE_CARDS + SOLO_NORMAL_MAX_EVALUATED_MOVES + SOLO_JOKER_BUFFER_CARDS;
 export const SOLO_SPECIAL_DECK_SIZE = SOLO_INITIAL_TIMELINE_CARDS + SOLO_SPECIAL_MAX_EVALUATED_MOVES + SOLO_JOKER_BUFFER_CARDS;
+export const SOLO_BEFORE_AFTER_DECK_SIZE = SOLO_BEFORE_AFTER_REFERENCE_CARDS + SOLO_ONBOARDING_CARD_TARGET + SOLO_JOKER_BUFFER_CARDS;
+export const SOLO_TIMELINE_BASIC_DECK_SIZE = SOLO_TIMELINE_BASIC_REFERENCE_CARDS + SOLO_ONBOARDING_CARD_TARGET + SOLO_JOKER_BUFFER_CARDS;
+
+export function normalizeSoloLevelNumber(levelNumber) {
+  return Math.max(1, Math.trunc(Number(levelNumber) || 1));
+}
+
+export function getSoloLevelType(levelNumber) {
+  const level = normalizeSoloLevelNumber(levelNumber);
+  if (level <= SOLO_ONBOARDING_BEFORE_AFTER_MAX_LEVEL) return SOLO_LEVEL_TYPES.BEFORE_AFTER;
+  if (level <= SOLO_ONBOARDING_MAX_LEVEL) return SOLO_LEVEL_TYPES.TIMELINE_BASIC;
+  if (
+    level >= SOLO_SPECIAL_START_LEVEL
+    && (level - SOLO_SPECIAL_START_LEVEL) % SOLO_SPECIAL_LEVEL_INTERVAL === 0
+  ) {
+    return SOLO_LEVEL_TYPES.SPECIAL;
+  }
+  return SOLO_LEVEL_TYPES.NORMAL;
+}
+
+export function isSoloBeforeAfterLevel(levelNumber) {
+  return getSoloLevelType(levelNumber) === SOLO_LEVEL_TYPES.BEFORE_AFTER;
+}
+
+export function isSoloTimelineBasicLevel(levelNumber) {
+  return getSoloLevelType(levelNumber) === SOLO_LEVEL_TYPES.TIMELINE_BASIC;
+}
+
+export function isSoloOnboardingLevel(levelNumber) {
+  const type = getSoloLevelType(levelNumber);
+  return type === SOLO_LEVEL_TYPES.BEFORE_AFTER || type === SOLO_LEVEL_TYPES.TIMELINE_BASIC;
+}
+
+export function getSoloReferenceCardCountForLevel(levelNumber) {
+  const type = getSoloLevelType(levelNumber);
+  if (type === SOLO_LEVEL_TYPES.BEFORE_AFTER) return SOLO_BEFORE_AFTER_REFERENCE_CARDS;
+  if (type === SOLO_LEVEL_TYPES.TIMELINE_BASIC) return SOLO_TIMELINE_BASIC_REFERENCE_CARDS;
+  return SOLO_INITIAL_TIMELINE_CARDS;
+}
+
+export function getSoloPlayableCardCountForLevel(levelNumber) {
+  return isSoloOnboardingLevel(levelNumber)
+    ? SOLO_ONBOARDING_CARD_TARGET
+    : getSoloMaxEvaluatedMovesForLevel(levelNumber);
+}
 
 export function isSoloSpecialLevel(levelNumber) {
   const level = Math.trunc(Number(levelNumber) || 0);
@@ -60,14 +117,19 @@ export function isSoloSpecialLevel(levelNumber) {
 }
 
 export function getSoloCardsRequiredForLevel(levelNumber) {
+  if (isSoloOnboardingLevel(levelNumber)) return SOLO_ONBOARDING_CARD_TARGET;
   return isSoloSpecialLevel(levelNumber) ? SOLO_SPECIAL_CARD_TARGET : SOLO_NORMAL_CARD_TARGET;
 }
 
 export function getSoloMaxEvaluatedMovesForLevel(levelNumber) {
+  if (isSoloOnboardingLevel(levelNumber)) return SOLO_ONBOARDING_MAX_EVALUATED_MOVES;
   return isSoloSpecialLevel(levelNumber) ? SOLO_SPECIAL_MAX_EVALUATED_MOVES : SOLO_NORMAL_MAX_EVALUATED_MOVES;
 }
 
 export function getSoloAttemptDeckSizeForLevel(levelNumber) {
+  const type = getSoloLevelType(levelNumber);
+  if (type === SOLO_LEVEL_TYPES.BEFORE_AFTER) return SOLO_BEFORE_AFTER_DECK_SIZE;
+  if (type === SOLO_LEVEL_TYPES.TIMELINE_BASIC) return SOLO_TIMELINE_BASIC_DECK_SIZE;
   return isSoloSpecialLevel(levelNumber) ? SOLO_SPECIAL_DECK_SIZE : SOLO_NORMAL_DECK_SIZE;
 }
 

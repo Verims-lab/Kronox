@@ -140,13 +140,15 @@ Checklist:
 Checklist:
 
 * Normal Solo levels start with an 18-question deck.
+* Onboarding Solo levels 1-3 use `before_after` with a 13-question deck; levels
+  4-6 use `timeline_basic` with a 14-question deck.
 * Special Solo levels start with a 21-question deck.
 * The deck has unique question IDs.
 * The deck has unique years.
 * Passive-category questions are excluded.
 * Only active questions are used.
 * Normal Solo levels win after 7 correct timeline cards, including seed cards already on the timeline.
-* Special Solo levels start at level 5 and repeat every 5 levels.
+* Special Solo levels start at level 10 after onboarding and repeat every 5 levels.
 * Special Solo levels win after 10 correct timeline cards, including seed cards already on the timeline.
 * Live Solo shows remaining moves as `10 HAMLE`, `9 HAMLE`, and so on for normal levels, and `13 HAMLE`, `12 HAMLE`, and so on for special levels.
 * Touch, slight drag, cancelled drag, invalid drop, tutorial hand animation, and tutorial popup reading do not decrement moves.
@@ -1348,8 +1350,8 @@ Before release, manually verify guest-to-account linking:
 * a fresh guest Solo attempt prefers questions unseen by that guest before
   lower per-player `shown_count`, older per-player `last_shown_at`, and global
   metrics
-* guided tutorial exposure uses `mode=tutorial` and normal Solo reads
-  `mode=solo`
+* real level-type onboarding exposure for levels 1-6 uses `mode=solo`; retired
+  guided tutorial exposure mode is legacy-only
 * linking a guest account migrates or aliases recent exposure history so repeat
   history does not reset after Google / Apple / Email linking
 * Question Analytics email remains email-body-only, no PDF, exactly 9 top-level

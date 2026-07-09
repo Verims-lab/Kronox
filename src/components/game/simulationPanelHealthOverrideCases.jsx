@@ -220,7 +220,7 @@ export const OVERRIDDEN_CASE_KEYS = new Set([
 
   // Codex378 — Tutorial is no longer a standalone profile-flag modal.
   // First-time onboarding now runs through GuestProfile state +
-  // `/onboarding` guided first Solo level.
+  // `/onboarding` real level-type first Solo level.
   'tutorial_profile_health.tutorial_status_is_profile_field',
   'tutorial_profile_health.tutorial_completion_updates_profile',
 

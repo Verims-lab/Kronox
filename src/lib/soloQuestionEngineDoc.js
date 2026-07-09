@@ -11,19 +11,39 @@ Status: Active product contract for new Solo attempts.
 Normal Solo levels end at 7 correct timeline cards, including seed cards
 already on the timeline, start with 2 timeline anchor cards, use a 10
 evaluated moves limit, and use an internal 18-question deck buffer.
-Special Solo levels start at level 5 and repeat every 5 levels: 5, 10,
-15, 20, and so on. Special Solo levels end at 10 correct timeline cards,
+Special Solo levels start at level 10 after onboarding and repeat every
+5 levels: 10, 15, 20, and so on. Special Solo levels end at 10 correct timeline cards,
 including seed cards already on the timeline, use a 13 evaluated moves limit,
 and use an internal 21-question deck buffer. The 3 extra moves are only a
 mistake buffer and do not change scoring.
 
+Levels 1-3 use level_type before_after with one fixed reference card, ÖNCESİ /
+SONRASI slots, six playable question cards, virtual answered-card progress, and
+no answer-card insertion into the persistent timeline. Levels 4-6 use
+level_type timeline_basic with two fixed reference cards, ÖNCESİ / ARASI /
+SONRASI slots, six playable question cards, virtual answered-card progress, and
+no answer-card insertion into the persistent timeline. Levels 1-6 are real Solo
+levels that keep existing Solo progress, stars, Kronox Puan, replay/best-score,
+and leaderboard projection guards. Level 7 returns to normal timeline play.
+
 All new Solo attempts use a 180 seconds timer and fail when their level-specific
 evaluated move limit is used before the target timeline card count is reached.
-Internal deck sizing is normal 2 anchors + 10 playable moves + Kart Değiştir
-buffer + Kronokalkan buffer, and special 2 anchors + 13 playable moves +
-Kart Değiştir buffer + Kronokalkan buffer. Zaman Dondur does not require extra card buffer.
+Internal deck sizing is before_after 1 reference + 6 playable cards + Kart Değiştir
+buffer + Kronokalkan buffer, timeline_basic 2 references + 6 playable cards +
+Kart Değiştir buffer + Kronokalkan buffer, normal 2 anchors + 10 playable moves
++ Kart Değiştir buffer + Kronokalkan buffer, and special 2 anchors + 13
+playable moves + Kart Değiştir buffer + Kronokalkan buffer. Zaman Dondur does not require extra card buffer.
 Extra Kart Değiştir or Kronokalkan use beyond the per-attempt buffer fails
 safely before spend; there is no raw client question list fallback.
+
+Onboarding level-start tutorial popups appear on levels 1, 2, 3, 4, and 7 every
+attempt, with a safe video placeholder/config slot and an X close button.
+Levels 5, 6, and 8+ have no level-start popup. Popup time is excluded from the
+effective Solo timer and popup close/skip analytics must stay privacy-safe.
+Onboarding levels 1-6 show Joker and Hint controls in training mode: no
+spendUserJoker, no consumeUserHint, no JokerTransaction or HintTransaction
+spend row, no real inventory decrement, and no Daily Calendar joker/hint task
+progress. Level 7 and later use normal inventory-consuming Joker/Hint behavior.
 
 Question loading bootstrap first attempts online getQuestions when the browser
 is online or network state is unknown. The default gameplay response is an
@@ -60,6 +80,8 @@ cards. This avoids player-facing 1-4 year conflicts such as 1996/1997,
 1998/1999, and 1913/1914 where a safe alternative exists.
 
 Hard deck rules:
+- 13 questions for before_after onboarding.
+- 14 questions for timeline_basic onboarding.
 - 18 questions for normal levels.
 - 21 questions for special levels.
 - 10 evaluated moves for normal levels.
@@ -225,6 +247,12 @@ Purchased jokers appear through the same persistent UserJokerInventory balances
 that Solo already reads; using them in Solo still spends through spendUserJoker,
 which is Solo-context-only, uses deploy-safe UserJokerInventory/JokerTransaction
 entity fallback, and writes JokerTransaction.reason = solo_use.
+Solo onboarding levels 1-6 show Joker and Hint controls in training mode. The
+training path applies the safe teaching effect but does not call spendUserJoker
+or consumeUserHint, does not decrement UserJokerInventory or UserHintInventory,
+does not write JokerTransaction.reason = solo_use or HintTransaction.reason =
+solo_use, and does not complete Daily Calendar joker/hint task progress. Level
+7 and later use normal inventory-consuming Joker/Hint behavior.
 Solo Hint / İpucu is separate from Joker: ensureUserHintInventory initializes
 exactly 3 starter Hints once for authenticated and token-proven completed
 guests, while consumeUserHint spends one Hint with HintTransaction.reason =
@@ -236,6 +264,12 @@ confirmation, is overlap-aware when Zaman Dondur is active so the same frozen
 seconds are never subtracted twice, can satisfy Daily hint_used, and never
 counts as Joker use, changes scoring, grants Kronox Puan, affects leaderboard,
 or exposes the full question bank.
+
+First-launch GuestProfile onboarding may still pass onboardingTutorial in route
+state, but that flag is only a profile handoff flag. The active level 1 teaching
+flow is the real before_after onboarding level with its level-start popup and
+training consumables; the old guided hand-demo overlay and forced joker sequence
+must not run on top of it.
 
 Kronokalkan protects the next wrong valid placement from consuming a move.
 Kart Değiştir replaces the current card from the already prepared Solo deck
@@ -260,9 +294,10 @@ Selection order within the already-selected category/lane:
 4. global shown count / global last shown only as secondary tie-breakers
 5. stable randomization
 
-Normal Solo reads PlayerQuestionExposure with mode=solo. Guided onboarding
-tutorial writes mode=tutorial, so tutorial exposures do not over-penalize
-normal Solo. getQuestions applies exposure-aware ranking before its bounded
+Normal Solo, including the real level-type onboarding levels 1-6, reads and
+writes PlayerQuestionExposure with mode=solo. The retired guided tutorial mode
+remains legacy only and must not be required by the current first-launch
+onboarding path. getQuestions applies exposure-aware ranking before its bounded
 server attempt response cap, and buildSoloAttemptDeck receives
 playerQuestionExposureStats so final ordering and replacement reserve ordering
 keep the same priority.
