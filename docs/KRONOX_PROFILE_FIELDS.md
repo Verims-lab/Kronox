@@ -128,7 +128,7 @@ CTA and continue playing without login.
 
 ## Guest Onboarding Phase 2
 
-`GuestProfile.onboarding_status` carries the guided onboarding state machine:
+`GuestProfile.onboarding_status` carries the real level-type onboarding state machine:
 `guest_created`, `tutorial_in_progress`, `tutorial_completed`,
 `profile_setup_pending`, `category_setup_pending`, and `onboarding_complete`.
 The `Eğitime Devam` resume screen is valid only for a true resumable
@@ -137,7 +137,7 @@ profile/category step has been completed. Stale `tutorial_in_progress` values
 must not override `tutorial_completed`, `profile_setup_pending`,
 `category_setup_pending`, or `onboarding_complete`.
 
-The profile setup step follows the guided first Solo level. It shows only
+The profile setup step follows the real level-type first Solo level. It shows only
 `username`, optional `age`, and optional `gender`; `display_name` is mirrored
 from `username` through the token-proven `createGuestProfile` update path.
 The `Kategorilere Geç` action must either advance to `category_setup_pending`

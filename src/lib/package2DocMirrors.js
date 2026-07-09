@@ -11,7 +11,7 @@ export const SOLO_QUESTION_ENGINE_DOC = `# Kronox Solo Question Engine
 
 Normal Solo levels use an 18-question deck with 18 unique years and need 7 correct
 timeline cards, including seed cards already on the timeline, to pass.
-Special Solo levels start at level 5, repeat every 5 levels, use a 21-question deck
+Special Solo levels start at level 10 after onboarding, repeat every 5 levels, use a 21-question deck
 with 21 unique years, and need 10 correct timeline cards, including seed
 cards already on the timeline, to pass. Normal attempts use 10 evaluated moves;
 special attempts use 13 evaluated moves. All new Solo attempts use 180

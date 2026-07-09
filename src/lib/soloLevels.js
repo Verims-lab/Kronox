@@ -46,7 +46,10 @@ import {
   getBestSoloLevelResult,
   getSoloAttemptDeckSizeForLevel,
   getSoloCardsRequiredForLevel,
+  getSoloLevelType,
   getSoloMaxEvaluatedMovesForLevel,
+  getSoloPlayableCardCountForLevel,
+  getSoloReferenceCardCountForLevel,
   getEffectiveUnlockedLevel,
   getHighestCompletedLevel,
   getLevelStatus,
@@ -499,9 +502,11 @@ export function getSoloLevels(progress) {
     const entry = safe.levels?.[String(lvl.levelNumber)] || null;
     const stars = Math.max(0, Math.min(3, Number(entry?.bestStars) || 0));
     const status = getLevelStatus(lvl.levelNumber, safe, total);
+    const levelType = getSoloLevelType(lvl.levelNumber);
     return {
       levelNumber: lvl.levelNumber,
       title: lvl.title,
+      levelType,
       status,
       stars,
       bestScore: typeof entry?.bestScore === 'number' ? entry.bestScore : null,
@@ -510,7 +515,10 @@ export function getSoloLevels(progress) {
       bestRemainingMoves: typeof entry?.bestRemainingMoves === 'number' ? entry.bestRemainingMoves : null,
       bestMaxMoves: typeof entry?.bestMaxMoves === 'number' ? entry.bestMaxMoves : null,
       bestTimeSeconds: typeof entry?.bestTimeSeconds === 'number' ? entry.bestTimeSeconds : null,
+      referenceCardCount: getSoloReferenceCardCountForLevel(lvl.levelNumber),
+      playableCardCount: getSoloPlayableCardCountForLevel(lvl.levelNumber),
       isSpecial: isSoloSpecialLevel(lvl.levelNumber),
+      trainingConsumables: levelType === 'before_after' || levelType === 'timeline_basic',
       isPlayable: status !== 'locked',
     };
   });
@@ -535,6 +543,7 @@ export function buildSoloGameConfigForLevel(level) {
   const cardCount = getSoloCardsRequiredForLevel(levelNumber);
   const deckSize = getSoloAttemptDeckSizeForLevel(levelNumber);
   const maxMoves = getSoloMaxMovesForLevel(levelNumber);
+  const levelType = getSoloLevelType(levelNumber);
   return {
     playerNames: ['Sen'],
     category: 'karisik',
@@ -544,9 +553,13 @@ export function buildSoloGameConfigForLevel(level) {
     winCardCount: getSoloTimelineWinCardCountForLevel(levelNumber),
     soloLevel: {
       levelNumber,
+      levelType,
       cardCount,
       deckSize,
+      referenceCardCount: getSoloReferenceCardCountForLevel(levelNumber),
+      playableCardCount: getSoloPlayableCardCountForLevel(levelNumber),
       isSpecial: isSoloSpecialLevel(levelNumber),
+      trainingConsumables: levelType === 'before_after' || levelType === 'timeline_basic',
       soloRulesVersion: SOLO_RULES_VERSION,
       totalTimeSeconds: SOLO_LEVEL_TIME_SECONDS,
       maxMoves,

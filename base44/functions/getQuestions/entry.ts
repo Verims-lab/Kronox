@@ -151,7 +151,7 @@ async function hashGuestToken(guestId: string, guestToken: string) {
 
 function normalizeExposureMode(body: any) {
   const requestKind = String(body?.requestKind || body?.request_kind || '').trim();
-  if (requestKind === 'guided_first_solo_level' || body?.onboardingTutorial === true) return 'tutorial';
+  if (requestKind === 'guided_first_solo_level') return 'tutorial';
   const mode = String(body?.playerExposureMode || body?.exposureMode || '').trim().toLowerCase();
   return mode === 'tutorial' ? 'tutorial' : 'solo';
 }

@@ -6,8 +6,9 @@ Static UI images for Kronox may live here. Adding a file here does not automatic
 
 - Kronox is mobile-first; UI assets must fit portrait phone layouts and safe
   areas before desktop polish.
-- Current tutorial is the guided first Solo level.
-- Tutorial hand/finger assets are tutorial-only.
+- Current onboarding teaching is the real level-type first Solo level with
+  level-start popups.
+- Legacy tutorial hand/finger assets are support-only unless explicitly wired.
 - Tutorial overlays and UI images must not block touch input, drag/drop, or
   timeline hit testing.
 - Heavy blur/glow effects should be limited and must stay safe for low-end

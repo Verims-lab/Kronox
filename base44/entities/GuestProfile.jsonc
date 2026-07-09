@@ -84,7 +84,7 @@
     },
     "onboarding_status": {
       "type": "string",
-      "description": "Guided onboarding state machine. Phase 2 replaces the old standalone tutorial with a guided first Solo level, then profile setup, category setup, and Ana Sayfa.",
+      "description": "Real level-type onboarding state machine. Phase 2 replaces the old standalone tutorial with real Solo level starts, then profile setup, category setup, and Ana Sayfa.",
       "enum": [
         "guest_created",
         "tutorial_in_progress",

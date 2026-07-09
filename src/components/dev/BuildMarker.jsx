@@ -1,5 +1,14 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex575 — Solo onboarding level types:
+//   • Levels 1-3 use before_after and levels 4-6 use timeline_basic with fixed
+//     references, six playable cards, virtual progress, and real Solo scoring.
+//   • Onboarding Joker/Hint usage is training-only: visible and usable, but no
+//     real inventory decrement, transaction write, or Daily task progress.
+//   • Level-start tutorial popups, local privacy-safe onboarding analytics,
+//     docs/mirrors, and targeted Health now describe the new flow; special Solo
+//     resumes at level 10 after onboarding.
+//
 // Codex570 — MR9UN4G7 Health contract alignment:
 //   • Online lobby identity and invite Health now target the active
 //     app-player contract: username-safe logged-in users and completed
@@ -603,7 +612,7 @@ import React, { useEffect, useState } from 'react';
 //   • security_cleanup_health.base44_sdk_versions_exact_and_aligned:
 //     package.json now exact-pins "@base44/sdk": "0.8.34" (was "^0.8.35").
 
-const BUILD_MARKER = 'Codex574';
+const BUILD_MARKER = 'Codex575';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

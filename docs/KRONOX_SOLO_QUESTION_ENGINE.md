@@ -16,7 +16,7 @@ Normal Solo levels:
 - fail when 10 evaluated moves are used and the 7-card target has not been reached
 
 Special Solo levels:
-- start at level 5 and repeat every 5 levels: 5, 10, 15, 20, ...
+- start at level 10 after onboarding and repeat every 5 levels: 10, 15, 20, ...
 - end successfully at 10 correct timeline cards, including seed cards already on the timeline
 - use a 13 evaluated move limit, giving a 3-move mistake buffer without changing scoring
 - use an internal 21-question deck buffer for the special target lane
@@ -25,12 +25,55 @@ Special Solo levels:
 
 Internal deck buffer formula:
 - `deckSize = initialTimelineCards + maxEvaluatedMoves + cardSwapBuffer + kronokalkanBuffer`
+- before_after onboarding: `1 reference + 6 playable + 3 + 3 = 13 questions`
+- timeline_basic onboarding: `2 references + 6 playable + 3 + 3 = 14 questions`
 - normal: `2 + 10 + 3 + 3 = 18 questions`
 - special: `2 + 13 + 3 + 3 = 21 questions`
 - Zaman Dondur does not require a card buffer
 - Kart Değiştir uses the card-swap buffer and does not consume a move
 - Kronokalkan uses the shield buffer and protects one wrong valid placement from consuming a move
 - If a user owns more jokers than the per-attempt buffer, extra Kart Değiştir/Kronokalkan attempts fail safely before spend; no raw client question list or full-bank fallback is used.
+
+## Solo Onboarding Level Types
+
+Levels 1-6 are real Solo scoring levels, not scoreless tutorials. They use the
+existing Solo progress, star, Kronox Puan, replay/best-score, and leaderboard
+projection pipeline, but their timeline layout is simplified:
+
+- levels 1-3 use `level_type = before_after`
+- levels 4-6 use `level_type = timeline_basic`
+- level 7 returns to the existing normal timeline type
+- special levels resume at level 10 and then every 5 levels
+
+`before_after` uses one fixed reference event card and two labeled slots:
+`ÖNCESİ` and `SONRASI`. Six playable question cards are evaluated against the
+reference year. Answer cards are consumed after each answer and are not added to
+the persistent timeline.
+
+`timeline_basic` uses two fixed reference event cards sorted by year and three
+labeled slots: `ÖNCESİ`, `ARASI`, and `SONRASI`. Six playable question cards
+are evaluated before, between, or after those references. Answer cards are
+consumed after each answer and are not added to the persistent timeline.
+
+Onboarding levels use six evaluated moves, complete after six answered cards
+unless the level fails first, and keep the existing Solo scoring thresholds.
+Joker and Hint controls remain visible in levels 1-6, but they run in training
+mode: no `spendUserJoker`, no `consumeUserHint`, no `JokerTransaction` or
+`HintTransaction` spend row, no real inventory decrement, and no Daily Calendar
+joker/hint task progress. Level 7 and later use normal inventory-consuming
+Joker/Hint behavior.
+
+Level-start tutorial popups appear every time levels 1, 2, 3, 4, and 7 start.
+Levels 5, 6, and 8+ do not show this popup. The popup has a safe video
+placeholder/config slot, no remote dependency, an X close button, and pauses the
+effective Solo timer until closed. It must not consume questions, inventory,
+score, or Daily progress.
+
+Onboarding analytics are best-effort/local and privacy-safe. Events may record
+level number, level type, slot type, correctness, elapsed seconds, first-drag
+timing, completion/failure, and tutorial close/skip. They must not include
+email, provider ID, owner_key, raw guest_id, internal player_key, unsafe Base44
+IDs, secrets, full question-bank payloads, or answer-year exports.
 
 ## Question Loading Bootstrap
 
@@ -68,7 +111,7 @@ Seed/preplaced timeline cards are still part of the early visible gameplay conte
 Normal Solo also uses a visible timeline spacing guardrail during runtime. Before the next active card is shown, the ordered deck picker prefers an unused prebuilt-deck card whose answer year is at least 5 years away from already visible timeline years, including placed cards and seed/preplaced cards. This avoids player-facing 1-4 year conflicts such as 1996/1997, 1998/1999, and 1913/1914 where a safe alternative exists. If no safe candidate remains, the runtime may choose the least-bad valid deck candidate instead of fetching or randomizing a new question.
 
 Every valid deck must satisfy:
-- required deck size: 18 questions for normal levels, 21 questions for special levels
+- required deck size: 13 questions for before_after onboarding, 14 questions for timeline_basic onboarding, 18 questions for normal levels, 21 questions for special levels
 - unique question IDs
 - unique years across the full deck
 - active questions only
@@ -468,41 +511,26 @@ Joker behavior:
 
 Do not recalculate old completed Solo results. Do not rewrite old stored `bestScore`, `bestStars`, or `bestTimeSeconds`. New attempts can record `soloRulesVersion: 3` so future audits can distinguish Solo v3 move-based results from legacy stored results.
 
-## Guided First Solo Level
+## First Launch Level 1 Handoff
 
-Onboarding Phase 2 replaces the old standalone tutorial modal with a real,
-guided first Solo level. First-time guests enter `/onboarding`, start level 1
-with `onboardingTutorial: true`, and learn on the actual card/timeline surface.
+First-time guests can still enter level 1 from `/onboarding`, but the route
+flag is now a GuestProfile handoff flag only. Gameplay uses the same real
+`before_after` level type, level-start popup, 6-card target, training
+Joker/Hint behavior, scoring, and progress write rules as any other level 1
+attempt. The old guided hand-demo overlay, forced joker sequence, and separate
+old tutorial flow must not run on top of this onboarding level.
 
-The guided level still uses the safe Solo question runtime: no raw
-`Question.list` fallback, no full question bank, and guest callers only receive
-the capped gameplay deck. The tutorial state is a route/context flag, not a new
-question source.
+The level still uses the safe Solo question runtime: no raw `Question.list`
+fallback, no full question bank, and guest callers only receive the capped
+gameplay deck. The onboarding route/context flag is not a new question source.
 
-The guide must teach drag/drop, before/after placement, between placement,
-chronological year ordering, HAMLE / move impact, and interactive joker usage.
-The first two active tutorial cards show a visual hand/finger path toward the
-already-computed correct placement slot; this is a visual-only hint and does not
-move or place the real card. On the second active card, the timeline swipe hand
-hint may auto-move the timeline only inside the guided tutorial: it must stay
-visible for at least 3 seconds, stop after timeline or card interaction once
-that minimum has elapsed, and auto-stop by 10 seconds if the user does nothing.
-Cards 3, 4, and 5 teach `Zaman Dondur`, `Kart Değiştir`, and `Kronokalkan` as
-tutorial-only demos with repeating hand/tap hints. The user must perform each
-demo action before continuing, but
-`UserJokerInventory` is not consumed, no `JokerTransaction` spend is written,
-and normal Solo joker economy rules remain unchanged outside the tutorial.
-Tutorial timer, joker, and first wrong-placement explanation popups pause the effective
-tutorial timer while the user reads them.
-
-After success, the result popup returns to GuestProfile onboarding for profile
-setup, then category setup, then Ana Sayfa. The category completion CTA is
-`Ana Sayfa`; a successful token-proven guest category save marks
-`category_setup_status = completed` and
-`onboarding_status = onboarding_complete` before routing home. Closing the app
-during onboarding resumes from the persisted GuestProfile state instead of
-re-opening the old tutorial modal, and restarting after onboarding completion
-opens Ana Sayfa.
+After a successful first-launch level 1, the result popup returns to GuestProfile
+onboarding for profile setup, then category setup, then Ana Sayfa. The category
+completion CTA is `Ana Sayfa`; a successful token-proven guest category save
+marks `category_setup_status = completed` and `onboarding_status =
+onboarding_complete` before routing home. Closing the app during onboarding
+resumes from the persisted GuestProfile state, and restarting after onboarding
+completion opens Ana Sayfa.
 
 ## Per-Player Anti-Repeat Selection
 
@@ -518,9 +546,10 @@ Selection order within the already-selected category/lane:
 4. global shown count / global last shown only as secondary tie-breakers
 5. stable randomization
 
-Normal Solo reads `PlayerQuestionExposure` with `mode=solo`. Guided onboarding
-tutorial writes `mode=tutorial`, so tutorial exposures do not over-penalize
-normal Solo. `getQuestions` applies the same exposure-aware ranking before its
+Normal Solo, including the real level-type onboarding levels 1-6, reads and
+writes `PlayerQuestionExposure` with `mode=solo`. The retired guided tutorial
+mode remains legacy only and must not be required by the current first-launch
+onboarding path. `getQuestions` applies the same exposure-aware ranking before its
 bounded server attempt response cap, and `buildSoloAttemptDeck` receives
 `playerQuestionExposureStats` so final ordering and replacement reserve ordering
 keep the same priority.

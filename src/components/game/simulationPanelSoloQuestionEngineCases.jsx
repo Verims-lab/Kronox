@@ -328,7 +328,7 @@ export const EXTRA_TESTS = [
     'Normal Solo levels use an 18-question attempt deck',
     () => {
       const pool = buildSyntheticPool(60);
-      const normal = buildSoloAttemptDeck({ pool, levelNumber: 1 });
+      const normal = buildSoloAttemptDeck({ pool, levelNumber: 7 });
       if (!normal.ok) return fail('Engine failed on a 60-row unique-year pool.', {
         verification: 'RUNTIME_VERIFIED',
         classification: 'REAL_PRODUCT_RISK',
@@ -336,7 +336,7 @@ export const EXTRA_TESTS = [
         actual: normal,
         actionType: ACTION_TYPES.CODE_FIX,
       });
-      const helperSize = getSoloDeckSizeForLevel(1);
+      const helperSize = getSoloDeckSizeForLevel(7);
       if (helperSize !== 18 || normal.deck.length !== 18) return fail('Normal Solo deck size helper drifted.', {
         verification: 'RUNTIME_VERIFIED',
         classification: 'REAL_PRODUCT_RISK',
@@ -384,10 +384,10 @@ export const EXTRA_TESTS = [
     'solo_deck_size_includes_joker_buffers',
     'Solo deck formula includes anchors, level-specific evaluated moves, and joker buffer cards',
     () => {
-      const normalDeckSize = getSoloDeckSizeForLevel(1);
-      const specialDeckSize = getSoloDeckSizeForLevel(5);
-      const normalTargetCards = getSoloTimelineWinCardCountForLevel(1);
-      const specialTargetCards = getSoloTimelineWinCardCountForLevel(5);
+      const normalDeckSize = getSoloDeckSizeForLevel(7);
+      const specialDeckSize = getSoloDeckSizeForLevel(10);
+      const normalTargetCards = getSoloTimelineWinCardCountForLevel(7);
+      const specialTargetCards = getSoloTimelineWinCardCountForLevel(10);
       const initialTimelineCards = 2;
       const correctPlacementsNeeded = normalTargetCards - initialTimelineCards;
       const normalJokerBuffer = normalDeckSize - initialTimelineCards - SOLO_MAX_MOVES;
@@ -439,16 +439,16 @@ export const EXTRA_TESTS = [
     () => {
       const actual = {
         constant: SOLO_CARDS_PER_LEVEL,
-        level1Cards: getSoloCardsRequiredForLevel(1),
+        level7Cards: getSoloCardsRequiredForLevel(7),
         level11Cards: getSoloCardsRequiredForLevel(11),
-        level1TimelineTarget: getSoloTimelineWinCardCountForLevel(1),
+        level7TimelineTarget: getSoloTimelineWinCardCountForLevel(7),
         level11TimelineTarget: getSoloTimelineWinCardCountForLevel(11),
       };
       if (
         actual.constant !== 7 ||
-        actual.level1Cards !== 7 ||
+        actual.level7Cards !== 7 ||
         actual.level11Cards !== 7 ||
-        actual.level1TimelineTarget !== 7 ||
+        actual.level7TimelineTarget !== 7 ||
         actual.level11TimelineTarget !== 7
       ) {
         return fail('Normal Solo target helper drifted.', {
@@ -468,7 +468,7 @@ export const EXTRA_TESTS = [
   /* 4. special_level_target_is_10 */
   makeCase(
     'special_level_target_is_10',
-    'Special Solo levels start at 5, repeat every 5 levels, and target 10 correct timeline cards',
+    'Special Solo levels resume at 10 after onboarding, repeat every 5 levels, and target 10 correct timeline cards',
     () => {
       const actual = {
         constant: SOLO_SPECIAL_CARDS_PER_LEVEL,
@@ -478,27 +478,27 @@ export const EXTRA_TESTS = [
         level5TimelineTarget: getSoloTimelineWinCardCountForLevel(5),
         level10TimelineTarget: getSoloTimelineWinCardCountForLevel(10),
         level15TimelineTarget: getSoloTimelineWinCardCountForLevel(15),
-        specialLevels: [4, 5, 9, 10, 11, 15].map((n) => [n, isSoloSpecialLevel(n)]),
+        specialLevels: [4, 5, 6, 7, 9, 10, 11, 15].map((n) => [n, isSoloSpecialLevel(n)]),
       };
       if (
         actual.constant !== 10 ||
-        actual.level5Cards !== 10 ||
+        actual.level5Cards !== 6 ||
         actual.level10Cards !== 10 ||
         actual.level15Cards !== 10 ||
-        actual.level5TimelineTarget !== 10 ||
+        actual.level5TimelineTarget !== 6 ||
         actual.level10TimelineTarget !== 10 ||
         actual.level15TimelineTarget !== 10 ||
-        JSON.stringify(actual.specialLevels) !== JSON.stringify([[4, false], [5, true], [9, false], [10, true], [11, false], [15, true]])
+        JSON.stringify(actual.specialLevels) !== JSON.stringify([[4, false], [5, false], [6, false], [7, false], [9, false], [10, true], [11, false], [15, true]])
       ) {
         return fail('Special Solo target helper drifted.', {
           verification: 'RUNTIME_VERIFIED',
           classification: 'REAL_PRODUCT_RISK',
-          expected: 'levels 5,10,15,20... complete at 10 visible timeline cards',
+          expected: 'onboarding levels 1-6 are not special; levels 10,15,20... complete at 10 visible timeline cards',
           actual,
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Special Solo levels are every fifth level from 5 and complete at 10 timeline cards.', {
+      return pass('Special Solo levels resume at 10 after onboarding and complete at 10 timeline cards.', {
         verification: 'RUNTIME_VERIFIED', classification: 'RUNTIME_VERIFIED', actual,
       });
     },
@@ -512,8 +512,9 @@ export const EXTRA_TESTS = [
       const actual = {
         SOLO_MAX_MOVES,
         SOLO_SPECIAL_MAX_MOVES,
-        normalLevel1: getSoloMaxMovesForLevel(1),
-        specialLevel5: getSoloMaxMovesForLevel(5),
+        onboardingLevel1: getSoloMaxMovesForLevel(1),
+        normalLevel7: getSoloMaxMovesForLevel(7),
+        onboardingLevel5: getSoloMaxMovesForLevel(5),
         specialLevel10: getSoloMaxMovesForLevel(10),
         normalLevel11: getSoloMaxMovesForLevel(11),
         SOLO_LEVEL_TIME_SECONDS,
@@ -521,8 +522,9 @@ export const EXTRA_TESTS = [
       if (
         SOLO_MAX_MOVES !== 10 ||
         SOLO_SPECIAL_MAX_MOVES !== 13 ||
-        actual.normalLevel1 !== 10 ||
-        actual.specialLevel5 !== 13 ||
+        actual.onboardingLevel1 !== 6 ||
+        actual.normalLevel7 !== 10 ||
+        actual.onboardingLevel5 !== 6 ||
         actual.specialLevel10 !== 13 ||
         actual.normalLevel11 !== 10 ||
         SOLO_LEVEL_TIME_SECONDS !== 180

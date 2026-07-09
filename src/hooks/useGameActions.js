@@ -41,6 +41,9 @@ export function useGameActions({
   setGameStarted,
   orderedQuestionPicker = null,
   onQuestionAnswered = null,
+  addCorrectPlacementToTimeline = true,
+  evaluatePlacement = null,
+  getPlacementHasWon = null,
 }) {
   const timeoutRefs = useRef(new Set());
 
@@ -268,12 +271,23 @@ export function useGameActions({
 
     const questionYear = currentQuestion.year;
 
-    const isCorrect = isCorrectPlacement(snapshotPlayer.cards, questionYear, zone);
+    const placementEvaluation = typeof evaluatePlacement === 'function'
+      ? evaluatePlacement({
+        cards: snapshotPlayer.cards || [],
+        question: currentQuestion,
+        questionYear,
+        zone,
+        player: snapshotPlayer,
+      })
+      : null;
+    const isCorrect = typeof placementEvaluation?.isCorrect === 'boolean'
+      ? placementEvaluation.isCorrect
+      : isCorrectPlacement(snapshotPlayer.cards, questionYear, zone);
 
     let newPlayers = snapshotPlayers;
     let newUsed = new Set([...snapshotUsed, currentQuestion.id]);
 
-    if (isCorrect) {
+    if (isCorrect && addCorrectPlacementToTimeline) {
       newPlayers = [...snapshotPlayers];
       newPlayers[snapshotIndex] = {
         ...snapshotPlayer,
@@ -287,9 +301,19 @@ export function useGameActions({
       };
     }
 
-    const hasWon = isCorrect && hasPlayerWon(newPlayers[snapshotIndex], winCardCount);
+    const hasWon = typeof getPlacementHasWon === 'function'
+      ? Boolean(getPlacementHasWon({
+        isCorrect,
+        zone,
+        question: currentQuestion,
+        player: snapshotPlayer,
+        timelineCardsBefore: snapshotPlayer.cards || [],
+        timelineCardsAfter: newPlayers[snapshotIndex]?.cards || [],
+        usedQuestionIds: newUsed,
+      }))
+      : isCorrect && hasPlayerWon(newPlayers[snapshotIndex], winCardCount);
 
-    let guessedYear = null;
+    let guessedYear = placementEvaluation?.guessedYear ?? null;
     if (!isCorrect) {
       const cardYears = [...snapshotPlayer.cards].sort((a, b) => a.year - b.year).map(c => c.year);
       if (zone === 0 && cardYears.length > 0) guessedYear = cardYears[0] - 5;
@@ -359,7 +383,7 @@ export function useGameActions({
     }
 
     if (hasWon) {
-      setFeedback({ result: 'correct', year: questionYear, songTitle: currentQuestion.type === 'muzik' ? currentQuestion.question : null, guessedYear: null });
+      setFeedback({ result: isCorrect ? 'correct' : 'wrong', year: questionYear, songTitle: currentQuestion.type === 'muzik' ? currentQuestion.question : null, guessedYear: isCorrect ? null : guessedYear });
       setGameStarted(false);
       const finalSecs = overallSecondsRef.current;
       saveGameRecord(newPlayers[snapshotIndex].name, finalSecs, { category, yearStart, yearEnd });
@@ -378,6 +402,9 @@ export function useGameActions({
     pickQuestion, saveGameRecord, scheduleTimeout,
     writeOnlineLobbyState,
     onQuestionAnswered,
+    addCorrectPlacementToTimeline,
+    evaluatePlacement,
+    getPlacementHasWon,
     setLobbyData, setFeedback, setWinner, setSelectedZone, setTimerKey, setGameStarted
   ]);
 

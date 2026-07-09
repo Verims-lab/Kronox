@@ -694,7 +694,13 @@ Solo move interaction:
 * Zaman Dondur does not consume a Solo move and does not require extra deck cards.
 * Kronokalkan does not consume a Solo move when activated; it protects the next wrong valid placement from consuming one move.
 * Kart Değiştir and Kronokalkan are capped by the per-attempt deck buffer; extra use beyond that buffer fails safely before any joker spend.
-* Normal Solo joker use still spends `UserJokerInventory` and writes `JokerTransaction`.
+* Solo onboarding levels 1-6 (`before_after` and `timeline_basic`) show Joker
+  and Hint controls in training mode. Training use applies the safe teaching
+  effect but must not call `spendUserJoker` or `consumeUserHint`, must not
+  decrement `UserJokerInventory` or `UserHintInventory`, must not write
+  `JokerTransaction.reason = solo_use` or `HintTransaction.reason = solo_use`,
+  and must not complete Daily Calendar joker/hint tasks.
+* Normal Solo joker use from level 7 onward still spends `UserJokerInventory` and writes `JokerTransaction`.
 * Guided tutorial joker demos remain tutorial-only and must not spend real inventory.
 * Solo Hint / İpucu is separate from Joker inventory: `ensureUserHintInventory`
   initializes exactly 3 starter Hints once for authenticated and token-proven
@@ -705,7 +711,8 @@ Solo move interaction:
   The popup must render exactly one clear hammer action, keep stage 0 fully
   covered from the first frame, and reveal the year only after successful
   server-confirmed consumes.
-* Hint use can satisfy Daily `hint_used` after the ledger row exists, but never
+* Real Hint use from level 7 onward can satisfy Daily `hint_used` after the
+  ledger row exists, but training Hint use in levels 1-6 cannot. Hint use never
   counts as Joker use, grants Kronox Puan, affects Leaderboard, changes Solo
   scoring, or exposes answer-year/question-bank data through backend reports.
 * Opening the Hint popup pauses the visible Solo timer; if Zaman Dondur is

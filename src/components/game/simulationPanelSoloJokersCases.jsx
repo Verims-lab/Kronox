@@ -126,8 +126,8 @@ export const EXTRA_TESTS = [
         'activeHintPauseOffset',
         'freezeCurrentlyCoversHintPause',
         'hintPauseElapsedAtStartRef.current = rawElapsed',
-        'soloLevelTimerFrozen={isSoloLevelMode ? (isSoloTimerFrozen || hintPopupOpen) : false}',
-        'interactionPaused={Boolean(guidedTutorialPopup || hintPopupOpen)}',
+        'soloLevelTimerFrozen={isSoloLevelMode ? (isSoloTimerFrozen || hintPopupOpen || soloLevelStartTutorialPopupOpen) : false}',
+        'interactionPaused={Boolean(guidedTutorialPopup || soloLevelStartTutorialPopup || hintPopupOpen)}',
         'SoloHintRevealPopup',
         'coverWidthForStage',
         'answerClipPathForStage',
@@ -157,7 +157,7 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(soloHintRevealPopupSource, [
         'data-kronox-solo-hint-popup-consume-button="true"',
         'data-kronox-solo-hint-popup-single-hammer="true"',
-        'aria-label={`İpucu kullan, kalan ${hintCount}`}',
+        "aria-label={trainingMode ? 'İpucu kullan, eğitimde hak harcamaz' : `İpucu kullan, kalan ${hintCount}`}",
         "Kullan",
         'min-h-[72px]',
         'touchAction: \'manipulation\'',
@@ -251,7 +251,7 @@ export const EXTRA_TESTS = [
         'clamp(38px, 10.8vw, 44px)',
         'h-5 w-5',
         'absolute -right-1 -top-1',
-        'aria-label={`${label}, kalan ${balance}`}',
+        "aria-label={trainingMode ? `${label}, eğitimde hak harcamaz` : `${label}, kalan ${balance}`}",
       ]);
       const forbidden = forbiddenTokens(soloJokerBarSource, [
         'Jokerler • 1 hak',
@@ -291,9 +291,10 @@ export const EXTRA_TESTS = [
     () => {
       const missing = missingTokens(soloJokerBarSource, [
         'const balance = normalizeJokerQuantity(balances?.[inventoryType])',
-        '{balance}',
+        "const balanceLabel = trainingMode ? '∞' : balance",
+        '{balanceLabel}',
         'balance <= 0',
-        'aria-label={`${label}, kalan ${balance}`}',
+        "aria-label={trainingMode ? `${label}, eğitimde hak harcamaz` : `${label}, kalan ${balance}`}",
       ]);
       if (missing.length) return fail('Solo joker buttons no longer show owned balance counts or disable zero balance.', {
         verification: 'STATIC_CONTRACT',
@@ -413,7 +414,7 @@ export const EXTRA_TESTS = [
         'if (mistakeShieldActive)',
         'SOLO_MISTAKE_SHIELD_BUFFER_CARDS',
         'Bu seviyede Kronokalkan yedek hakkı bitti.',
-        'const spent = await spendSoloJokerForCurrentCard(jokerType, decisionKey, currentQuestion.id)',
+        'const spent = await spendOrTrainCurrentJoker()',
         'if (!spent) return',
         'markSoloJokerUsedForDecision(decisionKey, jokerType)',
         'setMistakeShieldActive(true)',
@@ -486,7 +487,7 @@ export const EXTRA_TESTS = [
     () => {
       const handleSource = getHandleUseSoloJokerSource();
       const replacementIdx = handleSource.indexOf('if (!replacement)');
-      const spendIdx = handleSource.indexOf('spendSoloJokerForCurrentCard(jokerType, decisionKey, currentQuestion.id)', replacementIdx);
+      const spendIdx = handleSource.indexOf('const spent = await spendOrTrainCurrentJoker()', replacementIdx);
       const missing = missingTokens(handleSource, [
         "jokerType === SOLO_UI_JOKER_TYPES.CARD_SWAP",
         'SOLO_CARD_SWAP_BUFFER_CARDS',
@@ -547,7 +548,7 @@ export const EXTRA_TESTS = [
         "jokerType === SOLO_UI_JOKER_TYPES.TIME_FREEZE",
         'if (isSoloTimerFrozen || timerFreezeStartRef.current)',
         'Zaman Dondur zaten aktif.',
-        'const spent = await spendSoloJokerForCurrentCard(jokerType, decisionKey, currentQuestion.id)',
+        'const spent = await spendOrTrainCurrentJoker()',
         'if (!spent) return',
         'startSoloTimerFreeze()',
       ]);

@@ -23,6 +23,7 @@ Minimum fields:
 - \`actor_key_hash\`: internal anonymized actor key generated server-side.
 - player_type: \`guest\` / \`linked\` / \`unknown\`.
 - \`level_id\` or \`level_number\`.
+- \`level_type\`: \`before_after\` / \`timeline_basic\` / \`normal\` / \`special\`.
 - \`rules_version\`.
 - \`passed\`.
 - \`used_moves\`.
@@ -30,11 +31,24 @@ Minimum fields:
 - \`stars\`.
 - \`correct_placements\`.
 - \`evaluated_moves\`.
+- \`reference_card_count\`.
+- \`playable_card_count\`.
+- \`slot_selected_summary\` for onboarding levels only, without question text or
+  answer years.
 - \`joker_used_summary\`.
+- \`hint_used_summary\`.
+- \`training_consumable_used\`: true only for onboarding training usage, where no
+  real inventory decrement or spend ledger occurred.
 - category context only if safe and already present in the backend completion
   path.
 - \`created_at\` and day.
 - source: \`solo_completion\` / \`solo_attempt\`.
+
+Onboarding Phase 1 also has privacy-safe local/no-op analytics for
+\`before_after\` and \`timeline_basic\` level start, first drag, drop, correct,
+wrong, complete, fail, and tutorial close/skip. These local events are
+best-effort and must not be treated as durable DB reporting until a
+backend-owned writer exists.
 
 Privacy rules:
 
@@ -45,6 +59,7 @@ Privacy rules:
 - no internal player_key in public UI/export.
 - no full question bank.
 - no answer years / correct answers in public reports.
+- no question text or reference-card answer payloads in public reports.
 
 Implementation plan before enabling writes:
 

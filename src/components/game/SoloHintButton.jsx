@@ -10,14 +10,16 @@ export default function SoloHintButton({
   pending = false,
   disabled = false,
   revealStage = 0,
+  trainingMode = false,
   onOpen,
 }) {
   const quantity = normalizeHintQuantity(balance);
   const stage = normalizeHintRevealStage(revealStage);
   const canReopenExistingReveal = stage > 0;
-  const isLocked = Boolean(disabled || loading || pending || (quantity <= 0 && !canReopenExistingReveal));
+  const isLocked = Boolean(disabled || loading || pending || (!trainingMode && quantity <= 0 && !canReopenExistingReveal));
   const active = !isLocked;
   const dimmed = isLocked;
+  const quantityLabel = trainingMode ? '∞' : quantity;
   const accent = '#facc15';
   const glow = 'rgba(250,204,21,0.36)';
   const lastOpenAtRef = useRef(0);
@@ -37,13 +39,14 @@ export default function SoloHintButton({
       data-kronox-solo-hint-left-rail="true"
       data-kronox-solo-hint-touch-target="true"
       data-kronox-solo-hint-stage={stage}
+      data-kronox-solo-hint-training-mode={trainingMode ? 'true' : undefined}
     >
       <motion.button
         type="button"
         disabled={isLocked}
         aria-disabled={isLocked}
         aria-busy={pending}
-        aria-label={`İpucu, kalan ${quantity}`}
+        aria-label={trainingMode ? 'İpucu, eğitimde hak harcamaz' : `İpucu, kalan ${quantity}`}
         data-kronox-solo-hint-button="true"
         onPointerUp={(event) => {
           if (event.pointerType === 'mouse') return;
@@ -97,7 +100,7 @@ export default function SoloHintButton({
                 : '0 0 10px rgba(250,204,21,0.32), 0 2px 8px rgba(0,0,0,0.45)',
             }}
           >
-            {quantity}
+            {quantityLabel}
           </span>
         </span>
         <span

@@ -90,7 +90,8 @@ Current first launch flow:
 2. App creates or verifies an app-owned `GuestProfile`.
 3. Raw guest token is returned to the client once and kept client-side.
 4. Server stores only `guest_token_hash`.
-5. The first-launch welcome shows `Seviye 1` as the guided first Solo level
+5. The first-launch welcome shows `Seviye 1` as the real level-type first Solo
+   level
    start and `Hesabım Var` as a secondary route to Profile account connection.
 6. Tutorial completion routes to profile setup.
 7. Profile setup asks for username plus optional private age/gender.
@@ -115,32 +116,29 @@ model.
 
 ---
 
-# 4. Guided Tutorial Journey
+# 4. Level-Type Onboarding Journey
 
 The old standalone tutorial is removed as the current onboarding product.
-Current onboarding is a guided first Solo level inside the real game shell.
+Current onboarding is a real level-type first Solo level inside the real game shell.
 
-The guided tutorial teaches:
+The level-type onboarding sequence teaches:
 
-* dragging a card to the timeline
-* before/after placement
-* horizontal timeline movement
+* before/after placement with one fixed reference card in levels 1-3
+* between placement with two fixed reference cards in levels 4-6
+* normal timeline movement from level 7
 * time and `HAMLE`
-* joker concepts
+* training-only Joker/Hint concepts
 * first mistake / move impact
 
 Tutorial behavior:
 
-* welcome and pre-game explanation are shown before active play
-* effective tutorial time pauses while explanation popups are visible
+* level-start explanation popups appear on levels 1, 2, 3, 4, and 7
+* effective Solo time pauses while explanation popups are visible
 * popup reading should not unfairly consume time or moves
-* hand/finger animations are tutorial-only visual hints
-* hand/finger animations do not move the real card, spend inventory, score, or
-  consume moves
-* question 2 timeline swipe hint runs at least 3 seconds
-* after the minimum duration, timeline/card interaction can stop the hint
-* the hint auto-stops after 10 seconds if ignored
-* tutorial joker demos do not spend real `UserJokerInventory`
+* legacy hand/finger animations are not part of the active level-type
+  onboarding flow
+* onboarding Joker/Hint training use does not spend real `UserJokerInventory`
+  or `UserHintInventory`
 
 ---
 
@@ -283,9 +281,14 @@ Current normal Solo:
 * live UI shows remaining moves, e.g. `10 HAMLE`
 * used moves = max moves - remaining moves
 
-Special Solo starts at level 5 and every 5 levels after that. It keeps the
-10-card timeline target, uses 13 evaluated placement moves as a mistake buffer,
-shows remaining moves from `13 HAMLE`, and does not change scoring or rewards.
+Levels 1-3 use the real scored `before_after` onboarding type with one fixed
+reference card, 6 playable cards, and training-only Joker/Hint usage. Levels
+4-6 use the real scored `timeline_basic` onboarding type with two fixed
+reference cards, 6 playable cards, and training-only Joker/Hint usage. Level 7
+returns to the normal timeline flow. Special Solo starts at level 10 and every
+5 levels after that. It keeps the 10-card timeline target, uses 13 evaluated
+placement moves as a mistake buffer, shows remaining moves from `13 HAMLE`, and
+does not change scoring or rewards.
 
 Stars are based on used evaluated moves:
 

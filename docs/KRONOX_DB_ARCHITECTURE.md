@@ -97,6 +97,10 @@ Implemented now:
   Solo runtime `shown`, `answered`, `swapped_out`, and `replacement_shown`
   writes; Online event wiring remains deferred. Placement, drag/drop, scoring,
   and question selection rules are unchanged.
+- Solo onboarding level-type analytics for `before_after` and
+  `timeline_basic` are Phase 1 local/no-op, privacy-safe events only. Durable
+  `SoloLevelAttemptEvent` writes remain deferred until a backend-owned function
+  path exists; the client must not write durable attempt-reporting rows.
 - Cleanup jobs are implemented as callable backend functions. Automatic
   scheduling is not enabled here.
 
@@ -1276,7 +1280,8 @@ verification. It is not a public username and must not be email, provider UID,
 raw guest id, raw guest token, or public display name.
 
 Exposure rows are written only when a question is actually shown: active card
-shown, replacement card shown, and tutorial card shown with `mode=tutorial`.
+shown, replacement card shown, and legacy tutorial card shown with
+`mode=tutorial`; real level-type onboarding cards use `mode=solo`.
 Candidate pools, server buffers, unused deck reserve cards, admin report rows,
 and never-shown replacement buffers are not counted.
 

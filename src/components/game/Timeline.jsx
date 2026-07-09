@@ -9,7 +9,7 @@ import PlacementFeedbackOverlay from './PlacementFeedbackOverlay.jsx';
 const SOLO_TIMELINE_CARD_WIDTH_VAR = 'var(--solo-timeline-card-width, 80px)';
 const SOLO_TIMELINE_CARD_HEIGHT_VAR = 'var(--solo-timeline-card-height, 108px)';
 
-function DropZone({ index, isActive, isDragMode, isMagnetic, isBeginnerHint, isGuidedTarget, onSelect, isTimeUp, isEdgePeek }) {
+function DropZone({ index, label = '', isActive, isDragMode, isMagnetic, isBeginnerHint, isGuidedTarget, onSelect, isTimeUp, isEdgePeek }) {
   const showBeginnerHint = Boolean(isBeginnerHint && isDragMode && !isActive && !isTimeUp);
   const showGuidedTarget = Boolean(isGuidedTarget && !isActive && !isTimeUp);
   // Resting "+" insertion slot: only when the timeline is idle (no drag, not
@@ -135,12 +135,13 @@ function DropZone({ index, isActive, isDragMode, isMagnetic, isBeginnerHint, isG
         {(showPlusSlot || (isDragMode && !isActive && !isTimeUp)) && (
           <span
             aria-hidden="true"
-            className="pointer-events-none select-none"
+            className="pointer-events-none select-none text-center"
             style={{
               fontFamily: "'Inter', sans-serif",
               fontWeight: 700,
-              fontSize: 17,
-              lineHeight: 1,
+              fontSize: label ? 'clamp(8px, 2.2vw, 10px)' : 17,
+              lineHeight: label ? 1.1 : 1,
+              maxWidth: '100%',
               color: isHovered
                 ? '#A7ECFF'
                 : isDragMode
@@ -151,7 +152,7 @@ function DropZone({ index, isActive, isDragMode, isMagnetic, isBeginnerHint, isG
               textShadow: '0 0 10px rgba(85,216,255,0.18)',
             }}
           >
-            +
+            {label || '+'}
           </span>
         )}
         <AnimatePresence>
@@ -241,6 +242,7 @@ export default function Timeline({
   onGuidedScrollHintInteraction,
   correctStreak = 0,
   soloYearOnlyCards = false,
+  slotLabels = null,
 }) {
   const sortedCards = useMemo(
     () => Array.isArray(cards) ? [...cards].sort((a, b) => a.year - b.year) : [],
@@ -579,6 +581,7 @@ export default function Timeline({
           <div style={{ height: 20 }} />
           <DropZone
             index={i}
+            label={Array.isArray(slotLabels) ? (slotLabels[i] || '') : ''}
             isActive={selectedZone === i && !isDragMode}
             isDragMode={isDragMode}
             isMagnetic={isDragMode && (activeZone === i - 1 || activeZone === i || activeZone === i + 1) && displayActiveZone !== i}

@@ -31,6 +31,7 @@ import SettingsModal from '@/components/game/SettingsModal';
 import GameOverTimer from '@/components/game/GameOverTimer';
 import GameLayout from '@/components/game/GameLayout';
 import SoloHintRevealPopup from '@/components/game/SoloHintRevealPopup';
+import SoloLevelStartTutorialPopup from '@/components/game/SoloLevelStartTutorialPopup';
 import SoloQuestionDebugPanel from '@/components/game/SoloQuestionDebugPanel';
 import OnlineGameBootstrapFallback from '@/components/game/OnlineGameBootstrapFallback';
 import QuestionPreparationLoading from '@/components/game/QuestionPreparationLoading';
@@ -46,6 +47,10 @@ import {
   SOLO_CARD_SWAP_BUFFER_CARDS,
   SOLO_MISTAKE_SHIELD_BUFFER_CARDS,
   SOLO_RULES_VERSION,
+  getSoloLevelType,
+  getSoloPlayableCardCountForLevel,
+  getSoloReferenceCardCountForLevel,
+  isSoloOnboardingLevel,
 } from '@/lib/soloProgressHelpers';
 // Codex166/Codex180 — Solo Question Selection Engine. Builds a controlled
 // attempt deck (unique question ids + unique answer/years) once per Solo
@@ -92,6 +97,17 @@ import {
 } from '@/lib/hintInventory';
 import { mergeJokerSpendMutationBalances } from '@/lib/jokerInventorySpendMerge';
 import { getOrderedSoloDeckQuestion, getSoloSeedQuestions } from '@/lib/soloDeckRuntime';
+import {
+  getSoloLevelStartTutorialConfig,
+  getSoloOnboardingCorrectSlotIndex,
+  getSoloOnboardingSlotLabels,
+  isCorrectSoloOnboardingPlacement,
+  orderSoloDeckForOnboarding,
+} from '@/lib/soloOnboardingLevels';
+import {
+  SOLO_ONBOARDING_ANALYTICS_EVENTS,
+  recordSoloOnboardingAnalyticsEvent,
+} from '@/lib/soloOnboardingAnalytics';
 import {
   buildQuestionAttemptEventId,
   getQuestionAnalyticsMetadata,
@@ -209,7 +225,8 @@ export default function Game() {
   // identical.
   const soloLevel = routeState.soloLevel || null;
   const isSoloLevelMode = Boolean(soloLevel && !isOnlineFromState);
-  const isGuidedSoloTutorial = Boolean(isSoloLevelMode && (routeState.onboardingTutorial === true || soloLevel?.onboardingTutorial === true));
+  const isOnboardingTutorialFlow = Boolean(isSoloLevelMode && (routeState.onboardingTutorial === true || soloLevel?.onboardingTutorial === true));
+  const isGuidedSoloTutorial = false;
   const currentQuestionIdFromState = routeState.currentQuestionId ?? null;
   const [currentUser, setCurrentUser] = useState(null);
   const { user: authUser, adminStatus, guestProfile, authChecked, isLoadingAuth } = useAuth();
@@ -312,12 +329,20 @@ export default function Game() {
   //                         per attempt even if effects re-run.
   const soloMaxMoves = useMemo(() => {
     const canonicalMaxMoves = getSoloMaxMovesForLevel(soloLevel?.levelNumber);
+    if (isSoloOnboardingLevel(soloLevel?.levelNumber)) {
+      return Math.max(1, canonicalMaxMoves);
+    }
     const configuredMaxMoves = Number(soloLevel?.maxMoves);
     const safeConfiguredMaxMoves = Number.isFinite(configuredMaxMoves) && configuredMaxMoves > 0
       ? Math.floor(configuredMaxMoves)
       : 0;
     return Math.max(1, canonicalMaxMoves, safeConfiguredMaxMoves || SOLO_MAX_MOVES);
   }, [soloLevel?.levelNumber, soloLevel?.maxMoves]);
+  const soloLevelType = isSoloLevelMode ? getSoloLevelType(soloLevel?.levelNumber) : null;
+  const isSoloOnboardingMode = Boolean(isSoloLevelMode && isSoloOnboardingLevel(soloLevel?.levelNumber));
+  const soloReferenceCardCount = isSoloLevelMode ? getSoloReferenceCardCountForLevel(soloLevel?.levelNumber) : 0;
+  const soloPlayableCardTarget = isSoloLevelMode ? getSoloPlayableCardCountForLevel(soloLevel?.levelNumber) : 0;
+  const isSoloTrainingConsumables = Boolean(isSoloOnboardingMode && !isGuidedSoloTutorial);
   const [usedMoveCount, setUsedMoveCount] = useState(0);
   const remainingMoveCount = Math.max(0, soloMaxMoves - usedMoveCount);
   const [mistakeCount, setMistakeCount] = useState(0);
@@ -336,6 +361,7 @@ export default function Game() {
   const [usedJokerType, setUsedJokerType] = useState(null);
   const [guidedTutorialJokerDemoUsedByCard, setGuidedTutorialJokerDemoUsedByCard] = useState({});
   const [guidedTutorialPopup, setGuidedTutorialPopup] = useState(null);
+  const [soloLevelStartTutorialPopup, setSoloLevelStartTutorialPopup] = useState(null);
   const [guidedTutorialTimerIntroShown, setGuidedTutorialTimerIntroShown] = useState(false);
   const [guidedTutorialMistakePopupShown, setGuidedTutorialMistakePopupShown] = useState(false);
   const [isTimelineSwipeHintActive, setIsTimelineSwipeHintActive] = useState(false);
@@ -358,6 +384,7 @@ export default function Game() {
   const [timerFreezeTick, setTimerFreezeTick] = useState(0);
   const [frozenElapsedOffset, setFrozenElapsedOffset] = useState(0);
   const [guidedTutorialPauseOffset, setGuidedTutorialPauseOffset] = useState(0);
+  const [soloLevelStartTutorialPauseOffset, setSoloLevelStartTutorialPauseOffset] = useState(0);
   const [hintPauseOffset, setHintPauseOffset] = useState(0);
   const timerFreezeStartRef = useRef(null);
   const timerFreezeElapsedAtStartRef = useRef(null);
@@ -367,6 +394,12 @@ export default function Game() {
   const soloJokerDragGuardTimerRef = useRef(null);
   const [soloJokerDragLocked, setSoloJokerDragLocked] = useState(false);
   const guidedTutorialPauseElapsedAtStartRef = useRef(null);
+  const soloLevelStartTutorialPauseElapsedAtStartRef = useRef(null);
+  const soloLevelStartTutorialShownKeyRef = useRef('');
+  const soloOnboardingAnsweredCountRef = useRef(0);
+  const soloTrainingConsumableUsedRef = useRef(false);
+  const soloOnboardingFirstDragTrackedRef = useRef(false);
+  const [soloOnboardingAnsweredCount, setSoloOnboardingAnsweredCount] = useState(0);
   const hintPauseElapsedAtStartRef = useRef(null);
   const timelineSwipeHintStartedAtRef = useRef(null);
   const timelineSwipeHintMinimumTimerRef = useRef(null);
@@ -662,7 +695,8 @@ export default function Game() {
     requestKind: isGuidedSoloTutorial ? 'guided_first_solo_level' : (isSoloLevelMode ? 'solo_attempt' : 'gameplay_runtime'),
     levelNumber: soloLevel?.levelNumber || 1,
     deckSize: getSoloAttemptDeckSizeForLevel(soloLevel?.levelNumber),
-    seedCount: Array.isArray(playerNames) ? playerNames.length * 2 : 2,
+    levelType: soloLevelType,
+    seedCount: isSoloLevelMode ? soloReferenceCardCount : (Array.isArray(playerNames) ? playerNames.length * 2 : 2),
     yearStart: routeYearStart,
     yearEnd: routeYearEnd,
     selectedCategoryIds: soloCategoryPreferenceState.selectedCategoryIds,
@@ -679,6 +713,8 @@ export default function Game() {
     soloCategoryPreferenceState.fallbackReason,
     soloCategoryPreferenceState.selectedCategoryIds,
     soloLevel?.levelNumber,
+    soloLevelType,
+    soloReferenceCardCount,
   ]);
 
   // ─── Data fetching — offline-first (Repository layer) ───────────
@@ -782,14 +818,15 @@ export default function Game() {
     : null;
   const cardsCompletedSolo = useMemo(() => {
     if (!isSoloLevelMode || !players.length) return 0;
+    if (isSoloOnboardingMode) return Math.min(soloPlayableCardTarget, soloOnboardingAnsweredCount);
     const me = players[0];
     // Same source as hasPlayerWon(): the current timeline card count.
     // This prevents the header counter from subtracting seed cards while
     // completion uses the full authoritative card set.
     return getTimelineCardCount(me);
-  }, [isSoloLevelMode, players]);
+  }, [isSoloLevelMode, isSoloOnboardingMode, players, soloOnboardingAnsweredCount, soloPlayableCardTarget]);
   const currentTimelinePlayer = players.length > 0 ? players[currentPlayerIndex] : null;
-  const soloSeedCardCount = isSoloLevelMode ? Math.max(0, (playerNames?.length || 1) * 2) : 0;
+  const soloSeedCardCount = isSoloLevelMode ? Math.max(0, soloReferenceCardCount) : 0;
   const guidedTutorialAskedCardNumber = isGuidedSoloTutorial && currentQuestion
     ? Math.max(1, cardsCompletedSolo - soloSeedCardCount + 1)
     : 0;
@@ -825,6 +862,14 @@ export default function Game() {
   const activeGuidedTutorialPauseOffset = guidedTutorialPopupOpen && Number.isFinite(Number(guidedTutorialPauseElapsedAtStartRef.current))
     ? Math.max(0, Number(overallSeconds || 0) - Number(guidedTutorialPauseElapsedAtStartRef.current))
     : 0;
+  const soloLevelStartTutorialPopupOpen = Boolean(isSoloLevelMode && soloLevelStartTutorialPopup);
+  if (soloLevelStartTutorialPopupOpen && soloLevelStartTutorialPauseElapsedAtStartRef.current === null) {
+    soloLevelStartTutorialPauseElapsedAtStartRef.current = Number(overallSecondsRef.current ?? overallSeconds) || 0;
+  }
+  const activeSoloLevelStartTutorialPauseOffset = soloLevelStartTutorialPopupOpen
+    && Number.isFinite(Number(soloLevelStartTutorialPauseElapsedAtStartRef.current))
+    ? Math.max(0, Number(overallSeconds || 0) - Number(soloLevelStartTutorialPauseElapsedAtStartRef.current))
+    : 0;
   const hintPopupTimerOpen = Boolean(isSoloLevelMode && hintPopupOpen);
   if (hintPopupTimerOpen && hintPauseElapsedAtStartRef.current === null) {
     hintPauseElapsedAtStartRef.current = Number(overallSecondsRef.current ?? overallSeconds) || 0;
@@ -835,7 +880,7 @@ export default function Game() {
   const soloEffectiveElapsedSeconds = isSoloLevelMode
     ? Math.max(0, isSoloTimerFrozen
       ? (timerFreezeElapsedAtStartRef.current ?? overallSeconds)
-      : overallSeconds - frozenElapsedOffset - guidedTutorialPauseOffset - hintPauseOffset - activeFreezeOffset - activeGuidedTutorialPauseOffset - activeHintPauseOffset)
+      : overallSeconds - frozenElapsedOffset - guidedTutorialPauseOffset - soloLevelStartTutorialPauseOffset - hintPauseOffset - activeFreezeOffset - activeGuidedTutorialPauseOffset - activeSoloLevelStartTutorialPauseOffset - activeHintPauseOffset)
     : overallSeconds;
   const soloEffectiveElapsedSecondsRef = useRef(0);
 
@@ -991,8 +1036,14 @@ export default function Game() {
       hintOffset = Math.max(hintOffset, rawElapsed - hintPausedAt);
     }
 
-    return Math.max(0, Math.floor(rawElapsed - freezeOffset - hintOffset));
-  }, [frozenElapsedOffset, hintPauseOffset, hintPopupOpen, isSoloTimerFrozen, overallSecondsRef]);
+    let startTutorialOffset = Number(soloLevelStartTutorialPauseOffset) || 0;
+    const startTutorialPausedAt = Number(soloLevelStartTutorialPauseElapsedAtStartRef.current);
+    if (soloLevelStartTutorialPopup && Number.isFinite(startTutorialPausedAt)) {
+      startTutorialOffset = Math.max(startTutorialOffset, rawElapsed - startTutorialPausedAt);
+    }
+
+    return Math.max(0, Math.floor(rawElapsed - freezeOffset - startTutorialOffset - hintOffset));
+  }, [frozenElapsedOffset, hintPauseOffset, hintPopupOpen, isSoloTimerFrozen, overallSecondsRef, soloLevelStartTutorialPauseOffset, soloLevelStartTutorialPopup]);
 
   const resetSoloJokers = useCallback(() => {
     clearSoloJokerDragGuard();
@@ -1007,14 +1058,19 @@ export default function Game() {
     soloReplacementQuestionIdsRef.current = new Set();
     soloDailyQuestCompletionRecordedRef.current = null;
     soloDailyQuestCorrectStreakRef.current = 0;
+    soloOnboardingAnsweredCountRef.current = 0;
+    soloTrainingConsumableUsedRef.current = false;
+    soloOnboardingFirstDragTrackedRef.current = false;
     hintConsumePendingRef.current = false;
     hintPopupOpenRef.current = false;
     hintPopupCardKeyRef.current = '';
     setUsedJokerType(null);
     setGuidedTutorialJokerDemoUsedByCard({});
     setGuidedTutorialPopup(null);
+    setSoloLevelStartTutorialPopup(null);
     setGuidedTutorialTimerIntroShown(false);
     setGuidedTutorialMistakePopupShown(false);
+    setSoloOnboardingAnsweredCount(0);
     stopGuidedJokerTapHint('solo_joker_reset');
     setJokerSpendPendingType(null);
     setMistakeShieldActive(false);
@@ -1026,8 +1082,10 @@ export default function Game() {
     setHintError('');
     setFrozenElapsedOffset(0);
     setGuidedTutorialPauseOffset(0);
+    setSoloLevelStartTutorialPauseOffset(0);
     setHintPauseOffset(0);
     guidedTutorialPauseElapsedAtStartRef.current = null;
+    soloLevelStartTutorialPauseElapsedAtStartRef.current = null;
     hintPauseElapsedAtStartRef.current = null;
     stopTimelineSwipeHint('solo_joker_reset');
   }, [clearSoloJokerDragGuard, clearSoloTimerFreeze, stopGuidedJokerTapHint, stopTimelineSwipeHint]);
@@ -1041,6 +1099,23 @@ export default function Game() {
     guidedTutorialPauseElapsedAtStartRef.current = null;
     setGuidedTutorialPopup(null);
   }, [overallSeconds, overallSecondsRef]);
+
+  const closeSoloLevelStartTutorialPopup = useCallback((config = null) => {
+    const pausedAt = Number(soloLevelStartTutorialPauseElapsedAtStartRef.current);
+    const rawElapsed = Number(overallSecondsRef.current ?? overallSeconds);
+    if (Number.isFinite(pausedAt) && Number.isFinite(rawElapsed)) {
+      setSoloLevelStartTutorialPauseOffset((previous) => Math.max(previous, rawElapsed - pausedAt));
+    }
+    soloLevelStartTutorialPauseElapsedAtStartRef.current = null;
+    setSoloLevelStartTutorialPopup(null);
+    if (config?.eventType) {
+      recordSoloOnboardingAnalyticsEvent(config.eventType, {
+        level_number: soloLevel?.levelNumber ?? null,
+        level_type: soloLevelType,
+        source: 'level_start_popup',
+      });
+    }
+  }, [overallSeconds, overallSecondsRef, soloLevel?.levelNumber, soloLevelType]);
 
   const closeSoloHintPopup = useCallback(() => {
     const pausedAt = Number(hintPauseElapsedAtStartRef.current);
@@ -1340,6 +1415,26 @@ export default function Game() {
   const handleSoloQuestionAnswered = useCallback((event) => {
     if (!isSoloLevelMode || !event?.question) return;
     const questionId = String(event.question.id);
+    if (isSoloOnboardingMode) {
+      const nextAnsweredCount = Math.min(soloPlayableCardTarget, soloOnboardingAnsweredCountRef.current + 1);
+      soloOnboardingAnsweredCountRef.current = nextAnsweredCount;
+      setSoloOnboardingAnsweredCount(nextAnsweredCount);
+      const analyticsPayload = {
+        level_number: soloLevel?.levelNumber ?? null,
+        level_type: soloLevelType,
+        question_sequence: nextAnsweredCount,
+        slot_index: Number.isFinite(Number(event.zone)) ? Math.trunc(Number(event.zone)) : null,
+        correct: Boolean(event.isCorrect),
+        elapsed_seconds: soloEffectiveElapsedSecondsRef.current,
+      };
+      recordSoloOnboardingAnalyticsEvent(SOLO_ONBOARDING_ANALYTICS_EVENTS.DROP, analyticsPayload);
+      recordSoloOnboardingAnalyticsEvent(
+        event.isCorrect
+          ? SOLO_ONBOARDING_ANALYTICS_EVENTS.CORRECT
+          : SOLO_ONBOARDING_ANALYTICS_EVENTS.WRONG,
+        analyticsPayload,
+      );
+    }
     const nextDailyCorrectStreak = event.isCorrect
       ? soloDailyQuestCorrectStreakRef.current + 1
       : 0;
@@ -1358,6 +1453,7 @@ export default function Game() {
         guessedYear: event.guessedYear,
         shieldActive: Boolean(mistakeShieldActive),
         hasWon: Boolean(event.hasWon),
+        levelType: soloLevelType,
       },
     });
     if (event.isCorrect) {
@@ -1378,12 +1474,29 @@ export default function Game() {
     }
   }, [
     isSoloLevelMode,
+    isSoloOnboardingMode,
     mistakeCount,
     mistakeShieldActive,
     recordSoloQuestionAnalyticsEvent,
     recordDailyQuestSoloEvent,
+    soloEffectiveElapsedSecondsRef,
     soloAttemptId,
+    soloLevel?.levelNumber,
+    soloLevelType,
+    soloPlayableCardTarget,
   ]);
+
+  const evaluateSoloOnboardingPlacement = useCallback(({ cards, questionYear, zone }) => {
+    if (!isSoloOnboardingMode) return null;
+    return {
+      isCorrect: isCorrectSoloOnboardingPlacement(soloLevel?.levelNumber, cards, questionYear, zone),
+    };
+  }, [isSoloOnboardingMode, soloLevel?.levelNumber]);
+
+  const getSoloOnboardingPlacementHasWon = useCallback(() => {
+    if (!isSoloOnboardingMode) return false;
+    return Math.min(soloPlayableCardTarget, soloOnboardingAnsweredCountRef.current + 1) >= soloPlayableCardTarget;
+  }, [isSoloOnboardingMode, soloPlayableCardTarget]);
 
   useEffect(() => {
     if (!isOnline) return;
@@ -1532,6 +1645,9 @@ export default function Game() {
     setGameStarted,
     orderedQuestionPicker: isSoloLevelMode ? pickOrderedSoloQuestion : null,
     onQuestionAnswered: isSoloLevelMode ? handleSoloQuestionAnswered : null,
+    addCorrectPlacementToTimeline: !isSoloOnboardingMode,
+    evaluatePlacement: isSoloOnboardingMode ? evaluateSoloOnboardingPlacement : null,
+    getPlacementHasWon: isSoloOnboardingMode ? getSoloOnboardingPlacementHasWon : null,
   });
 
   // ─── Effects ───────────────────────────────────────────────────────
@@ -1572,6 +1688,8 @@ export default function Game() {
         || soloPlayerExposureState.status === 'unavailable';
       if (!currentUserLoaded || !preferenceReady || !exposureReady) return;
       resetSoloJokers();
+      const referenceCardCount = Math.max(0, soloReferenceCardCount);
+      const attemptDeckSize = getSoloAttemptDeckSizeForLevel(soloLevel?.levelNumber);
       // Base candidate pool: legacy year-window + non-music filter (same
       // as the non-Solo branch). The engine then enforces the HARD rules.
       const candidatePool = allQuestions
@@ -1594,8 +1712,8 @@ export default function Game() {
         userCategoryPreferenceAvailable: soloRuntimeCategoryPreferenceState.available === true,
         userCategoryPreferenceFallbackReason: soloRuntimeCategoryPreferenceState.fallbackReason,
         levelNumber: soloLevel?.levelNumber,
-        deckSize: getSoloAttemptDeckSizeForLevel(soloLevel?.levelNumber),
-        seedCount: playerNames.length * 2,
+        deckSize: attemptDeckSize,
+        seedCount: referenceCardCount,
         requireActiveCategoryWhitelist: true,
       });
       if (!engineResult.ok) {
@@ -1605,38 +1723,81 @@ export default function Game() {
             engineResult,
             deck: [],
             soloStartInput: {
-              level: soloLevel?.levelNumber,
-              difficulty: 'level_window',
-              requestedCount: getSoloAttemptDeckSizeForLevel(soloLevel?.levelNumber),
+            level: soloLevel?.levelNumber,
+            difficulty: 'level_window',
+              requestedCount: attemptDeckSize,
               yearStart,
               yearEnd,
               activeCategoryIds,
-              playerSeedCount: playerNames.length * 2,
+              playerSeedCount: referenceCardCount,
             },
           });
         }
         setError(engineResult.message);
         return;
       }
+      let soloEngineDeck = engineResult.deck;
+      let soloOnboardingConfig = null;
+      if (isSoloOnboardingMode) {
+        const onboardingDeckResult = orderSoloDeckForOnboarding(engineResult.deck, soloLevel?.levelNumber);
+        if (!onboardingDeckResult.ok) {
+          if (soloQuestionDebugEnabled) {
+            setSoloQuestionDebugRuntimeState({
+              candidatePool,
+              engineResult,
+              deck: engineResult.deck,
+              soloStartInput: {
+                level: soloLevel?.levelNumber,
+                levelType: soloLevelType,
+                difficulty: 'level_window',
+                requestedCount: attemptDeckSize,
+                yearStart,
+                yearEnd,
+                activeCategoryIds,
+                playerSeedCount: referenceCardCount,
+                onboardingReason: onboardingDeckResult.reason,
+              },
+            });
+          }
+          setError('Bu eğitim seviyesi için yeterli soru hazırlanamadı. Lütfen tekrar dene.');
+          return;
+        }
+        soloEngineDeck = onboardingDeckResult.deck;
+        soloOnboardingConfig = onboardingDeckResult.config;
+      }
       if (soloQuestionDebugEnabled) {
         setSoloQuestionDebugRuntimeState({
           candidatePool,
-          engineResult,
-          deck: engineResult.deck,
+          engineResult: {
+            ...engineResult,
+            meta: {
+              ...(engineResult.meta || {}),
+              levelType: soloLevelType,
+              onboardingConfig: soloOnboardingConfig
+                ? {
+                  targetQuestionCount: soloOnboardingConfig.targetQuestionCount,
+                  referenceCardCount: soloOnboardingConfig.referenceCards?.length || 0,
+                  slotLabels: soloOnboardingConfig.slotLabels,
+                }
+                : null,
+            },
+          },
+          deck: soloEngineDeck,
           soloStartInput: {
             level: soloLevel?.levelNumber,
+            levelType: soloLevelType,
             difficulty: 'level_window',
-            requestedCount: getSoloAttemptDeckSizeForLevel(soloLevel?.levelNumber),
+            requestedCount: attemptDeckSize,
             yearStart,
             yearEnd,
             activeCategoryIds,
-            playerSeedCount: playerNames.length * 2,
+            playerSeedCount: referenceCardCount,
           },
         });
       }
-      setSoloAttemptDeck(engineResult.deck);
+      setSoloAttemptDeck(soloEngineDeck);
       setSoloAttemptId(engineResult.attemptId);
-      shuffled = engineResult.deck;
+      shuffled = soloEngineDeck;
     } else {
       // Legacy non-Solo offline path — exclude recently used cross-game
       // questions for better variety, then shuffle. UNCHANGED behavior.
@@ -1657,12 +1818,13 @@ export default function Game() {
     }
 
     let cursor = 0;
-    const soloSeedQuestions = isSoloLevelMode ? getSoloSeedQuestions(shuffled, playerNames.length * 2) : [];
+    const soloSeedQuestions = isSoloLevelMode ? getSoloSeedQuestions(shuffled, soloReferenceCardCount) : [];
     let soloSeedCursor = 0;
     const used = new Set();
     const newPlayers = playerNames.map((name) => {
       const cards = [];
-      for (let j = 0; j < 2; j++) {
+      const seedCardCount = isSoloLevelMode ? soloReferenceCardCount : 2;
+      for (let j = 0; j < seedCardCount; j++) {
         const q = isSoloLevelMode ? soloSeedQuestions[soloSeedCursor++] : shuffled[cursor++];
         if (q) {
           cards.push({ id: q.id, year: q.year, question: q.question, type: q.type, media_url: q.media_url });
@@ -1690,7 +1852,7 @@ export default function Game() {
       current_question_id: firstQ.id,
       used_question_ids: [...used]
     });
-  }, [playerNames, questionPool, allQuestions, activeCategoryIds, yearStart, yearEnd, isLoading, isOnline, isSoloLevelMode, currentUserLoaded, currentUser?.email, soloCategoryPreferenceState.status, soloRuntimeCategoryPreferenceState, soloPlayerExposureState.status, soloPlayerExposureState.stats, resetSoloJokers, setLobbyData, setError, soloLevel?.levelNumber, soloQuestionDebugEnabled, soloBootstrapRetryNonce]);
+  }, [playerNames, questionPool, allQuestions, activeCategoryIds, yearStart, yearEnd, isLoading, isOnline, isSoloLevelMode, isSoloOnboardingMode, currentUserLoaded, currentUser?.email, soloCategoryPreferenceState.status, soloRuntimeCategoryPreferenceState, soloPlayerExposureState.status, soloPlayerExposureState.stats, resetSoloJokers, setLobbyData, setError, soloLevel?.levelNumber, soloLevelType, soloQuestionDebugEnabled, soloBootstrapRetryNonce, soloReferenceCardCount]);
 
   // Overall timer başlatma
   useEffect(() => {
@@ -1708,6 +1870,33 @@ export default function Game() {
     guidedTutorialTimerIntroShown,
     isGuidedSoloTutorial,
     soloLevelResult,
+    winner,
+  ]);
+
+  useEffect(() => {
+    if (!isSoloLevelMode || isGuidedSoloTutorial || !soloAttemptId || !currentQuestion || winner || soloLevelResult) return;
+    const config = getSoloLevelStartTutorialConfig(soloLevel?.levelNumber);
+    if (!config) return;
+    const tutorialKey = `${soloAttemptId}:${soloLevel?.levelNumber || 1}:${config.key}`;
+    if (soloLevelStartTutorialShownKeyRef.current === tutorialKey) return;
+    soloLevelStartTutorialShownKeyRef.current = tutorialKey;
+    setSoloLevelStartTutorialPopup(config);
+    recordSoloOnboardingAnalyticsEvent(SOLO_ONBOARDING_ANALYTICS_EVENTS.LEVEL_START, {
+      level_number: soloLevel?.levelNumber ?? null,
+      level_type: soloLevelType,
+      target_question_count: isSoloOnboardingMode ? soloPlayableCardTarget : null,
+      source: 'level_start_popup',
+    });
+  }, [
+    currentQuestion,
+    isGuidedSoloTutorial,
+    isSoloLevelMode,
+    isSoloOnboardingMode,
+    soloAttemptId,
+    soloLevel?.levelNumber,
+    soloLevelResult,
+    soloLevelType,
+    soloPlayableCardTarget,
     winner,
   ]);
 
@@ -1852,6 +2041,10 @@ export default function Game() {
 
   // ─── Handlers (UI event → action delegation) ─────────────────────
   const handleDropOnZone = useCallback((zoneIndex) => {
+    if (soloLevelStartTutorialPopup) {
+      setSelectedZone(zoneIndex);
+      return;
+    }
     if (guidedTutorialPopup) {
       setSelectedZone(zoneIndex);
       return;
@@ -1863,9 +2056,10 @@ export default function Game() {
       return;
     }
     doPlacement(zoneIndex, { category, yearStart, yearEnd });
-  }, [doPlacement, category, yearStart, yearEnd, guidedTutorialExpectedJokerType, guidedTutorialJokerRequiresTapBeforePlacement, guidedTutorialPopup, setSelectedZone]);
+  }, [doPlacement, category, yearStart, yearEnd, guidedTutorialExpectedJokerType, guidedTutorialJokerRequiresTapBeforePlacement, guidedTutorialPopup, setSelectedZone, soloLevelStartTutorialPopup]);
   const handleConfirmPlacement = useCallback(() => {
     if (selectedZone === null) return;
+    if (soloLevelStartTutorialPopup) return;
     if (guidedTutorialPopup) return;
     if (guidedTutorialJokerRequiresTapBeforePlacement) {
       setJokerError('');
@@ -1873,7 +2067,7 @@ export default function Game() {
       return;
     }
     doPlacement(selectedZone, { category, yearStart, yearEnd });
-  }, [doPlacement, selectedZone, category, yearStart, yearEnd, guidedTutorialExpectedJokerType, guidedTutorialJokerRequiresTapBeforePlacement, guidedTutorialPopup]);
+  }, [doPlacement, selectedZone, category, yearStart, yearEnd, guidedTutorialExpectedJokerType, guidedTutorialJokerRequiresTapBeforePlacement, guidedTutorialPopup, soloLevelStartTutorialPopup]);
   const handleTimeUp = useCallback(() => {
     if (feedback !== null || winner) return;
     if (!isMyTurn) return;
@@ -1890,11 +2084,19 @@ export default function Game() {
     skipCurrentQuestion(currentQuestion?.id);
   }, [currentQuestion?.id, isMyTurn, skipCurrentQuestion]);
   const handleGameplayCardDragStart = useCallback(() => {
+    if (isSoloOnboardingMode && !soloOnboardingFirstDragTrackedRef.current) {
+      soloOnboardingFirstDragTrackedRef.current = true;
+      recordSoloOnboardingAnalyticsEvent(SOLO_ONBOARDING_ANALYTICS_EVENTS.FIRST_DRAG, {
+        level_number: soloLevel?.levelNumber ?? null,
+        level_type: soloLevelType,
+        elapsed_seconds: soloEffectiveElapsedSecondsRef.current,
+      });
+    }
     handleTimelineSwipeHintInteraction('question_card_drag_start');
     engageGameplayDragLock();
     lockSoloJokersForDrag();
     setIsDragging(true);
-  }, [engageGameplayDragLock, handleTimelineSwipeHintInteraction, lockSoloJokersForDrag, setIsDragging]);
+  }, [engageGameplayDragLock, handleTimelineSwipeHintInteraction, isSoloOnboardingMode, lockSoloJokersForDrag, setIsDragging, soloLevel?.levelNumber, soloLevelType]);
   const handleGameplayCardDragEnd = useCallback(() => {
     releaseGameplayDragLock();
     releaseSoloJokersAfterDrag();
@@ -2184,6 +2386,14 @@ export default function Game() {
       return;
     }
 
+    const spendOrTrainCurrentJoker = async () => {
+      if (isSoloTrainingConsumables) {
+        soloTrainingConsumableUsedRef.current = true;
+        return true;
+      }
+      return spendSoloJokerForCurrentCard(jokerType, decisionKey, currentQuestion.id);
+    };
+
     if (jokerType === SOLO_UI_JOKER_TYPES.MISTAKE_SHIELD) {
       if (mistakeShieldActive) {
         setJokerError('Kronokalkan zaten aktif.');
@@ -2195,7 +2405,7 @@ export default function Game() {
         setJokerError('Bu seviyede Kronokalkan yedek hakkı bitti.');
         return;
       }
-      const spent = await spendSoloJokerForCurrentCard(jokerType, decisionKey, currentQuestion.id);
+      const spent = await spendOrTrainCurrentJoker();
       if (!spent) return;
       markSoloJokerUsedForDecision(decisionKey, jokerType);
       setMistakeShieldActive(true);
@@ -2208,7 +2418,7 @@ export default function Game() {
         setJokerError('Zaman Dondur zaten aktif.');
         return;
       }
-      const spent = await spendSoloJokerForCurrentCard(jokerType, decisionKey, currentQuestion.id);
+      const spent = await spendOrTrainCurrentJoker();
       if (!spent) return;
       markSoloJokerUsedForDecision(decisionKey, jokerType);
       setJokerMessage('');
@@ -2244,7 +2454,7 @@ export default function Game() {
         return;
       }
 
-      const spent = await spendSoloJokerForCurrentCard(jokerType, decisionKey, currentQuestion.id);
+      const spent = await spendOrTrainCurrentJoker();
       if (!spent) return;
       soloJokerDecisionKeyByQuestionIdRef.current.set(String(replacement.id), decisionKey);
       markSoloJokerUsedForDecision(decisionKey, jokerType);
@@ -2280,6 +2490,7 @@ export default function Game() {
   }, [
     isSoloLevelMode,
     isGuidedSoloTutorial,
+    isSoloTrainingConsumables,
     currentQuestion,
     getCurrentSoloJokerDecisionKey,
     soloLevelResult,
@@ -2308,12 +2519,12 @@ export default function Game() {
   const handleOpenSoloHint = useCallback(() => {
     if (!isSoloLevelMode || isGuidedSoloTutorial || soloLevelResult || winner || feedback || !isMyTurn) return;
     if (!currentQuestion?.id || !currentSoloHintCardKey) return;
-    if (hintInventoryLoading) {
+    if (!isSoloTrainingConsumables && hintInventoryLoading) {
       setHintError('İpucu hakları hazırlanıyor.');
       return;
     }
     const balance = normalizeHintQuantity(hintBalance);
-    if (balance <= 0 && currentSoloHintRevealStage <= 0) {
+    if (!isSoloTrainingConsumables && balance <= 0 && currentSoloHintRevealStage <= 0) {
       setHintError('İpucu hakkın kalmadı.');
       return;
     }
@@ -2331,6 +2542,7 @@ export default function Game() {
     isGuidedSoloTutorial,
     isMyTurn,
     isSoloLevelMode,
+    isSoloTrainingConsumables,
     soloLevelResult,
     winner,
   ]);
@@ -2345,6 +2557,18 @@ export default function Game() {
     }
     const currentStage = normalizeHintRevealStage(currentSoloHintRevealStage);
     if (currentStage >= 3) return;
+    if (isSoloTrainingConsumables) {
+      soloTrainingConsumableUsedRef.current = true;
+      setHintRevealStagesByCard((previous) => ({
+        ...previous,
+        [currentSoloHintCardKey]: Math.max(
+          normalizeHintRevealStage(previous[currentSoloHintCardKey]),
+          currentStage + 1,
+        ),
+      }));
+      setHintError('');
+      return;
+    }
     if (normalizeHintQuantity(hintBalance) <= 0) {
       setHintError('İpucu hakkın kalmadı.');
       return;
@@ -2433,6 +2657,7 @@ export default function Game() {
     isGuidedSoloTutorial,
     isMyTurn,
     isSoloLevelMode,
+    isSoloTrainingConsumables,
     closeSoloHintPopup,
     soloAttemptId,
     soloLevel?.levelNumber,
@@ -2521,6 +2746,16 @@ export default function Game() {
         failReason: attempt.failReason,
         soloRulesVersion: SOLO_RULES_VERSION,
       });
+      if (isSoloOnboardingMode) {
+        recordSoloOnboardingAnalyticsEvent(SOLO_ONBOARDING_ANALYTICS_EVENTS.COMPLETE, {
+          level_number: soloLevel?.levelNumber ?? null,
+          level_type: soloLevelType,
+          used_moves: attempt.usedMoves,
+          elapsed_seconds: elapsed,
+          stars: attempt.stars,
+          training_consumable_used: Boolean(soloTrainingConsumableUsedRef.current),
+        });
+      }
       const completionEventId = `${soloAttemptId || 'solo_attempt'}:solo_level_complete:${soloLevel?.levelNumber || 1}`;
       if (soloDailyQuestCompletionRecordedRef.current !== completionEventId) {
         soloDailyQuestCompletionRecordedRef.current = completionEventId;
@@ -2532,7 +2767,7 @@ export default function Game() {
         });
         const jokerlessCompletionEventId = `${soloAttemptId || 'solo_attempt'}:jokerless_solo_level_complete:${soloLevel?.levelNumber || 1}`;
         const jokerUsedThisAttempt = soloJokerUsedByDecisionKeyRef.current.size > 0;
-        if (!jokerUsedThisAttempt) {
+        if (!jokerUsedThisAttempt && !soloTrainingConsumableUsedRef.current) {
           recordDailyQuestSoloEvent('jokerless_solo_level_complete', jokerlessCompletionEventId, {
             questType: 'jokerless_solo_level_complete',
             passed: true,
@@ -2574,6 +2809,16 @@ export default function Game() {
         failReason: attempt.failReason || 'moves',
         soloRulesVersion: SOLO_RULES_VERSION,
       });
+      if (isSoloOnboardingMode) {
+        recordSoloOnboardingAnalyticsEvent(SOLO_ONBOARDING_ANALYTICS_EVENTS.FAIL, {
+          level_number: soloLevel?.levelNumber ?? null,
+          level_type: soloLevelType,
+          fail_reason: attempt.failReason || 'moves',
+          used_moves: attempt.usedMoves,
+          elapsed_seconds: elapsed,
+          cards_completed: cardsCompletedSolo,
+        });
+      }
       return;
     }
 
@@ -2605,11 +2850,23 @@ export default function Game() {
         failReason: attempt.failReason || 'timeout',
         soloRulesVersion: SOLO_RULES_VERSION,
       });
+      if (isSoloOnboardingMode) {
+        recordSoloOnboardingAnalyticsEvent(SOLO_ONBOARDING_ANALYTICS_EVENTS.FAIL, {
+          level_number: soloLevel?.levelNumber ?? null,
+          level_type: soloLevelType,
+          fail_reason: attempt.failReason || 'timeout',
+          used_moves: attempt.usedMoves,
+          elapsed_seconds: totalTime,
+          cards_completed: cardsCompletedSolo,
+        });
+      }
     }
   }, [
     isSoloLevelMode,
+    isSoloOnboardingMode,
     soloLevelResult,
     soloLevel,
+    soloLevelType,
     winner,
     mistakeCount,
     usedMoveCount,
@@ -2714,24 +2971,24 @@ export default function Game() {
           ...soloLevel,
           cardCount: getSoloCardsRequiredForLevel(soloLevel.levelNumber),
           deckSize: getSoloAttemptDeckSizeForLevel(soloLevel.levelNumber),
-          onboardingTutorial: isGuidedSoloTutorial,
-          totalTimeSeconds: isGuidedSoloTutorial ? GUIDED_TUTORIAL_TIME_LIMIT_SECONDS : SOLO_LEVEL_TIME_SECONDS,
+          onboardingTutorial: isOnboardingTutorialFlow,
+          totalTimeSeconds: isOnboardingTutorialFlow ? GUIDED_TUTORIAL_TIME_LIMIT_SECONDS : SOLO_LEVEL_TIME_SECONDS,
           maxMoves: retryMaxMoves,
           maxMistakes: retryMaxMoves,
           soloRulesVersion: SOLO_RULES_VERSION,
         },
-        onboardingTutorial: isGuidedSoloTutorial,
+        onboardingTutorial: isOnboardingTutorialFlow,
         soloReturnTo,
       },
     });
-  }, [isGuidedSoloTutorial, soloLevel, soloReturnTo, resetGame, resetSoloJokers, navigate, routeYearStart, routeYearEnd]);
+  }, [isOnboardingTutorialFlow, soloLevel, soloReturnTo, resetGame, resetSoloJokers, navigate, routeYearStart, routeYearEnd]);
 
   // Codex106-23 — Jump straight into the next level after a passed attempt.
   // We rebuild the route state from the next level number, reusing the same
   // year window so Game.jsx renders identical question generation.
   const handleSoloNextLevel = useCallback(() => {
     if (!soloLevel) return;
-    if (isGuidedSoloTutorial) {
+    if (isOnboardingTutorialFlow) {
       (async () => {
         try {
           await updateGuestProfileOnboarding({
@@ -2786,17 +3043,17 @@ export default function Game() {
         soloReturnTo,
       },
     });
-  }, [isGuidedSoloTutorial, soloLevel, soloReturnTo, resetGame, resetSoloJokers, navigate, routeYearStart, routeYearEnd]);
+  }, [isOnboardingTutorialFlow, soloLevel, soloReturnTo, resetGame, resetSoloJokers, navigate, routeYearStart, routeYearEnd]);
 
   const handleSoloGameplayBack = useCallback(() => {
     if (!isSoloLevelMode) return;
     resetSoloJokers();
     resetGame();
     navigate(resolveSoloGameReturnPath(routeState), { replace: true });
-  }, [isSoloLevelMode, navigate, resetGame, resetSoloJokers, routeState]);
+  }, [isOnboardingTutorialFlow, isSoloLevelMode, navigate, resetGame, resetSoloJokers, routeState, soloLevel]);
 
   const handleSoloBackToPath = useCallback(() => {
-    if (isGuidedSoloTutorial) {
+    if (isOnboardingTutorialFlow) {
       (async () => {
         if (soloLevelResult?.passed) {
           try {
@@ -2818,7 +3075,7 @@ export default function Game() {
     resetSoloJokers();
     resetGame();
     navigate('/solo', { state: { soloResultApplied: true } });
-  }, [isGuidedSoloTutorial, soloLevelResult?.passed, resetSoloJokers, resetGame, navigate]);
+  }, [isOnboardingTutorialFlow, soloLevelResult?.passed, resetSoloJokers, resetGame, navigate]);
 
   const gameOverView = winner ? (
     <>
@@ -2846,6 +3103,9 @@ export default function Game() {
     const questionYear = Number(currentQuestion.year);
     const cards = Array.isArray(currentPlayer.cards) ? currentPlayer.cards : [];
     if (!Number.isFinite(questionYear)) return null;
+    if (isSoloOnboardingMode) {
+      return getSoloOnboardingCorrectSlotIndex(soloLevel?.levelNumber, cards, questionYear);
+    }
 
     for (let zoneIndex = 0; zoneIndex <= cards.length; zoneIndex += 1) {
       if (isCorrectPlacement(cards, questionYear, zoneIndex)) return zoneIndex;
@@ -2860,6 +3120,7 @@ export default function Game() {
     winner,
     currentQuestion,
     currentPlayer,
+    isSoloOnboardingMode,
   ]);
 
   // ─── Diagnostics overlay (Codex084) ──────────────────────────────
@@ -3109,7 +3370,7 @@ export default function Game() {
     //     (catalog ends — "Yakında" state).
     // We don't show a next-level CTA on failed attempts at all.
     const nextLevelNumber = soloLevel.levelNumber + 1;
-    const hasNextLevel = !isGuidedSoloTutorial && soloLevelResult.passed && nextLevelNumber <= getSoloLevelCount();
+    const hasNextLevel = !isOnboardingTutorialFlow && soloLevelResult.passed && nextLevelNumber <= getSoloLevelCount();
     const isNextLevelComingSoon = soloLevelResult.passed && nextLevelNumber > getSoloLevelCount();
     return (
       <>
@@ -3137,9 +3398,9 @@ export default function Game() {
           onRetry={handleSoloRetry}
           onNextLevel={handleSoloNextLevel}
           onBackToPath={handleSoloBackToPath}
-          successPrimaryActionLabel={isGuidedSoloTutorial ? 'PROFİLİNİ TAMAMLA' : undefined}
-          successBackToPathLabel={isGuidedSoloTutorial ? 'EĞİTİME DÖN' : undefined}
-          successPrimaryActionEnabled={isGuidedSoloTutorial ? soloLevelResult.passed : undefined}
+          successPrimaryActionLabel={isOnboardingTutorialFlow ? 'PROFİLİNİ TAMAMLA' : undefined}
+          successBackToPathLabel={isOnboardingTutorialFlow ? 'EĞİTİME DÖN' : undefined}
+          successPrimaryActionEnabled={isOnboardingTutorialFlow ? soloLevelResult.passed : undefined}
           guestRecordPayload={guestRecordPayload}
         />
         <SoloQuestionDebugPanel payload={soloQuestionDebugPayload} />
@@ -3255,18 +3516,20 @@ export default function Game() {
     enabled: true,
     usedJokerType,
     balances: isGuidedSoloTutorial ? guidedTutorialJokerBalances : jokerBalances,
-    loading: isGuidedSoloTutorial ? false : jokerInventoryLoading,
-    pendingType: jokerSpendPendingType,
+    loading: (isGuidedSoloTutorial || isSoloTrainingConsumables) ? false : jokerInventoryLoading,
+    pendingType: isSoloTrainingConsumables ? null : jokerSpendPendingType,
     mistakeShieldActive,
     timerFrozen: isSoloTimerFrozen,
     message: jokerMessage,
     error: jokerError,
+    trainingMode: isSoloTrainingConsumables,
     disabled: Boolean(
       soloLevelResult ||
       winner ||
-      jokerInventoryLoading ||
-      jokerSpendPendingType ||
+      (!isSoloTrainingConsumables && jokerInventoryLoading) ||
+      (!isSoloTrainingConsumables && jokerSpendPendingType) ||
       guidedTutorialPopup ||
+      soloLevelStartTutorialPopup ||
       hintPopupOpen ||
       isDragging ||
       soloJokerDragLocked ||
@@ -3281,17 +3544,19 @@ export default function Game() {
   const soloHint = isSoloLevelMode ? {
     enabled: !isGuidedSoloTutorial,
     balance: hintBalance,
-    loading: hintInventoryLoading,
-    pending: hintConsumePending,
+    loading: isSoloTrainingConsumables ? false : hintInventoryLoading,
+    pending: isSoloTrainingConsumables ? false : hintConsumePending,
     revealStage: currentSoloHintRevealStage,
     error: hintError,
+    trainingMode: isSoloTrainingConsumables,
     disabled: Boolean(
       soloLevelResult ||
       winner ||
       feedback ||
-      hintInventoryLoading ||
-      hintConsumePending ||
+      (!isSoloTrainingConsumables && hintInventoryLoading) ||
+      (!isSoloTrainingConsumables && hintConsumePending) ||
       guidedTutorialPopup ||
+      soloLevelStartTutorialPopup ||
       isDragging
     ),
     onOpen: handleOpenSoloHint,
@@ -3352,13 +3617,19 @@ export default function Game() {
           onContinue={closeGuidedTutorialPopup}
         />
       )}
+      <SoloLevelStartTutorialPopup
+        open={Boolean(soloLevelStartTutorialPopup)}
+        config={soloLevelStartTutorialPopup}
+        onClose={closeSoloLevelStartTutorialPopup}
+      />
       <SoloHintRevealPopup
         open={Boolean(hintPopupOpen && currentQuestion)}
         year={currentQuestion?.year}
         stage={currentSoloHintRevealStage}
         remaining={hintBalance}
-        pending={hintConsumePending}
+        pending={isSoloTrainingConsumables ? false : hintConsumePending}
         error={hintError}
+        trainingMode={isSoloTrainingConsumables}
         onUseHint={handleUseSoloHint}
         onClose={closeSoloHintPopup}
       />
@@ -3417,7 +3688,7 @@ export default function Game() {
         maxMoves={isSoloLevelMode ? soloMaxMoves : undefined}
         soloLevelTotalSeconds={isSoloLevelMode ? (soloLevel?.totalTimeSeconds ?? SOLO_LEVEL_TIME_SECONDS) : undefined}
         soloLevelElapsedSeconds={isSoloLevelMode ? soloEffectiveElapsedSeconds : undefined}
-        soloLevelTimerFrozen={isSoloLevelMode ? (isSoloTimerFrozen || hintPopupOpen) : false}
+        soloLevelTimerFrozen={isSoloLevelMode ? (isSoloTimerFrozen || hintPopupOpen || soloLevelStartTutorialPopupOpen) : false}
         soloJokers={isSoloLevelMode ? soloJokers : null}
         soloHint={isSoloLevelMode ? soloHint : null}
         onSoloBack={isSoloLevelMode ? handleSoloGameplayBack : undefined}
@@ -3428,8 +3699,9 @@ export default function Game() {
         guidedTimelineScrollHintActive={guidedTimelineScrollHintActive}
         guidedTimelineSwipeHintMinimumElapsed={hasTimelineSwipeHintMinimumElapsed}
         onTimelineSwipeHintInteraction={handleTimelineSwipeHintInteraction}
-        interactionPaused={Boolean(guidedTutorialPopup || hintPopupOpen)}
+        interactionPaused={Boolean(guidedTutorialPopup || soloLevelStartTutorialPopup || hintPopupOpen)}
         correctStreak={isSoloLevelMode ? soloCorrectStreak : 0}
+        timelineSlotLabels={isSoloOnboardingMode ? getSoloOnboardingSlotLabels(soloLevel?.levelNumber) : null}
       />
       <SoloQuestionDebugPanel payload={soloQuestionDebugPayload} />
     </GameRenderErrorBoundary>

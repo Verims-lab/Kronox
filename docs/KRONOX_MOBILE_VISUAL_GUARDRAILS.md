@@ -33,8 +33,8 @@ checks that source code and static Health cannot honestly prove alone.
   horizontal panning: header, month calendar, legend, task rows, and streak
   reward panel all shrink within the viewport while normal vertical scrolling
   remains available.
-* First-time guest onboarding uses the actual Solo gameplay surface for the
-  guided first level. The guidance overlay must not capture drag/drop touches,
+* First-time guest onboarding uses the actual Solo gameplay surface for the real
+  level-type first Solo level. The guidance overlay must not capture drag/drop touches,
   must fit small portrait screens, and must resume cleanly if the app closes
   during tutorial/profile/category setup.
 * Home / Ana Sayfa stays a clean play surface: no Google / Apple / email login
