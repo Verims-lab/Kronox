@@ -17,7 +17,7 @@ function normalizeEmail(value: unknown) {
 // The confirmEmail match is client-supplied, so we additionally require the
 // normalized target to be a syntactically valid, single, bounded email
 // address before any lookup/destructive path runs (CWE-285 hardening).
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const EMAIL_PATTERN = /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*\.[A-Za-z]{2,24}$/;
 function isValidTargetEmail(email: string) {
   return (
     typeof email === 'string' &&

@@ -138,15 +138,18 @@ function isSafeAvatarPhotoUrl(value: unknown) {
   if (!hostname) return false;
   if (hostname === 'localhost' || hostname.endsWith('.localhost')) return false;
   if (hostname.endsWith('.local') || hostname.endsWith('.internal') || hostname.endsWith('.lan')) return false;
-  // Reject purely numeric hosts (decimal/octal IP obfuscation tricks).
-  if (/^[0-9.]+$/.test(hostname) && !hostname.includes('.')) return false;
 
+  // Reject ANY raw IP-literal host (public or private), not only private
+  // ranges. A trusted avatar photo host must always be a real domain name;
+  // this also closes obfuscated-IP bypasses (decimal/octal/hex IPv4 forms
+  // are normalized into dotted-decimal by the URL parser before we get
+  // here, and IPv6 literals are rejected outright).
   const ipv4 = isIPv4Literal(hostname);
-  if (ipv4) {
-    if (isPrivateOrReservedIPv4(ipv4)) return false;
-  } else if (hostname.includes(':')) {
-    if (isPrivateOrReservedIPv6(hostname)) return false;
-  }
+  if (ipv4) return false;
+  if (hostname.includes(':')) return false;
+  if (isPrivateOrReservedIPv6(hostname)) return false;
+  // Require a real FQDN (at least one dot) with no fully-numeric labels.
+  if (!hostname.includes('.') || /^[0-9.]+$/.test(hostname)) return false;
 
   return true;
 }
