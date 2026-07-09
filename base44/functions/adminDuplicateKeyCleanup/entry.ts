@@ -53,13 +53,12 @@ async function requireAdmin(base44: any) {
   if (!adminEntity?.filter) {
     return { response: json({ ok: false, code: 'admin_required', error: 'Admin yetkisi gerekli.' }, 403) };
   }
-  let rows: any[] = [];
-  for (const field of ['email', 'Email', 'user_email', 'admin_email']) {
-    const result = await adminEntity.filter({ [field]: email }, '-updated_at', 10).catch(() => []);
-    if (Array.isArray(result) && result.length > 0) { rows = result; break; }
-  }
-  const active = rows.find((row) => (
-    normalizeEmail(row?.email || row?.user_email || row?.admin_email) === email
+  // Query the exact schema column (AdminUser.email) only — no dynamic
+  // field-name iteration — and require strict equality against the
+  // authenticated user's own normalized email before granting admin access.
+  const rows: any[] = await adminEntity.filter({ email }, '-updated_at', 10).catch(() => []);
+  const active = (Array.isArray(rows) ? rows : []).find((row) => (
+    normalizeEmail(row?.email) === email
     && String(row?.status || '').trim().toLowerCase() === 'active'
     && ['owner', 'admin'].includes(String(row?.role || '').trim().toLowerCase())
   ));
