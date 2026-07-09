@@ -169,13 +169,16 @@
     -webkit-tap-highlight-color: transparent;
   }
 
-  /* Disable text selection on interactive elements */
+  /* Disable text selection, tap-highlight, and long-press context menus on
+     interactive elements (iOS WebView hardening). */
   button,
   [role="button"],
   a,
+  select,
   svg {
     user-select: none;
     -webkit-user-select: none;
+    -webkit-touch-callout: none;
   }
 
   /* Preserve text selection for content areas */
