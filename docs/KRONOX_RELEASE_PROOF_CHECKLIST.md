@@ -413,7 +413,7 @@ Checklist:
 * Daily Wheel V2 grants server-selected Diamonds, approved Solo jokers, or Gift
   Box rewards only; it never grants Kronox Puan and never affects leaderboard.
 * Daily Calendar / Streak grants Diamonds only through the server-backed
-  `claimDailyQuestReward` 7-day Gift Box path.
+  `claimDailyQuestReward` 7-day streak reward path.
 * Daily Wheel and Daily Calendar use separate guard fields/idempotency keys:
   `daily_wheel:<playerKey>:<YYYY-MM-DD>` and
   `daily_calendar_streak:<playerKey>:<streak_anchor_date>:<claim_number>:200`
@@ -444,8 +444,8 @@ Checklist:
   `DailyWheelSpin.user_email + spin_date` unless Base44/platform configuration
   is attached.
 * Daily Wheel 7-day streak bonus grants `+150` Diamonds on every 7th consecutive daily spin (`7 günlük seri bonusu: +150 elmas`).
-* Daily Calendar / Streak Gift Box is separate and grants exactly 200 Diamonds
-  through `daily_calendar_streak_reward`.
+* Daily Calendar / Streak 200-Diamond streak reward is separate and grants
+  exactly 200 Diamonds through `daily_calendar_streak_reward`.
 * Missing a UTC day resets the Daily Wheel streak gracefully to 1 on next spin
   and breaks the Daily Calendar / Streak chain.
 * Manual economy idempotency proof:
@@ -565,33 +565,43 @@ Checklist:
   with `JokerTransaction` summed deltas/latest `balance_after` and report
   mismatches without mutating data.
 * Client is not trusted for price; purchase validation is server-authoritative.
+* Store UI is simplified: the main `MAĞAZA` title remains, section subtitles /
+  explanatory copy are removed, real-money Diamond cards show amount + `Elmas`
+  as two lines without unit price, and Diamond-spend Joker/Hint/Advantage cards
+  open a detail popup before purchase instead of rendering direct card-level
+  `SATIN AL` buttons.
+* Hint package prices are 5/15/40 İpucu = 150/400/800 Diamonds in both the
+  client catalog and `purchaseJokerWithDiamonds`.
 * Manual Mağaza Store proof:
   1. Open Home on mobile browser/PWA.
   2. Confirm Mağaza top-left, Diamonds center, notifications right.
   3. Open Mağaza and confirm vertical scroll, requested dark gradient/glow,
      target-style cards, Barlow Condensed headings/prices/buttons, and no
      horizontal overflow.
-  4. Confirm all Diamond package amounts/prices/unit prices and badges:
+  4. Confirm all Diamond package amounts/prices and badges:
      360/1.100/2.400/6.200/13.000 ELMAS, EN POPÜLER on 1.100, EN İYİ DEĞER
-     on 13.000.
+     on 13.000, with no `Birim fiyat` / unit-price copy.
   5. Confirm each real-money/TL Diamond package button is disabled with exact
      `Yakında` copy, `real_money_unavailable` reason, and cannot grant Diamonds;
      confirm KronoClub and Reklamları Kaldır are disabled with
      `future_feature` reason and cannot grant benefits.
-  6. Buy one Joker package with sufficient Diamonds and confirm Diamonds
+  6. Tap one Joker, Hint, and Advantage card and confirm each opens a detail
+     popup with package contents and a purchase CTA containing the Diamond
+     price; no Diamond-priced card has a direct card-level `SATIN AL` button.
+  7. Buy one Joker package with sufficient Diamonds and confirm Diamonds
      decrease and the matching joker inventory increases.
-  7. Buy one Hint package and one Advantage package with sufficient Diamonds;
+  8. Buy one Hint package and one Advantage package with sufficient Diamonds;
      confirm `UserHintInventory` / `HintTransaction` and all joker grant rows
      are written as applicable.
-  8. Confirm failed purchase copy is safe, e.g.
+  9. Confirm failed purchase copy is safe, e.g.
      `Satın alma tamamlanamadı. Tekrar dene.`
-  9. Return to Profile and confirm `Joker Çantası` updated.
-  10. Start Solo and confirm the purchased joker count appears in the joker bar.
-  11. Test an existing account with missing/partial joker rows and confirm
+  10. Return to Profile and confirm `Joker Çantası` updated.
+  11. Start Solo and confirm the purchased joker count appears in the joker bar.
+  12. Test an existing account with missing/partial joker rows and confirm
       `Joker Çantası` self-heals without duplicate starter grants.
-  12. Try insufficient Diamonds and confirm no balance changes.
-  13. Double-tap purchase and confirm no duplicate charge/grant.
-  14. Retry after a simulated network failure if possible and confirm no
+  13. Try insufficient Diamonds and confirm no balance changes.
+  14. Double-tap purchase and confirm no duplicate charge/grant.
+  15. Retry after a simulated network failure if possible and confirm no
       double-charge or double-grant.
   14. Repeat from two tabs/devices if possible; this is the live race proof.
   14. Verify Online mode remains unaffected.
@@ -624,9 +634,12 @@ Checklist:
   `Profilini tamamla` only while the profile is incomplete, otherwise it falls
   back to `5 soruyu doğru cevapla`. Hint tasks use the real `hint_used` event
   and require a matching `HintTransaction.reason = solo_use` row.
-* Daily page proof: current month calendar appears, today has a yellow ring,
-  completed days have checks, future days are not completed, today shows 3
-  tasks, and Zaman Serisi shows 7-day Gift Box progress.
+* Daily page proof: Daily header shows only `GÜNLÜK` with no subtitle, current
+  month calendar appears, today has a yellow ring, completed days have checks,
+  future days are not completed, the calendar legend shows only `Tamamlandı`
+  and `Bugün`, today shows 3 title-only task cards, the section does not show a
+  renewal countdown, and Zaman Serisi shows streak progress plus only
+  `200 Elmas` for the 7-day reward UI. Gift Box icon/name is not displayed.
 * Task completion is real-event-based and idempotent. Daily Wheel progress must
   follow a successful wheel claim, Solo level/correct/jokerless tasks must
   follow valid gameplay events, Joker tasks must follow successful
@@ -634,7 +647,7 @@ Checklist:
   success events.
 * Per-task progress does not grant Diamonds. A day is complete only when all 3
   task rows are complete. Missing a UTC day breaks the computed streak.
-* `claimDailyQuestReward` grants only the 7-day Gift Box, writes
+* `claimDailyQuestReward` grants only the 7-day streak reward, writes
   `DiamondTransaction.source = daily_calendar_streak_reward`, grants exactly
   200 Diamonds, updates visible `User.diamonds` or completed-guest
   `GuestProfile.diamonds`, and is idempotent.
@@ -648,9 +661,9 @@ Checklist:
 * Manual proof: open Home, see compact `GÜNLÜK` and `Çark` shortcuts, open
   `/daily`, confirm current month calendar and exactly 3 tasks, complete
   relevant real events, confirm completed task/day checkmarks, reach 7/7,
-  claim Gift Box, confirm exactly one `daily_calendar_streak_reward`
-  DiamondTransaction for 200 Diamonds, retry duplicate claim, and confirm no
-  Kronox Puan/Leaderboard change.
+  claim the 7-day streak reward, confirm exactly one
+  `daily_calendar_streak_reward` DiamondTransaction for 200 Diamonds, retry
+  duplicate claim, and confirm no Kronox Puan/Leaderboard change.
 
 ---
 

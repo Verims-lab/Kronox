@@ -107,13 +107,20 @@ Streak through the Home `GÜNLÜK` calendar shortcut. Daily Calendar creates 3
 idempotent; `recordDailyQuestProgress` never grants Diamonds.
 
 Daily Calendar grants Diamonds only through the server-backed
-`claimDailyQuestReward` callable when the 7-day Gift Box is ready. Claims write
+`claimDailyQuestReward` callable when the 7-day streak reward is ready. Claims write
 `DiamondTransaction.source = daily_calendar_streak_reward` with
 `direction = earn`, grant exactly 200 Diamonds, and use an idempotency key
 shaped like
 `daily_calendar_streak:<playerKey>:<streak_anchor_date>:<claim_number>:200`.
 The client must not control reward amount. Daily Calendar does not grant Kronox
 Puan and does not affect Leaderboard.
+
+Daily Calendar screen UI is display-only around this reward: the header shows
+only `GÜNLÜK`, the calendar legend shows only `Tamamlandı` and `Bugün`, the
+today tasks heading shows no renewal countdown, task cards show title-only
+rows, and the 7-day reward UI displays only `200 Elmas` with no Gift Box
+icon/name. This UI simplification does not change the 200-Diamond backend
+reward, task cycle, streak computation, Puan, or Leaderboard behavior.
 
 Legacy `DailyQuestDefinition` rows are ignored by the active runtime. Use the
 admin-gated `cleanupLegacyDailyQuests` path for old Daily Quest data; it
@@ -260,7 +267,7 @@ Diamond rewards or the same joker twice.
 ```
 
 This Daily Wheel spin-streak bonus is separate from the Daily Calendar /
-Streak Gift Box, which grants 200 Diamonds through
+Streak 200-Diamond streak reward, which grants 200 Diamonds through
 `daily_calendar_streak_reward`. If the user misses a UTC day, the next
 successful spin resets the Daily Wheel streak to 1.
 
@@ -641,11 +648,11 @@ Mağaza displays the expanded Store catalog:
 
 ```text
 Real-money Diamond packages (display only until approved IAP/payment exists):
-360 ELMAS — ₺79,99, unit ₺0,22
-1.100 ELMAS — ₺199,99, unit ₺0,18, EN POPÜLER
-2.400 ELMAS — ₺349,99, unit ₺0,15
-6.200 ELMAS — ₺799,99, unit ₺0,13
-13.000 ELMAS — ₺1.499,99, unit ₺0,12, EN İYİ DEĞER
+360 ELMAS — ₺79,99
+1.100 ELMAS — ₺199,99, EN POPÜLER
+2.400 ELMAS — ₺349,99
+6.200 ELMAS — ₺799,99
+13.000 ELMAS — ₺1.499,99, EN İYİ DEĞER
 
 Diamond-spend jokers:
 Kronokalkan 1/5/15 = 60/270/720 Diamonds
@@ -653,7 +660,7 @@ Zamanı Dondur 1/5/15 = 40/180/480 Diamonds
 Kart Değiştir 1/5/15 = 50/225/600 Diamonds
 
 Diamond-spend hints:
-5/15/40 İpucu = 40/100/240 Diamonds
+5/15/40 İpucu = 150/400/800 Diamonds
 
 Diamond-spend advantage packages:
 Başlangıç Paketi = 2 Kronokalkan + 2 Kart Değiştir + 2 Zamanı Dondur + 10 İpucu for 250 Diamonds
@@ -663,6 +670,23 @@ Mega Paket = 10 Kronokalkan + 10 Kart Değiştir + 10 Zamanı Dondur + 30 İpucu
 KronoClub and Reklamları Kaldır are future real-money sections only. They do
 not grant subscriptions, ad removal, or any benefit until an approved real
 purchase path exists.
+
+Store UI simplification contract:
+
+* Mağaza keeps the main `MAĞAZA` title but removes the subtitle and section
+  explanatory copy above/under Elmas, Joker, İpucu, Avantaj, and Yakında
+  sections.
+* Diamond package cards render the amount and `Elmas` as two lines, show TL
+  price, and do not render `Birim fiyat`, unit-price fields, or decorative
+  extra Diamond dots.
+* Diamond-spend Joker, Hint, and Advantage cards show the Diamond price on the
+  right side and do not render direct card-level `SATIN AL` buttons. Tapping
+  the card opens a detail popup with package contents and a purchase CTA that
+  includes the Diamond price.
+* Purchase success is not shown as a persistent Store banner/list; only safe
+  failure/info states may render.
+* Real-money/TL and future products stay disabled `Yakında` and do not open a
+  fake purchase success path.
 
 Solo move interaction:
 
@@ -831,8 +855,8 @@ Manual/release proof should verify:
 * Daily Wheel grants once per UTC server day
 * Daily Wheel does not grant Kronox Puan
 * 7th consecutive Daily Wheel spin grants +150 extra Diamonds
-* Daily Calendar / Streak Gift Box is a separate 7-day reward and grants 200
-  Diamonds through `daily_calendar_streak_reward`
+* Daily Calendar / Streak 200-Diamond streak reward is a separate 7-day reward
+  and grants 200 Diamonds through `daily_calendar_streak_reward`
 * two-device duplicate prevention is probed
 * ledger recovery does not double grant
 ## GuestProfile And Economy Boundary

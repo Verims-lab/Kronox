@@ -322,9 +322,9 @@ export const EXTRA_TESTS = [
     () => {
       const combined = `${dailyPageSource}\n${economyRulesSource}\n${economyGatewaySource}`;
       const missing = missingTokens(combined, [
-        'Hediye Kutusu',
         'claimDailyQuestReward',
         'daily_calendar_streak_reward',
+        '200 Elmas',
         '200 Diamonds',
         'does not grant Kronox Puan',
         'does not affect Leaderboard',
@@ -340,7 +340,7 @@ export const EXTRA_TESTS = [
           actual: { missing, forbidden },
         });
       }
-      return pass('Daily Calendar Gift Box claim is backend-owned and the route UI does not mutate Diamonds directly.', { verification: 'STATIC_CONTRACT' });
+      return pass('Daily Calendar streak reward claim is backend-owned and the route UI does not mutate Diamonds directly.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('daily_wheel_v2_no_puan_no_leaderboard',
@@ -478,15 +478,15 @@ export const EXTRA_TESTS = [
         'streakAfter % 7 === 0',
         '7 günlük seri bonusu: +150 elmas',
         '7-day streak bonus: +150 diamonds',
-        'Daily Calendar / Streak Gift Box',
+        'Daily Calendar / Streak 200-Diamond streak reward',
       ]);
       if (missing.length) {
-        return fail('Daily Wheel runtime has a 7-day streak path but docs/Health do not clearly distinguish it from the Daily Calendar Gift Box reward.', {
+        return fail('Daily Wheel runtime has a 7-day streak path but docs/Health do not clearly distinguish it from the Daily Calendar streak reward.', {
           verification: 'STATIC_CONTRACT',
           missing,
         });
       }
-      return pass('Daily Wheel keeps its existing +150 7-day spin streak path and docs distinguish it from the Daily Calendar / Streak 200-Diamond Gift Box.', { verification: 'STATIC_CONTRACT' });
+      return pass('Daily Wheel keeps its existing +150 7-day spin streak path and docs distinguish it from the Daily Calendar / Streak 200-Diamond streak reward.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('daily_wheel_claimed_card_passive_countdown',

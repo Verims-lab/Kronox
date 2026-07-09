@@ -55,7 +55,7 @@
         "special_event_future",
         "admin_adjustment"
       ],
-      "description": "Economy source. Active sources include starter_bonus, first_login_reward, daily_login, daily_wheel, market_purchase, daily_calendar_streak_reward, daily_quest_reward (legacy), account_link_merge, and admin_adjustment. daily_wheel is written only for the Diamond portion of Daily Wheel V2 rewards; approved wheel joker portions use JokerTransaction. first_login_reward is the one-time Profile account-link reward written by linkGuestAccount. Daily Calendar 7-day Gift Box claims write daily_calendar_streak_reward with direction earn for exactly 200 Diamonds; Daily Calendar grants diamonds only, does not grant Kronox Puan, and has no leaderboard impact."
+      "description": "Economy source. Active sources include starter_bonus, first_login_reward, daily_login, daily_wheel, market_purchase, daily_calendar_streak_reward, daily_quest_reward (legacy), account_link_merge, and admin_adjustment. daily_wheel is written only for the Diamond portion of Daily Wheel V2 rewards; approved wheel joker portions use JokerTransaction. first_login_reward is the one-time Profile account-link reward written by linkGuestAccount. Daily Calendar 7-day streak reward claims write daily_calendar_streak_reward with direction earn for exactly 200 Diamonds; Daily Calendar grants diamonds only, does not grant Kronox Puan, and has no leaderboard impact."
     },
     "direction": {
       "type": "string",

@@ -47,6 +47,13 @@ function buildClaimKey(state) {
   return String(state?.streakRewardCycleId || `${state?.serverDate || todayFallbackKey()}:streak`);
 }
 
+function safeDailyRewardError(err, fallback) {
+  const message = String(err?.message || '').trim();
+  const normalized = message.toLocaleLowerCase('tr-TR');
+  if (!message || (normalized.includes('hediye') && normalized.includes('kutusu'))) return fallback;
+  return message;
+}
+
 export function useDailyQuests({ user, guestProfile, onUserUpdated } = {}) {
   const [status, setStatus] = useState('loading');
   const [state, setState] = useState(() => buildEmptyCalendarState());
@@ -112,7 +119,7 @@ export function useDailyQuests({ user, guestProfile, onUserUpdated } = {}) {
   const claim = useCallback(async () => {
     const claimKey = buildClaimKey(state);
     if (!state?.streakRewardReady) {
-      setError('Hediye Kutusu için 7 günlük seri tamamlanmalı.');
+      setError('7 günlük seri ödülü için seri tamamlanmalı.');
       return null;
     }
     if (claimPendingRef.current.has(claimKey)) return null;
@@ -129,7 +136,7 @@ export function useDailyQuests({ user, guestProfile, onUserUpdated } = {}) {
       await refresh();
       return body;
     } catch (err) {
-      setError(err?.message || 'Hediye Kutusu alınamadı. Tekrar dene.');
+      setError(safeDailyRewardError(err, 'Seri ödülü alınamadı. Tekrar dene.'));
       return null;
     } finally {
       claimPendingRef.current.delete(claimKey);

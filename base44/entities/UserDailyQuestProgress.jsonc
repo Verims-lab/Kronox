@@ -1,7 +1,7 @@
 {
   "name": "UserDailyQuestProgress",
   "type": "object",
-  "description": "Daily Calendar/Streak Runtime v1 user-owned per-day task progress row. Exactly 3 code-owned daily_calendar:* rows are ensured per authenticated/completed-guest user per UTC quest_date without reading or creating DailyQuestDefinition rows. Legacy Daily Quest rows are ignored by runtime/UI and can be cleaned through cleanupLegacyDailyQuests dry-run/delete. Task completion itself grants no reward; claimDailyQuestReward grants the 7-day Gift Box only through DiamondTransaction source daily_calendar_streak_reward. Daily Calendar grants Diamonds only and has no Kronox Puan or leaderboard impact.",
+  "description": "Daily Calendar/Streak Runtime v1 user-owned per-day task progress row. Exactly 3 code-owned daily_calendar:* rows are ensured per authenticated/completed-guest user per UTC quest_date without reading or creating DailyQuestDefinition rows. Legacy Daily Quest rows are ignored by runtime/UI and can be cleaned through cleanupLegacyDailyQuests dry-run/delete. Task completion itself grants no reward; claimDailyQuestReward grants the 7-day streak reward only through DiamondTransaction source daily_calendar_streak_reward. Daily Calendar grants Diamonds only and has no Kronox Puan or leaderboard impact.",
   "properties": {
     "user_email": {
       "type": "string",
@@ -31,7 +31,7 @@
     "daily_calendar_streak_reward_claim_count": {
       "type": "integer",
       "minimum": 0,
-      "description": "Optional count of 7-day Gift Box reward claims observed for the current streak anchor. Used for admin/reporting diagnostics, not public UI identity."
+      "description": "Optional count of 7-day streak reward claims observed for the current streak anchor. Used for admin/reporting diagnostics, not public UI identity."
     },
     "quest_definition_id": {
       "type": "string",
@@ -87,7 +87,7 @@
     "reward_diamonds": {
       "type": "integer",
       "minimum": 0,
-      "description": "Per-task reward is 0 in Daily Calendar V1. The only active reward is the server-owned 7-day Gift Box claim for exactly 200 Diamonds."
+      "description": "Per-task reward is 0 in Daily Calendar V1. The only active reward is the server-owned 7-day streak reward claim for exactly 200 Diamonds."
     },
     "status": {
       "type": "string",

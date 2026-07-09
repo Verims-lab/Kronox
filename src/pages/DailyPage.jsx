@@ -1,13 +1,11 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   CalendarDays,
   Check,
   ChevronLeft,
   ChevronRight,
-  Clock3,
   Gem,
-  Gift,
   Loader2,
   RefreshCw,
   Star,
@@ -48,15 +46,6 @@ function formatMonthTitle(month) {
   return `${MONTH_LABELS[index]} ${year}`;
 }
 
-function secondsUntilNextDay(serverDate) {
-  const base = Date.parse(`${String(serverDate || '').slice(0, 10)}T00:00:00.000Z`);
-  if (!Number.isFinite(base)) return '';
-  const diff = Math.max(0, base + 24 * 60 * 60 * 1000 - Date.now());
-  const hours = Math.floor(diff / (60 * 60 * 1000));
-  const minutes = Math.floor((diff % (60 * 60 * 1000)) / (60 * 1000));
-  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-}
-
 function taskIcon(task) {
   if (task.icon === 'wheel') return '◉';
   if (task.icon === 'shield' || task.icon === 'freeze') return '◆';
@@ -71,7 +60,6 @@ export default function DailyPage() {
   const completedGuestProfile = !user && isGuestOnboardingComplete(guestProfile) ? guestProfile : null;
   const daily = useDailyQuests({ user, guestProfile: completedGuestProfile });
   const diamonds = getLeaderboardDiamondValue(user || completedGuestProfile);
-  const resetTimer = useMemo(() => secondsUntilNextDay(daily.serverDate), [daily.serverDate]);
   const monthTitle = formatMonthTitle(daily.month);
   const streakSteps = Array.from({ length: DAILY_STREAK_REWARD_DAYS }, (_, index) => index + 1);
   const streakProgress = Math.max(0, Math.min(DAILY_STREAK_REWARD_DAYS, Number(daily.streakRewardProgress) || 0));
@@ -122,9 +110,6 @@ export default function DailyPage() {
             >
               GÜNLÜK
             </h1>
-            <p className="mt-1 truncate font-inter text-xs font-bold text-slate-300">
-              Serini koru, ödülünü kazan!
-            </p>
           </div>
         </div>
         <button
@@ -182,24 +167,17 @@ export default function DailyPage() {
           <div className="mt-3 flex min-w-0 flex-wrap justify-center gap-x-3 gap-y-2 font-inter text-[10px] font-semibold text-slate-300">
             <LegendDot tone="done" label="Tamamlandı" />
             <LegendDot tone="today" label="Bugün" />
-            <LegendDot tone="future" label="Gelecek Gün" />
           </div>
         </Panel>
 
         <Panel>
-          <div className="mb-3 flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1">
+          <div className="mb-3 flex min-w-0 items-center">
             <h2
               className="min-w-0 text-base font-black italic text-white"
               style={{ fontFamily: '"Barlow Condensed", "Inter", sans-serif', letterSpacing: '0.04em' }}
             >
               BUGÜNKÜ GÖREVLER
             </h2>
-            <span className="inline-flex min-w-0 max-w-full items-center gap-1 font-inter text-[10px] font-semibold text-slate-400">
-              <Clock3 className="h-3.5 w-3.5 shrink-0" />
-              <span className="min-w-0 truncate">
-                {resetTimer ? `Görevler ${resetTimer} sonra yenilenecek` : 'UTC gün sonunda yenilenir'}
-              </span>
-            </span>
           </div>
 
           {daily.status === 'loading' && (
@@ -265,20 +243,19 @@ export default function DailyPage() {
                   </React.Fragment>
                 ))}
               </div>
-              <p className="mt-3 font-inter text-xs font-semibold text-slate-300">
-                Serini 7 güne tamamla, büyük ödülü kazan!
-              </p>
             </div>
 
-            <div className="w-full min-w-0 max-w-full rounded-xl p-3 text-center sm:max-w-[10rem]" style={{ background: 'rgba(3,7,18,0.34)', boxShadow: 'inset 0 0 0 1px rgba(250,204,21,0.22)' }}>
-              <p className="mb-2 text-[10px] font-black text-amber-200">{DAILY_STREAK_REWARD_DAYS} GÜNLÜK SERİ ÖDÜLÜ</p>
-              <div className="mx-auto grid h-20 w-24 place-items-center rounded-xl" style={{ background: 'radial-gradient(circle, rgba(250,204,21,0.22), transparent 70%)' }}>
-                <Gift className="h-12 w-12 fill-amber-400 text-amber-700" />
-              </div>
-              <p className="mt-1 font-inter text-xs font-black text-white">Hediye Kutusu</p>
-              <p className="kronox-number mt-1 inline-flex items-center justify-center gap-1 text-xs font-black text-amber-200">
-                <Gem className="h-3.5 w-3.5 fill-yellow-300 text-yellow-300" />
-                {DAILY_STREAK_REWARD_DIAMONDS}
+            <div
+              data-kronox-daily-streak-reward-card="true"
+              className="w-full min-w-0 max-w-full rounded-xl p-3 text-center sm:max-w-[10rem]"
+              style={{ background: 'rgba(3,7,18,0.34)', boxShadow: 'inset 0 0 0 1px rgba(250,204,21,0.22)' }}
+            >
+              <p
+                data-kronox-daily-streak-reward-amount="true"
+                className="kronox-number inline-flex min-h-20 items-center justify-center gap-1 text-sm font-black text-amber-200"
+              >
+                <Gem className="h-4 w-4 fill-yellow-300 text-yellow-300" />
+                {DAILY_STREAK_REWARD_DIAMONDS} Elmas
               </p>
               <button
                 type="button"
@@ -295,7 +272,7 @@ export default function DailyPage() {
                     : 'inset 0 0 0 1px rgba(148,163,184,0.16)',
                 }}
               >
-                {daily.claimingId ? 'Açılıyor...' : daily.streakRewardReady ? 'Hediye Kutusunu Aç' : 'Seriyi Tamamla'}
+                {daily.claimingId ? 'Alınıyor...' : daily.streakRewardReady ? 'Ödülü Al' : 'Seriyi Tamamla'}
               </button>
             </div>
           </div>
@@ -389,8 +366,7 @@ function TaskRow({ task }) {
         {taskIcon(task)}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate font-inter text-sm font-black text-white">{task.title}</p>
-        <p className="truncate font-inter text-[11px] font-semibold text-slate-300">{task.description}</p>
+        <p data-kronox-daily-task-title="true" className="truncate font-inter text-sm font-black text-white">{task.title}</p>
       </div>
       <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
         {task.targetValue > 1 && !completed && (

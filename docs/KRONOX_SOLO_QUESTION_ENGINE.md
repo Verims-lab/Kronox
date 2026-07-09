@@ -442,7 +442,7 @@ Streak:
 - `recordDailyQuestProgress` is idempotent and never grants Diamonds.
 - A day is complete only after all 3 task rows are complete; missing a UTC day
   breaks the computed streak.
-- `claimDailyQuestReward` grants only the 7-day Gift Box and writes
+- `claimDailyQuestReward` grants only the 7-day streak reward and writes
   `DiamondTransaction.source = daily_calendar_streak_reward` for exactly 200
   Diamonds.
 - Daily Calendar does not grant Kronox Puan and does not affect Leaderboard.
