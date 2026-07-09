@@ -128,7 +128,7 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(`${mainMenuSource}\n${appSource}\n${bottomNavSource}`, [
         'CalendarDays',
         'label="GÜNLÜK"',
-        "navigate('/daily')",
+        "navigate('/daily'",
         'const DailyPage',
         'path="/daily"',
         'element={<DailyPage />}',

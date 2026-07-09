@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex583 — Health KRONOX-MRDZUHVL route/pin alignment:
+//   • Retargeted Profile/Settings/Home route Health guards to the real
+//     state-carrying navigate('/route', ...) handlers instead of stale
+//     one-argument tokens.
+//   • Restored the frontend @base44/sdk exact 0.8.34 package and lockfile
+//     contract while critical Base44 function imports already matched.
+//
 // Codex582 — Level 1 tutorial popup video/copy update:
 //   • Level 1 start popup uses local /assets/tutorials/Seviye1tutorial.mp4.
 //   • Level 1 copy is "Önce mi, Sonra mı" / "Kartı doğru tarafa sürükle".
@@ -48,7 +55,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex582';
+const BUILD_MARKER = 'Codex583';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

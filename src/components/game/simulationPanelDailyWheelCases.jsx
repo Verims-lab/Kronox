@@ -88,7 +88,7 @@ export const EXTRA_TESTS = [
         "overflowY: 'auto'",
         'CalendarDays',
         'label="GÜNLÜK"',
-        "navigate('/daily')",
+        "navigate('/daily'",
         'path="/daily"',
         'element={<DailyPage />}',
         'label="Çark"',
