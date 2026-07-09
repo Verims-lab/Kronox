@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex577 — Onboarding move allowance, before_after slots, Store modal safety:
+//   • Levels 1-6 keep a 6-correct onboarding progress target while using
+//     the 10-HAMLE evaluated move allowance and larger prepared attempt decks.
+//   • before_after Timeline renders a full-slot grid so ÖNCESİ/SONRASI do not
+//     inherit the regular edge-peek clipping treatment.
+//   • Mağaza Diamond-spend package popup is centered, safe-area bounded, and
+//     kept above BottomNav without changing server-owned purchase behavior.
+//
 // Codex576 — MRDNXHIS Health blocker alignment:
 //   • Base44 SDK frontend package and lockfile return to the exact 0.8.34 pin
 //     used by critical Base44 function Deno imports.
@@ -12,7 +20,7 @@ import React, { useEffect, useState } from 'react';
 //
 // Codex575 — Solo onboarding level types:
 //   • Levels 1-3 use before_after and levels 4-6 use timeline_basic with fixed
-//     references, six playable cards, virtual progress, and real Solo scoring.
+//     references, onboarding progress, and real Solo scoring.
 //   • Onboarding Joker/Hint usage is training-only: visible and usable, but no
 //     real inventory decrement, transaction write, or Daily task progress.
 //   • Level-start tutorial popups, local privacy-safe onboarding analytics,
@@ -622,7 +630,7 @@ import React, { useEffect, useState } from 'react';
 //   • security_cleanup_health.base44_sdk_versions_exact_and_aligned:
 //     package.json now exact-pins "@base44/sdk": "0.8.34" (was "^0.8.35").
 
-const BUILD_MARKER = 'Codex576';
+const BUILD_MARKER = 'Codex577';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

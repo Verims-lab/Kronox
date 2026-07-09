@@ -46,8 +46,12 @@ checks that source code and static Health cannot honestly prove alone.
   `Kullanıcı ID`; the row must fit 320px-class screens without becoming an
   editable field or leaking private/internal IDs elsewhere.
 * Solo gameplay shows the remaining move counter as `10 HAMLE`, `9 HAMLE`,
-  etc. on normal levels and `13 HAMLE`, `12 HAMLE`, etc. on special levels;
-  result popups show `HAMLE` instead of `HATA`.
+  etc. on onboarding and normal levels and `13 HAMLE`, `12 HAMLE`, etc. on
+  special levels; result popups show `HAMLE` instead of `HATA`.
+* Solo `before_after` onboarding levels keep `ÖNCESİ` and `SONRASI` as fully
+  visible/readable full slot shapes around the centered reference card on
+  mobile; the regular timeline edge-peek treatment must not clip these two
+  teaching slots.
 * Manual mobile proof must confirm touch, slight drag, invalid drop, tutorial
   hand/finger animation, tutorial popups, and joker activation do not decrement
   the remaining move counter.
@@ -69,6 +73,10 @@ checks that source code and static Health cannot honestly prove alone.
   aware, and must not add artificial wait, minimum display duration, or block
   gameplay start. Retry/back controls belong only to recovery/error fallback
   states, not the normal preparation visual.
+* Store Diamond-spend purchase popups are centered safe-area-aware modals,
+  not bottom sheets behind BottomNav: width `min(92vw, 34rem)`, max-height
+  bounded by `100dvh` minus safe areas, internal vertical scroll if needed,
+  and the purchase CTA remains tappable.
 
 ## PWA
 

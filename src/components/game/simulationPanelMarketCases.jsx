@@ -137,6 +137,10 @@ export const EXTRA_TESTS = [
         '#8FA3C4',
         'StorePurchaseModal',
         "'Satın Al'",
+        'data-kronox-market-modal-position="centered-safe-area"',
+        "width: 'min(92vw, 34rem)'",
+        "maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 2rem)'",
+        'zIndex: 80',
       ]);
       if (missing.length) return fail('Store visual contract tokens are missing from MarketPage.', {
         verification: 'STATIC_CONTRACT',
@@ -292,6 +296,7 @@ export const EXTRA_TESTS = [
         'data-kronox-market-offer-card',
         'data-kronox-market-offer-price',
         'data-kronox-market-modal',
+        'data-kronox-market-modal-position="centered-safe-area"',
         'data-kronox-market-modal-purchase',
         'Paket İçeriği',
         'closeModal',

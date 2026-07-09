@@ -6,8 +6,8 @@
 //   attempt deck of level-aware size per Solo attempt.
 //
 // CORE RULES (locked in by Health suite solo_question_engine_health):
-//   • Deck size               = onboarding 13/14, normal 18, special 21
-//   • Win condition           = onboarding 6 answered cards; normal 7 correct timeline cards; special 10
+//   • Deck size               = onboarding 17/18, normal 18, special 21
+//   • Win condition           = onboarding 6 correct-progress placements; normal 7 correct timeline cards; special 10
 //                                (seed cards already count on the timeline)
 //   • Special levels          = level 10, then every 5 levels after onboarding
 //   • Fail condition          = level-specific evaluated move limit without target OR 180s time expired

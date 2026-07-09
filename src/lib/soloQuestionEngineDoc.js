@@ -18,18 +18,18 @@ and use an internal 21-question deck buffer. The 3 extra moves are only a
 mistake buffer and do not change scoring.
 
 Levels 1-3 use level_type before_after with one fixed reference card, ÖNCESİ /
-SONRASI slots, six playable question cards, virtual answered-card progress, and
-no answer-card insertion into the persistent timeline. Levels 4-6 use
-level_type timeline_basic with two fixed reference cards, ÖNCESİ / ARASI /
-SONRASI slots, six playable question cards, virtual answered-card progress, and
-no answer-card insertion into the persistent timeline. Levels 1-6 are real Solo
+SONRASI slots, 10 attempt question cards, a 6-correct progress target, and no
+answer-card insertion into the persistent timeline. Levels 4-6 use level_type
+timeline_basic with two fixed reference cards, ÖNCESİ / ARASI / SONRASI slots,
+10 attempt question cards, a 6-correct progress target, and no answer-card
+insertion into the persistent timeline. Levels 1-6 are real Solo
 levels that keep existing Solo progress, stars, Kronox Puan, replay/best-score,
 and leaderboard projection guards. Level 7 returns to normal timeline play.
 
 All new Solo attempts use a 180 seconds timer and fail when their level-specific
 evaluated move limit is used before the target timeline card count is reached.
-Internal deck sizing is before_after 1 reference + 6 playable cards + Kart Değiştir
-buffer + Kronokalkan buffer, timeline_basic 2 references + 6 playable cards +
+Internal deck sizing is before_after 1 reference + 10 attempt cards + Kart Değiştir
+buffer + Kronokalkan buffer, timeline_basic 2 references + 10 attempt cards +
 Kart Değiştir buffer + Kronokalkan buffer, normal 2 anchors + 10 playable moves
 + Kart Değiştir buffer + Kronokalkan buffer, and special 2 anchors + 13
 playable moves + Kart Değiştir buffer + Kronokalkan buffer. Zaman Dondur does not require extra card buffer.
@@ -81,8 +81,9 @@ cards. This avoids player-facing 1-4 year conflicts such as 1996/1997,
 1998/1999, and 1913/1914 where a safe alternative exists.
 
 Hard deck rules:
-- 13 questions for before_after onboarding.
-- 14 questions for timeline_basic onboarding.
+- 17 questions for before_after onboarding.
+- 18 questions for timeline_basic onboarding.
+- 10 evaluated moves for onboarding levels.
 - 18 questions for normal levels.
 - 21 questions for special levels.
 - 10 evaluated moves for normal levels.

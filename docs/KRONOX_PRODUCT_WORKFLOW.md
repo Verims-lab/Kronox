@@ -282,9 +282,11 @@ Current normal Solo:
 * used moves = max moves - remaining moves
 
 Levels 1-3 use the real scored `before_after` onboarding type with one fixed
-reference card, 6 playable cards, and training-only Joker/Hint usage. Levels
+reference card, 10 prepared attempt cards, a 6-correct progress target, and
+training-only Joker/Hint usage. Levels
 4-6 use the real scored `timeline_basic` onboarding type with two fixed
-reference cards, 6 playable cards, and training-only Joker/Hint usage. Level 7
+reference cards, 10 prepared attempt cards, a 6-correct progress target, and
+training-only Joker/Hint usage. Level 7
 returns to the normal timeline flow. Special Solo starts at level 10 and every
 5 levels after that. It keeps the 10-card timeline target, uses 13 evaluated
 placement moves as a mistake buffer, shows remaining moves from `13 HAMLE`, and

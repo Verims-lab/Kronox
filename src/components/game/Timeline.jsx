@@ -556,6 +556,117 @@ export default function Timeline({
   // ─── Render ──────────────────────────────────────────────────────
   const displayActiveZone = isDragMode ? activeZone : null;
   const totalZones = groupedCards.length + 1;
+  const isBeforeAfterTimeline = Array.isArray(slotLabels) && slotLabels.length === 2 && groupedCards.length === 1;
+
+  if (isBeforeAfterTimeline) {
+    const beforeAfterItems = [0, 1].map((zoneIndex) => {
+      const isThisActive = displayActiveZone === zoneIndex;
+      const isBeginnerHint = isDragMode
+        && beginnerPlacementHintZone === zoneIndex
+        && displayActiveZone !== zoneIndex
+        && selectedZone !== zoneIndex
+        && !isTimeUp;
+      const isGuidedTarget = guidedTargetZone === zoneIndex
+        && displayActiveZone !== zoneIndex
+        && selectedZone !== zoneIndex
+        && !isTimeUp;
+
+      return (
+        <div key={`before-after-dz-${zoneIndex}`} ref={el => (dropZoneRefs.current[zoneIndex] = el)} className="flex min-w-0 justify-center">
+          {isThisActive ? (
+            <div className="flex flex-col items-center">
+              <div style={{ height: 20 }} />
+              <GhostCard />
+            </div>
+          ) : (
+            <div className="flex flex-col items-center">
+              <div style={{ height: 20 }} />
+              <DropZone
+                index={zoneIndex}
+                label={slotLabels[zoneIndex] || ''}
+                isActive={selectedZone === zoneIndex && !isDragMode}
+                isDragMode={isDragMode}
+                isMagnetic={isDragMode && activeZone === zoneIndex && displayActiveZone !== zoneIndex}
+                isBeginnerHint={isBeginnerHint}
+                isGuidedTarget={isGuidedTarget}
+                onSelect={onSelectZone}
+                isTimeUp={isTimeUp}
+                isEdgePeek={false}
+              />
+            </div>
+          )}
+        </div>
+      );
+    });
+
+    return (
+      <div className="w-full flex flex-col" style={{ paddingBottom: 24 }}>
+        <div className="relative w-full">
+          <div
+            ref={scrollRef}
+            className="kronox-before-after-timeline w-full overflow-visible"
+            data-kronox-before-after-timeline="full-slot-grid"
+            onPointerDown={onGuidedScrollHintInteraction ? notifyGuidedScrollHintInteraction : undefined}
+            onTouchStart={onGuidedScrollHintInteraction ? notifyGuidedScrollHintInteraction : undefined}
+            onWheel={onGuidedScrollHintInteraction ? notifyGuidedScrollHintInteraction : undefined}
+            style={{
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+              WebkitOverflowScrolling: 'touch',
+              touchAction: isDragMode ? 'none' : 'pan-x',
+            }}
+          >
+            <div
+              className="relative mx-auto grid items-center"
+              style={{
+                width: 'min(94vw, 36rem)',
+                maxWidth: '100%',
+                gridTemplateColumns: 'minmax(0, 1fr) auto minmax(0, 1fr)',
+                gap: 'clamp(0.75rem, 3vw, 1.25rem)',
+                paddingInline: 'clamp(0.25rem, 2vw, 0.75rem)',
+              }}
+            >
+              <PlacementFeedbackOverlay
+                feedbackKey={placementFeedback ? `${placementFeedback.result}:${placementFeedback.year}:${placementFeedback.key ?? ''}` : null}
+                result={placementFeedback?.result || null}
+                targetRect={feedbackTargetRect}
+                reducedMotion={reducedMotion}
+                correctStreak={correctStreak}
+              />
+              {beforeAfterItems[0]}
+              <div ref={el => (cardItemRefs.current[0] = el)} className="flex flex-col items-center">
+                <div className="flex flex-col items-center mb-0.5" style={{ height: 20 }}>
+                  {!soloYearOnlyCards && (
+                    <span className="kronox-timeline-number" style={{ fontSize: 13, color: '#facc15', lineHeight: 1 }}>
+                      {groupedCards[0].year}
+                    </span>
+                  )}
+                  <div
+                    className="mt-auto"
+                    style={{
+                      width: 9,
+                      height: 9,
+                      borderRadius: '9999px',
+                      background: '#173763',
+                      border: '2px solid #7EA9D6',
+                    }}
+                  />
+                </div>
+                <TimelineCard
+                  card={groupedCards[0]}
+                  index={0}
+                  distanceFromCenter={0}
+                  yearOnly={soloYearOnlyCards}
+                />
+              </div>
+              {beforeAfterItems[1]}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const cardRowItems = [];
 
   for (let i = 0; i < totalZones; i++) {

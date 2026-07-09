@@ -26,15 +26,16 @@ Per-level best score is stored on User.solo_progress and projected into the
 leaderboard by getSoloLeaderboard.
 
 Onboarding Solo levels 1-3 use before_after, levels 4-6 use timeline_basic, and
-all six are real scored Solo levels with 6 playable cards. Normal Solo levels
+all six are real scored Solo levels with 10 prepared attempt cards and a
+6-correct progress target. Normal Solo levels
 from level 7 require 7 correct timeline cards, including seed cards already on
 the timeline. Special Solo levels start at level 10 after onboarding and repeat
 every 5 levels; they require 10 correct timeline cards, including seed cards
 already on the timeline.
 All new Solo attempts use a 180 seconds timer and 2 timeline anchor cards.
-Onboarding levels use 6 evaluated moves. Normal levels use 10 evaluated moves;
+Onboarding levels use 10 evaluated moves. Normal levels use 10 evaluated moves;
 special levels use 13 evaluated moves only as a mistake buffer. Deck sizing is
-1 reference + 6 playable + buffers for before_after, 2 references + 6 playable
+1 reference + 10 attempt cards + buffers for before_after, 2 references + 10 attempt cards
 + buffers for timeline_basic, 2 anchors + 10 playable moves + buffers for normal
 levels, and 2 anchors + 13 playable moves + buffers for special levels.
 The visible counter is HAMLE /

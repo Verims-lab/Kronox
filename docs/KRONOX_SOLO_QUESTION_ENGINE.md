@@ -25,8 +25,8 @@ Special Solo levels:
 
 Internal deck buffer formula:
 - `deckSize = initialTimelineCards + maxEvaluatedMoves + cardSwapBuffer + kronokalkanBuffer`
-- before_after onboarding: `1 reference + 6 playable + 3 + 3 = 13 questions`
-- timeline_basic onboarding: `2 references + 6 playable + 3 + 3 = 14 questions`
+- before_after onboarding: `1 reference + 10 attempt cards + 3 + 3 = 17 questions`
+- timeline_basic onboarding: `2 references + 10 attempt cards + 3 + 3 = 18 questions`
 - normal: `2 + 10 + 3 + 3 = 18 questions`
 - special: `2 + 13 + 3 + 3 = 21 questions`
 - Deck sizing is 2 anchors + 10 playable moves + Kart Değiştir buffer + Kronokalkan buffer for normal levels.
@@ -47,17 +47,20 @@ projection pipeline, but their timeline layout is simplified:
 - special levels resume at level 10 and then every 5 levels
 
 `before_after` uses one fixed reference event card and two labeled slots:
-`ÖNCESİ` and `SONRASI`. Six playable question cards are evaluated against the
-reference year. Answer cards are consumed after each answer and are not added to
-the persistent timeline.
+`ÖNCESİ` and `SONRASI`. Ten attempt question cards are prepared so the player
+can make mistakes, while the progress target remains 6 correct placements.
+Answer cards are consumed after each answer and are not added to the persistent
+timeline.
 
 `timeline_basic` uses two fixed reference event cards sorted by year and three
-labeled slots: `ÖNCESİ`, `ARASI`, and `SONRASI`. Six playable question cards
-are evaluated before, between, or after those references. Answer cards are
-consumed after each answer and are not added to the persistent timeline.
+labeled slots: `ÖNCESİ`, `ARASI`, and `SONRASI`. Ten attempt question cards are
+prepared so the player can make mistakes, while the progress target remains 6
+correct placements. Answer cards are consumed after each answer and are not
+added to the persistent timeline.
 
-Onboarding levels use six evaluated moves, complete after six answered cards
-unless the level fails first, and keep the existing Solo scoring thresholds.
+Onboarding levels use 10 evaluated moves, complete after 6 correct/progress
+placements unless the level fails first, and keep the existing Solo scoring
+thresholds.
 Joker and Hint controls remain visible in levels 1-6, but they run in training
 mode: no `spendUserJoker`, no `consumeUserHint`, no `JokerTransaction` or
 `HintTransaction` spend row, no real inventory decrement, and no Daily Calendar
@@ -112,7 +115,7 @@ Seed/preplaced timeline cards are still part of the early visible gameplay conte
 Normal Solo also uses a visible timeline spacing guardrail during runtime. Before the next active card is shown, the ordered deck picker prefers an unused prebuilt-deck card whose answer year is at least 5 years away from already visible timeline years, including placed cards and seed/preplaced cards. This avoids player-facing 1-4 year conflicts such as 1996/1997, 1998/1999, and 1913/1914 where a safe alternative exists. If no safe candidate remains, the runtime may choose the least-bad valid deck candidate instead of fetching or randomizing a new question.
 
 Every valid deck must satisfy:
-- required deck size: 13 questions for before_after onboarding, 14 questions for timeline_basic onboarding, 18 questions for normal levels, 21 questions for special levels
+- required deck size: 17 questions for before_after onboarding, 18 questions for timeline_basic onboarding, 18 questions for normal levels, 21 questions for special levels
 - unique question IDs
 - unique years across the full deck
 - active questions only

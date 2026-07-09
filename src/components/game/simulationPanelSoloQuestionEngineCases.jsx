@@ -507,7 +507,7 @@ export const EXTRA_TESTS = [
   /* 5. solo_attempt_uses_level_specific_move_limits */
   makeCase(
     'solo_attempt_uses_level_specific_move_limits',
-    'Normal Solo uses 10 moves while special Solo uses 13 moves',
+    'Onboarding/normal Solo use 10 moves while special Solo uses 13 moves',
     () => {
       const actual = {
         SOLO_MAX_MOVES,
@@ -522,16 +522,16 @@ export const EXTRA_TESTS = [
       if (
         SOLO_MAX_MOVES !== 10 ||
         SOLO_SPECIAL_MAX_MOVES !== 13 ||
-        actual.onboardingLevel1 !== 6 ||
+        actual.onboardingLevel1 !== 10 ||
         actual.normalLevel7 !== 10 ||
-        actual.onboardingLevel5 !== 6 ||
+        actual.onboardingLevel5 !== 10 ||
         actual.specialLevel10 !== 13 ||
         actual.normalLevel11 !== 10 ||
         SOLO_LEVEL_TIME_SECONDS !== 180
       ) return fail('Solo timer/move constants drifted.', {
         verification: 'RUNTIME_VERIFIED',
         classification: 'REAL_PRODUCT_RISK',
-        expected: { normalMoves: 10, specialMoves: 13, seconds: 180 },
+        expected: { onboardingMoves: 10, normalMoves: 10, specialMoves: 13, seconds: 180 },
         actual,
         actionType: ACTION_TYPES.CODE_FIX,
       });

@@ -1,7 +1,7 @@
 // Kronox Health Center — Solo Onboarding level-type contracts.
 //
 // Scope: locks the Phase 1 before_after / timeline_basic onboarding model:
-// fixed references, six playable cards, virtual answered-card progress,
+// fixed references, 10 attempt cards, six-correct progress target,
 // training consumables, level-start tutorial popups, and privacy-safe local
 // analytics. These cases are intentionally targeted and do not run Full Health.
 
@@ -123,14 +123,14 @@ export const EXTRA_TESTS = [
         && actual.level10Special === true
         && actual.level1Cards === 6
         && actual.level4Cards === 6
-        && actual.level1Moves === 6
-        && actual.level4Moves === 6
+        && actual.level1Moves === 10
+        && actual.level4Moves === 10
         && actual.level1Refs === 1
         && actual.level4Refs === 2
         && actual.level1Playable === 6
         && actual.level4Playable === 6
-        && actual.level1Deck >= 13
-        && actual.level4Deck >= 14;
+        && actual.level1Deck >= 17
+        && actual.level4Deck >= 18;
       if (!ok) return fail('Solo onboarding level mapping drifted.', { verification: 'EXECUTABLE_HELPER', actual });
       return pass('Levels 1-3 are before_after, 4-6 timeline_basic, 7 normal, and level 10 resumes special levels.', { verification: 'EXECUTABLE_HELPER', actual });
     }),
@@ -156,9 +156,9 @@ export const EXTRA_TESTS = [
       const ok = beforeAfter.ok
         && timelineBasic.ok
         && beforeReferenceCount === 1
-        && beforeQuestionCount === 6
+        && beforeQuestionCount === 10
         && timelineReferenceCount === 2
-        && timelineQuestionCount === 6
+        && timelineQuestionCount === 10
         && timelineReferenceYears[0] < timelineReferenceYears[1]
         && beforeLabels.join('|') === 'ÖNCESİ|SONRASI'
         && timelineLabels.join('|') === 'ÖNCESİ|ARASI|SONRASI'
@@ -178,7 +178,7 @@ export const EXTRA_TESTS = [
           },
         });
       }
-      return pass('before_after and timeline_basic decks build with fixed references, six playable cards, labels, and slot placement checks.', { verification: 'EXECUTABLE_HELPER' });
+      return pass('before_after and timeline_basic decks build with fixed references, 10 attempt cards, six-progress target, labels, and slot placement checks.', { verification: 'EXECUTABLE_HELPER' });
     }),
 
   makeCase('game_integration_virtual_progress_no_timeline_mutation',
@@ -189,6 +189,8 @@ export const EXTRA_TESTS = [
         'soloOnboardingAnsweredCount',
         'soloOnboardingAnsweredCountRef',
         'return Math.min(soloPlayableCardTarget, soloOnboardingAnsweredCount)',
+        'event.isCorrect',
+        'correct_progress',
         'addCorrectPlacementToTimeline: !isSoloOnboardingMode',
         'evaluatePlacement: isSoloOnboardingMode ? evaluateSoloOnboardingPlacement : null',
         'getPlacementHasWon: isSoloOnboardingMode ? getSoloOnboardingPlacementHasWon : null',
@@ -197,6 +199,8 @@ export const EXTRA_TESTS = [
         'timelineSlotLabels',
         'slotLabels={timelineSlotLabels}',
         "{label || '+'}",
+        'data-kronox-before-after-timeline="full-slot-grid"',
+        "gridTemplateColumns: 'minmax(0, 1fr) auto minmax(0, 1fr)'",
       ]);
       if (missing.length) {
         return fail('Onboarding Game/Timeline integration is missing virtual progress or labeled slot contracts.', {
@@ -205,7 +209,7 @@ export const EXTRA_TESTS = [
           missing,
         });
       }
-      return pass('Game uses virtual answered-card progress for onboarding and passes Turkish slot labels to Timeline without adding answer cards.', { verification: 'STATIC_CONTRACT' });
+      return pass('Game uses virtual correct-card progress for onboarding, passes Turkish slot labels to Timeline, and keeps before_after slots fully visible without adding answer cards.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('training_consumables_bypass_real_spend_and_daily_use',

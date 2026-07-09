@@ -682,7 +682,9 @@ Store UI simplification contract:
 * Diamond-spend Joker, Hint, and Advantage cards show the Diamond price on the
   right side and do not render direct card-level `SATIN AL` buttons. Tapping
   the card opens a detail popup with package contents and a purchase CTA that
-  includes the Diamond price.
+  includes the Diamond price. The detail popup is centered, safe-area-aware,
+  bounded by `100dvh` minus safe areas, internally scrollable if needed, and
+  kept above BottomNav so the purchase CTA remains tappable.
 * Purchase success is not shown as a persistent Store banner/list; only safe
   failure/info states may render.
 * Real-money/TL and future products stay disabled `Yakında` and do not open a

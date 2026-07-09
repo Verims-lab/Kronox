@@ -85,17 +85,17 @@ src/lib/soloLevels.js
 Each Solo level:
 
 * normal Solo levels require the player to reach 7 correct timeline cards, including seed cards already on the timeline
-* onboarding Solo levels 1-3 use `before_after`, levels 4-6 use `timeline_basic`, and all six are real scored Solo levels with 6 playable cards
+* onboarding Solo levels 1-3 use `before_after`, levels 4-6 use `timeline_basic`, and all six are real scored Solo levels with 10 prepared attempt cards and a 6-correct progress target
 * special Solo levels start at level 10 after onboarding and repeat every 5 levels: 10, 15, 20, ...
 * special Solo levels require the player to reach 10 correct timeline cards, including seed cards already on the timeline
 * has a total time limit of 180 seconds
 * does not have per-question time limits
 * fails if the timer reaches 180 seconds before completion
 * starts with 2 timeline anchor cards
-* onboarding levels have 6 evaluated placement moves
+* onboarding levels have 10 evaluated placement moves
 * normal levels have 10 evaluated placement moves
 * special levels have 13 evaluated placement moves, only as a mistake buffer
-* Deck sizing is 1 reference + 6 playable + Kart Değiştir buffer + Kronokalkan buffer for `before_after`, 2 references + 6 playable + buffers for `timeline_basic`, 2 anchors + 10 playable moves + buffers for normal levels, and 2 anchors + 13 playable moves + buffers for special levels
+* Deck sizing is 1 reference + 10 attempt cards + Kart Değiştir buffer + Kronokalkan buffer for `before_after`, 2 references + 10 attempt cards + buffers for `timeline_basic`, 2 anchors + 10 playable moves + buffers for normal levels, and 2 anchors + 13 playable moves + buffers for special levels
 * fails when the level-specific move limit is used and the target card count has not been reached
 
 Constants:

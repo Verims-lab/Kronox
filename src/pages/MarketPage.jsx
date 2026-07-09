@@ -606,18 +606,27 @@ function StorePurchaseModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/70 px-3 py-4 backdrop-blur-sm sm:items-center"
+      className="fixed inset-0 flex items-center justify-center bg-slate-950/70 px-3 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby="store-purchase-title"
       data-kronox-market-modal={product.id}
+      data-kronox-market-modal-position="centered-safe-area"
+      style={{
+        zIndex: 80,
+        paddingTop: 'calc(1rem + env(safe-area-inset-top))',
+        paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))',
+      }}
     >
       <motion.div
         initial={{ opacity: 0, y: 18, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.16 }}
-        className="w-full max-w-sm rounded-2xl p-4 text-white"
+        className="rounded-2xl p-4 text-white"
         style={{
+          width: 'min(92vw, 34rem)',
+          maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 2rem)',
+          overflowY: 'auto',
           background: 'linear-gradient(180deg, rgba(12,31,62,.98) 0%, rgba(7,18,38,.98) 100%)',
           border: '1px solid rgba(255,210,95,.42)',
           boxShadow: '0 24px 60px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.08)',
