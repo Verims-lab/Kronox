@@ -112,7 +112,8 @@ real/idempotent events. Successful Daily Wheel claim/recovery records active
 \`Çark çevir\` progress backend-side from the idempotent \`DailyWheelSpin\`
 path, \`getDailyQuestStatus\` reconciles from \`DailyWheelSpin\` if that progress
 row is missing, and opening the wheel, tapping \`SONRA\`, or viewing an
-already-claimed result does not create Daily progress. claimDailyQuestReward grants only the 7-day streak
+already-claimed result does not create Daily progress; opening or reopening the
+wheel does not create Daily progress. claimDailyQuestReward grants only the 7-day streak
 reward through DiamondTransaction.source = daily_calendar_streak_reward for
 exactly 200 Diamonds. Daily Calendar screen UI shows a title-only GÜNLÜK header,
 Tamamlandı/Bugün legend only, no renewal countdown, title-only task cards, and

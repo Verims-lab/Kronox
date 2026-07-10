@@ -177,7 +177,8 @@ Cross-cutting query/performance audit rules:
   successful idempotent claim/recovery, and `getDailyQuestStatus` reconciles
   completion from the same-player/same-day `DailyWheelSpin` row if the progress
   row is missing; opening the wheel, tapping `SONRA`, or viewing an already-
-  claimed result cannot create a progress row by itself.
+  claimed result cannot create a progress row by itself. Opening or reopening
+  the wheel does not create Daily progress.
 
 ## 2. Current Entity Map
 

@@ -475,6 +475,8 @@ async function findDailyWheelClaimForDate(base44: any, player: any, dateKey: str
 }
 
 async function reconcileDailyWheelTaskFromClaim(base44: any, player: any, rows: any[], dateKey: string) {
+  // Reconciliation contract: opening or reopening the wheel does not create Daily progress;
+  // only an existing same-player/same-day DailyWheelSpin claim can complete Çark çevir.
   const wheelRow = rows.find((row: any) => String(row?.quest_type || '') === TASK_TYPES.DAILY_WHEEL_CLAIM);
   if (!wheelRow || publicTask(wheelRow).completed) return { reconciled: false, reason: 'wheel_task_already_complete_or_absent' };
   const claim = await findDailyWheelClaimForDate(base44, player, dateKey);

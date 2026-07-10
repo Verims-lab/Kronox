@@ -95,7 +95,7 @@ pills, or badges inside slices. Ready copy is
 exactly GÜNLÜK ÇARK HAZIR and Bugünkü ödülünü almak için çevir, with equal
 SONRA and ÇEVİR actions. SONRA only closes the popup, never consumes a spin,
 never starts a hidden spin, never completes Çark çevir, and leaves no hidden
-overlay over Home buttons.
+overlay over Home buttons. closing the auto-popup does not consume the free spin.
 
 Gift Box contents are selected server-side during the same idempotent claim and
 stored on DailyWheelSpin. The result UI displays backend-resolved Gift Box
@@ -143,7 +143,8 @@ after a successful server Daily Wheel claim/recovery for the same UTC day;
 claimDailyWheelReward records the active wheel task backend-side when the
 idempotent DailyWheelSpin row is created or recovered. Opening the wheel popup,
 tapping SONRA, or reopening an already-claimed read-only result must not create
-progress. getDailyQuestStatus reconciles the wheel task from the same-player
+progress; opening or reopening the wheel does not create Daily progress.
+getDailyQuestStatus reconciles the wheel task from the same-player
 same-day DailyWheelSpin row if the separate progress row was missed, and
 task-relevant events invalidate/refresh the Daily status cache without app
 restart. claimDailyQuestReward grants only the 7-day streak reward, writes DiamondTransaction.source =

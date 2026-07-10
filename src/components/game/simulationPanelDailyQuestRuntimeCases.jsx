@@ -344,7 +344,7 @@ export const EXTRA_TESTS = [
           actual: { missing, forbidden },
         });
       }
-      return pass('Successful wheel claims record the Daily Calendar wheel task backend-side, stale Daily status immediately, and status reconciles from DailyWheelSpin without wheel-open false positives.', { verification: 'STATIC_CONTRACT' });
+      return pass('Successful wheel claims record the Daily Calendar wheel task backend-side, stale Daily status immediately, and status reconciles from DailyWheelSpin while opening or reopening the wheel does not create Daily progress.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('daily_task_event_source_matrix_and_training_exclusions',
