@@ -10,6 +10,7 @@ import dailyQuestProgressEntitySource from '../../../base44/entities/UserDailyQu
 import diamondTransactionEntitySource from '../../../base44/entities/DiamondTransaction.jsonc?raw';
 import getDailyQuestStatusSource from '../../../base44/functions/getDailyQuestStatus/entry.ts?raw';
 import recordDailyQuestProgressSource from '../../../base44/functions/recordDailyQuestProgress/entry.ts?raw';
+import claimDailyWheelRewardSource from '../../../base44/functions/claimDailyWheelReward/entry.ts?raw';
 import claimDailyQuestRewardSource from '../../../base44/functions/claimDailyQuestReward/entry.ts?raw';
 import cleanupLegacyDailyQuestsSource from '../../../base44/functions/cleanupLegacyDailyQuests/entry.ts?raw';
 import dailyQuestGatewaySource from '../../lib/dbGateway/dailyQuestGateway.js?raw';
@@ -304,8 +305,11 @@ export const EXTRA_TESTS = [
   makeCase('daily_wheel_claim_completes_task_and_refreshes_status',
     'Successful Daily Wheel claim completes Çark çevir and refreshes Daily status',
     () => {
-      const combined = `${getDailyQuestStatusSource}\n${recordDailyQuestProgressSource}\n${useDailyWheelSource}\n${useDailyQuestsSource}\n${dailyStatusCacheSource}\n${docsCombined}`;
+      const combined = `${claimDailyWheelRewardSource}\n${getDailyQuestStatusSource}\n${recordDailyQuestProgressSource}\n${useDailyWheelSource}\n${useDailyQuestsSource}\n${dailyStatusCacheSource}\n${docsCombined}`;
       const missing = missingTokens(combined, [
+        'recordDailyWheelDailyTaskProgress',
+        'dailyQuestProgressRecorded',
+        'taskCompletionSource: \'daily_wheel_claim_backend\'',
         'reconcileDailyWheelTaskFromClaim',
         'findDailyWheelClaimForDate',
         'DailyWheelSpin',
@@ -323,6 +327,7 @@ export const EXTRA_TESTS = [
         'opening or reopening the wheel does not create Daily progress',
       ]);
       const forbidden = forbiddenTokens(useDailyWheelSource, [
+        'recordDailyQuestProgress({',
         "openClaimedResult = useCallback(async () => {\n    recordDailyQuestProgress",
         "setShowPrompt(false);\n    recordDailyQuestProgress",
       ]);
@@ -331,6 +336,7 @@ export const EXTRA_TESTS = [
           verification: 'STATIC_CONTRACT',
           files: [
             'base44/functions/getDailyQuestStatus/entry.ts',
+            'base44/functions/claimDailyWheelReward/entry.ts',
             'src/hooks/useDailyWheel.js',
             'src/hooks/useDailyQuests.js',
             'src/lib/dailyStatusCache.js',
@@ -338,7 +344,7 @@ export const EXTRA_TESTS = [
           actual: { missing, forbidden },
         });
       }
-      return pass('Successful wheel claims stale Daily status immediately, record progress best-effort, and status reconciles from DailyWheelSpin without wheel-open false positives.', { verification: 'STATIC_CONTRACT' });
+      return pass('Successful wheel claims record the Daily Calendar wheel task backend-side, stale Daily status immediately, and status reconciles from DailyWheelSpin without wheel-open false positives.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('daily_task_event_source_matrix_and_training_exclusions',

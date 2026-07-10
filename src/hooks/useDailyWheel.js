@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { KRONOX_BUILD_MARKER } from '@/components/dev/BuildMarker';
 import { claimDailyWheelReward, getDailyWheelStatus } from '@/lib/dbGateway/economyGateway';
-import { recordDailyQuestProgress } from '@/lib/dbGateway/dailyQuestGateway';
 import { getCompletedGuestCredentialsPayload } from '@/lib/guestProfile';
 import { normalizeDailyWheelJokerRewards } from '@/lib/dailyWheelRewards';
 import {
@@ -240,18 +239,6 @@ export function useDailyWheel({ user, guestProfile, onUserUpdated } = {}) {
       eventType: 'daily_wheel_claim',
       serverDate: body?.serverDate || '',
     });
-    recordDailyQuestProgress({
-      ...dailyWheelPayload,
-      eventType: 'daily_wheel_claim',
-      mode: 'daily_wheel',
-      amount: 1,
-      eventId: body?.idempotencyKey || body?.serverDate || todayFallbackKey(),
-      metadata: {
-        source: 'useDailyWheel',
-        buildMarker: KRONOX_BUILD_MARKER,
-      },
-    })
-      .catch(() => null);
   }, [dailyWheelCacheKey, dailyWheelPayload, markPromptSeen, onUserUpdated]);
 
   const claim = useCallback(async () => {

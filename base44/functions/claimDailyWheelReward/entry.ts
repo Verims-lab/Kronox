@@ -5,6 +5,9 @@ const DAILY_WHEEL_REWARD_TABLE_VERSION = 'daily_wheel_v2';
 const STREAK_BONUS_AMOUNT = 150;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const GUEST_ID_PREFIX = 'guest_';
+const DAILY_CALENDAR_RUNTIME_VERSION = 'daily-calendar-streak-v1';
+const DAILY_TEMPLATE_EPOCH_DATE = '2026-07-06';
+const DAILY_WHEEL_TASK_TYPE = 'daily_wheel_claim';
 const ECONOMY_LOCK_TTL_MS = 8_000;
 const ECONOMY_LOCK_SETTLE_MS = 80;
 const DAILY_WHEEL_VISUAL_SEGMENT_COUNT = 8;
@@ -68,8 +71,22 @@ function previousUtcDateKey(dateKey: string) {
   return new Date(start - DAY_MS).toISOString().slice(0, 10);
 }
 
+function dateKeyMillis(dateKey: string) {
+  const ms = Date.parse(`${String(dateKey || '').slice(0, 10)}T00:00:00.000Z`);
+  return Number.isFinite(ms) ? ms : Date.parse(`${DAILY_TEMPLATE_EPOCH_DATE}T00:00:00.000Z`);
+}
+
+function getDailyCalendarCycleDay(dateKey: string) {
+  const diff = Math.floor((dateKeyMillis(dateKey) - dateKeyMillis(DAILY_TEMPLATE_EPOCH_DATE)) / DAY_MS);
+  return ((diff % 9) + 9) % 9 + 1;
+}
+
 function buildIdempotencyKey(email: string, dateKey: string) {
   return `daily_wheel:${email}:${dateKey}`;
+}
+
+function buildDailyCalendarWheelQuestKey(dateKey: string) {
+  return `daily_calendar:d${getDailyCalendarCycleDay(dateKey)}:s1:wheel`;
 }
 
 function rowId(row: any) {
@@ -126,6 +143,12 @@ function jokerTransactionEntity(base44: any) {
   const serviceEntity = base44?.asServiceRole?.entities ? base44.asServiceRole.entities.JokerTransaction : null;
   const authEntity = base44?.entities ? base44.entities.JokerTransaction : null;
   return serviceEntity || authEntity;
+}
+
+function dailyQuestProgressEntity(base44: any, player: any = null) {
+  const serviceEntity = base44?.asServiceRole?.entities ? base44.asServiceRole.entities.UserDailyQuestProgress : null;
+  const authEntity = base44?.entities ? base44.entities.UserDailyQuestProgress : null;
+  return player?.isGuest ? serviceEntity : (authEntity || serviceEntity);
 }
 
 function buildEconomyLockKey(actorKey: string) {
@@ -697,6 +720,106 @@ async function createDailyWheelSpin(base44: any, payload: Record<string, unknown
   }
 }
 
+async function findDailyWheelProgressRow(base44: any, player: any, dateKey: string, questKey: string) {
+  const entity = dailyQuestProgressEntity(base44, player);
+  if (!entity?.filter) return null;
+  const idempotencyKey = `daily_calendar:${player.playerKey}:${dateKey}:${questKey}`;
+  const [byKey, byQuest] = await Promise.all([
+    entity.filter({ user_email: player.playerKey, idempotency_key: idempotencyKey }, '-created_at', 1).catch(() => []),
+    entity.filter({ user_email: player.playerKey, quest_date: dateKey, quest_key: questKey }, '-created_at', 1).catch(() => []),
+  ]);
+  return [...(Array.isArray(byKey) ? byKey : []), ...(Array.isArray(byQuest) ? byQuest : [])]
+    .find((row: any) => rowId(row)) || null;
+}
+
+async function recordDailyWheelDailyTaskProgress(base44: any, player: any, dateKey: string, spinRow: any, source = 'claimDailyWheelReward') {
+  const entity = dailyQuestProgressEntity(base44, player);
+  if (!entity?.create || !entity?.update) return { recorded: false, reason: 'daily_calendar_progress_entity_unavailable' };
+  const questKey = buildDailyCalendarWheelQuestKey(dateKey);
+  const idempotencyKey = `daily_calendar:${player.playerKey}:${dateKey}:${questKey}`;
+  const timestamp = new Date().toISOString();
+  const completedAt = String(spinRow?.claimed_at || timestamp);
+  const spinId = rowId(spinRow) || '';
+  const cycleDay = getDailyCalendarCycleDay(dateKey);
+  const lastEventKey = `daily_calendar_progress:${player.playerKey}:${dateKey}:${questKey}:${DAILY_WHEEL_TASK_TYPE}:${spinId || String(spinRow?.idempotency_key || '') || dateKey}`;
+  const existing = await findDailyWheelProgressRow(base44, player, dateKey, questKey);
+  const metadata = {
+    ...(existing?.metadata && typeof existing.metadata === 'object' ? existing.metadata : {}),
+    runtimeVersion: DAILY_CALENDAR_RUNTIME_VERSION,
+    slot: 1,
+    cycleDay,
+    icon: 'wheel',
+    serverDayBoundary: 'UTC',
+    taskCompletionSource: 'daily_wheel_claim_backend',
+    reconciliationSource: source,
+    dailyWheelSpinId: spinId || null,
+    lastEventType: DAILY_WHEEL_TASK_TYPE,
+    lastVerificationReason: 'daily_wheel_spin_verified',
+    noDiamondGrantDuringProgress: true,
+    grantsDiamondsOnlyOnStreakClaim: true,
+    noKronoxPuan: true,
+    noLeaderboardImpact: true,
+    rawGuestTokenServerStored: false,
+  };
+
+  if (existing && rowId(existing)) {
+    await entity.update(rowId(existing), {
+      progress_value: Math.max(1, normalizeNumber(existing?.target_value) || 1),
+      status: 'completed',
+      completed_at: existing?.completed_at || completedAt,
+      updated_at: timestamp,
+      last_event_key: lastEventKey,
+      metadata,
+    });
+    return { recorded: true, reason: 'daily_calendar_wheel_progress_updated' };
+  }
+
+  const createdOrRecovered = await entity.create({
+    user_email: player.playerKey,
+    owner_key: player.ownerKey,
+    player_type: player.isGuest ? 'guest' : 'registered',
+    quest_definition_id: `system:${questKey}`,
+    quest_key: questKey,
+    quest_date: dateKey,
+    title: 'Çark çevir',
+    description: 'Günlük çarkı 1 kez çevir.',
+    quest_type: DAILY_WHEEL_TASK_TYPE,
+    progress_value: 1,
+    target_value: 1,
+    reward_diamonds: 0,
+    status: 'completed',
+    completed_at: completedAt,
+    claimed_at: null,
+    idempotency_key: idempotencyKey,
+    last_event_key: lastEventKey,
+    metadata,
+    created_at: timestamp,
+    updated_at: timestamp,
+  }).catch(async (error) => {
+    const recovered = await findDailyWheelProgressRow(base44, player, dateKey, questKey);
+    if (!recovered || !rowId(recovered)) {
+      return { __dailyTaskProgressError: error?.message || 'daily_calendar_wheel_progress_create_failed' };
+    }
+    await entity.update(rowId(recovered), {
+      progress_value: Math.max(1, normalizeNumber(recovered?.target_value) || 1),
+      status: 'completed',
+      completed_at: recovered?.completed_at || completedAt,
+      updated_at: timestamp,
+      last_event_key: lastEventKey,
+      metadata: {
+        ...(recovered?.metadata && typeof recovered.metadata === 'object' ? recovered.metadata : {}),
+        ...metadata,
+        recoveredDuplicateDailyWheelProgressCreate: true,
+      },
+    });
+    return { __dailyTaskProgressRecovered: true };
+  });
+  if (createdOrRecovered?.__dailyTaskProgressError) {
+    return { recorded: false, reason: createdOrRecovered.__dailyTaskProgressError };
+  }
+  return { recorded: true, reason: 'daily_calendar_wheel_progress_created' };
+}
+
 function spinRowFromDiamondTransaction(tx: any, playerRow: any, playerKey: string, dateKey: string, nextAvailableAt: string) {
   const metadata = tx?.metadata && typeof tx.metadata === 'object' ? tx.metadata : {};
   const totalRewardAmount = normalizeNumber(tx?.amount);
@@ -831,7 +954,14 @@ async function recoverExistingSpin(base44: any, player: any, row: any, dateKey: 
     rewardId: row?.reward_id || row?.metadata?.rewardId || null,
     giftBoxRewardId: row?.gift_box_reward_id || row?.metadata?.giftBox?.giftBoxRewardId || null,
   }).catch(() => null);
-  return { ...row, balance_after: balanceAfter };
+  const dailyTaskProgress = await recordDailyWheelDailyTaskProgress(
+    base44,
+    player,
+    dateKey,
+    { ...row, balance_after: balanceAfter },
+    'claimDailyWheelReward_recovered_spin',
+  ).catch((error) => ({ recorded: false, reason: error?.message || 'daily_calendar_wheel_progress_recovery_failed' }));
+  return { ...row, balance_after: balanceAfter, __dailyTaskProgress: dailyTaskProgress };
 }
 
 Deno.serve(async (req: Request) => {
@@ -853,7 +983,11 @@ Deno.serve(async (req: Request) => {
     const existingSpin = await findSpin(base44, playerKey, todayKey, idempotencyKey);
     if (existingSpin) {
       const recovered = await recoverExistingSpin(base44, player, existingSpin, todayKey, idempotencyKey);
-      return json(publicResult(recovered, normalizeNumber(recovered.balance_after), true));
+      return json({
+        ...publicResult(recovered, normalizeNumber(recovered.balance_after), true),
+        dailyQuestProgressRecorded: recovered?.__dailyTaskProgress?.recorded === true,
+        dailyQuestProgressReason: recovered?.__dailyTaskProgress?.reason || 'daily_calendar_wheel_progress_recovered',
+      });
     }
 
     const latestUser = player.isGuest
@@ -904,7 +1038,11 @@ Deno.serve(async (req: Request) => {
     const postLockSpin = await findSpin(base44, playerKey, todayKey, idempotencyKey);
     if (postLockSpin) {
       const recovered = await recoverExistingSpin(base44, latestPlayer, postLockSpin, todayKey, idempotencyKey);
-      return json(publicResult(recovered, normalizeNumber(recovered.balance_after), true));
+      return json({
+        ...publicResult(recovered, normalizeNumber(recovered.balance_after), true),
+        dailyQuestProgressRecorded: recovered?.__dailyTaskProgress?.recorded === true,
+        dailyQuestProgressReason: recovered?.__dailyTaskProgress?.reason || 'daily_calendar_wheel_progress_recovered',
+      });
     }
     const lockedRow = latestPlayer.isGuest
       ? (await findGuestProfile(base44, String(latestPlayer.row?.guest_id || '')).catch(() => latestPlayer.row)) || latestPlayer.row
@@ -1010,13 +1148,21 @@ Deno.serve(async (req: Request) => {
 
     if (recoveredExistingDailyWheelSpin && spin) {
       const recovered = await recoverExistingSpin(base44, lockedPlayer, spin, todayKey, idempotencyKey);
-      return json(publicResult(recovered, normalizeNumber(recovered.balance_after), true));
+      return json({
+        ...publicResult(recovered, normalizeNumber(recovered.balance_after), true),
+        dailyQuestProgressRecorded: recovered?.__dailyTaskProgress?.recorded === true,
+        dailyQuestProgressReason: recovered?.__dailyTaskProgress?.reason || 'daily_calendar_wheel_progress_recovered',
+      });
     }
 
     const postReserveSpin = await findSpin(base44, playerKey, todayKey, idempotencyKey);
     if (postReserveSpin && rowId(postReserveSpin) && rowId(spin) && rowId(postReserveSpin) !== rowId(spin)) {
       const recovered = await recoverExistingSpin(base44, lockedPlayer, postReserveSpin, todayKey, idempotencyKey);
-      return json(publicResult(recovered, normalizeNumber(recovered.balance_after), true));
+      return json({
+        ...publicResult(recovered, normalizeNumber(recovered.balance_after), true),
+        dailyQuestProgressRecorded: recovered?.__dailyTaskProgress?.recorded === true,
+        dailyQuestProgressReason: recovered?.__dailyTaskProgress?.reason || 'daily_calendar_wheel_progress_recovered',
+      });
     }
 
     const postReserveRow = lockedPlayer.isGuest
@@ -1140,12 +1286,22 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    const dailyTaskProgress = await recordDailyWheelDailyTaskProgress(
+      base44,
+      postReservePlayer,
+      todayKey,
+      spin || spinPayload,
+      'claimDailyWheelReward_new_claim',
+    ).catch((error) => ({ recorded: false, reason: error?.message || 'daily_calendar_wheel_progress_claim_failed' }));
+
     return json({
       ...publicResult(spin || spinPayload, balanceAfter, false),
       spinLedgerError,
       ledgerError,
       jokerLedgerError,
       grantedJokers,
+      dailyQuestProgressRecorded: dailyTaskProgress.recorded === true,
+      dailyQuestProgressReason: dailyTaskProgress.reason,
     });
     });
   } catch (error) {

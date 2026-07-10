@@ -663,9 +663,11 @@ Checklist:
   JokerTransaction-backed usage, and friend tasks must follow friends API
   success events. Manual proof: when today includes `Çark çevir`, a successful
   Daily Wheel reward claim marks it complete without app restart; opening the
-  wheel or viewing an already-claimed result does not create a new completion.
+  wheel, tapping `SONRA`, or viewing an already-claimed result does not create a
+  new completion. `claimDailyWheelReward` records the wheel task backend-side
+  from the idempotent `DailyWheelSpin` claim/recovery path, and
   `getDailyQuestStatus` reconciles the task from `DailyWheelSpin` if the
-  progress event write was missed.
+  progress row was missed.
 * Per-task progress does not grant Diamonds. A day is complete only when all 3
   task rows are complete. Missing a UTC day breaks the computed streak.
 * `claimDailyQuestReward` grants only the 7-day streak reward, writes

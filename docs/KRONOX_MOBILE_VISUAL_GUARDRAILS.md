@@ -65,8 +65,11 @@ checks that source code and static Health cannot honestly prove alone.
 * The Level 1 start popup video is the local
   `/assets/tutorials/Seviye1tutorial.mp4` asset rendered inside the existing
   mobile-safe video slot; title/copy are `Önce mi, Sonra mı` and
-  `Kartı doğru tarafa sürükle`, and the effective timer remains paused until
-  the popup is closed.
+  `Kartı doğru tarafa sürükle`. The video takes 70% of the popup height in a
+  portrait slot, autoplays muted, loops, plays inline on mobile, preloads
+  automatically, hides native controls, starts from the beginning on open, and
+  pauses/resets on close. `ANLADIM` is the primary bottom action, and the
+  effective timer remains paused until the popup is closed.
 * Solo drop slots in `before_after`, `timeline_basic`, and normal timeline are
   static: no blinking, pulsing, flashing, shimmering, or pre-drop correct-slot
   guidance. Drag-over feedback is allowed only while actively dragging over a

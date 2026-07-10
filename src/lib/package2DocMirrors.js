@@ -108,7 +108,11 @@ Home exposes Daily Wheel through the Çark shortcut and the Daily Calendar /
 Streak through the Home GÜNLÜK shortcut. Daily Calendar / Streak is opened at
 /daily, is not a BottomNav item, creates 3 daily_calendar:* tasks per UTC
 server day from a 9-day rotating task template cycle, and advances only through
-real/idempotent events. claimDailyQuestReward grants only the 7-day streak
+real/idempotent events. Successful Daily Wheel claim/recovery records active
+\`Çark çevir\` progress backend-side from the idempotent \`DailyWheelSpin\`
+path, \`getDailyQuestStatus\` reconciles from \`DailyWheelSpin\` if that progress
+row is missing, and opening the wheel, tapping \`SONRA\`, or viewing an
+already-claimed result does not create Daily progress. claimDailyQuestReward grants only the 7-day streak
 reward through DiamondTransaction.source = daily_calendar_streak_reward for
 exactly 200 Diamonds. Daily Calendar screen UI shows a title-only GÜNLÜK header,
 Tamamlandı/Bugün legend only, no renewal countdown, title-only task cards, and

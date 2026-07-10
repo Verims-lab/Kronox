@@ -1,5 +1,15 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex584 — Daily Wheel task and tutorial popup contract fix:
+//   • claimDailyWheelReward records Çark çevir Daily Calendar progress
+//     backend-side from the idempotent DailyWheelSpin claim/recovery path.
+//   • Daily Wheel SONRA/no-spin close now uses modal cleanup without
+//     consuming a spin, starting a hidden spin, or completing the task.
+//   • Gift Box results show backend-resolved contents, and Level 1 tutorial
+//     video autoplays muted/loop/inline with ANLADIM close/reset behavior.
+//   • Restored the frontend @base44/sdk exact 0.8.34 package/lock contract
+//     after syncing the latest main branch.
+//
 // Codex583 — Health KRONOX-MRDZUHVL route/pin alignment:
 //   • Retargeted Profile/Settings/Home route Health guards to the real
 //     state-carrying navigate('/route', ...) handlers instead of stale
@@ -55,7 +65,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex583';
+const BUILD_MARKER = 'Codex584';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
