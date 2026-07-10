@@ -794,6 +794,72 @@ function DailyWheelWonRewardLine({ rewardLine }) {
   );
 }
 
+function normalizeGiftBoxContents(result) {
+  const giftBox = result?.giftBox && typeof result.giftBox === 'object'
+    ? result.giftBox
+    : (result?.gift_box && typeof result.gift_box === 'object' ? result.gift_box : null);
+  const rewardType = String(result?.rewardType || result?.reward_type || '').trim();
+  const rewardId = String(result?.rewardId || result?.reward_id || '').trim();
+  const isGiftBox = Boolean(giftBox || rewardType === 'gift_box' || rewardId === 'gift_box');
+  if (!isGiftBox) return [];
+
+  const contents = [];
+  const diamonds = Math.max(0, Math.floor(Number(giftBox?.diamonds || giftBox?.diamondAmount || 0) || 0));
+  if (diamonds > 0) {
+    contents.push({ key: 'diamonds', icon: '💎', label: `+${formatDiamondCount(diamonds)} Elmas` });
+  }
+
+  normalizeDailyWheelJokerRewards(giftBox?.jokers || giftBox?.jokerRewards || []).forEach((joker) => {
+    const quantity = Math.max(1, Math.floor(Number(joker.quantity) || 1));
+    contents.push({
+      key: `joker:${joker.jokerType || joker.label}`,
+      icon: joker.jokerType === 'time_freeze' ? '⏳' : (joker.jokerType === 'card_swap' ? '🔄' : '🛡'),
+      label: `${joker.label || formatDailyWheelJokerLabel(joker.jokerType)} x${quantity}`,
+    });
+  });
+
+  const hints = Math.max(0, Math.floor(Number(giftBox?.hints || giftBox?.hintCredits || giftBox?.hint_credits || 0) || 0));
+  if (hints > 0) {
+    contents.push({ key: 'hints', icon: '🔨', label: `İpucu x${hints}` });
+  }
+
+  return contents.length ? contents : [{ key: 'fallback', icon: '🎁', label: 'Ödül içeriği alındı' }];
+}
+
+function DailyWheelGiftBoxContents({ result }) {
+  const contents = useMemo(() => normalizeGiftBoxContents(result), [result]);
+  if (!contents.length) return null;
+  return (
+    <motion.div
+      initial={{ y: 8, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.28, ease: 'easeOut', delay: 0.04 }}
+      className="daily-wheel-gift-box-contents w-full max-w-[20rem] rounded-2xl px-4 py-3 text-center"
+      data-kronox-daily-wheel-gift-box-contents="backend-resolved"
+      style={{
+        background: 'linear-gradient(180deg, rgba(13,31,67,0.82), rgba(6,15,36,0.9))',
+        border: '1px solid rgba(250,204,21,0.34)',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), 0 10px 24px rgba(0,0,0,0.28)',
+      }}
+    >
+      <div className="font-inter text-[11px] font-black uppercase tracking-[0.16em] text-amber-100/85">
+        Hediye Kutusu İçeriği
+      </div>
+      <div className="mt-2 grid gap-1.5">
+        {contents.map((item) => (
+          <div
+            key={item.key}
+            className="flex items-center justify-center gap-2 font-inter text-sm font-extrabold text-white"
+          >
+            <span aria-hidden="true" className="text-lg leading-none">{item.icon}</span>
+            <span>{item.label}</span>
+          </div>
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
 function DisabledAdSpinCta() {
   // Future rewarded-ad integration only: this visible repeat CTA stays
   // disabled and cannot start a spin, decrement counters, or grant a
@@ -1037,15 +1103,16 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
           {!revealReady ? (
             <>
               <DailyWheelReadyTitle />
-              <DailyWheelReadyActions claiming={spinLocked} onSpin={onSpin} onClose={onClose} />
+              <DailyWheelReadyActions claiming={spinLocked} onSpin={onSpin} onClose={handleModalClose} />
             </>
           ) : (
             <div
               className="daily-wheel-simplified-result flex w-full flex-col items-center pb-2"
-              style={{ gap: 'clamp(3rem, 10vw, 5.25rem)' }}
+              style={{ gap: 'clamp(1rem, 4vw, 1.65rem)' }}
             >
               {!prefersReducedMotion && <RewardBurst />}
               <DailyWheelWonRewardLine rewardLine={resultRewardLine} />
+              <DailyWheelGiftBoxContents result={displayResult} />
               <DisabledAdSpinCta />
             </div>
           )}
@@ -1074,7 +1141,7 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
               {error}
             </p>
           )}
-          <DailyWheelReadyActions claiming={claiming} onSpin={onSpin} onClose={onClose} />
+          <DailyWheelReadyActions claiming={claiming} onSpin={onSpin} onClose={handleModalClose} />
         </>
       )}
     </DailyWheelModalFrame>

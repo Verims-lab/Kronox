@@ -71,10 +71,13 @@ Level-start tutorial popups appear every time levels 1, 2, 3, 4, and 7 start.
 Levels 5, 6, and 8+ do not show this popup. Level 1 uses the local
 `/assets/tutorials/Seviye1tutorial.mp4` asset in the existing video slot, with
 title `Önce mi, Sonra mı` and subtitle `Kartı doğru tarafa sürükle` (no final
-period). Other tutorial popup levels keep their existing copy/video config. The
-popup has a safe video/config slot, no remote dependency, an X close button, and
-pauses the effective Solo timer until closed. It must not consume questions,
-inventory, score, or Daily progress.
+period). The video occupies 70% of the popup height in a portrait slot,
+autoplays muted, loops, plays inline on mobile, preloads automatically, hides
+native controls, resets to the beginning on open, and pauses/resets on close.
+`ANLADIM` is the primary bottom action. Other tutorial popup levels keep their
+existing copy/video config. The popup has a safe video/config slot, no remote
+dependency, an X close button, and pauses the effective Solo timer until closed.
+It must not consume questions, inventory, score, or Daily progress.
 
 Onboarding analytics are best-effort/local and privacy-safe. Events may record
 level number, level type, slot type, correctness, elapsed seconds, first-drag

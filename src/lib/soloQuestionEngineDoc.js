@@ -38,9 +38,12 @@ Extra Kart Değiştir or Kronokalkan use beyond the per-attempt buffer fails
 safely before spend; there is no raw client question list fallback.
 
 Onboarding level-start tutorial popups appear on levels 1, 2, 3, 4, and 7 every
-attempt, with a safe video placeholder/config slot and an X close button.
-Levels 5, 6, and 8+ have no level-start popup. Popup time is excluded from the
-effective Solo timer and popup close/skip analytics must stay privacy-safe.
+attempt. Level 1 uses local /assets/tutorials/Seviye1tutorial.mp4 in a portrait
+video area that occupies 70% of the popup height, autoplays muted, loops,
+playsInline, preload="auto", hides native controls, resets to 0 on open,
+pauses/resets on close, and provides a bottom ANLADIM button. Levels 5, 6, and
+8+ have no level-start popup. Popup time is excluded from the effective Solo
+timer and popup close/skip analytics must stay privacy-safe.
 Onboarding levels 1-6 show Joker and Hint controls in training mode: no
 spendUserJoker, no consumeUserHint, no JokerTransaction or HintTransaction
 spend row, no real inventory decrement, and no Daily Calendar joker/hint task

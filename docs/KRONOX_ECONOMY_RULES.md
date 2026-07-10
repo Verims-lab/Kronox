@@ -106,11 +106,14 @@ Streak through the Home `GÜNLÜK` calendar shortcut. Daily Calendar creates 3
 9-day rotating task template cycle. Task progress is real-event-based and
 idempotent; `recordDailyQuestProgress` never grants Diamonds.
 `Çark çevir` completes only after a successful server Daily Wheel claim for
-the same UTC day. Opening the Daily Wheel popup or reopening an already-claimed
-read-only result must not create progress. `getDailyQuestStatus` reconciles the
-wheel task from the same-player/same-day `DailyWheelSpin` row if the separate
-progress event write was missed, and task-relevant events invalidate/refresh
-the Daily status cache so completed tasks appear without an app restart.
+the same UTC day. Opening the Daily Wheel popup, tapping `SONRA`, or reopening
+an already-claimed read-only result must not create progress.
+`claimDailyWheelReward` records the active Daily Calendar wheel task
+backend-side when the idempotent `DailyWheelSpin` row is created or recovered.
+`getDailyQuestStatus` reconciles the wheel task from the same-player/same-day
+`DailyWheelSpin` row if the separate progress row was missed, and task-relevant
+events invalidate/refresh the Daily status cache so completed tasks appear
+without an app restart.
 
 Daily Calendar grants Diamonds only through the server-backed
 `claimDailyQuestReward` callable when the 7-day streak reward is ready. Claims write
@@ -187,7 +190,9 @@ Rules:
   mapping, segment order/size, pointer alignment, or the reduced `0.8` segment
   content scale (icons/numbers must not be enlarged)
 * localStorage/sessionStorage may only hide the once-per-day auto-popup, never grant rewards
-* closing the auto-popup does not consume the free spin
+* closing the auto-popup with `SONRA`, X, or any no-spin close path does not
+  consume the free spin, start a hidden spin, complete `Çark çevir`, or leave a
+  hidden overlay/backdrop/pointer blocker over Home
 * after the free spin is used, the result screen is simplified: the wheel stays
   visible, one backend-payload reward line is shown below it, and the bottom
   repeat ad-spin CTA is visible as a disabled, subdued ad/video `ÇEVİR`
@@ -262,8 +267,12 @@ joker_krono_kalkan + joker_zamani_dondur
 ```
 
 Gift Box contents are selected server-side during the same idempotent claim and
-stored on `DailyWheelSpin`. A Gift Box package must not contain two separate
-Diamond rewards or the same joker twice.
+stored on `DailyWheelSpin`. The result UI must display the backend-resolved
+contents from that payload: Diamonds, jokers, and future hint credits are shown
+as separate lines when present. If an old historical row lacks contents, the UI
+may show only a safe fallback such as `Ödül içeriği alındı`; new claims must
+carry contents. A Gift Box package must not contain two separate Diamond rewards
+or the same joker twice.
 
 7-day streak:
 
@@ -296,9 +305,10 @@ Result screen:
 ```
 
 The result line uses the backend claim payload (`rewardType`, `rewardId`,
-`rewardAmount`, `jokerRewards`, and Gift Box fields). The result screen does
-not show old `Toplam`, `Toplam Elmas`, `Seri`, repeat-heading, or repeat
-explanation copy.
+`rewardAmount`, `jokerRewards`, and Gift Box fields). Gift Box results also show
+a compact `Hediye Kutusu İçeriği` section sourced only from the resolved backend
+payload. The result screen does not show old `Toplam`, `Toplam Elmas`, `Seri`,
+repeat-heading, or repeat explanation copy.
 
 Home claimed-day manual opens use the read-only result screen, not a countdown
 mini-card. Any embedded legacy launcher countdown outside the current Home flow

@@ -93,10 +93,15 @@ diamond_250. Diamond slices show a diamond icon above 20/60/100/250; joker and
 Gift Box slices are icon-only. Segment visuals must not add visible wrappers,
 pills, or badges inside slices. Ready copy is
 exactly GÜNLÜK ÇARK HAZIR and Bugünkü ödülünü almak için çevir, with equal
-SONRA and ÇEVİR actions. SONRA only closes the popup and never consumes a spin.
+SONRA and ÇEVİR actions. SONRA only closes the popup, never consumes a spin,
+never starts a hidden spin, never completes Çark çevir, and leaves no hidden
+overlay over Home buttons.
 
 Gift Box contents are selected server-side during the same idempotent claim and
-stored on DailyWheelSpin. Gift Box packages are diamond_50, diamond_70,
+stored on DailyWheelSpin. The result UI displays backend-resolved Gift Box
+contents as separate Diamond, joker, and future hint-credit lines when present;
+old historical rows without contents may show only Ödül içeriği alındı as a
+safe fallback, while new claims must carry contents. Gift Box packages are diamond_50, diamond_70,
 diamond_80, diamond_100 + joker_kart_degistir,
 diamond_60 + joker_krono_kalkan, diamond_20 + joker_zamani_dondur,
 joker_krono_kalkan + joker_kart_degistir,
@@ -105,7 +110,8 @@ joker_krono_kalkan + joker_zamani_dondur. A Gift Box package must not contain
 two separate Diamond rewards or the same joker twice.
 
 After the free spin is used, the result screen remains simplified: wheel
-visible, backend-selected reward line, and one disabled, subdued ad/video
+visible, backend-selected reward line, Gift Box results show a compact Hediye
+Kutusu İçeriği section from the resolved backend payload, and one disabled, subdued ad/video
 ÇEVİR repeat control with smaller Yakında subtext. Future rewarded-ad integration may add up to 5 ad
 spins/day for 6 total spins with the free spin, but no fake rewarded-ad grant
 flow is active.
@@ -133,11 +139,13 @@ Streak through the Home GÜNLÜK shortcut. Daily Calendar creates 3
 daily_calendar:* UserDailyQuestProgress rows per UTC server day from a 9-day
 rotating task template cycle. Task progress is real-event-based and idempotent;
 recordDailyQuestProgress does not grant Diamonds. Çark çevir completes only
-after a successful server Daily Wheel claim for the same UTC day; opening the
-wheel popup or reopening an already-claimed read-only result must not create
+after a successful server Daily Wheel claim/recovery for the same UTC day;
+claimDailyWheelReward records the active wheel task backend-side when the
+idempotent DailyWheelSpin row is created or recovered. Opening the wheel popup,
+tapping SONRA, or reopening an already-claimed read-only result must not create
 progress. getDailyQuestStatus reconciles the wheel task from the same-player
-same-day DailyWheelSpin row if the separate progress event write was missed,
-and task-relevant events invalidate/refresh the Daily status cache without app
+same-day DailyWheelSpin row if the separate progress row was missed, and
+task-relevant events invalidate/refresh the Daily status cache without app
 restart. claimDailyQuestReward grants only the 7-day streak reward, writes DiamondTransaction.source =
 daily_calendar_streak_reward with direction = earn, grants exactly 200
 Diamonds, uses a daily_calendar_streak:<playerKey>:<streak_anchor_date>:<claim_number>:200

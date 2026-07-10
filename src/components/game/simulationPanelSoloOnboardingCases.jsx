@@ -309,12 +309,22 @@ export const EXTRA_TESTS = [
         'SoloLevelStartTutorialPopup',
         'data-kronox-solo-level-start-tutorial-popup',
         'data-kronox-solo-level-start-tutorial-video-placeholder',
+        'data-kronox-solo-level-start-tutorial-video-height="70%"',
+        'data-kronox-solo-level-start-tutorial-video-orientation="portrait"',
         'data-kronox-solo-level-start-tutorial-video',
         'src={videoSrc}',
-        'controls',
+        'autoPlay',
+        'muted',
+        'loop',
         'playsInline',
-        'preload="metadata"',
-        "objectFit: 'contain'",
+        'preload="auto"',
+        'controls={false}',
+        "objectFit: 'cover'",
+        'video.currentTime = 0',
+        'video.play()',
+        'video.pause()',
+        'ANLADIM',
+        'data-kronox-solo-level-start-tutorial-understood',
         'onError={() => setVideoFailed(true)}',
         '/assets/tutorials/Seviye1tutorial.mp4',
         'soloLevelStartTutorialPopupOpen',
@@ -339,7 +349,8 @@ export const EXTRA_TESTS = [
       const forbidden = forbiddenTokens(soloLevelStartTutorialPopupSource, [
         'https://',
         'media.base44.com',
-        'autoPlay',
+        'controls\n',
+        'preload="metadata"',
       ]);
       if (missing.length || forbidden.length || configByLevel.length !== 5 || !noPopupLevels || !levelOneContract || !otherTutorialsUnchanged) {
         return fail('Level-start popup or privacy-safe analytics contract drifted.', {
@@ -347,7 +358,7 @@ export const EXTRA_TESTS = [
           actual: { missing, forbidden, configByLevel, noPopupLevels, levelOneContract, otherTutorialsUnchanged },
         });
       }
-      return pass('Level 1 uses the local Seviye1tutorial.mp4 asset with exact copy, other tutorial popups are unchanged, levels 5/6/8 do not show popups, and analytics strips private identifiers.', { verification: 'STATIC_CONTRACT' });
+      return pass('Level 1 uses the local Seviye1tutorial.mp4 asset with exact copy, inline muted autoplay/loop/reset video, an ANLADIM action, unchanged later popups, and privacy-safe analytics.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('onboarding_contract_documented_in_sources',

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Play } from 'lucide-react';
 import { sounds } from '@/lib/gameSounds';
@@ -9,12 +9,51 @@ export default function SoloLevelStartTutorialPopup({
   onClose,
 }) {
   const [videoFailed, setVideoFailed] = useState(false);
+  const videoRef = useRef(null);
   const videoSrc = typeof config?.videoSrc === 'string' ? config.videoSrc.trim() : '';
   const showVideo = Boolean(videoSrc && !videoFailed);
 
   useEffect(() => {
     setVideoFailed(false);
   }, [videoSrc, open]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!open || !showVideo || !video) return undefined;
+    try {
+      video.pause();
+      video.currentTime = 0;
+      video.muted = true;
+      video.loop = true;
+      video.controls = false;
+      const playPromise = video.play();
+      if (playPromise && typeof playPromise.catch === 'function') {
+        playPromise.catch(() => null);
+      }
+    } catch {
+      // Muted inline autoplay should work; rejection is non-fatal.
+    }
+    return () => {
+      try {
+        video.pause();
+        video.currentTime = 0;
+      } catch {
+        // Video cleanup is best-effort.
+      }
+    };
+  }, [open, showVideo, videoSrc]);
+
+  const handleClose = useCallback(() => {
+    try { sounds.tap(); } catch { /* optional */ }
+    const video = videoRef.current;
+    try {
+      video?.pause?.();
+      if (video) video.currentTime = 0;
+    } catch {
+      // Close should never be blocked by media cleanup.
+    }
+    if (onClose) onClose(config);
+  }, [config, onClose]);
 
   if (!config) return null;
 
@@ -38,12 +77,13 @@ export default function SoloLevelStartTutorialPopup({
           }}
         >
           <motion.div
-            className="relative w-full max-w-[min(26rem,calc(100vw-2rem))] overflow-hidden rounded-[28px] px-5 pb-6 pt-5"
+            className="relative flex w-full max-w-[min(26rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-[28px] px-5 pb-5 pt-5"
             initial={{ opacity: 0, scale: 0.94, y: 16 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 10 }}
             transition={{ type: 'spring', stiffness: 250, damping: 24 }}
             style={{
+              height: 'min(86dvh, 42rem)',
               background: 'linear-gradient(180deg, rgba(9,31,66,0.98), rgba(5,14,34,0.98))',
               border: '1.5px solid rgba(255,201,40,0.86)',
               boxShadow: '0 22px 60px rgba(0,0,0,0.52), inset 0 1px 0 rgba(255,255,255,0.08), 0 0 22px rgba(56,189,248,0.20)',
@@ -52,10 +92,7 @@ export default function SoloLevelStartTutorialPopup({
             <button
               type="button"
               aria-label="Eğitim penceresini kapat"
-              onClick={() => {
-                try { sounds.tap(); } catch { /* optional */ }
-                if (onClose) onClose(config);
-              }}
+              onClick={handleClose}
               className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full transition-transform active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300/70"
               style={{
                 background: 'rgba(15,31,61,0.9)',
@@ -68,9 +105,13 @@ export default function SoloLevelStartTutorialPopup({
             </button>
 
             <div
-              className="mb-5 mt-9 flex aspect-video w-full items-center justify-center rounded-2xl"
+              className="mb-4 mt-9 flex w-full min-h-0 items-center justify-center rounded-2xl"
               data-kronox-solo-level-start-tutorial-video-placeholder="true"
+              data-kronox-solo-level-start-tutorial-video-height="70%"
+              data-kronox-solo-level-start-tutorial-video-orientation="portrait"
               style={{
+                height: '70%',
+                aspectRatio: '9 / 16',
                 background: 'linear-gradient(135deg, rgba(12,28,58,0.94), rgba(4,12,30,0.96))',
                 border: '1px solid rgba(85,216,255,0.24)',
                 boxShadow: 'inset 0 0 24px rgba(85,216,255,0.06)',
@@ -78,16 +119,23 @@ export default function SoloLevelStartTutorialPopup({
             >
               {showVideo ? (
                 <video
+                  ref={videoRef}
                   className="h-full w-full rounded-2xl"
                   data-kronox-solo-level-start-tutorial-video="true"
                   src={videoSrc}
-                  controls
+                  autoPlay
+                  muted
+                  loop
                   playsInline
-                  preload="metadata"
+                  preload="auto"
+                  controls={false}
                   aria-label={config.videoLabel || config.title || 'Eğitim videosu'}
                   onError={() => setVideoFailed(true)}
+                  onLoadedMetadata={(event) => {
+                    try { event.currentTarget.currentTime = 0; } catch { /* best-effort */ }
+                  }}
                   style={{
-                    objectFit: 'contain',
+                    objectFit: 'cover',
                     background: 'transparent',
                   }}
                 />
@@ -121,6 +169,19 @@ export default function SoloLevelStartTutorialPopup({
                 {config.copy}
               </p>
             </div>
+            <button
+              type="button"
+              onClick={handleClose}
+              className="mt-auto min-h-12 w-full rounded-2xl px-5 py-3 font-inter text-base font-black tracking-[0.18em] text-slate-950 transition-transform active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-200"
+              data-kronox-solo-level-start-tutorial-understood="true"
+              style={{
+                background: 'linear-gradient(180deg, #FFE26A, #FFC928 58%, #E7A900)',
+                border: '1px solid rgba(255,248,189,0.8)',
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.52), 0 10px 22px rgba(0,0,0,0.36), 0 0 18px rgba(250,204,21,0.28)',
+              }}
+            >
+              ANLADIM
+            </button>
           </motion.div>
         </motion.div>
       )}

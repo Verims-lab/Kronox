@@ -1038,15 +1038,62 @@ export const EXTRA_TESTS = [
         "rewardType === 'gift_box'",
         "rewardId === 'gift_box'",
         'Hediye Kutusu',
+        'DailyWheelGiftBoxContents',
+        'normalizeGiftBoxContents',
+        'data-kronox-daily-wheel-gift-box-contents="backend-resolved"',
+        'Hediye Kutusu İçeriği',
+        'giftBox?.diamonds',
+        'giftBox?.jokers',
+        'giftBox?.hintCredits',
+        'Ödül içeriği alındı',
       ]);
-      if (missing.length) {
+      const forbidden = forbiddenTokens(dailyWheelCardSource, [
+        'selectGiftBoxReward(',
+        'GIFT_BOX_REWARD_TABLE',
+        'Math.random()',
+      ]);
+      if (missing.length || forbidden.length) {
         return fail('Gift Box reward contents can drift client-side or lose same-day idempotency context.', {
           verification: 'STATIC_CONTRACT',
           files: ['base44/functions/claimDailyWheelReward/entry.ts', 'src/components/dailyWheel/DailyWheelCard.jsx'],
-          missing,
+          actual: { missing, forbidden },
         });
       }
-      return pass('Gift Box package selection is backend-owned, stored on DailyWheelSpin, and rendered from the server result.', { verification: 'STATIC_CONTRACT' });
+      return pass('Gift Box package selection is backend-owned, stored on DailyWheelSpin, and rendered from the backend-resolved server result contents without client randomization.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('daily_wheel_sonra_close_no_spin_no_task_completion',
+    'Daily Wheel Sonra/close removes modal without spinning, consuming, or completing Daily task',
+    () => {
+      const missing = missingTokens(`${dailyWheelCardSource}\n${dailyWheelHookSource}\n${mainMenuSource}\n${economyRulesSource}`, [
+        'SONRA',
+        'DailyWheelReadyActions',
+        'handleModalClose',
+        'stopDailyWheelConfetti',
+        'onResultClose?.()',
+        'dailyWheel?.markAutoPopupShown?.()',
+        'setActiveShortcut(null)',
+        'markPromptSeen',
+        'closing the auto-popup does not consume the free spin',
+      ]);
+      const readyActionsIndex = dailyWheelCardSource.indexOf('function DailyWheelReadyActions');
+      const readyActionsEnd = dailyWheelCardSource.indexOf('function DailyWheelResultModal');
+      const readyActionsSource = readyActionsIndex >= 0 && readyActionsEnd > readyActionsIndex
+        ? dailyWheelCardSource.slice(readyActionsIndex, readyActionsEnd)
+        : '';
+      const forbidden = forbiddenTokens(readyActionsSource, [
+        'claimDailyWheelReward',
+        'markDailyQuestStatusStale',
+        'recordDailyQuestProgress',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Daily Wheel Sonra/close can still leave a modal overlay, consume a spin, or complete Çark çevir without a claim.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['src/components/dailyWheel/DailyWheelCard.jsx', 'src/pages/MainMenu.jsx', 'src/hooks/useDailyWheel.js'],
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('Sonra/close uses the modal cleanup path and Home auto-popup marker only; the no-spin path does not call claim or Daily task progress.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('daily_wheel_ad_repeat_cta_disabled_no_fake_ad',

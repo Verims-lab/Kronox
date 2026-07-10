@@ -64,6 +64,7 @@ dailyWheelSpinEntity
 diamondTransactionEntity
 jokerInventoryEntity
 jokerTransactionEntity
+dailyQuestProgressEntity
 authEntity || serviceEntity
 player?.isGuest ? serviceEntity : (authEntity || serviceEntity)
 daily_wheel_user_update_unavailable
@@ -96,6 +97,9 @@ diamond_250 segmentIndex 7
 ready popup title GÜNLÜK ÇARK HAZIR
 ready popup subtitle Bugünkü ödülünü almak için çevir
 SONRA does not consume spin
+SONRA no-spin close does not start hidden spin
+SONRA no-spin close does not complete Çark çevir
+SONRA no-spin close cleans up overlay and pointer blockers
 ÇEVİR starts backend claim only
 spinning state stays in same premium popup/wheel shell
 no separate intermediate spinning-copy screen
@@ -104,6 +108,11 @@ Home Çark manual tap opens the full modal when available and read-only post-win
 old compact Çark / Günlük Çark / Hazır card is removed from Home Daily Wheel flow
 result reveal waits for backend-selected landing animation
 post-spin result screen keeps wheel visible, shows one backend-payload reward line, and shows one disabled ad/video ÇEVİR CTA with smaller Yakında subtext
+DailyWheelGiftBoxContents
+normalizeGiftBoxContents
+data-kronox-daily-wheel-gift-box-contents="backend-resolved"
+Hediye Kutusu İçeriği
+Ödül içeriği alındı
 old result copy removed: Toplam, Toplam Elmas, Seri, repeat heading, repeat explanation
 disabled ad repeat has no fake rewarded-ad grant path and cannot start a spin today
 completed reward result close returns directly to Home and does not reveal the old Çark / Günlük Çark claimed cooldown sheet
@@ -149,6 +158,12 @@ postReservePlayer
 postReserveTransaction
 recoveredExistingDailyWheelSpin
 spinRowFromDiamondTransaction
+recordDailyWheelDailyTaskProgress
+dailyQuestProgressRecorded
+taskCompletionSource: 'daily_wheel_claim_backend'
+UserDailyQuestProgress
+daily_calendar:* Çark çevir
+daily_calendar:d<cycleDay>:s1:wheel
 DiamondTransaction.create
 owner_key: player.ownerKey
 player_type: player.isGuest ? 'guest' : 'registered'
