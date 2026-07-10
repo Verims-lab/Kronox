@@ -124,6 +124,8 @@ export function useDailyWheel({ user, guestProfile, onUserUpdated } = {}) {
   const isAvailable = status === 'available';
   const isClaimed = status === 'claimed';
 
+  // No-spin close contract: closing the auto-popup does not consume the free spin;
+  // it only records prompt visibility and keeps server claim authority intact.
   const markPromptSeen = useCallback((serverDate = wheel?.serverDate, resetAt = wheel?.dailyWheelAutoPopupResetAt) => {
     try {
       localStorage.setItem(autoPopupStorageKey(user, guestCredentials, serverDate, resetAt), '1');
@@ -194,6 +196,7 @@ export function useDailyWheel({ user, guestProfile, onUserUpdated } = {}) {
   }, [refresh, onUserUpdated]);
 
   const dismissPrompt = useCallback(() => {
+    // Sonra/close hides the prompt without claimDailyWheelReward or Daily progress.
     markPromptSeen();
     setShowPrompt(false);
   }, [markPromptSeen]);

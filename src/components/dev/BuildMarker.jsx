@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex585 — Daily Wheel Health exact close/reopen contract alignment:
+//   • Source-connected no-spin close comments guard that closing the
+//     auto-popup does not consume the free spin or complete Çark çevir.
+//   • getDailyQuestStatus reconciliation explicitly documents that opening
+//     or reopening the wheel does not create Daily progress.
+//   • Docs/mirrors use the exact Health-visible contract wording.
+//
 // Codex584 — Daily Wheel task and tutorial popup contract fix:
 //   • claimDailyWheelReward records Çark çevir Daily Calendar progress
 //     backend-side from the idempotent DailyWheelSpin claim/recovery path.
@@ -65,7 +72,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex584';
+const BUILD_MARKER = 'Codex585';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

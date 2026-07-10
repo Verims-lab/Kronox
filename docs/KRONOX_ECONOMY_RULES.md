@@ -107,7 +107,8 @@ Streak through the Home `GÜNLÜK` calendar shortcut. Daily Calendar creates 3
 idempotent; `recordDailyQuestProgress` never grants Diamonds.
 `Çark çevir` completes only after a successful server Daily Wheel claim for
 the same UTC day. Opening the Daily Wheel popup, tapping `SONRA`, or reopening
-an already-claimed read-only result must not create progress.
+an already-claimed read-only result must not create progress; opening or
+reopening the wheel does not create Daily progress.
 `claimDailyWheelReward` records the active Daily Calendar wheel task
 backend-side when the idempotent `DailyWheelSpin` row is created or recovered.
 `getDailyQuestStatus` reconciles the wheel task from the same-player/same-day
@@ -193,6 +194,7 @@ Rules:
 * closing the auto-popup with `SONRA`, X, or any no-spin close path does not
   consume the free spin, start a hidden spin, complete `Çark çevir`, or leave a
   hidden overlay/backdrop/pointer blocker over Home
+* closing the auto-popup does not consume the free spin
 * after the free spin is used, the result screen is simplified: the wheel stays
   visible, one backend-payload reward line is shown below it, and the bottom
   repeat ad-spin CTA is visible as a disabled, subdued ad/video `ÇEVİR`

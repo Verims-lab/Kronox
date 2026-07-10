@@ -664,7 +664,8 @@ Checklist:
   success events. Manual proof: when today includes `Çark çevir`, a successful
   Daily Wheel reward claim marks it complete without app restart; opening the
   wheel, tapping `SONRA`, or viewing an already-claimed result does not create a
-  new completion. `claimDailyWheelReward` records the wheel task backend-side
+  new completion; opening or reopening the wheel does not create Daily progress.
+  `claimDailyWheelReward` records the wheel task backend-side
   from the idempotent `DailyWheelSpin` claim/recovery path, and
   `getDailyQuestStatus` reconciles the task from `DailyWheelSpin` if the
   progress row was missed.
