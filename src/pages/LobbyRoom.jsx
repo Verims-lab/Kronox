@@ -7,13 +7,11 @@ import OnlineChallengeScreen from '@/components/lobby/OnlineChallengeScreen';
 import WaitingRoomPanel from '@/components/lobby/WaitingRoomPanel';
 import { useLobbyRoomState } from '@/hooks/useLobbyRoomState';
 import {
-  buildPlayerPayload,
   canStartLobby,
   deriveDisplayName,
   isGuestHost,
   isHost,
   normalizeCode,
-  removePlayerByIdentity,
   summarizePlayers,
   validatePlayerName,
 } from '@/lib/lobbyUtils';
@@ -23,15 +21,20 @@ import {
   getLobbyStaleDiagnostics,
   isGameInviteExpired,
   isLobbyStale,
-  LOBBY_STALE_AFTER_MS,
   rejectGameInvite,
 } from '@/lib/inviteApi';
 import { loadActiveLobbyForUser } from '@/lib/activeLobby';
 import { generateUniqueLobbyCode } from '@/lib/lobbyCodeGuard';
+import {
+  createLobby,
+  joinLobbyByCode,
+  leaveLobby,
+} from '@/lib/dbGateway/lobbyGateway';
 import { debugLog, debugWarn } from '@/lib/debugLog';
 import { setBottomNavHidden } from '@/lib/bottomNavVisibility';
 import { getSafeNotificationActorName } from '@/lib/notificationIdentity';
 import { isGuestOnboardingComplete } from '@/lib/guestProfile';
+import { loadSocialSnapshot } from '@/lib/onlinePlayerSelection';
 
 export default function LobbyRoom() {
   const navigate = useNavigate();
@@ -144,46 +147,21 @@ export default function LobbyRoom() {
     // Logical unique guard: query-before-create via findLobbyByCode lookup-only
     // mode so two lobbies never share the same live code.
     const code = await generateUniqueLobbyCode();
-    const { identity, player } = buildPlayerPayload(currentActor, derivedName);
-    const createdAt = new Date();
-
     const lobbyPayload = {
       code,
-      host_email: identity.email,
-      ...(identity.kronox_user_id ? { host_kronox_user_id: identity.kronox_user_id } : {}),
-      host_name: derivedName,
-      players: [player],
-      status: 'waiting',
-      category: 'karisik',
-      year_start: 1900,
-      year_end: 2020,
-      turn_duration: 60,
-      win_card_count: 10,
-      created_at: createdAt.toISOString(),
-      last_activity_at: createdAt.toISOString(),
-      expires_at: new Date(createdAt.getTime() + LOBBY_STALE_AFTER_MS).toISOString(),
+      playerName: derivedName,
+      maxPlayers,
+      selectedCategories,
     };
-    // Optional metadata — inert; authority logic does not read these yet.
-    if (typeof maxPlayers === 'number') lobbyPayload.max_players = maxPlayers;
-    if (Array.isArray(invitedEmails) && invitedEmails.length) {
-      lobbyPayload.invited_emails = invitedEmails;
+    const createResponse = await createLobby(lobbyPayload);
+    const newLobby = createResponse?.data?.lobby;
+    if (!createResponse?.data?.ok || !newLobby?.id) {
+      throw new Error(createResponse?.data?.error || 'Lobi oluşturulamadı.');
     }
-    // Codex091 — persist Online category multi-select on the Lobby so
-    // startLobbyGame can filter the question pool by category_ids. Stored
-    // as a stable top-level field (not nested under settings) to stay
-    // compatible with the existing flat Lobby shape.
-    // Fallback: if nothing was forwarded (old code path / direct call),
-    // leave the field absent → startLobbyGame falls back to single-category
-    // behavior (lobby.category) just like old lobbies do.
-    if (Array.isArray(selectedCategories) && selectedCategories.length > 0) {
-      lobbyPayload.selected_category_ids = [...selectedCategories];
-    }
-
-    const newLobby = await base44.entities.Lobby.create(lobbyPayload);
     const targetCount = Array.isArray(inviteTargets) && inviteTargets.length
       ? inviteTargets.length
       : invitedEmails?.length || 0;
-    debugLog('[LobbyRoom] created lobby id:', newLobby.id, 'code:', newLobby.code, 'status:', newLobby.status, 'host:', newLobby.host_email, 'maxPlayers:', maxPlayers, 'invitedCount:', targetCount);
+    debugLog('[LobbyRoom] created lobby:', { lobbyRef: newLobby.id, code: newLobby.code, status: newLobby.status, maxPlayers, invitedCount: targetCount });
 
     // Best-effort: create pending GameInvite rows for selected friends. A
     // partial failure does not abort lobby creation — the host can re-invite
@@ -191,7 +169,7 @@ export default function LobbyRoom() {
     if ((Array.isArray(inviteTargets) && inviteTargets.length) || (Array.isArray(invitedEmails) && invitedEmails.length)) {
       try {
         const summary = await createGameInvites({
-          host: identity,
+          host: currentActor,
           lobby: newLobby,
           toEmails: invitedEmails,
           inviteTargets,
@@ -249,25 +227,21 @@ export default function LobbyRoom() {
 
     const loadInvite = async () => {
       try {
-        const invite = await base44.entities.GameInvite.get(queryInviteId);
+        const snapshot = await loadSocialSnapshot();
+        const invite = (snapshot?.incomingGameInvites || []).find((row) => row?.id === queryInviteId) || null;
         if (cancelled) return;
-        const myEmail = String(currentUser.email || '').toLowerCase();
-        const toEmail = String(invite?.to_email || '').toLowerCase();
-        if (!invite || toEmail !== myEmail) {
+        if (!invite || invite?.recipient_is_self !== true) {
           setDeepLinkMessage('Bu davet bulunamadı veya sana ait değil.');
           return;
         }
         if (invite.status === 'pending' && isGameInviteExpired(invite)) {
-          await base44.entities.GameInvite.update(invite.id, {
-            status: 'expired',
-            expired_at: new Date().toISOString(),
-          }).catch(() => null);
           setDeepLinkInvite({ ...invite, status: 'expired' });
           setDeepLinkMessage('Davetin süresi doldu. Yeni bir davet iste.');
           return;
         }
         if (invite.status === 'accepted' && invite.lobby_id) {
-          const acceptedLobby = await base44.entities.Lobby.get(invite.lobby_id).catch(() => null);
+          const accepted = await acceptGameInvite(invite.id).catch(() => null);
+          const acceptedLobby = accepted?.verifiedLobby || accepted?.joinedLobby || accepted?.lobby || null;
           if (!cancelled && acceptedLobby) {
             // Codex130 — Stale waiting lobby guard for deep-linked accepted invites.
             if (isLobbyStale(acceptedLobby)) {
@@ -299,10 +273,6 @@ export default function LobbyRoom() {
     setDeepLinkMessage('');
     try {
       if (isGameInviteExpired(deepLinkInvite)) {
-        await base44.entities.GameInvite.update(deepLinkInvite.id, {
-          status: 'expired',
-          expired_at: new Date().toISOString(),
-        }).catch(() => null);
         setDeepLinkInvite({ ...deepLinkInvite, status: 'expired' });
         setDeepLinkMessage('Davetin süresi doldu. Yeni bir davet iste.');
         return;
@@ -346,10 +316,7 @@ export default function LobbyRoom() {
     debugLog('[LobbyRoom] join attempt rawCode:', JSON.stringify(joinCode), 'normalized:', normalized);
 
     try {
-      const res = await base44.functions.invoke('findLobbyByCode', {
-        code: normalized,
-        playerName: playerName.trim(),
-      });
+      const res = await joinLobbyByCode(normalized, playerName.trim());
       const result = res.data;
 
       debugLog('[LobbyRoom] join result:', JSON.stringify(result?.debug));
@@ -387,22 +354,7 @@ export default function LobbyRoom() {
 
   const handleLeave = async () => {
     if (!lobby) return;
-    const lobbyIsHost = isHost(lobby, currentUser) || isGuestHost(lobby, currentGuestProfile, playerName);
-    if (lobbyIsHost) {
-      await base44.entities.Lobby.delete(lobby.id);
-    } else {
-      const leaveEmail = currentUser?.email || (
-        currentGuestProfile
-          ? buildPlayerPayload(currentGuestProfile, currentGuestProfile.username || playerName || 'Oyuncu').identity.email
-          : ''
-      );
-      await base44.entities.Lobby.update(lobby.id, {
-        players: removePlayerByIdentity(lobby.players, {
-          email: leaveEmail,
-          name: currentGuestProfile?.username || playerName,
-        })
-      });
-    }
+    await leaveLobby(lobby.id);
     setLobby(null);
     setMode(null);
   };
@@ -427,7 +379,7 @@ export default function LobbyRoom() {
         lobby={lobby}
         setLobby={setLobby}
         playerName={playerName}
-        user={currentUser}
+        user={currentActor}
         isHost={lobbyIsHost}
         canStart={canStartLobby(lobby, currentActor, playerName)}
         onLeave={handleLeave}
@@ -506,7 +458,7 @@ export default function LobbyRoom() {
       onJoinOpenLobby={() => setMode('join')}
       onGoFriends={() => navigate('/friends')}
       activeLobby={activeLobby}
-      isActiveLobbyHost={Boolean(activeLobby && currentUser && activeLobby.host_email === currentUser.email)}
+      isActiveLobbyHost={Boolean(activeLobby?.current_actor_is_host)}
       onResumeActiveLobby={handleResumeActiveLobby}
     />
   );

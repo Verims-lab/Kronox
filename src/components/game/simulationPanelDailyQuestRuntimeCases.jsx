@@ -26,6 +26,10 @@ import bottomNavSource from '../layout/BottomNav.jsx?raw';
 import gameSource from '../../pages/Game.jsx?raw';
 import friendsApiSource from '../../lib/friendsApi.js?raw';
 import {
+  isCanonicalDailyDayComplete,
+  selectCanonicalDailyTaskRows,
+} from '@/lib/dailyCalendar';
+import {
   RELEASE_PROOF_CHECKLIST_DOC as releaseProofSource,
   SECURITY_DEPLOYMENT_DOC as securitySource,
 } from '@/lib/healthAlignmentDocMirrors';
@@ -95,7 +99,7 @@ export const EXTRA_SUITES = [
 
 export const EXTRA_TESTS = [
   makeCase('daily_calendar_helper_contract',
-    'Daily Calendar helper defines 3 tasks/day, 9-day cycle, fallbacks, and 200-Diamond 7-day reward',
+    'Daily Calendar helper defines provenance-safe tasks, canonical rows, and the 200-Diamond 7-day reward',
     () => {
       const missing = missingTokens(dailyCalendarSource, [
         "DAILY_CALENDAR_RUNTIME_VERSION = 'daily-calendar-streak-v1'",
@@ -111,7 +115,11 @@ export const EXTRA_TESTS = [
         'İpucu kullan',
         'profile_already_complete',
         'requires_registered_user',
+        'DEFERRED_PROVENANCE_TASK_KEYS',
+        'PROVENANCE_SAFE_FALLBACKS',
         'resolveDailyTaskTemplates',
+        'selectCanonicalDailyTaskRows',
+        'isCanonicalDailyDayComplete',
       ]);
       if (missing.length) {
         return fail('Daily Calendar helper contract is incomplete.', {
@@ -120,7 +128,7 @@ export const EXTRA_TESTS = [
           missing,
         });
       }
-      return pass('Daily Calendar helper owns the new deterministic task/streak constants and safe fallback rules.', { verification: 'STATIC_CONTRACT' });
+      return pass('Daily Calendar helper owns deterministic task/streak constants, provenance-safe fallbacks, and canonical-row completion.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('home_shortcut_route_and_bottom_nav_contract',
@@ -231,6 +239,9 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(getDailyQuestStatusSource, [
         'utcDateKey',
         'ensureTodayTasks',
+        'withAssignmentLock',
+        'daily-calendar-assignment:',
+        'canonicalRowsForTasks',
         'resolveTaskTemplates(dateKey, player).slice(0, DAILY_CALENDAR_TASKS_PER_DAY)',
         'daily_calendar:',
         'reward_diamonds: 0',
@@ -258,6 +269,32 @@ export const EXTRA_TESTS = [
       return pass('Status function is code-owned, creates 3 Daily Calendar rows, builds calendar/streak state, and ignores old definitions.', { verification: 'STATIC_CONTRACT' });
     }),
 
+  makeCase('duplicate_rows_cannot_complete_day_or_reward',
+    'Duplicate Daily rows cannot substitute for three distinct canonical task slots',
+    () => {
+      const rows = [
+        { id: 'a', quest_key: 'daily_calendar:d1:s1:wheel', progress_value: 1, target_value: 1, created_at: '2026-07-11T00:00:00.000Z' },
+        { id: 'b', quest_key: 'daily_calendar:d1:s1:wheel', progress_value: 1, target_value: 1, created_at: '2026-07-11T00:00:01.000Z' },
+        { id: 'c', quest_key: 'daily_calendar:d1:s2:level1', progress_value: 1, target_value: 1, created_at: '2026-07-11T00:00:00.000Z' },
+      ];
+      const duplicateOnlyComplete = isCanonicalDailyDayComplete(rows);
+      const withThirdSlot = [...rows, { id: 'd', quest_key: 'daily_calendar:d1:s3:hint', progress_value: 1, target_value: 1, created_at: '2026-07-11T00:00:00.000Z' }];
+      const canonicalRows = selectCanonicalDailyTaskRows(withThirdSlot);
+      const backendMissing = missingTokens(`${getDailyQuestStatusSource}\n${claimDailyQuestRewardSource}`, [
+        'canonicalRowsForTasks',
+        'new Set(canonicalRows.map',
+        'dailyCalendarSlot',
+        'canonicalRows.every',
+      ]);
+      if (duplicateOnlyComplete || !isCanonicalDailyDayComplete(withThirdSlot) || canonicalRows.length !== 3 || backendMissing.length) {
+        return fail('Duplicate Daily rows can still satisfy day/reward completion or backend canonical selection drifted.', {
+          verification: 'EXECUTABLE',
+          actual: { duplicateOnlyComplete, canonicalCount: canonicalRows.length, backendMissing },
+        });
+      }
+      return pass('Executable fixture requires slots 1/2/3 exactly once; duplicate slot-1 rows cannot complete a day or reward.', { verification: 'EXECUTABLE' });
+    }),
+
   makeCase('task_progress_is_real_event_based_and_idempotent',
     'Daily task progress is driven by verified app/game events and deduped per task/day/event',
     () => {
@@ -269,11 +306,16 @@ export const EXTRA_TESTS = [
         'consecutive_correct_4',
         'joker_used',
         'time_freeze_joker_used',
-        'jokerless_solo_level_complete',
         'friend_invite_sent',
         'friend_added',
         'DailyWheelSpin',
         'JokerTransaction',
+        'HintTransaction',
+        'QuestionAttemptEvent',
+        'eventSourceIsVerified',
+        'daily_event_provenance_invalid',
+        'Günlük ilerleme kaynağı doğrulanamadı.',
+        'const amount = 1',
         'buildProgressEventKey',
         'progress_event_keys',
         'duplicate_event',
@@ -281,7 +323,6 @@ export const EXTRA_TESTS = [
         "recordDailyQuestSoloEvent('solo_level_complete'",
         "recordDailyQuestSoloEvent('correct_answer'",
         "recordDailyQuestSoloEvent('consecutive_correct_4'",
-        "recordDailyQuestSoloEvent('jokerless_solo_level_complete'",
         "eventType: 'daily_wheel_claim'",
         "eventType: 'friend_invite_sent'",
         "eventType: 'friend_added'",
@@ -299,7 +340,7 @@ export const EXTRA_TESTS = [
           actual: { missing, forbidden },
         });
       }
-      return pass('Progress updates are event-based, source-verified where possible, deduped, and never grant Diamonds/Puan directly.', { verification: 'STATIC_CONTRACT' });
+      return pass('Progress updates require same-actor/day backend receipts, ignore client amount, dedupe events, and never grant Diamonds/Puan directly.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('daily_wheel_claim_completes_task_and_refreshes_status',
@@ -366,7 +407,6 @@ export const EXTRA_TESTS = [
         "recordDailyQuestSoloEvent('solo_level_complete'",
         "recordDailyQuestSoloEvent('correct_answer'",
         "recordDailyQuestSoloEvent('consecutive_correct_4'",
-        "recordDailyQuestSoloEvent('jokerless_solo_level_complete'",
         "eventType: 'joker_used'",
         "eventType: 'time_freeze_joker_used'",
         "eventType: 'hint_used'",
@@ -377,8 +417,9 @@ export const EXTRA_TESTS = [
         'hintUseSeparateFromJoker: true',
         'JokerTransaction',
         'HintTransaction',
-        'joker_used_in_attempt',
         'hint_transaction_verified',
+        'levelNumber > 6',
+        'authoritative_jokerless_attempt_receipt_unavailable',
       ]);
       const forbidden = forbiddenTokens(combined, [
         "eventType: 'joker_used',\n        mode: 'solo_hint'",
@@ -393,7 +434,7 @@ export const EXTRA_TESTS = [
           actual: { missing, forbidden },
         });
       }
-      return pass('Daily task sources cover wheel, level, correct/streak, joker, hint, profile, friend invite/add, and training consumables are excluded from real ledger-backed tasks.', { verification: 'STATIC_CONTRACT' });
+      return pass('Daily event verification covers wheel, persisted level, answer, real spend, profile, and friend receipts; training consumables and jokerless-without-receipt are rejected.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('guest_and_logged_in_paths_are_supported',
@@ -437,6 +478,9 @@ export const EXTRA_TESTS = [
         'currentStreak >= DAILY_STREAK_REWARD_DAYS',
         'findDiamondTransaction',
         'withEconomyLock',
+        'dailyCalendarSlot',
+        'canonicalRows.every',
+        'new Set(canonicalRows.map',
         'balanceAfter = balanceBefore + DAILY_STREAK_REWARD_DIAMONDS',
         'source: DAILY_CALENDAR_REWARD_SOURCE',
         "direction: 'earn'",
@@ -529,7 +573,7 @@ export const EXTRA_TESTS = [
         'Daily Calendar / Streak',
         'Home GÜNLÜK shortcut',
         '9-day rotating task template cycle',
-        '3 tasks per server day',
+        '3 deterministic expected task keys',
         'Daily header shows only GÜNLÜK',
         'Calendar legend shows only Tamamlandı and Bugün',
         'task cards show title-only rows',

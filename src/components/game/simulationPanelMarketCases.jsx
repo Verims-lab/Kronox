@@ -15,7 +15,6 @@ import marketSource from '../../lib/market.js?raw';
 import economyGatewaySource from '../../lib/dbGateway/economyGateway.js?raw';
 import purchaseJokerWithDiamondsSource from '../../../base44/functions/purchaseJokerWithDiamonds/entry.ts?raw';
 import purchaseJokerWithDiamondsManifestSource from '../../../base44/functions/purchaseJokerWithDiamonds/function.jsonc?raw';
-import ensureUserHintInventorySource from '../../../base44/functions/ensureUserHintInventory/entry.ts?raw';
 import consumeUserHintSource from '../../../base44/functions/consumeUserHint/entry.ts?raw';
 import diamondTransactionEntitySource from '../../../base44/entities/DiamondTransaction.jsonc?raw';
 import jokerTransactionEntitySource from '../../../base44/entities/JokerTransaction.jsonc?raw';
@@ -427,7 +426,7 @@ export const EXTRA_TESTS = [
   makeCase('hint_inventory_foundation_exists_and_gameplay_consumption_is_server_owned',
     'Hint inventory foundation exists and Solo gameplay Hint consumption is server-owned',
     () => {
-      const missing = missingTokens(`${userHintInventoryEntitySource}\n${hintTransactionEntitySource}\n${purchaseJokerWithDiamondsSource}\n${ensureUserHintInventorySource}\n${consumeUserHintSource}`, [
+      const missing = missingTokens(`${userHintInventoryEntitySource}\n${hintTransactionEntitySource}\n${purchaseJokerWithDiamondsSource}\n${consumeUserHintSource}`, [
         '"name": "UserHintInventory"',
         '"name": "HintTransaction"',
         'hintInventoryEntity',

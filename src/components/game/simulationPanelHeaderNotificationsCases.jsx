@@ -164,7 +164,8 @@ export const EXTRA_TESTS = [
       // rows while preserving active notifications through transient empty
       // refreshes.
       const m = missing(useNotificationCenterSource, [
-        '{ to_email: email }',
+        'loadSocialSnapshot',
+        'incomingFriendRequests',
         'mergePendingFriendRequests',
       ]);
       if (failed.length || m.length) {
@@ -180,18 +181,18 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 4. Realtime subscriptions + focus/visibility refresh wired. */
+  /* 4. Privacy-safe polling + focus/visibility refresh wired. */
   makeCase('header_notification_realtime_subscription',
-    'Hook subscribes to FriendRequest + GameInvite, refreshes on focus + visibilitychange',
+    'Hook polls the privacy-safe social snapshot and refreshes on focus + visibilitychange',
     () => {
       const m = missing(useNotificationCenterSource, [
-        'base44.entities.FriendRequest.subscribe',
-        'base44.entities.GameInvite.subscribe',
+        'loadSocialSnapshot',
+        'window.setInterval',
         "window.addEventListener('focus'",
         "document.addEventListener('visibilitychange'",
       ]);
       if (m.length) {
-        return fail('Realtime + focus/visibility wiring is missing.', {
+        return fail('Snapshot polling + focus/visibility recovery wiring is missing.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'hooks/useHeaderNotifications.js',
@@ -199,7 +200,7 @@ export const EXTRA_TESTS = [
           missing: m,
         });
       }
-      return pass('Subscriptions + focus/visibility refresh wired.',
+      return pass('Privacy-safe snapshot polling + focus/visibility refresh are wired.',
         { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION' });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),

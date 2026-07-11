@@ -18,7 +18,25 @@ const GROUP_RANK = Object.freeze(Object.fromEntries(
 ));
 
 const SAFE_USERNAME_PATTERN = /^[A-Za-z0-9_]{3,24}$/;
-const TARGET_REF_PATTERN = /^[ug]_[a-z0-9]{3,32}$/;
+const TARGET_REF_PATTERN = /^social_[A-Za-z0-9_-]{20,80}$/;
+const FORBIDDEN_PUBLIC_DTO_KEYS = new Set([
+  'email', 'from_email', 'to_email', 'user_email', 'friend_email', 'player_email',
+  'owner_key', 'owner_key_hash', 'actor_key_hash', 'guest_id', 'player_key',
+  'kronox_user_id', 'provider_id', 'auth_id', 'internal_id',
+]);
+
+export function findForbiddenPublicDtoKeys(value, path = '$', findings = []) {
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => findForbiddenPublicDtoKeys(item, `${path}[${index}]`, findings));
+    return findings;
+  }
+  if (!value || typeof value !== 'object') return findings;
+  Object.entries(value).forEach(([key, nested]) => {
+    if (FORBIDDEN_PUBLIC_DTO_KEYS.has(key)) findings.push(`${path}.${key}`);
+    findForbiddenPublicDtoKeys(nested, `${path}.${key}`, findings);
+  });
+  return findings;
+}
 
 export function normalizeInviteTargetRef(value) {
   const ref = String(value || '').trim();
@@ -122,6 +140,21 @@ export async function loadOnlinePlayerSelection({ limit = 200, guestCredentials 
   } catch (error) {
     const safeError = new Error('Oyuncular yüklenemedi.');
     safeError.code = error?.response?.status || error?.status || error?.code || 'player_selection_failed';
+    throw safeError;
+  }
+}
+
+export async function loadSocialSnapshot() {
+  try {
+    const response = await base44.functions.invoke('getOnlinePlayerSelection', { action: 'social_snapshot' });
+    const data = response?.data || {};
+    if (data?.ok === false) throw new Error(data.error || 'social_snapshot_failed');
+    const forbidden = findForbiddenPublicDtoKeys(data);
+    if (forbidden.length) throw new Error('unsafe_social_snapshot');
+    return data;
+  } catch (error) {
+    const safeError = new Error('Sosyal veriler yüklenemedi.');
+    safeError.code = error?.response?.status || error?.status || error?.code || 'social_snapshot_failed';
     throw safeError;
   }
 }

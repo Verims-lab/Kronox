@@ -5,6 +5,18 @@ import ts from 'typescript';
 
 const rootDir = process.cwd();
 const functionsDir = path.join(rootDir, 'base44', 'functions');
+const MAX_BASE44_FUNCTIONS = 50;
+const BASE44_SDK_VERSION = '0.8.34';
+const REMOVED_FUNCTION_NAMES = Object.freeze([
+  'createDailyQuestDefinition',
+  'diagnoseSoloQuestionStartQuery',
+  'ensureUserHintInventory',
+  'getFriendPresence',
+  'resetTestAccountProgress',
+  'runTestSuite',
+  'sendFriendRequestEmail',
+  'simulateOnlineGame',
+]);
 
 const DUPLICATE_DECLARATION_CODES = new Set([
   2300, // Duplicate identifier
@@ -30,6 +42,10 @@ const EMAIL_LITERAL_REGEX = /\b[\w.+-]+@[\w-]+(?:\.[\w-]+)*\.[A-Za-z]{2,}\b/g;
 
 function readText(filePath) {
   return fs.readFileSync(filePath, 'utf8');
+}
+
+function readJson(filePath) {
+  return JSON.parse(readText(filePath));
 }
 
 function walkEntryFiles(dir) {
@@ -297,6 +313,47 @@ function categoryRuntimePolicyDiagnostics(entryFiles) {
   return diagnostics;
 }
 
+function deploymentManifestDiagnostics(entryFiles) {
+  const diagnostics = [];
+  if (entryFiles.length > MAX_BASE44_FUNCTIONS) {
+    diagnostics.push(`base44/functions: ${entryFiles.length} entries exceed the deploy limit ${MAX_BASE44_FUNCTIONS}`);
+  }
+
+  const packageJson = readJson(path.join(rootDir, 'package.json'));
+  const packageLock = readJson(path.join(rootDir, 'package-lock.json'));
+  const packagePin = packageJson?.dependencies?.['@base44/sdk'];
+  const lockRootPin = packageLock?.packages?.['']?.dependencies?.['@base44/sdk'];
+  const lockPackageVersion = packageLock?.packages?.['node_modules/@base44/sdk']?.version;
+  for (const [label, actual] of [
+    ['package.json dependency', packagePin],
+    ['package-lock.json root dependency', lockRootPin],
+    ['package-lock.json installed package', lockPackageVersion],
+  ]) {
+    if (actual !== BASE44_SDK_VERSION) {
+      diagnostics.push(`${label}: expected exact @base44/sdk ${BASE44_SDK_VERSION}, received ${String(actual || 'missing')}`);
+    }
+  }
+
+  for (const filePath of entryFiles) {
+    const source = readText(filePath);
+    const sdkImports = [...source.matchAll(/npm:@base44\/sdk@([^'"\s;]+)/g)].map((match) => match[1]);
+    if (!sdkImports.length) continue;
+    for (const version of sdkImports) {
+      if (version !== BASE44_SDK_VERSION) {
+        diagnostics.push(`${relativeFile(filePath)}: expected npm:@base44/sdk@${BASE44_SDK_VERSION}, received ${version}`);
+      }
+    }
+  }
+
+  for (const functionName of REMOVED_FUNCTION_NAMES) {
+    const removedDir = path.join(functionsDir, functionName);
+    if (fs.existsSync(path.join(removedDir, 'entry.ts'))) {
+      diagnostics.push(`base44/functions/${functionName}/entry.ts: removed deploy entry must not be restored without function-count review`);
+    }
+  }
+  return diagnostics;
+}
+
 const entryFiles = walkEntryFiles(functionsDir);
 const failures = [];
 
@@ -309,6 +366,7 @@ for (const filePath of entryFiles) {
 }
 failures.push(...getQuestionsDiagnostics(entryFiles));
 failures.push(...categoryRuntimePolicyDiagnostics(entryFiles));
+failures.push(...deploymentManifestDiagnostics(entryFiles));
 
 if (failures.length) {
   console.error(`Base44 function compile/deploy gate failed with ${failures.length} issue(s):`);

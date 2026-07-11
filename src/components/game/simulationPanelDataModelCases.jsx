@@ -8,6 +8,8 @@
 import soloLevelsSource from '../../lib/soloLevels.js?raw';
 import leaderboardSource from '../../lib/leaderboard.js?raw';
 import applyOnlineResultSource from '../../lib/applyOnlineResult.js?raw';
+import lobbyGatewaySource from '../../lib/dbGateway/lobbyGateway.js?raw';
+import updateLobbyGameStateSource from '../../../base44/functions/updateLobbyGameState/entry.ts?raw';
 import dataRetentionSource from '../../lib/dataRetention.js?raw';
 import userDailyQuestProgressEntitySource from '../../../base44/entities/UserDailyQuestProgress.jsonc?raw';
 // Vite `?raw` cannot reach outside `src/` on this host, so the canonical
@@ -130,12 +132,14 @@ export const EXTRA_TESTS = [
         'score',
         'peakScore',
         'peakCheckpoint',
+        'written only by the backend result commit',
         'win +15',
         'loss -6',
         'no Online speed bonus',
+        'lobby_id + actor_key_hash',
         'lastMatchId',
         'lastMatchAt',
-        'legacy/deprecated',
+        'Legacy/deprecated',
       ]);
       if (missing.length) return fail('User.online_progress schema docs are stale.', { verification: 'STATIC_CONTRACT', missing });
       return pass('User.online_progress documents current win/loss summary, lastMatchAt, and deprecated draw fields.', { verification: 'STATIC_CONTRACT' });
@@ -174,21 +178,25 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('data_model_health', 'online_match_result_schema_exists',
-    'OnlineMatchResult schema exists for per-user per-lobby idempotency',
+    'OnlineMatchResult schema exists for backend-owned per-actor/per-lobby idempotency',
     () => {
       const missing = missingTokens(onlineMatchResultEntitySource, [
         'OnlineMatchResult',
         'lobby_id',
-        'player_email',
+        'actor_key_hash',
+        'player_type',
+        'lobby_ref',
         'elapsed_seconds',
-        'Audit/display only',
+        'audit/display only',
         'no speed bonus',
         'score_before',
         'score_after',
         'applied_at',
+        'reserved',
+        'status',
       ]);
       if (missing.length) return fail('OnlineMatchResult schema is missing required idempotency/audit fields.', { verification: 'STATIC_CONTRACT', missing });
-      return pass('OnlineMatchResult exists and supports per-user per-lobby scoring idempotency.', { verification: 'STATIC_CONTRACT' });
+      return pass('OnlineMatchResult supports linked/guest actor reservation and per-lobby scoring idempotency.', { verification: 'STATIC_CONTRACT' });
     },
     { actionType: ACTION_TYPES.CODE_FIX, nextStep: 'Restore the OnlineMatchResult schema fields and rerun data_model_health.' }),
 
@@ -389,87 +397,100 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('online_match_result_health', 'online_match_result_entity_exists',
-    'OnlineMatchResult entity schema exists with safe per-user audit fields',
+    'OnlineMatchResult is a private backend-owned audit entity',
     () => {
       const missing = missingTokens(onlineMatchResultEntitySource, [
         'OnlineMatchResult',
-        'lobby_id',
-        'player_email',
+        'idempotency_key',
+        'actor_key_hash',
+        'status',
         'score_before',
         'score_after',
         'applied_at',
-        'data.player_email',
+        'admin',
       ]);
       if (missing.length) return fail('OnlineMatchResult schema mirror is missing required fields.', { verification: 'STATIC_CONTRACT', missing });
-      return pass('OnlineMatchResult schema is present and owner-scoped by player_email.', { verification: 'STATIC_CONTRACT' });
+      return pass('OnlineMatchResult is private audit state with idempotency and reservation/applied fields.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('online_match_result_health', 'online_score_has_durable_idempotency',
-    'Online scoring checks OnlineMatchResult before applying score',
+    'Backend Online scoring uses a durable reservation and partial-write recovery',
     () => {
-      const missing = missingTokens(applyOnlineResultSource, [
-        'findExistingOnlineMatchResult',
-        'OnlineMatchResult.filter',
-        "reason: 'already_recorded'",
-        'createOnlineMatchResult',
+      const missing = missingTokens(updateLobbyGameStateSource, [
+        'idempotencyKey',
+        "status: 'reserved'",
+        "status: 'applied'",
+        'reservationAlreadyWritten',
+        'reconciledAfterPartialWrite',
+        'online_result_reconciliation_conflict',
       ]);
-      if (missing.length) return fail('OnlineMatchResult idempotency guard is not wired into applyOnlineResult.', { verification: 'STATIC_CONTRACT', missing });
-      return pass('Online scoring uses durable per-user/lobby audit rows before applying a score.', { verification: 'STATIC_CONTRACT' });
+      if (missing.length) return fail('Backend Online result idempotency/recovery contract is incomplete.', { verification: 'STATIC_CONTRACT', missing });
+      return pass('Backend result commit reserves once and reconciles score-written/result-not-finalized retries without applying twice.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('online_match_result_health', 'online_score_no_duplicate_for_old_lobby_reopen',
     'Reopening an older completed lobby cannot double-apply when OnlineMatchResult exists',
     () => {
-      const missing = missingTokens(applyOnlineResultSource, [
-        "{ lobby_id: String(lobbyId), player_email: playerEmail }",
-        'already_recorded',
-        'lastMatchId remains as a same-session/recent-match guard',
+      const missing = missingTokens(updateLobbyGameStateSource, [
+        "resultEntity.filter({ idempotency_key: idempotencyKey }",
+        'canonicalApplied',
+        'publicResult(canonicalApplied, true)',
+        'progress.lastMatchId = matchRef',
       ]);
       if (missing.length) return fail('Old-lobby durable idempotency contract is missing.', { verification: 'STATIC_CONTRACT', missing });
-      return pass('The writer checks player_email+lobby_id result rows before falling back to lastMatchId.', { verification: 'STATIC_CONTRACT' });
+      return pass('The backend returns the canonical applied result for the same actor/lobby receipt.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('online_match_result_health', 'online_score_code_lobby_path_supported',
-    'Code/lobby path uses the same Game.jsx online result writer',
-    () => pass('Both code-joined and invite-joined games converge in Game.jsx and call applyOnlineMatchToCurrentUser for the local user.', {
-      verification: 'STATIC_CONTRACT',
-      classification: 'STATIC_CHECK_LIMITATION',
-      actionType: ACTION_TYPES.CODE_FIX,
-    })),
+    'Code/lobby path uses the same backend result commit',
+    () => {
+      const missing = missingTokens(`${applyOnlineResultSource}\n${lobbyGatewaySource}`, [
+        'commitOnlineMatchResult',
+        "action: 'commit_result'",
+        "updateLobbyGameState({ action: 'commit_result'",
+      ]);
+      if (missing.length) return fail('Code/lobby result path does not converge on the backend commit.', { verification: 'STATIC_CONTRACT', missing });
+      return pass('Code-joined completion calls the shared backend result commit.', { verification: 'STATIC_CONTRACT' });
+    }),
 
   makeCase('online_match_result_health', 'online_score_friend_invite_path_supported',
-    'Friend-invite path uses the same Game.jsx online result writer',
-    () => pass('Invite acceptance routes to the Lobby/Game flow, so final scoring uses the same applyOnlineMatchToCurrentUser path.', {
-      verification: 'STATIC_CONTRACT',
-      classification: 'STATIC_CHECK_LIMITATION',
-      actionType: ACTION_TYPES.CODE_FIX,
-    })),
+    'Friend-invite path uses the same backend result commit',
+    () => {
+      const missing = missingTokens(applyOnlineResultSource, ['applyOnlineMatchToCurrentUser', 'commitOnlineMatchResult']);
+      if (missing.length) return fail('Friend-invite completion can bypass backend result authority.', { verification: 'STATIC_CONTRACT', missing });
+      return pass('Invite-joined completion converges on the same backend result commit.', { verification: 'STATIC_CONTRACT' });
+    }),
 
   makeCase('online_match_result_health', 'online_score_authority_model_documented',
-    'Online score authority model remains self-update plus durable audit row',
+    'Online score authority is backend-only and server-derived',
     () => {
-      const missing = missingTokens(applyOnlineResultSource, [
-        'Each client persists ONLY its own user',
-        'base44.auth.updateMe',
-        'OnlineMatchResult',
+      const missing = missingTokens(`${applyOnlineResultSource}\n${updateLobbyGameStateSource}`, [
+        "authority: 'updateLobbyGameState:commit_result'",
+        'clientOnlineMatchResultWrites: false',
+        "lobby?.status !== 'finished'",
+        "const result: 'win' | 'loss' = String(lobby.winner_actor_key_hash)",
+        'actor.profileEntity.update',
+        'publishLeaderboardProjection',
       ]);
-      if (missing.length) return fail('Online score authority model documentation/wiring regressed.', { verification: 'STATIC_CONTRACT', missing });
-      return pass('Authority model documented: each client applies only its own result; OnlineMatchResult supplies per-user idempotency.', { verification: 'STATIC_CONTRACT' });
+      const forbidden = ['OnlineMatchResult.create', 'base44.auth.updateMe', 'SoloLeaderboardEntry.create']
+        .filter((token) => applyOnlineResultSource.includes(token));
+      if (missing.length || forbidden.length) return fail('Online result authority can drift back to the client.', { verification: 'STATIC_CONTRACT', actual: { missing, forbidden } });
+      return pass('Client submits only the lobby reference; backend derives result and owns audit, profile score, and projection writes.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('online_match_result_health', 'online_score_not_solo_total_score',
     'Online score remains separate from Solo totalSoloScore',
     () => {
-      const src = String(applyOnlineResultSource);
-      const bad = src.includes('totalSoloScore') || src.includes('solo_progress:');
-      const missing = missingTokens(src, ['online_progress', 'kronox_puan_total', 'buildSoloLeaderboardPayload']);
+      const src = String(updateLobbyGameStateSource);
+      const bad = src.includes('solo_progress: progress') || src.includes('solo_progress: {');
+      const missing = missingTokens(src, ['online_progress: progress', 'kronox_puan_total: totalScore', 'publishLeaderboardProjection']);
       if (bad || missing.length) {
-        return fail('Online scoring writer may mutate Solo score/progress instead of only updating Online + unified projection.', {
+        return fail('Backend Online scoring may mutate Solo progress instead of only reading its materialized score component.', {
           verification: 'STATIC_CONTRACT',
           actual: { bad, missing },
         });
       }
-      return pass('Online scoring writer keeps Solo progress immutable while updating online_progress and the unified projection.', { verification: 'STATIC_CONTRACT' });
+      return pass('Backend Online scoring keeps Solo progress immutable while updating Online and unified projections.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('online_match_result_health', 'online_score_no_draw_contract',

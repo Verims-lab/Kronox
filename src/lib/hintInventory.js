@@ -170,8 +170,11 @@ export function buildSoloHintUseIdempotencyKey({ soloAttemptId, questionId, reve
 }
 
 export async function ensureUserHintInventory({ guestCredentials = null } = {}) {
-  const payload = guestCredentials && typeof guestCredentials === 'object' ? guestCredentials : {};
-  const response = await base44.functions.invoke('ensureUserHintInventory', payload);
+  const payload = {
+    ...(guestCredentials && typeof guestCredentials === 'object' ? guestCredentials : {}),
+    action: 'ensure',
+  };
+  const response = await base44.functions.invoke('consumeUserHint', payload);
   const data = normalizeFunctionResult(response);
   return {
     ...data,

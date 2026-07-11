@@ -68,7 +68,7 @@ Status: Active technical flow contract.
 - getCategoryMetadata returns category_id, name, description, and status from current active Category rows only; it must not expose questions, answers, years, user data, admin fields, passive/deleted categories, or stale fallback arrays.
 - Base44 function.jsonc files use the repo-supported name + entry shape only; auth/public scope is enforced in entry.ts guards. createGuestProfile and getCategoryMetadata are public-by-design and narrow, user-owned functions call base44.auth.me(), guest daily/leaderboard paths verify guest_id + raw guest token against completed GuestProfile, and admin-only functions use AdminUser guards.
 - configured \`function.jsonc\` manifests are the platform-published source in this repo; extra entry.ts directories are compile-checked but need matching manifest/deploy proof before being classified as published callables.
-- Configured function auth/public matrix covers createGuestProfile, ensureKronoxUserId, getCategoryMetadata, getQuestions, getPlayerQuestionExposureStats, recordPlayerQuestionExposure, updateProfileSettings, linkGuestAccount, sendFriendRequest, updatePlayerPresence, getFriendPresence, getOnlinePlayerSelection, createGameInvitesForTargets, getAdminStatus, ensureUserJokerInventory, spendUserJoker, purchaseJokerWithDiamonds, getDailyQuestStatus, recordDailyQuestProgress, claimDailyQuestReward, createDailyQuestDefinition, diagnoseSoloQuestionStartQuery, and sendQuestionAnalyticsReportEmail.
+- The deploy manifest/compile gate covers exactly 50 Base44 function entries, rejects removed legacy/test/diagnostic callables, and exact-pins frontend, lockfile root spec, and Deno imports to @base44/sdk 0.8.34. Current P0 paths include createGuestProfile, getQuestions, findLobbyByCode, startLobbyGame, updateLobbyGameState, getOnlinePlayerSelection, createGameInvitesForTargets, sendFriendRequest, updatePlayerPresence, consumeUserHint, spendUserJoker, getDailyQuestStatus, recordDailyQuestProgress, claimDailyQuestReward, and admin duplicate report/cleanup functions.
 - /admin has a route-level UX guard that waits for AuthContext/AdminUser status before mounting AdminPage; non-admin users are redirected without an admin-tool flash, while server-side AdminUser guards remain the real security boundary.
 - Dependency cleanup result: unused direct Stripe, Three, React Leaflet, React Quill, Moment, jsPDF, html2canvas, and Lodash packages were removed; recharts and embla-carousel-react stay because UI primitives import them.
 - UserCategoryPreference is authenticated Settings/Profile data. Fewer than 3 active valid preferences means Solo uses all active categories; 3+ enables Solo-only soft weighting.
@@ -77,7 +77,11 @@ Status: Active technical flow contract.
 - PlayerQuestionExposure is private per-player anti-repeat memory; PlayerQuestionDailyExposure is daily anonymous exposure summary; actual reports source history from QuestionAttemptEvent.
 - UserJokerInventory is the current joker balance source and JokerTransaction is the ledger. purchaseJokerWithDiamonds writes DiamondTransaction plus JokerTransaction under EconomyOperationLock.
 - claimDailyWheelReward writes DailyWheelSpin, DiamondTransaction for Diamond portions, JokerTransaction/UserJokerInventory for approved joker portions, and backend-owned UserDailyQuestProgress completion for active daily_calendar:* Çark çevir rows using function-level same-day/idempotency guards plus EconomyOperationLock; no atomic/upsert guarantee is repo-proven. adminResetDailyWheelState is an AdminUser-gated Admin Ekranı support tool that accepts Kronox User ID, resets only today's Daily Wheel test guards/auto-popup marker/blocking same-day wheel idempotency rows, archives DailyWheelSpin/DiamondTransaction/JokerTransaction idempotency keys to preserve completed reward rows, grants no rewards, reverses no Diamonds/Jokers, and does not affect Daily Calendar / Streak, Kronox Puan, or leaderboard.
-- startLobbyGame owns the Online shared deck. Online does not read Solo preference weighting or guest Solo projection.
+- startLobbyGame owns the one canonical Online shared deck. Authenticated and token-proven completed guest actors are verified backend-side; Online does not read Solo preference weighting or guest Solo projection.
+- Lobby create/join/leave/start/turn/result mutations are function-owned, use expected monotonic state_revision plus fail-closed EconomyOperationLock guards, enforce max four participants, and return idempotent canonical public snapshots. updateLobbyGameState commit_result derives the terminal result and fixed +15/-6 delta server-side, reserves/reconciles OnlineMatchResult, and publishes User/GuestProfile plus leaderboard score once. applyOnlineResult is a thin function caller and has no direct entity writes.
+- Public Online/social DTOs use opaque public_ref/participant_ref/target_ref plus username, sanitized avatar/status, and required public game state only. Email, display_name, provider ID, owner_key, raw guest_id/token, actor_key_hash, auth/internal row IDs, internal player keys, transaction IDs, and private storage metadata are forbidden in client responses.
+- Notification INVITE_OPENED and toast dismissal are nonterminal. Pending rows survive transient empty/error fetches and failed accept/decline; only confirmed terminal backend state closes them. Recoverable Friends/player-selection/invite errors use safe Turkish copy and never raw backend/Axios messages.
+- Daily assignment repair uses an actor/server-day EconomyOperationLock and canonical distinct expected quest keys. Daily progress ignores client amount and requires same-actor/day persisted source proof. Duplicate assignment rows cannot complete a day/reward, and level 1-6 training Joker/Hint actions cannot satisfy Daily tasks.
 - sendQuestionAnalyticsReportEmail is admin-only, email-body-only, exactly nine sections, with anonymized User0001-style per-player coverage where used.
 - Public assets must not contain secrets, tokens, question bank, answer years, internal IDs, raw guest IDs/tokens, provider IDs, or private user data.
 - Public avatar projection may include only sanitized avatar_type, avatar_icon_id, avatar_color_id, and https avatar_url visual metadata; it must not expose email, provider IDs, owner_key, raw guest IDs, internal player keys, auth IDs, or raw storage metadata.
@@ -113,13 +117,13 @@ ViewModel/store and delegates notification fetch/subscription/terminal
 lifecycle transitions to the notification reducer.
 
 The Online/social presence and player-selection foundation adds backend-owned
-PlayerPresence, updatePlayerPresence, getFriendPresence,
-getOnlinePlayerSelection, createGameInvitesForTargets, usePresenceHeartbeat,
+PlayerPresence, updatePlayerPresence, the getOnlinePlayerSelection social
+snapshot action, createGameInvitesForTargets, usePresenceHeartbeat,
 useFriendPresence, and src/lib/onlinePlayerSelection.js. Presence uses a 25s
 visible heartbeat, 75s server-owned TTL, runtime session ids, and token-proven
 GuestProfile support. Presence writes are current-user-bound, friend reads are
 accepted-friend-scoped, player selection returns online friends, online
-non-friends, then offline friends as username + opaque u_/g_ target_ref only,
+non-friends, then offline friends as username + random opaque social_* target_ref only,
 completed guests can load the picker with guest_id + guest_token proof,
 non-routable guest presence rows stay visible but disabled for direct invite
 creation, stale/missing presence displays offline, transient refresh failures
@@ -195,7 +199,7 @@ correlation identifier, not authorization proof.
 Presence/player-selection Phase 1 starts at src/hooks/usePresenceHeartbeat.js,
 src/hooks/useFriendPresence.js, src/lib/onlinePlayerSelection.js,
 base44/entities/PlayerPresence.jsonc, base44/functions/updatePlayerPresence,
-base44/functions/getFriendPresence, base44/functions/getOnlinePlayerSelection,
+base44/functions/getOnlinePlayerSelection social_snapshot/player-selection actions,
 and base44/functions/createGameInvitesForTargets. Presence is best-effort and
 relationship-scoped for friend reads: users heartbeat only their own runtime
 session, linked actors derive identity from auth.me, guest actors require
@@ -206,7 +210,7 @@ discovery is fresh-presence-only and supports token-proven guest actors in the
 picker. Friend, invite, lobby, notification, presence, and player selection
 surfaces render username-safe labels only; email, provider ID, raw guest ID,
 kronox_user_id, owner_key, and internal player_key values are never public
-display fallbacks. The UI stores opaque u_/g_ target_ref values and backend
+display fallbacks. The UI stores random opaque social_* target_ref values and backend
 functions resolve recipient email privately for routable GameInvite creation;
 non-routable guest rows return safe disabled state instead of a raw 500.
 Profile avatar fields are public visual metadata only. Public rows may carry
@@ -377,10 +381,12 @@ Leaderboard load.
 Unified Kronox Puan is the player-facing score source: Solo contributes the
 Solo best-score component and Online contributes User.online_progress.score.
 Online match scoring is flat and unified: winner +15 Kronox Puan, loser -6
-Kronox Puan with checkpoint protection, and no Online speed bonus. Online
-result writes use OnlineMatchResult per-user/lobby idempotency plus
-User.online_progress / kronox_puan_total projection updates; elapsed seconds
-are audit/display only and do not change the Online score delta.
+Kronox Puan with checkpoint protection, and no Online speed bonus. Backend
+updateLobbyGameState commit_result verifies terminal Lobby winner and actor
+membership, reserves/reconciles OnlineMatchResult per actor/lobby, then updates
+User or GuestProfile online_progress / kronox_puan_total and the materialized
+leaderboard projection exactly once. Client source cannot create result rows or
+write Online profile/leaderboard score. Elapsed seconds are audit/display only.
 Visible score reads prefer the materialized kronox_puan_total projection when
 present, with derived Solo+Online computation only as a compatibility fallback
 for older rows.
@@ -606,9 +612,11 @@ Status: Active product contract.
 - UI hiding is not the authorization boundary.
 - Two-account probes remain mandatory for category preferences, friends, invites, lobbies, Daily Calendar progress, Daily Wheel, Diamond/Joker economy, push subscriptions, and analytics cleanup.
 - getQuestions serves an authenticated bounded server attempt candidate buffer for signed-in Solo and an explicit capped guest_gameplay_runtime minimal deck for first-time guest Solo; admin/full-bank/diagnostics still require active AdminUser owner/admin authorization. Authenticated candidate reads are bounded to 96 * 3 = 288 rows per active category/query variant before projection.
-- startLobbyGame requires authenticated host, no legacy guest, no client identity override.
+- findLobbyByCode, startLobbyGame, and updateLobbyGameState resolve either a canonical authenticated actor or a completed GuestProfile proven by guest_id + guest_token. They reject invalid proofs, client identity overrides, nonparticipants, non-host starts, stale revisions, over-capacity joins, and nonterminal/forged result commits.
 - sendFriendRequest requires authenticated user context, resolves email or username targets server-side, checks self/friend/open-pending guards under FriendRequestOperationLock, requires deletion of expired outgoing invites before resend, sets FriendRequest.expires_at at least 72 hours after creation, keeps open reverse-pending requests actionable through Gelen İstekler, ignores/expires stale reverse-pending rows, creates the FriendRequest row before SendEmail, treats email delivery failure as a soft failure that does not roll back the request, stores username-safe labels, and never returns the target email for username-based add. FriendRequestOperationLock is a function-level guard, not DB unique/index proof.
-- Online non-friend game invites use opaque u_/g_ target_ref values in the client. getOnlinePlayerSelection supports authenticated users and token-proven completed guests; createGameInvitesForTargets resolves routable target refs backend-side, while non-routable guest refs return safe disabled/failure state. Public player-selection, lobby, invite, notification, and push payloads use username-safe labels and never expose target email, provider IDs, owner keys, raw guest IDs, or internal player keys.
+- Online non-friend game invites use random opaque social_* target_ref values in the client. getOnlinePlayerSelection and createGameInvitesForTargets support authenticated users and token-proven completed guest hosts; guest invite rows use backend-private from_actor_key_hash rather than synthetic email authority. Routable target refs resolve backend-side, while non-routable guest refs return safe disabled/failure state. Public player-selection, lobby, invite, notification, and push payloads use username-safe labels and never expose target email, provider IDs, owner keys, raw guest IDs, actor hashes, or internal player keys.
+- Lobby create/join/leave/start/turn/result mutations are backend-only and use fail-closed EconomyOperationLock guards plus expected monotonic state_revision. Only one start deck/result reservation can win; retries return canonical state. Public snapshots use opaque public_ref/participant_ref and never expose actor_key_hash, email, raw guest proof, internal row IDs, transaction IDs, or private storage metadata.
+- Notification INVITE_OPENED is nonterminal and toast dismissal is visual only. Failed accept/decline preserves the pending row and previous safe list while showing Turkish recoverable copy. Only confirmed accept, decline, expiry, server deletion, or source invalidation removes/closes an actionable row; raw backend/Axios errors are never rendered.
 - DailyWheelSpin, GameInvite, and FriendRequest direct client create is not part of the secure product contract. Their RLS create rules allow only admin/service-role writes; callers must use claimDailyWheelReward, linkGuestAccount, createGameInvitesForTargets, or sendFriendRequest so the backend derives the actor, validates guest-token proof where applicable, and returns only privacy-safe response shapes.
 - Security Pass 1 pins @base44/sdk exactly at 0.8.34, keeps the package-lock root spec exactly at 0.8.34, and aligns Base44 Deno function imports to npm:@base44/sdk@0.8.34. Do not reintroduce frontend ^ SDK ranges, unversioned function SDK imports, or npm:@base44/sdk@0.8.25 without a documented Base44 runtime compatibility split.
 - User/admin/question markdown is not rendered as raw HTML. react-markdown is not a runtime dependency, rehype-raw is forbidden for user/content markdown, and dangerouslySetInnerHTML must not be used for user-generated, backend-provided, or markdown-provided content. Static generated CSS should use guarded text children instead of raw HTML injection.
@@ -635,7 +643,7 @@ Status: Active product contract.
 - There is no unsafe "if no admin exists, everyone is admin" fallback.
 - Do not commit the personal admin emails to source.
 - Admin email env allowlists are not used for authorization.
-- resetTestAccountProgress uses AdminUser-backed authorization and exact target-email confirmation; KRONOX_TEST_RESET_EMAILS and TEST_RESET_EMAILS are deprecated and must not control runtime access.
+- The removed resetTestAccountProgress legacy callable is not deployed; supported Admin Ekranı reset tools keep their own AdminUser-backed authorization and explicit confirmation contracts.
 - Client admin UI consumes the backend getAdminStatus status hint; /getAdminStatus is the callable status path.
 - AdminUser rows remain private and are not listed by normal users.
 - Profile normal-user actions include screen-navigation rows for Profil Bilgileri, Arkadaşlarım, and Ayarlar; privacy/account-deletion actions live under Settings.
@@ -645,7 +653,7 @@ Status: Active product contract.
 - Direct /admin access by normal users is blocked or redirected safely.
 - admin-only maintenance functions verify AdminUser-backed authorization server-side.
 - Admin Ekranı list refresh uses scoped Pull-to-Refresh only after the admin gate has passed; bottom-sheet selectors do not replace backend AdminUser authorization.
-- simulateOnlineGame and runTestSuite are admin-only backend tools. They must call the inline AdminUser guard before any service-role simulation/test writes; user.role, request-body role fields, hardcoded admin emails, and typo role strings such as en_core_news_sm are not valid authorization. Runtime auth proof for simulateOnlineGame must verify unauthenticated, normal user, and disabled/passive admin calls are blocked, while active owner/admin AdminUser rows succeed. npm run build does not prove this deployed backend behavior.
+- Removed simulateOnlineGame and runTestSuite callables are not deployment/runtime dependencies. Targeted Health simulations run locally against source-connected helpers; backend admin tools that remain deployed keep inline AdminUser authorization. npm run build alone is not runtime auth proof.
 - account deletion is a destructive, NOT_AUTOMATABLE manual proof gate.
 - Public privacy URL is https://kronoxgame.com/privacy.
 - /privacy must load without login, admin status, backend data, or redirect.
@@ -664,13 +672,13 @@ Status: Active product contract.
   yellow hammer icon/color and do not change Hint price, quantity, inventory,
   or purchase behavior.
 - Mağaza Store Diamond-spend purchases use purchaseJokerWithDiamonds; users purchase only for themselves, backend owns trusted Store product prices, sufficient Diamonds are validated server-side, and successful purchases write DiamondTransaction plus JokerTransaction and/or HintTransaction with market_purchase.
-- Solo Hint / İpucu is separate from Joker: Profile reads İpucu from UserHintInventory.quantity through a display-only helper, while HintTransaction remains the ledger/idempotency audit trail and is not scanned for Profile balance. ensureUserHintInventory initializes exactly 3 starter Hints once for authenticated and token-proven completed guests, consumeUserHint spends one Hint server-side with HintTransaction.reason = solo_use, source = solo_hint, EconomyOperationLock, and idempotency re-checks, and responses do not expose actor keys, raw guest IDs/tokens, answer years, or the full question bank. The gameplay Hint launcher only opens the popup; the popup has one clear hammer action, keeps stage 0 fully covered from first render, closes on stale active-card changes, and reveal/count/Daily hint_used advances only after server confirmation. Hint use never counts as Joker use, grants Kronox Puan, or affects leaderboard. Opening the Hint popup pauses the visible Solo timer; if Zamanı Dondur is already active, the Hint pause is overlap-aware and never subtracts the same frozen seconds twice.
+- Solo Hint / İpucu is separate from Joker: Profile reads İpucu from UserHintInventory.quantity through a display-only helper, while HintTransaction remains the ledger/idempotency audit trail and is not scanned for Profile balance. The ensureUserHintInventory client helper calls the consolidated consumeUserHint action ensure; there is no separate deployed ensure callable. consumeUserHint spends one Hint server-side with HintTransaction.reason = solo_use, source = solo_hint, EconomyOperationLock, and idempotency re-checks, and responses do not expose actor keys, raw guest IDs/tokens, answer years, or the full question bank. The gameplay Hint launcher only opens the popup; the popup has one clear hammer action, keeps stage 0 fully covered from first render, closes on stale active-card changes, and reveal/count/Daily hint_used advances only after server confirmation. Hint use never counts as Joker use, grants Kronox Puan, or affects leaderboard. Opening the Hint popup pauses the visible Solo timer; if Zamanı Dondur is already active, the Hint pause is overlap-aware and never subtracts the same frozen seconds twice.
 - Mağaza purchases are server-authoritative economy actions: the client is not trusted for price, cost, user identity, or target account; service-role writes stay scoped to the authenticated user.
 - Mağaza purchase idempotency keys, EconomyOperationLock, refreshed server balance reads, and post-lock ledger rechecks protect double-tap/retry/concurrent request flows; real two-device/backend race proof remains manual unless Base44 uniqueness is proven.
 - Real-money/TL Store products are visible but disabled with reason: 'real_money_unavailable'; KronoClub and Reklamları Kaldır are visible but disabled with reason: 'future_feature'. These reasons drive exact Yakında button copy, accessibility disabled state, click guard, and no-grant behavior unless approved IAP/payment verification exists; no fake real-money success path grants Diamonds, KronoClub, or ad-removal benefits.
 - Mağaza Store does not expose cosmetics, random boxes, score/leaderboard boosts, real-money fulfillment without approved IAP/payment verification, or Online-mode joker usage.
 - Daily Quest Definition management UI is removed from Profile / Admin Ekranı; Daily Calendar runtime no longer depends on Admin-created quest definitions.
-- createDailyQuestDefinition is a Base44 callable with an inline AdminUser-backed guard for active owner/admin rows; normal users and disabled admins are rejected.
+- The legacy createDailyQuestDefinition callable is not deployed; DailyQuestDefinition has no active runtime/Admin UI writer.
 - DailyQuestDefinition title and description are display-only; quest_type plus target_value are the executable logic contract.
 - DailyQuestDefinition.quest_key is the logical unique key for legacy/manual cleanup paths. Runtime does not list, seed, or select definition rows; explicit legacy seed/create skips or rejects existing keys. Existing duplicate rows require manual cleanup after backup, not automatic deletion.
 - Active Daily Calendar runtime task types are code-owned by src/lib/dailyCalendar.js and recorded as daily_calendar:* progress rows.
@@ -816,9 +824,11 @@ is unaffected and Daily Wheel V2 does not use Mağaza purchase semantics.
 
 ## Daily Calendar / Streak
 The legacy Daily Quest Runtime v1 is replaced by Daily Calendar / Streak. Home exposes a calendar-icon GÜNLÜK shortcut that routes to /daily;
-Günlük is not a BottomNav item. getDailyQuestStatus creates or returns exactly
-3 UserDailyQuestProgress daily_calendar:* rows for the UTC server day from a
-9-day rotating task template cycle. Day 3 uses Profilini tamamla only while
+Günlük is not a BottomNav item. getDailyQuestStatus serializes assignment
+repair and returns one canonical UserDailyQuestProgress daily_calendar:* row
+for each of exactly 3 deterministic expected quest keys for the UTC server day
+from a 9-day rotating task template cycle. Duplicate rows cannot substitute for
+a missing key or complete the day/reward. Day 3 uses Profilini tamamla only while
 the profile is incomplete; otherwise it falls back to 5 soruyu doğru cevapla.
 İpucu kullan tasks use the real hint_used event and must verify a matching
 HintTransaction.reason = solo_use row before progress advances.
@@ -831,14 +841,19 @@ The current month calendar still shows today with a yellow
 ring, completed days with checks, future days uncompleted, today’s 3 tasks with
 no renewal countdown, and Zaman Serisi streak progress with only 200 Elmas in
 the 7-day reward UI. Gift Box icon/name is not displayed. A day is complete
-only when all 3 task rows are complete. Missing a UTC day breaks the computed
+only when all 3 distinct expected task keys have a canonical completed row.
+Duplicate rows for one key cannot unlock the day or reward. Missing a UTC day breaks the computed
 streak. Progress is real-event-based and idempotent: a successful Daily Wheel
 claim records the Çark çevir row backend-side and is reconciled from
 DailyWheelSpin if the progress row is missing; opening the wheel, tapping
 SONRA, or viewing an already-claimed result never creates progress. Joker tasks
 come from JokerTransaction, Solo level/correct/jokerless events from gameplay
-completion, and friend tasks from the friends API success path.
-recordDailyQuestProgress never grants Diamonds.
+completion, and friend tasks from persisted backend source rows.
+recordDailyQuestProgress ignores client amount, verifies same-actor/server-day
+source provenance for wheel, attempt, answer, Joker, Hint, profile, and friend
+events, rejects missing/foreign/stale proof, and never grants Diamonds. Training
+levels 1-6 have no spend receipt and cannot satisfy Joker/Hint tasks; Hint is not
+Joker. Daily tasks never grant Kronox Puan or affect Leaderboard.
 
 claimDailyQuestReward is the only Daily Calendar reward path. It grants the
 7-day streak reward server-side and idempotently through
@@ -862,10 +877,13 @@ daily_wheel:<playerKey>:<YYYY-MM-DD>
 daily_calendar_streak:<playerKey>:<streak_anchor_date>:<claim_number>:200
 
 ## Online Scoring Persistence
-Two-account invite + scoring proof, OnlineMatchResult idempotency, winner
-exactly +15, loser exactly -6 with checkpoint protection, no Online speed
-bonus, and Profile/Header/Leaderboard refresh to the same persisted Kronox
-Puan.
+updateLobbyGameState commit_result is the backend authority: it verifies the
+terminal Lobby winner and participant actor, computes winner exactly +15 or
+loser exactly -6 with checkpoint protection, reserves/reconciles one
+OnlineMatchResult per actor/lobby, and publishes materialized Profile/Header/
+Leaderboard Puan once. Client source cannot create result rows or write Online
+profile/leaderboard score. Token-proven completed guests use the same backend
+path. Two-account/guest live proof remains a manual release gate.
 
 ## RLS And Backend Security
 Two/three-account RLS probe matrix, service-role scoping.
@@ -957,14 +975,14 @@ Status: Implementation tracking doc.
 - Leaderboard projection: SoloLeaderboardEntry.
 - cleanup/retention jobs are status-transition-first.
 - Base44 index/unique-key declarations are a platform/manual configuration gap.
-- Runtime uniqueness proof remains manual/NOT_AUTOMATABLE.
+- Platform unique-index proof and live multi-request race proof remain manual/NOT_AUTOMATABLE; source-connected canonical selectors, reservation recovery, and fail-closed lock paths are executable Health contracts.
 - Hot UI paths read current-state tables/projections directly and must not sum append-only ledgers or scan full analytics history during render.
 - Admin/Health/report paths may process larger datasets, but they should batch, paginate, cap output, or yield work so long JavaScript tasks do not block the app shell.
 - Gameplay must not run Health, report, projection refresh, cleanup, or aggregate maintenance jobs.
 - Service-role functions bind every user-owned object to authenticated user/admin context before reading, writing, updating, or deleting it.
 - If Base44 cannot enforce a DB-level unique/index constraint, the service layer remains responsible for idempotency and duplicate detection.
-- Daily Wheel and Daily Calendar client status reads share one cache contract: src/lib/dailyStatusCache.js owns the 60s TTL per-actor/per-day status cache and the idle-scheduled post-paint refresh; hooks render cached status immediately, revalidate in the background, preserve cached status through failed refreshes, mark Daily status stale after task-relevant events, ignore stale status responses, and Home never calls the Daily status backend functions directly. claimDailyWheelReward records active daily_calendar:* Çark çevir progress backend-side on successful idempotent claim/recovery; getDailyQuestStatus reconciles Çark çevir from same-player/same-day DailyWheelSpin rows if the progress event write was missed. Opening/reopening the wheel, tapping SONRA, or viewing an already-claimed result does not create Daily progress; opening or reopening the wheel does not create Daily progress.
-- EconomyOperationLock is a function-level TTL/stale-recovery guard for player economy mutations; it reduces parallel read-modify-write races but does not prove DB-level atomic compare-and-swap.
+- Daily Wheel and Daily Calendar client status reads share one cache contract: src/lib/dailyStatusCache.js owns the 60s TTL per-actor/per-day status cache and idle refresh. getDailyQuestStatus serializes assignment repair and selects canonical distinct expected quest keys; claimDailyWheelReward records active Çark çevir progress only after successful idempotent claim/recovery; recordDailyQuestProgress verifies same-actor/day source proof and ignores client amount. Opening/reopening the wheel, tapping SONRA, or viewing an already-claimed result does not create progress.
+- EconomyOperationLock is a function-level deterministic-winner TTL guard for economy, Daily assignment/claim, and Lobby mutations. These P0 paths fail closed if lock infrastructure is unavailable. This reduces parallel read-modify-write races but does not prove DB-level atomic compare-and-swap or a platform unique index.
 - FriendRequestOperationLock is a function-level TTL/stale-recovery guard for friend_request_send duplicate races; it reduces same sender/target parallel creates but does not prove DB-level uniqueness.
 - Solo QuestionAttemptEvent runtime writes are enabled best-effort; Online analytics remains deferred.
 - Manual admin question analytics full email-body report exists with no scheduled trigger and no active PDF attachment requirement.

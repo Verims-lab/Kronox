@@ -151,7 +151,8 @@ export const DAILY_TASK_TEMPLATE_CYCLE = Object.freeze([
   Object.freeze(['wheel', 'joker2', 'level3']),
 ]);
 
-const SAFE_FALLBACK_SEQUENCE = Object.freeze(['correct5', 'level1']);
+const PROVENANCE_SAFE_FALLBACKS = Object.freeze(['level1', 'hint', 'profile', 'friendInvite', 'joker1', 'timeFreeze']);
+const DEFERRED_PROVENANCE_TASK_KEYS = new Set(['correct4', 'correct5', 'jokerless']);
 
 function parseDateKey(value) {
   const ms = Date.parse(`${String(value || '').slice(0, 10)}T00:00:00.000Z`);
@@ -172,16 +173,21 @@ export function resolveDailyTaskTemplates({ dateKey, profileComplete = false, pl
     let key = templateKey;
     let fallbackReason = '';
     if (key === 'profile' && profileComplete) {
-      key = 'correct5';
+      key = 'level1';
       fallbackReason = 'profile_already_complete';
     }
     let task = TASK_LIBRARY[key] || TASK_LIBRARY.correct5;
-    if (task.requiresRegisteredUser && playerType === 'guest') {
-      fallbackReason = `${task.key}_requires_registered_user`;
-      const fallbackKey = SAFE_FALLBACK_SEQUENCE.find((candidate) => {
+    if (DEFERRED_PROVENANCE_TASK_KEYS.has(task.key) || (task.requiresRegisteredUser && playerType === 'guest') || usedQuestTypes.has(task.questType)) {
+      fallbackReason = DEFERRED_PROVENANCE_TASK_KEYS.has(task.key)
+        ? `${task.key}_awaiting_authoritative_receipt`
+        : (task.requiresRegisteredUser && playerType === 'guest' ? `${task.key}_requires_registered_user` : `${task.key}_duplicate_event_type`);
+      const fallbackKey = PROVENANCE_SAFE_FALLBACKS.find((candidate) => {
         const fallbackTask = TASK_LIBRARY[candidate];
-        return fallbackTask && !usedQuestTypes.has(fallbackTask.questType);
-      }) || 'correct5';
+        return fallbackTask
+          && !(fallbackTask.requiresRegisteredUser && playerType === 'guest')
+          && !(candidate === 'profile' && profileComplete)
+          && !usedQuestTypes.has(fallbackTask.questType);
+      }) || 'level1';
       task = TASK_LIBRARY[fallbackKey];
     }
     usedQuestTypes.add(task.questType);
@@ -194,6 +200,34 @@ export function resolveDailyTaskTemplates({ dateKey, profileComplete = false, pl
       runtimeVersion: DAILY_CALENDAR_RUNTIME_VERSION,
     };
   });
+}
+
+function canonicalDailyRow(rows = []) {
+  return [...rows].sort((left, right) => {
+    const leftTime = Date.parse(String(left?.created_at || left?.created_date || ''));
+    const rightTime = Date.parse(String(right?.created_at || right?.created_date || ''));
+    if (Number.isFinite(leftTime) && Number.isFinite(rightTime) && leftTime !== rightTime) return leftTime - rightTime;
+    return String(left?.id || left?._id || '').localeCompare(String(right?.id || right?._id || ''));
+  })[0] || null;
+}
+
+export function getDailyCalendarTaskSlot(row) {
+  const key = String(row?.questKey || row?.quest_key || '');
+  const match = key.match(/^daily_calendar:d\d+:s([1-3]):/);
+  return match ? Number(match[1]) : 0;
+}
+
+export function selectCanonicalDailyTaskRows(rows = []) {
+  return [1, 2, 3]
+    .map((slot) => canonicalDailyRow(rows.filter((row) => getDailyCalendarTaskSlot(row) === slot)))
+    .filter(Boolean);
+}
+
+export function isCanonicalDailyDayComplete(rows = []) {
+  const canonicalRows = selectCanonicalDailyTaskRows(rows);
+  return canonicalRows.length === DAILY_CALENDAR_TASKS_PER_DAY
+    && new Set(canonicalRows.map((row) => String(row?.questKey || row?.quest_key || ''))).size === DAILY_CALENDAR_TASKS_PER_DAY
+    && canonicalRows.every((row) => normalizeDailyTask(row).completed);
 }
 
 export function normalizeDailyTask(row) {

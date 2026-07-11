@@ -439,6 +439,31 @@ Deno.serve(async (req: Request) => {
     const player = await resolveHintPlayer(base44, body);
     if (!player.ok) return player.response;
 
+    const action = String(body?.action || 'consume').trim().toLowerCase();
+    const inventoryEntity = entityStore(base44, 'UserHintInventory');
+    const transactionEntity = entityStore(base44, 'HintTransaction');
+    if (!inventoryEntity?.filter || !inventoryEntity?.create || !inventoryEntity?.update || !transactionEntity?.filter || !transactionEntity?.create) {
+      return json({ ok: false, code: 'hint_inventory_entity_missing', error: 'İpucu kayıtları hazır değil.' }, 500);
+    }
+
+    const starterState = await ensureStarterHints(base44, player);
+    if (action === 'ensure') {
+      return json({
+        ok: true,
+        playerType: player.playerType,
+        hintBalance: normalizeQuantity(starterState?.quantityAfter),
+        starterQuantity: STARTER_QUANTITY,
+        selfHealed: starterState?.selfHealed === true,
+        privateActorKeyReturned: false,
+        rawGuestTokenServerStored: false,
+        noKronoxPuan: true,
+        noLeaderboardImpact: true,
+      });
+    }
+    if (action !== 'consume') {
+      return json({ ok: false, code: 'invalid_hint_action', error: 'İpucu işlemi geçersiz.' }, 400);
+    }
+
     const idempotencyKey = safeText(body?.idempotencyKey || body?.idempotency_key);
     if (!idempotencyKey) {
       return json({ ok: false, code: 'missing_idempotency_key', error: 'İpucu işlemi doğrulanamadı.' }, 400);
@@ -448,13 +473,6 @@ Deno.serve(async (req: Request) => {
       return json({ ok: false, code: 'invalid_reveal_stage', error: 'İpucu aşaması geçersiz.' }, 400);
     }
 
-    const inventoryEntity = entityStore(base44, 'UserHintInventory');
-    const transactionEntity = entityStore(base44, 'HintTransaction');
-    if (!inventoryEntity?.filter || !inventoryEntity?.create || !inventoryEntity?.update || !transactionEntity?.filter || !transactionEntity?.create) {
-      return json({ ok: false, code: 'hint_inventory_entity_missing', error: 'İpucu kayıtları hazır değil.' }, 500);
-    }
-
-    await ensureStarterHints(base44, player);
     const actorKey = String(player.actorKey || '');
     const existingTransaction = await findTransaction(base44, actorKey, idempotencyKey);
     if (existingTransaction) {
@@ -467,8 +485,6 @@ Deno.serve(async (req: Request) => {
         quantityDelta: -1,
         reason: SOLO_USE_REASON,
         source: SOLO_SOURCE,
-        idempotencyKey,
-        transactionId: rowId(existingTransaction),
         hintBalance: balanceAfter,
         balanceAfter,
         revealStage,
@@ -498,8 +514,6 @@ Deno.serve(async (req: Request) => {
           quantityDelta: -1,
           reason: SOLO_USE_REASON,
           source: SOLO_SOURCE,
-          idempotencyKey,
-          transactionId: rowId(secondExistingTransaction),
           hintBalance: balanceAfter,
           balanceAfter,
           revealStage,
@@ -588,8 +602,6 @@ Deno.serve(async (req: Request) => {
         quantityDelta: -1,
         reason: SOLO_USE_REASON,
         source: SOLO_SOURCE,
-        idempotencyKey,
-        transactionId: rowId(transaction),
         balanceBefore: quantityBefore,
         balanceAfter,
         hintBalance: balanceAfter,

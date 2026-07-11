@@ -18,7 +18,7 @@ export function getSafeFriendDisplayName(friend) {
       friend.username,
       friend.friend_name,
     ],
-    friend.friend_email || friend.id || friend.request_id || '',
+    friend.target_ref || friend.id || friend.request_ref || '',
   );
 }
 
@@ -30,6 +30,6 @@ export function getSafeRequestTargetName(request) {
       request.to_name,
       request.username,
     ],
-    request.to_email || request.id || '',
+    request.request_ref || request.id || '',
   );
 }

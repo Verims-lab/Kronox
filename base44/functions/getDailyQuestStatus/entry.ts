@@ -9,6 +9,8 @@ const DAILY_STREAK_REWARD_DIAMONDS = 200;
 const DAILY_TEMPLATE_EPOCH_DATE = '2026-07-06';
 const DAY_MS = 24 * 60 * 60 * 1000;
 const GUEST_ID_PREFIX = 'guest_';
+const ASSIGNMENT_LOCK_TTL_MS = 8_000;
+const ASSIGNMENT_LOCK_SETTLE_MS = 80;
 
 const TASK_TYPES = {
   DAILY_WHEEL_CLAIM: 'daily_wheel_claim',
@@ -155,7 +157,8 @@ const DAILY_TASK_TEMPLATE_CYCLE = [
   ['wheel', 'hint', 'level3'],
   ['wheel', 'joker2', 'level3'],
 ];
-const SAFE_GUEST_FALLBACKS = ['correct5', 'level1'];
+const PROVENANCE_SAFE_FALLBACKS = ['level1', 'hint', 'profile', 'friendInvite', 'joker1', 'timeFreeze'];
+const DEFERRED_PROVENANCE_TASK_KEYS = new Set(['correct4', 'correct5', 'jokerless']);
 
 function json(payload: unknown, status = 200) {
   return Response.json(payload, { status });
@@ -322,7 +325,71 @@ async function resolveDailyCalendarPlayer(base44: any, body: any) {
 function progressEntity(base44: any, player: any = null) {
   const serviceEntity = base44?.asServiceRole?.entities?.UserDailyQuestProgress || null;
   const authEntity = base44?.entities?.UserDailyQuestProgress || null;
-  return player?.isGuest ? serviceEntity : (authEntity || serviceEntity);
+  return serviceEntity || authEntity;
+}
+
+function economyOperationLockEntity(base44: any) {
+  return base44?.asServiceRole?.entities?.EconomyOperationLock || null;
+}
+
+function canonicalRow(rows: any[] = []) {
+  return [...rows].sort((left, right) => {
+    const timeDelta = Date.parse(String(left?.created_at || left?.created_date || '')) - Date.parse(String(right?.created_at || right?.created_date || ''));
+    if (Number.isFinite(timeDelta) && timeDelta !== 0) return timeDelta;
+    return String(rowId(left) || '').localeCompare(String(rowId(right) || ''));
+  })[0] || null;
+}
+
+function canonicalRowsForTasks(rows: any[], tasks: any[]) {
+  return tasks.map((task) => canonicalRow(
+    rows.filter((row) => String(row?.quest_key || '') === task.questKey),
+  )).filter(Boolean);
+}
+
+async function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function withAssignmentLock(base44: any, player: any, dateKey: string, callback: (canCreate: boolean) => Promise<any[]>) {
+  const entity = economyOperationLockEntity(base44);
+  if (!entity?.filter || !entity?.create || !entity?.update) return callback(true);
+  const lockKey = `daily-calendar-assignment:${player.ownerKey}:${dateKey}`;
+  const nowMs = Date.now();
+  const activeRows = await entity.filter({ lock_key: lockKey, status: 'active' }, 'acquired_at', 20).catch(() => []);
+  const active = (activeRows || []).find((row: any) => {
+    const expiresAt = Date.parse(String(row?.expires_at || ''));
+    return !Number.isFinite(expiresAt) || expiresAt > nowMs;
+  });
+  if (active) {
+    await sleep(ASSIGNMENT_LOCK_SETTLE_MS * 3);
+    return callback(false);
+  }
+  const acquiredAt = new Date().toISOString();
+  const lock = await entity.create({
+    lock_key: lockKey,
+    actor_key: player.playerKey,
+    operation_scope: 'daily_calendar_assignment',
+    operation_id: `${dateKey}:ensure-three-tasks`,
+    status: 'active',
+    acquired_at: acquiredAt,
+    expires_at: new Date(nowMs + ASSIGNMENT_LOCK_TTL_MS).toISOString(),
+    metadata: { runtimeVersion: DAILY_CALENDAR_RUNTIME_VERSION, expectedTaskCount: DAILY_CALENDAR_TASKS_PER_DAY },
+  }).catch(() => null);
+  await sleep(ASSIGNMENT_LOCK_SETTLE_MS);
+  const contenders = await entity.filter({ lock_key: lockKey, status: 'active' }, 'acquired_at', 20).catch(() => []);
+  const winner = canonicalRow((contenders || []).filter((row: any) => {
+    const expiresAt = Date.parse(String(row?.expires_at || ''));
+    return !Number.isFinite(expiresAt) || expiresAt > Date.now();
+  }));
+  const canCreate = Boolean(rowId(lock) && rowId(winner) === rowId(lock));
+  try {
+    if (!canCreate) await sleep(ASSIGNMENT_LOCK_SETTLE_MS * 3);
+    return await callback(canCreate);
+  } finally {
+    if (rowId(lock)) {
+      await entity.update(rowId(lock), { status: 'released', released_at: new Date().toISOString() }).catch(() => null);
+    }
+  }
 }
 
 function playerEntity(base44: any, player: any) {
@@ -338,16 +405,21 @@ function resolveTaskTemplates(dateKey: string, player: any) {
     let key = templateKey;
     let fallbackReason = '';
     if (key === 'profile' && profileComplete) {
-      key = 'correct5';
+      key = 'level1';
       fallbackReason = 'profile_already_complete';
     }
     let task = TASK_LIBRARY[key] || TASK_LIBRARY.correct5;
-    if (task.requiresRegisteredUser && player?.isGuest) {
-      fallbackReason = `${task.key}_requires_registered_user`;
-      const fallbackKey = SAFE_GUEST_FALLBACKS.find((candidate) => {
+    if (DEFERRED_PROVENANCE_TASK_KEYS.has(task.key) || (task.requiresRegisteredUser && player?.isGuest) || usedQuestTypes.has(task.questType)) {
+      fallbackReason = DEFERRED_PROVENANCE_TASK_KEYS.has(task.key)
+        ? `${task.key}_awaiting_authoritative_receipt`
+        : (task.requiresRegisteredUser && player?.isGuest ? `${task.key}_requires_registered_user` : `${task.key}_duplicate_event_type`);
+      const fallbackKey = PROVENANCE_SAFE_FALLBACKS.find((candidate) => {
         const fallbackTask = TASK_LIBRARY[candidate];
-        return fallbackTask && !usedQuestTypes.has(fallbackTask.questType);
-      }) || 'correct5';
+        return fallbackTask
+          && !(fallbackTask.requiresRegisteredUser && player?.isGuest)
+          && !(candidate === 'profile' && profileComplete)
+          && !usedQuestTypes.has(fallbackTask.questType);
+      }) || 'level1';
       task = TASK_LIBRARY[fallbackKey];
     }
     usedQuestTypes.add(task.questType);
@@ -444,7 +516,7 @@ function publicTask(row: any) {
   const targetValue = Math.max(1, normalizeNumber(row?.target_value, 1));
   const progressValue = Math.min(targetValue, normalizeNumber(row?.progress_value, 0));
   return {
-    id: rowId(row),
+    id: String(row?.quest_key || ''),
     questKey: String(row?.quest_key || ''),
     questDate: String(row?.quest_date || ''),
     title: String(row?.title || ''),
@@ -510,22 +582,25 @@ async function reconcileDailyWheelTaskFromClaim(base44: any, player: any, rows: 
 
 async function ensureTodayTasks(base44: any, player: any, dateKey: string) {
   const tasks = resolveTaskTemplates(dateKey, player).slice(0, DAILY_CALENDAR_TASKS_PER_DAY);
-  const rows = await readRowsForDate(base44, player, dateKey);
-  const byQuestKey = new Map(rows.map((row: any) => [String(row?.quest_key || ''), row]));
-  for (const task of tasks) {
-    if (byQuestKey.has(task.questKey)) continue;
-    const created = await createProgressRow(base44, player, dateKey, task);
-    if (created) byQuestKey.set(task.questKey, created);
-  }
-  const refreshed = await readRowsForDate(base44, player, dateKey);
-  const refreshedByKey = new Map(refreshed.map((row: any) => [String(row?.quest_key || ''), row]));
-  return tasks.map((task) => refreshedByKey.get(task.questKey) || byQuestKey.get(task.questKey)).filter(Boolean);
+  return withAssignmentLock(base44, player, dateKey, async (canCreate) => {
+    const rows = await readRowsForDate(base44, player, dateKey);
+    if (canCreate) {
+      const existingKeys = new Set(rows.map((row: any) => String(row?.quest_key || '')));
+      for (const task of tasks) {
+        if (!existingKeys.has(task.questKey)) await createProgressRow(base44, player, dateKey, task);
+      }
+    }
+    const refreshed = await readRowsForDate(base44, player, dateKey);
+    return canonicalRowsForTasks(refreshed, tasks);
+  });
 }
 
-function isDayCompleted(rows: any[] = []) {
-  const calendarRows = rows.filter(isDailyCalendarRow);
-  if (calendarRows.length < DAILY_CALENDAR_TASKS_PER_DAY) return false;
-  return calendarRows.slice(0, DAILY_CALENDAR_TASKS_PER_DAY).every((row) => publicTask(row).completed);
+function isDayCompleted(rows: any[] = [], dateKey: string, player: any) {
+  const tasks = resolveTaskTemplates(dateKey, player).slice(0, DAILY_CALENDAR_TASKS_PER_DAY);
+  const canonicalRows = canonicalRowsForTasks(rows.filter(isDailyCalendarRow), tasks);
+  return canonicalRows.length === DAILY_CALENDAR_TASKS_PER_DAY
+    && new Set(canonicalRows.map((row) => String(row?.quest_key || ''))).size === DAILY_CALENDAR_TASKS_PER_DAY
+    && canonicalRows.every((row) => publicTask(row).completed);
 }
 
 async function readPlayerCalendarRows(base44: any, player: any, limit = 420) {
@@ -546,7 +621,7 @@ function groupRowsByDate(rows: any[] = []) {
   return grouped;
 }
 
-function buildMonthGrid(monthKey: string, serverDate: string, groupedRows: Map<string, any[]>) {
+function buildMonthGrid(monthKey: string, serverDate: string, groupedRows: Map<string, any[]>, player: any) {
   const [yearRaw, monthRaw] = String(monthKey || '').split('-');
   const year = Number(yearRaw);
   const monthIndex = Number(monthRaw) - 1;
@@ -563,18 +638,18 @@ function buildMonthGrid(monthKey: string, serverDate: string, groupedRows: Map<s
       dayNumber: date.getUTCDate(),
       inCurrentMonth,
       isToday: dateKey === serverDate,
-      completed: isDayCompleted(groupedRows.get(dateKey) || []),
+      completed: isDayCompleted(groupedRows.get(dateKey) || [], dateKey, player),
       future: dateKey > serverDate,
     });
   }
   return days;
 }
 
-function computeCurrentStreak(groupedRows: Map<string, any[]>, serverDate: string) {
-  const todayCompleted = isDayCompleted(groupedRows.get(serverDate) || []);
+function computeCurrentStreak(groupedRows: Map<string, any[]>, serverDate: string, player: any) {
+  const todayCompleted = isDayCompleted(groupedRows.get(serverDate) || [], serverDate, player);
   let cursor = todayCompleted ? serverDate : addDays(serverDate, -1);
   let streak = 0;
-  while (isDayCompleted(groupedRows.get(cursor) || [])) {
+  while (isDayCompleted(groupedRows.get(cursor) || [], cursor, player)) {
     streak += 1;
     cursor = addDays(cursor, -1);
     if (streak > 365) break;
@@ -625,7 +700,7 @@ Deno.serve(async (req: Request) => {
 
     const allRows = await readPlayerCalendarRows(base44, player);
     const groupedRows = groupRowsByDate(allRows);
-    const { todayCompleted, currentStreak } = computeCurrentStreak(groupedRows, serverDate);
+    const { todayCompleted, currentStreak } = computeCurrentStreak(groupedRows, serverDate, player);
     const streakAnchorDate = currentStreak > 0 ? addDays(todayCompleted ? serverDate : addDays(serverDate, -1), -(currentStreak - 1)) : serverDate;
     const storedAnchor = String(player.row?.daily_calendar_streak_anchor_date || '');
     const storedClaimCount = storedAnchor === streakAnchorDate
@@ -636,7 +711,7 @@ Deno.serve(async (req: Request) => {
     const streakRewardProgress = streakRewardReady
       ? DAILY_STREAK_REWARD_DAYS
       : Math.max(0, Math.min(DAILY_STREAK_REWARD_DAYS, currentStreak - storedClaimCount * DAILY_STREAK_REWARD_DAYS));
-    const streakRewardCycleId = `daily_calendar_streak:${player.playerKey}:${streakAnchorDate}:${storedClaimCount + 1}`;
+    const streakRewardCycleId = `daily_calendar_streak:${streakAnchorDate}:${storedClaimCount + 1}`;
 
     await updatePlayerCalendarSummary(base44, player, {
       daily_calendar_current_streak: currentStreak,
@@ -656,7 +731,7 @@ Deno.serve(async (req: Request) => {
       tasksPerDay: DAILY_CALENDAR_TASKS_PER_DAY,
       tasks: refreshedTodayRows.map(publicTask).slice(0, DAILY_CALENDAR_TASKS_PER_DAY),
       quests: refreshedTodayRows.map(publicTask).slice(0, DAILY_CALENDAR_TASKS_PER_DAY),
-      dayCompleted: isDayCompleted(refreshedTodayRows),
+      dayCompleted: isDayCompleted(refreshedTodayRows, serverDate, player),
       currentStreak,
       streakRewardProgress,
       streakRewardReady,
@@ -665,9 +740,9 @@ Deno.serve(async (req: Request) => {
       streakRewardCycleId,
       month: {
         monthKey,
-        calendarDays: buildMonthGrid(monthKey, serverDate, groupedRows),
+        calendarDays: buildMonthGrid(monthKey, serverDate, groupedRows, player),
       },
-      calendarDays: buildMonthGrid(monthKey, serverDate, groupedRows),
+      calendarDays: buildMonthGrid(monthKey, serverDate, groupedRows, player),
       templateCycleLength: DAILY_CALENDAR_TEMPLATE_CYCLE_LENGTH,
       hintTasksUse: TASK_TYPES.HINT_USED,
       legacyCleanupDryRun: {

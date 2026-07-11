@@ -11,6 +11,7 @@ import {
   getSoloProgressScore,
 } from '@/lib/kronoxScore';
 import applyOnlineResultSource from '../../lib/applyOnlineResult.js?raw';
+import updateLobbyGameStateSource from '../../../base44/functions/updateLobbyGameState/entry.ts?raw';
 import kronoxScoreSource from '../../lib/kronoxScore.js?raw';
 import gameSource from '../../pages/Game.jsx?raw';
 import gameOverSource from './GameOver.jsx?raw';
@@ -148,11 +149,11 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('online_score_persistence_refreshes_user_state',
-    'After score apply, user/profile state is refreshed or updated',
+    'After backend score commit, linked-user state is refreshed',
     () => {
       const missing = missingTokens(applyOnlineResultSource, [
-        'refreshCurrentUserAfterOnlineScore',
-        'await base44.auth.updateMe(payload)',
+        'commitOnlineMatchResult',
+        'refreshedUser = await base44.auth.me()',
         'refreshedUser',
       ]);
       const gameMissing = missingTokens(gameSource, ['if (res?.refreshedUser) setCurrentUser(res.refreshedUser)']);
@@ -162,15 +163,16 @@ export const EXTRA_TESTS = [
           actual: { missing, gameMissing },
         });
       }
-      return pass('Online score apply refreshes auth user state and Game consumes the refreshed user.', { verification: 'STATIC_CONTRACT' });
+      return pass('Backend score commit is followed by an auth refresh, and Game consumes the refreshed linked-user state.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('online_match_result_not_enough_without_user_score',
     'OnlineMatchResult row alone is not considered sufficient if visible score does not update',
     () => {
-      const missing = missingTokens(applyOnlineResultSource, [
-        'reconcileOnlineMatchResultForCurrentUser',
-        'audit_row_exists_but_visible_score_matches_before',
+      const missing = missingTokens(updateLobbyGameStateSource, [
+        'reservationAlreadyWritten',
+        'reconciledAfterPartialWrite',
+        'publishLeaderboardProjection',
         'score_after',
         'score_before',
       ]);
@@ -180,26 +182,20 @@ export const EXTRA_TESTS = [
           missing,
         });
       }
-      return pass('Existing audit rows are checked for safe user-score reconciliation.', { verification: 'STATIC_CONTRACT' });
+      return pass('Reserved result rows reconcile profile/projection state before becoming applied.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('online_score_idempotency_does_not_mark_applied_before_user_update',
-    'Idempotency marker is durable before visible score write and has recovery',
+    'Backend reservation is durable before score write and has recovery',
     () => {
-      const src = safeStr(applyOnlineResultSource);
-      const fnStart = src.indexOf('export async function applyOnlineMatchToCurrentUser');
-      const applySource = fnStart >= 0 ? src.slice(fnStart) : src;
-      // Codex169 — the apply path now persists a single prepared `payload`
-      // (online_progress + unified kronox_puan_total) via
-      // `await base44.auth.updateMe(payload)`. We still require the audit
-      // reservation to happen BEFORE that visible-score write.
-      const updateIndex = applySource.indexOf('await base44.auth.updateMe(payload)');
-      const auditIndex = applySource.indexOf('const onlineMatchResult = await createOnlineMatchResult');
+      const src = safeStr(updateLobbyGameStateSource);
+      const updateIndex = src.indexOf('await actor.profileEntity.update');
+      const auditIndex = src.indexOf('resultReservation = await resultEntity.create');
       const missing = missingTokens(src, [
-        'OnlineMatchResult audit reservation failed; score not applied',
-        'reconcileOnlineMatchResultForCurrentUser',
-        'audit_row_exists_but_visible_score_matches_before',
-        'reconciled_from_audit',
+        "status: 'reserved'",
+        'reservationAlreadyWritten',
+        'online_result_reconciliation_conflict',
+        'reconciledAfterPartialWrite',
       ]);
       if (updateIndex < 0 || auditIndex < 0 || !(auditIndex < updateIndex) || missing.length) {
         return fail('Online score can still write visible Puan before durable idempotency or without recovery.', {
@@ -207,18 +203,18 @@ export const EXTRA_TESTS = [
           actual: { updateIndex, auditIndex, missing },
         });
       }
-      return pass('OnlineMatchResult idempotency is reserved before visible score write and guarded by reconciliation.', { verification: 'STATIC_CONTRACT' });
+      return pass('Backend reserves OnlineMatchResult before profile score mutation and reconciles interrupted writes.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('online_score_reconcile_detects_result_without_user_score',
     'Bad prior OnlineMatchResult-without-score state is detectable/recoverable',
     () => {
-      const missing = missingTokens(applyOnlineResultSource, [
-        'shouldRepairOnlineMatchResult',
-        'scoreMatchesBefore',
-        'scoreMatchesAfter',
-        'newer_online_progress_exists',
-        'reconciled_from_audit',
+      const missing = missingTokens(updateLobbyGameStateSource, [
+        'reservedScoreAfter',
+        'currentScore === reservedScoreAfter',
+        'currentProgress?.lastMatchId',
+        'online_result_reconciliation_conflict',
+        'reconciledAfterPartialWrite',
       ]);
       if (missing.length) return fail('Safe reconciliation guard is missing.', { verification: 'STATIC_CONTRACT', missing });
       return pass('Prior audit-without-visible-score state has a guarded reconciliation path.', { verification: 'STATIC_CONTRACT' });
@@ -246,13 +242,21 @@ export const EXTRA_TESTS = [
   makeCase('online_score_survives_refresh_contract',
     'Persisted source is server/user profile, not local React state',
     () => {
-      const missing = missingTokens(applyOnlineResultSource, [
-        'base44.auth.updateMe',
+      const backendMissing = missingTokens(updateLobbyGameStateSource, [
+        'profileEntity.update',
         'online_progress',
-        'refreshCurrentUserAfterOnlineScore',
+        'kronox_puan_total',
+        'userPatch',
       ]);
-      if (missing.length) return fail('Online score may not survive refresh.', { verification: 'STATIC_CONTRACT', missing });
-      return pass('Online score writes User.online_progress and refreshes from auth profile.', { verification: 'STATIC_CONTRACT' });
+      const clientMissing = missingTokens(applyOnlineResultSource, ['base44.auth.me()', 'refreshedUser', 'userPatch: data.userPatch']);
+      const gameMissing = missingTokens(gameSource, ['setCurrentUser(res.refreshedUser)', 'buildOnlineScorePopupState']);
+      if (backendMissing.length || clientMissing.length || gameMissing.length) {
+        return fail('Backend-persisted Online score or linked-user refresh contract drifted.', {
+          verification: 'STATIC_CONTRACT',
+          missing: { backendMissing, clientMissing, gameMissing },
+        });
+      }
+      return pass('Backend persists Online profile/projection state and the linked client refreshes from auth; guests receive a safe backend patch/result.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('online_score_not_solo_leaderboard_mutation',

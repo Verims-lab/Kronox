@@ -5,11 +5,9 @@
 // because RLS forbids the client from writing rows owned by another user.
 
 import { base44 } from '@/api/base44Client';
-import { getSafePublicUsernameLabel } from '@/lib/publicIdentity';
-import { getPresenceLookupKeyForEmail } from '@/lib/presence';
 import { normalizeSafePublicUsernameInput } from '@/lib/guestProfile';
-import { pickPublicAvatarFields } from '@/lib/avatarOptions';
 import { recordDailyQuestProgress } from '@/lib/dbGateway/dailyQuestGateway';
+import { loadSocialSnapshot } from '@/lib/onlinePlayerSelection';
 
 export const USERNAME_NOT_FOUND_MESSAGE = 'Kronox’ta bu kullanıcı adıyla biri yok.';
 export const OPEN_INVITE_EXISTS_MESSAGE = 'Bu kişiye gönderilmiş açık davet var.';
@@ -85,120 +83,51 @@ export function isFriendRequestExpired(request, now = Date.now()) {
   return Number.isFinite(expiresAt) && expiresAt <= now;
 }
 
-async function loadUserPublicProfileByEmail(email) {
-  const normalized = normalizeEmail(email);
-  if (!normalized) return null;
-  try {
-    const rows = await base44.entities.User.filter({ email: normalized }, '-updated_date', 1);
-    return rows?.[0] || null;
-  } catch {
-    return null;
-  }
+let socialSnapshotPromise = null;
+
+export function invalidateFriendsSnapshot() {
+  socialSnapshotPromise = null;
 }
 
-async function attachSafeFriendIdentity(rows) {
-  const uniqueEmails = Array.from(new Set(rows.map((row) => normalizeEmail(row.friend_email)).filter(Boolean)));
-  const profiles = await Promise.all(uniqueEmails.map(async (email) => [email, await loadUserPublicProfileByEmail(email)]));
-  const profileByEmail = Object.fromEntries(profiles);
-  return rows.map((row) => {
-    const friendEmail = normalizeEmail(row.friend_email);
-    const profile = profileByEmail[friendEmail] || null;
-    const friendUsername = getSafePublicUsernameLabel(
-      [
-        profile?.username,
-        profile?.public_username,
-        row.friend_name,
-      ],
-      friendEmail || row.id,
-    );
-    return {
-      ...row,
-      friend_email: friendEmail,
-      friend_username: friendUsername,
-      friend_name: friendUsername,
-      presence_key: getPresenceLookupKeyForEmail(friendEmail),
-      ...pickPublicAvatarFields(profile),
-    };
-  });
+async function getFriendsSnapshot() {
+  if (!socialSnapshotPromise) {
+    socialSnapshotPromise = loadSocialSnapshot().finally(() => {
+      window.setTimeout(() => { socialSnapshotPromise = null; }, 500);
+    });
+  }
+  return socialSnapshotPromise;
 }
 
 export async function loadFriends(myEmail) {
-  // Codex080 — Normalized model. An accepted FriendRequest IS the friendship.
-  // Both sender (from_email === me) and recipient (to_email === me) can read
-  // their accepted rows under existing FriendRequest RLS. We merge both sides
-  // and project them into the {friend_email, friend_name} shape the UI
-  // already consumes, so FriendListItem and removeFriend keep working with
-  // zero UI changes.
-  const me = normalizeEmail(myEmail);
-  if (!me) return [];
-  const [incomingAccepted, outgoingAccepted] = await Promise.all([
-    base44.entities.FriendRequest.filter({ to_email: me, status: 'accepted' }, '-updated_date', 200),
-    base44.entities.FriendRequest.filter({ from_email: me, status: 'accepted' }, '-updated_date', 200),
-  ]);
-  const projected = [
-    ...(incomingAccepted || []).map((r) => ({
-      id: `fr:${r.id}`,
-      request_id: r.id,
-      user_email: me,
-      friend_email: normalizeEmail(r.from_email),
-      friend_name: r.from_name || r.from_email,
-      created_date: r.created_date,
-      updated_date: r.updated_date,
-    })),
-    ...(outgoingAccepted || []).map((r) => ({
-      id: `fr:${r.id}`,
-      request_id: r.id,
-      user_email: me,
-      friend_email: normalizeEmail(r.to_email),
-      friend_name: r.to_name || r.to_email,
-      created_date: r.created_date,
-      updated_date: r.updated_date,
-    })),
-  ];
-  // Dedupe by friend_email in case the same pair somehow has rows on both sides.
-  const seen = new Set();
-  const deduped = projected.filter((row) => {
-    if (seen.has(row.friend_email)) return false;
-    seen.add(row.friend_email);
-    return true;
-  });
-  return attachSafeFriendIdentity(deduped);
+  if (!normalizeEmail(myEmail)) return [];
+  const snapshot = await getFriendsSnapshot();
+  return Array.isArray(snapshot?.friends) ? snapshot.friends : [];
 }
 
 export async function loadIncomingRequests(myEmail) {
-  const me = normalizeEmail(myEmail);
-  if (!me) return [];
-  const rows = await base44.entities.FriendRequest.filter(
-    { to_email: me, status: 'pending' },
-    '-created_date',
-    100,
-  );
-  return (rows || []).filter((row) => !isFriendRequestExpired(row));
+  if (!normalizeEmail(myEmail)) return [];
+  const snapshot = await getFriendsSnapshot();
+  return (Array.isArray(snapshot?.incomingFriendRequests) ? snapshot.incomingFriendRequests : [])
+    .filter((row) => !isFriendRequestExpired(row));
 }
 
 export async function loadOutgoingRequests(myEmail) {
-  const me = normalizeEmail(myEmail);
-  if (!me) return [];
-  const [pendingRows, expiredRows] = await Promise.all([
-    base44.entities.FriendRequest.filter(
-      { from_email: me, status: 'pending' },
-      '-created_date',
-      100,
-    ),
-    base44.entities.FriendRequest.filter(
-      { from_email: me, status: 'expired' },
-      '-created_date',
-      100,
-    ).catch(() => []),
-  ]);
-  const byId = new Map();
-  [...(pendingRows || []), ...(expiredRows || [])].forEach((row) => {
-    const key = row?.id || row?._id;
-    if (key) byId.set(key, row);
-  });
-  return Array.from(byId.values()).sort((a, b) => (
-    parseFriendRequestTime(b?.created_at || b?.created_date) - parseFriendRequestTime(a?.created_at || a?.created_date)
-  ));
+  if (!normalizeEmail(myEmail)) return [];
+  const snapshot = await getFriendsSnapshot();
+  return [...(Array.isArray(snapshot?.outgoingFriendRequests) ? snapshot.outgoingFriendRequests : [])]
+    .sort((a, b) => parseFriendRequestTime(b?.created_at) - parseFriendRequestTime(a?.created_at));
+}
+
+export async function loadFriendsPageSnapshot(myEmail) {
+  if (!normalizeEmail(myEmail)) return { friends: [], incoming: [], outgoing: [] };
+  invalidateFriendsSnapshot();
+  const snapshot = await getFriendsSnapshot();
+  return {
+    friends: Array.isArray(snapshot?.friends) ? snapshot.friends : [],
+    incoming: (Array.isArray(snapshot?.incomingFriendRequests) ? snapshot.incomingFriendRequests : [])
+      .filter((row) => !isFriendRequestExpired(row)),
+    outgoing: Array.isArray(snapshot?.outgoingFriendRequests) ? snapshot.outgoingFriendRequests : [],
+  };
 }
 
 export async function sendFriendRequest({ me = null, target = '', toEmail = '' } = {}) {
@@ -248,6 +177,7 @@ export async function sendFriendRequest({ me = null, target = '', toEmail = '' }
   if (data.emailSent === false && data.emailError) {
     console.warn('[friendsApi] friend-request email not delivered:', data.emailError, 'marker=email_failed');
   }
+  invalidateFriendsSnapshot();
   const requestId = String(data.requestId || data.request_id || data.friendRequestId || data.id || '').trim();
   if (requestId) {
     recordDailyQuestProgress({
@@ -267,15 +197,14 @@ export async function sendFriendRequest({ me = null, target = '', toEmail = '' }
 
 export async function rejectIncomingRequest(requestId) {
   if (!requestId) throw new Error('Geçersiz istek.');
-  await base44.entities.FriendRequest.update(requestId, { status: 'rejected' });
+  await base44.functions.invoke('acceptFriendRequest', { requestRef: requestId, action: 'reject' });
+  invalidateFriendsSnapshot();
 }
 
 export async function cancelOutgoingRequest(requestId) {
   if (!requestId) throw new Error('Geçersiz istek.');
-  await base44.entities.FriendRequest.update(requestId, {
-    status: 'cancelled',
-    cancelled_at: new Date().toISOString(),
-  });
+  await base44.functions.invoke('acceptFriendRequest', { requestRef: requestId, action: 'cancel' });
+  invalidateFriendsSnapshot();
 }
 
 export async function acceptIncomingRequest(requestOrId) {
@@ -292,7 +221,7 @@ export async function acceptIncomingRequest(requestOrId) {
 
   let res;
   try {
-    res = await base44.functions.invoke('acceptFriendRequest', { requestId });
+    res = await base44.functions.invoke('acceptFriendRequest', { requestRef: requestId, action: 'accept' });
   } catch (err) {
     // Real network/runtime failure — log the technical reason, surface
     // a friendly Turkish message to the UI.
@@ -315,20 +244,22 @@ export async function acceptIncomingRequest(requestOrId) {
       source: 'friendsApi.acceptIncomingRequest',
     },
   }).catch(() => null);
+  invalidateFriendsSnapshot();
   return data;
 }
 
-export async function removeFriend(friendEmail) {
-  const target = normalizeEmail(friendEmail);
-  if (!target) throw new Error('Geçersiz e-posta.');
+export async function removeFriend(targetRef) {
+  const target = String(targetRef || '').trim();
+  if (!target) throw new Error('Geçersiz arkadaş.');
   let res;
   try {
-    res = await base44.functions.invoke('removeFriend', { friendEmail: target });
+    res = await base44.functions.invoke('removeFriend', { targetRef: target });
   } catch (err) {
     // Codex571 — Never surface raw SDK/network errors (e.g. "Rate limit
     // exceeded") to the UI. Always throw a safe, recoverable Turkish message.
     throw new Error(getSafeFriendsErrorMessage(err));
   }
   if (res?.data?.error) throw new Error(getSafeFriendsErrorMessage({ message: res.data.error }));
+  invalidateFriendsSnapshot();
   return res?.data;
 }

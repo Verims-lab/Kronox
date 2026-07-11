@@ -60,8 +60,8 @@ export function getGameInviteDedupeKey(invite) {
   if (!invite) return '';
   if (invite.id) return `id:${invite.id}`;
   const lobbyId = getInviteLobbyId(invite);
-  const sender = getInviteSenderEmail(invite);
-  const recipient = getInviteRecipientEmail(invite);
+  const sender = invite?.sender_name || invite?.from_name || getInviteSenderEmail(invite);
+  const recipient = invite?.recipient_name || invite?.to_name || getInviteRecipientEmail(invite);
   return [lobbyId, sender, recipient].filter(Boolean).join('|');
 }
 
@@ -150,6 +150,7 @@ export function isInviteExpired(invite, now = Date.now()) {
 }
 
 export function isIncomingInviteForUser(invite, userEmail) {
+  if (invite?.recipient_is_self === true || invite?.direction === 'incoming') return true;
   const me = normalizeEmail(userEmail);
   if (!me) return false;
   return getInviteRecipientEmail(invite) === me;
@@ -161,11 +162,13 @@ export function getGameInviteActiveFilterReason(invite, userEmail, now = Date.no
   const status = getInviteStatus(invite);
   if (status !== 'pending') return TERMINAL_GAME_INVITE_STATUSES.has(status) ? `terminal_${status}` : `status_${status || 'missing'}`;
 
-  const recipientEmail = getInviteRecipientEmail(invite);
-  if (!recipientEmail) return 'missing_recipient';
-
-  const me = normalizeEmail(userEmail);
-  if (me && recipientEmail !== me) return 'recipient_mismatch';
+  const recipientIsSelf = invite?.recipient_is_self === true || invite?.direction === 'incoming';
+  if (!recipientIsSelf) {
+    const recipientEmail = getInviteRecipientEmail(invite);
+    if (!recipientEmail) return 'missing_recipient';
+    const me = normalizeEmail(userEmail);
+    if (me && recipientEmail !== me) return 'recipient_mismatch';
+  }
 
   if (isInviteExpired(invite, now)) return 'expired';
 
@@ -223,15 +226,14 @@ export function summarizeGameInviteForDiagnostics(invite, userEmail, now = Date.
     reason,
     inviteId: invite?.id || null,
     lobby_id: invite?.lobby_id || invite?.lobbyId || null,
-    from_email: invite?.from_email || invite?.sender_email || invite?.fromEmail || null,
-    to_email: invite?.to_email || invite?.recipient_email || invite?.toEmail || null,
+    direction: invite?.direction || null,
+    sender_name: invite?.sender_name || invite?.from_name || null,
     status: invite?.status || null,
     created_at: invite?.created_at || invite?.createdAt || invite?.created_date || null,
     expires_at: invite?.expires_at || invite?.expiresAt || null,
     now: new Date(now).toISOString(),
     remainingMs: getInviteRemainingMs(invite, now),
-    currentUserEmail: userEmail || null,
-    normalizedRecipientMatch: normalizeEmail(userEmail) ? isIncomingInviteForUser(invite, userEmail) : null,
+    recipientIsSelf: isIncomingInviteForUser(invite, userEmail),
   };
 }
 

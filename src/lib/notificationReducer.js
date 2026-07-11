@@ -95,6 +95,13 @@ function mergeFetchSuccess(state, action) {
   const preserveExisting = action.preserveExisting !== false;
   const incomingFriendRows = safeRows(action.friendRequestRows || action.friendRows);
   const incomingInviteRows = safeRows(action.gameInviteRows || action.inviteRows);
+  const acceptedOutgoingRows = safeRows(action.acceptedOutgoingInvites);
+  const acceptedOutgoingById = new Map(
+    (preserveExisting ? state.acceptedOutgoingInvites : []).map((row) => [row?.id, row]),
+  );
+  acceptedOutgoingRows.forEach((row) => {
+    if (row?.id) acceptedOutgoingById.set(row.id, row);
+  });
   const emptyStaleFetch = preserveExisting &&
     incomingFriendRows.length === 0 &&
     incomingInviteRows.length === 0 &&
@@ -116,6 +123,7 @@ function mergeFetchSuccess(state, action) {
       email,
       now,
     ),
+    acceptedOutgoingInvites: Array.from(acceptedOutgoingById.values()).filter(Boolean),
     loading: false,
     error: null,
     bootstrapped: true,
@@ -209,6 +217,11 @@ export function notificationReducer(state = createNotificationInitialState(), ac
     }
 
     case NOTIFICATION_ACTIONS.INVITE_OPENED:
+      return {
+        ...state,
+        lastLifecycleEvent: { type: action.type, rowType: NOTIFICATION_ROW_TYPES.GAME_INVITE, source: action.source || null },
+      };
+
     case NOTIFICATION_ACTIONS.INVITE_REJECTED:
       return {
         ...removeGameInvite(state, action.inviteId || action.rowId || action.id),
@@ -235,4 +248,3 @@ export function notificationReducer(state = createNotificationInitialState(), ac
       return state;
   }
 }
-

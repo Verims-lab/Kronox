@@ -1,5 +1,6 @@
 import { base44 } from '@/api/base44Client';
 import { pickPublicAvatarFields } from '@/lib/avatarOptions';
+import { loadSocialSnapshot } from '@/lib/onlinePlayerSelection';
 
 export const PRESENCE_ONLINE_TTL_MS = 75 * 1000;
 export const PRESENCE_HEARTBEAT_MS = 25 * 1000;
@@ -9,21 +10,6 @@ export const PRESENCE_STATUS = Object.freeze({
   OFFLINE: 'offline',
   UNKNOWN: 'unknown',
 });
-
-function normalizeEmail(raw) {
-  return String(raw || '').trim().toLowerCase();
-}
-
-export function getPresenceLookupKeyForEmail(email) {
-  const normalized = normalizeEmail(email);
-  if (!normalized) return '';
-  let hash = 2166136261;
-  for (let i = 0; i < normalized.length; i += 1) {
-    hash ^= normalized.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return `u_${(hash >>> 0).toString(36)}`;
-}
 
 function readTimestampMs(value) {
   if (!value) return NaN;
@@ -41,7 +27,7 @@ export function isPresenceOnline(presence, nowMs = Date.now()) {
 }
 
 export function getFriendDisplayPresence(friend, presenceByKey = {}, nowMs = Date.now()) {
-  const presenceKey = friend?.presence_key || getPresenceLookupKeyForEmail(friend?.friend_email);
+  const presenceKey = friend?.presence_ref || friend?.presence_key || friend?.target_ref || '';
   const presence = presenceKey ? presenceByKey[presenceKey] : null;
   const online = isPresenceOnline(presence, nowMs);
   return {
@@ -55,21 +41,25 @@ export function getFriendDisplayPresence(friend, presenceByKey = {}, nowMs = Dat
 }
 
 export async function loadFriendPresence(friends) {
-  const friendEmails = Array.from(new Set(
+  const targetRefs = Array.from(new Set(
     (Array.isArray(friends) ? friends : [])
-      .map((friend) => normalizeEmail(friend?.friend_email))
+      .map((friend) => String(friend?.target_ref || friend?.presence_ref || '').trim())
       .filter(Boolean),
   ));
-  if (!friendEmails.length) return {};
+  if (!targetRefs.length) return {};
 
-  const response = await base44.functions.invoke('getFriendPresence', {
-    friend_emails: friendEmails,
-  });
-  const rows = Array.isArray(response?.data?.presence) ? response.data.presence : [];
+  const snapshot = await loadSocialSnapshot();
+  const rows = Array.isArray(snapshot?.friends) ? snapshot.friends : [];
+  const requestedRefs = new Set(targetRefs);
   return Object.fromEntries(
     rows
-      .filter((row) => row?.presence_key)
-      .map((row) => [row.presence_key, row]),
+      .filter((row) => row?.presence_ref && requestedRefs.has(row.presence_ref))
+      .map((row) => [row.presence_ref, {
+        presence_ref: row.presence_ref,
+        status: row.status,
+        last_seen_at: row.last_seen_at || null,
+        ...pickPublicAvatarFields(row),
+      }]),
   );
 }
 

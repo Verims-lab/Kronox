@@ -8,10 +8,9 @@ export function buildOnlineGamePath(lobby) {
 
 export function buildOnlineGameState(lobby, { currentUser, playerName } = {}) {
   const players = Array.isArray(lobby?.players) ? lobby.players : [];
-  const email = currentUser?.email || null;
-  const matchedPlayer = email
-    ? players.find((player) => player?.email === email)
-    : players.find((player) => player?.name === playerName);
+  const matchedPlayer = players.find((player) => player?.is_self)
+    || players.find((player) => player?.name === playerName)
+    || (currentUser ? players.find((player) => player?.is_host && lobby?.current_actor_is_host) : null);
 
   return {
     lobbyId: lobby?.id || null,
@@ -27,6 +26,7 @@ export function buildOnlineGameState(lobby, { currentUser, playerName } = {}) {
     onlineQuestionDeck: Array.isArray(lobby?.online_question_deck) ? lobby.online_question_deck : [],
     onlineDeckMeta: lobby?.online_deck_meta || null,
     myPlayerName: matchedPlayer?.name || playerName || null,
+    myParticipantRef: matchedPlayer?.participant_ref || null,
   };
 }
 

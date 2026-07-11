@@ -2,6 +2,10 @@
   "name": "GameInvite",
   "type": "object",
   "properties": {
+    "public_ref": {
+      "type": "string",
+      "description": "Opaque client-facing invite reference. Internal Base44 entity IDs remain backend-only."
+    },
     "lobby_id": {
       "type": "string",
       "description": "ID of the Lobby this invite belongs to"
@@ -12,7 +16,11 @@
     },
     "from_email": {
       "type": "string",
-      "description": "Lowercased email of the inviting host"
+      "description": "Backend-private lowercased email of a linked inviting host. Empty for token-proven guest hosts; never returned by public invite DTOs."
+    },
+    "from_actor_key_hash": {
+      "type": "string",
+      "description": "Backend-private actor hash for linked or token-proven guest hosts. Used for host-scoped invite reads without synthetic guest email and never returned publicly."
     },
     "from_kronox_user_id": {
       "type": "string",
@@ -127,47 +135,8 @@
         "role": "admin"
       }
     },
-    "read": {
-      "$or": [
-        {
-          "data.from_email": "{{user.email}}"
-        },
-        {
-          "data.to_email": "{{user.email}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
-    },
-    "update": {
-      "$or": [
-        {
-          "data.from_email": "{{user.email}}"
-        },
-        {
-          "data.to_email": "{{user.email}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
-    },
-    "delete": {
-      "$or": [
-        {
-          "data.from_email": "{{user.email}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
-    }
+    "read": { "user_condition": { "role": "admin" } },
+    "update": { "user_condition": { "role": "admin" } },
+    "delete": { "user_condition": { "role": "admin" } }
   }
 }

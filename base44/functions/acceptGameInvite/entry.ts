@@ -13,6 +13,8 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 // Codex130 — Game invite + lobby staleness TTL: 10 minutes.
 const GAME_INVITE_TTL_MS = 10 * 60 * 1000;
 const LOBBY_STALE_AFTER_MS = 10 * 60 * 1000;
+const LOBBY_LOCK_TTL_MS = 8 * 1000;
+const LOBBY_LOCK_SETTLE_MS = 90;
 // Codex139 — Naive ISO timestamp guard.
 // Base44 server `created_date` / `expires_at` are sometimes serialized
 // WITHOUT a timezone suffix (e.g. "2026-05-31T14:33:11.992000"). `new Date()`
@@ -62,6 +64,7 @@ const getLobbyExpiry = (lobby: any) => {
 };
 
 const normalizeEmail = (value: unknown) => String(value || '').trim().toLowerCase();
+const rowId = (row: any) => row?.id || row?._id || '';
 const KRONOX_ID_PATTERN = /^KX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
 const AVATAR_ICON_IDS = new Set([
   'shield', 'helmet', 'sword', 'crown', 'trophy', 'hourglass', 'clock', 'timer',
@@ -70,6 +73,25 @@ const AVATAR_ICON_IDS = new Set([
   'moon', 'sun', 'star',
 ]);
 const AVATAR_COLOR_IDS = new Set(['gold', 'cyan', 'violet', 'emerald', 'rose', 'blue']);
+
+function stableOwnerKey(value: unknown) {
+  const text = normalizeEmail(value);
+  if (!text) return '';
+  let hash = 2166136261;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `u_${(hash >>> 0).toString(36)}`;
+}
+
+function randomRef(prefix: string) {
+  const bytes = new Uint8Array(18);
+  crypto.getRandomValues(bytes);
+  let binary = '';
+  bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+  return `${prefix}_${btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')}`;
+}
 
 function normalizeKronoxUserId(value: unknown) {
   const text = String(value || '').trim().toUpperCase();
@@ -184,12 +206,132 @@ function pickPublicAvatarFields(row: any = {}) {
   return { avatar_type: '', avatar_icon_id: '', avatar_color_id: colorId, avatar_url: '' };
 }
 
+function safeUsername(value: unknown, seed: unknown) {
+  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  if (text && /^[A-Za-z0-9_]{3,24}$/.test(text) && !text.includes('@')) return text;
+  const suffix = parseInt(stableOwnerKey(seed).replace(/^u_/, '') || '0', 36) || 0;
+  return `KronoxUser${1000 + (suffix % 90000)}`;
+}
+
+function publicLobby(lobby: any, myActorKey: string) {
+  const players = Array.isArray(lobby?.players) ? lobby.players : [];
+  const hostActorKey = String(lobby?.host_actor_key_hash || players[0]?.actor_key_hash || '');
+  return {
+    id: String(lobby?.public_ref || ''),
+    code: String(lobby?.code || ''),
+    status: String(lobby?.status || 'waiting'),
+    host_name: safeUsername(lobby?.host_name || players[0]?.name, lobby?.public_ref || lobby?.code),
+    current_actor_is_host: myActorKey === hostActorKey,
+    players: players.map((player: any) => ({
+      participant_ref: String(player?.participant_ref || ''),
+      username: safeUsername(player?.name, player?.participant_ref),
+      name: safeUsername(player?.name, player?.participant_ref),
+      ...pickPublicAvatarFields(player),
+      ready: Boolean(player?.ready),
+      cards: Array.isArray(player?.cards) ? player.cards : [],
+      is_self: String(player?.actor_key_hash || '') === myActorKey,
+      is_host: String(player?.actor_key_hash || '') === hostActorKey,
+    })),
+    state_revision: readRevision(lobby?.state_revision),
+    category: lobby?.category || 'karisik',
+    selected_category_ids: Array.isArray(lobby?.selected_category_ids) ? lobby.selected_category_ids : [],
+    year_start: lobby?.year_start,
+    year_end: lobby?.year_end,
+    turn_duration: lobby?.turn_duration,
+    win_card_count: lobby?.win_card_count,
+    max_players: lobby?.max_players,
+    current_player_index: lobby?.current_player_index ?? 0,
+    current_question_id: lobby?.current_question_id || null,
+    used_question_ids: Array.isArray(lobby?.used_question_ids) ? lobby.used_question_ids : [],
+    online_question_deck: Array.isArray(lobby?.online_question_deck) ? lobby.online_question_deck : [],
+    online_deck_meta: lobby?.online_deck_meta || null,
+    winner: lobby?.winner || null,
+    winner_participant_ref: lobby?.winner_participant_ref || null,
+    last_activity_at: lobby?.last_activity_at || null,
+    expires_at: lobby?.expires_at || null,
+  };
+}
+
+function publicInvite(invite: any, lobby: any) {
+  return {
+    id: invite?.public_ref || null,
+    invite_ref: invite?.public_ref || null,
+    status: invite?.status || null,
+    from_name: safeUsername(invite?.from_name, invite?.id),
+    to_name: safeUsername(invite?.to_name, invite?.id),
+    lobby_ref: lobby?.public_ref || null,
+    lobby_code: lobby?.code || invite?.lobby_code || '',
+    expires_at: invite?.expires_at || null,
+    accepted_at: invite?.accepted_at || null,
+  };
+}
+
+async function ensurePublicLobbyRef(base44: any, lobby: any) {
+  if (!lobby || lobby.public_ref) return lobby;
+  const updated = await base44.asServiceRole.entities.Lobby.update(lobby.id, { public_ref: randomRef('lobby') });
+  return updated ? { ...lobby, ...updated } : lobby;
+}
+
+async function ensurePublicInviteRef(base44: any, invite: any) {
+  if (!invite || invite.public_ref) return invite;
+  const updated = await base44.asServiceRole.entities.GameInvite.update(invite.id, { public_ref: randomRef('invite') });
+  return updated ? { ...invite, ...updated } : invite;
+}
+
 const readRevision = (value: unknown) => {
   const revision = Number(value);
   return Number.isFinite(revision) && revision >= 0 ? Math.trunc(revision) : 0;
 };
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function acquireInviteJoinLock(base44: any, lobby: any, newPlayer: any) {
+  const entity = base44?.asServiceRole?.entities?.EconomyOperationLock;
+  if (!entity?.filter || !entity?.create || !entity?.update) {
+    return { ok: false, code: 'lobby_lock_unavailable', status: 503 };
+  }
+
+  const lockKey = `lobby:mutate:${rowId(lobby)}`;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const now = new Date();
+    const rows = await entity.filter({ lock_key: lockKey }, 'acquired_at', 25).catch(() => []);
+    const active = (rows || []).filter((row: any) => String(row?.status) === 'active' && readTime(row?.expires_at) > now.getTime());
+    if (active.length) {
+      await sleep(80 + attempt * 80);
+      continue;
+    }
+
+    const lock = await entity.create({
+      lock_key: lockKey,
+      actor_key: String(newPlayer?.actor_key_hash || 'invite_join'),
+      operation_scope: 'lobby_join',
+      operation_id: randomRef('invite_join'),
+      status: 'active',
+      acquired_at: now.toISOString(),
+      expires_at: new Date(now.getTime() + LOBBY_LOCK_TTL_MS).toISOString(),
+      metadata: { backendOwned: true, source: 'game_invite' },
+    }).catch(() => null);
+    if (!lock) continue;
+
+    await sleep(LOBBY_LOCK_SETTLE_MS);
+    const contenders = await entity.filter({ lock_key: lockKey }, 'acquired_at', 25).catch(() => []);
+    const winner = (contenders || [])
+      .filter((row: any) => String(row?.status) === 'active' && readTime(row?.expires_at) > Date.now())
+      .sort((a: any, b: any) => (readTime(a?.acquired_at) - readTime(b?.acquired_at)) || String(rowId(a)).localeCompare(String(rowId(b))))[0];
+    if (rowId(winner) === rowId(lock)) return { ok: true, lock };
+    await entity.update(rowId(lock), { status: 'released', released_at: new Date().toISOString() }).catch(() => null);
+  }
+
+  return { ok: false, code: 'lobby_operation_in_progress', status: 409 };
+}
+
+async function releaseInviteJoinLock(base44: any, lock: any) {
+  if (!rowId(lock)) return;
+  await base44.asServiceRole.entities.EconomyOperationLock.update(rowId(lock), {
+    status: 'released',
+    released_at: new Date().toISOString(),
+  }).catch(() => null);
+}
 
 const getPlayerIdentityKey = (player: any) => {
   const kronoxUserId = normalizeKronoxUserId(player?.kronox_user_id);
@@ -202,6 +344,9 @@ const getPlayerIdentityKey = (player: any) => {
 
 const normalizeLobbyPlayer = (player: any) => ({
   ...player,
+  actor_key_hash: String(player?.actor_key_hash || '') || stableOwnerKey(player?.email),
+  participant_ref: String(player?.participant_ref || '') || randomRef('player'),
+  player_type: player?.player_type || 'linked',
   kronox_user_id: normalizeKronoxUserId(player?.kronox_user_id),
   email: player?.email || '',
   name: String(player?.name || '').trim() || 'Oyuncu',
@@ -242,63 +387,91 @@ async function findCurrentUserRow(base44: any, user: any, email: string) {
 }
 
 const appendPlayerWithMergeRetry = async (base44: any, lobby: any, newPlayer: any) => {
+  const lockResult = await acquireInviteJoinLock(base44, lobby, newPlayer);
+  if (!lockResult.ok) {
+    return {
+      lobby,
+      joinedLobby: lobby,
+      verifiedLobby: lobby,
+      joined: false,
+      code: lockResult.code,
+      status: lockResult.status,
+    };
+  }
+
   const delays = [0, 120, 260];
   let latest = lobby;
   let updatedLobby = lobby;
   let retryApplied = false;
 
-  for (let attempt = 0; attempt < delays.length; attempt += 1) {
-    if (delays[attempt]) await sleep(delays[attempt]);
-    latest = attempt === 0 ? latest : await base44.asServiceRole.entities.Lobby.get(lobby.id);
-    if (!latest || latest.status !== 'waiting') {
-      const verifiedLobby = latest || updatedLobby || lobby;
-      return {
-        lobby: verifiedLobby,
-        joinedLobby: verifiedLobby,
-        verifiedLobby,
-        joined: false,
-        retryApplied,
-        statusChanged: true,
-      };
+  try {
+    for (let attempt = 0; attempt < delays.length; attempt += 1) {
+      if (delays[attempt]) await sleep(delays[attempt]);
+      latest = attempt === 0 ? latest : await base44.asServiceRole.entities.Lobby.get(lobby.id);
+      if (!latest || latest.status !== 'waiting') {
+        const verifiedLobby = latest || updatedLobby || lobby;
+        return {
+          lobby: verifiedLobby,
+          joinedLobby: verifiedLobby,
+          verifiedLobby,
+          joined: false,
+          retryApplied,
+          statusChanged: true,
+        };
+      }
+
+      const currentPlayers = Array.isArray(latest.players) ? latest.players : [];
+      const mergedPlayers = mergePlayersByIdentity(currentPlayers, [newPlayer]);
+      if (hasPlayer(currentPlayers, newPlayer) && mergedPlayers.length === currentPlayers.length) {
+        const verifiedLobby = latest;
+        return {
+          lobby: verifiedLobby,
+          joinedLobby: verifiedLobby,
+          verifiedLobby,
+          joined: true,
+          retryApplied,
+          alreadyIn: true,
+        };
+      }
+      const maxPlayers = Math.max(2, Math.min(4, Number(latest?.max_players) || 4));
+      if (mergedPlayers.length > maxPlayers) {
+        return {
+          lobby: latest,
+          joinedLobby: latest,
+          verifiedLobby: latest,
+          joined: false,
+          retryApplied,
+          code: 'lobby_full',
+          status: 409,
+        };
+      }
+
+      retryApplied = attempt > 0 || retryApplied;
+      updatedLobby = await base44.asServiceRole.entities.Lobby.update(lobby.id, {
+        players: mergedPlayers,
+        last_activity_at: new Date().toISOString(),
+        state_revision: readRevision(latest.state_revision) + 1,
+      });
+
+      const verifiedLobby = await base44.asServiceRole.entities.Lobby.get(lobby.id);
+      const verifiedPlayers = Array.isArray(verifiedLobby?.players) ? verifiedLobby.players : [];
+      if (hasPlayer(verifiedPlayers, newPlayer)) {
+        const joinedLobby = verifiedLobby || updatedLobby;
+        return { lobby: joinedLobby, joinedLobby, verifiedLobby: joinedLobby, joined: true, retryApplied };
+      }
     }
 
-    const currentPlayers = Array.isArray(latest.players) ? latest.players : [];
-    const mergedPlayers = mergePlayersByIdentity(currentPlayers, [newPlayer]);
-    if (hasPlayer(currentPlayers, newPlayer) && mergedPlayers.length === currentPlayers.length) {
-      const verifiedLobby = latest;
-      return {
-        lobby: verifiedLobby,
-        joinedLobby: verifiedLobby,
-        verifiedLobby,
-        joined: true,
-        retryApplied,
-        alreadyIn: true,
-      };
-    }
-
-    retryApplied = attempt > 0 || retryApplied;
-    updatedLobby = await base44.asServiceRole.entities.Lobby.update(lobby.id, {
-      players: mergedPlayers,
-      last_activity_at: new Date().toISOString(),
-      state_revision: readRevision(latest.state_revision) + 1,
-    });
-
-    const verifiedLobby = await base44.asServiceRole.entities.Lobby.get(lobby.id);
-    const verifiedPlayers = Array.isArray(verifiedLobby?.players) ? verifiedLobby.players : [];
-    if (hasPlayer(verifiedPlayers, newPlayer)) {
-      const joinedLobby = verifiedLobby || updatedLobby;
-      return { lobby: joinedLobby, joinedLobby, verifiedLobby: joinedLobby, joined: true, retryApplied };
-    }
+    const verifiedLobby = updatedLobby || latest || lobby;
+    return {
+      lobby: verifiedLobby,
+      joinedLobby: verifiedLobby,
+      verifiedLobby,
+      joined: hasPlayer(verifiedLobby?.players || [], newPlayer),
+      retryApplied: true,
+    };
+  } finally {
+    await releaseInviteJoinLock(base44, lockResult.lock);
   }
-
-  const verifiedLobby = updatedLobby || latest || lobby;
-  return {
-    lobby: verifiedLobby,
-    joinedLobby: verifiedLobby,
-    verifiedLobby,
-    joined: hasPlayer(verifiedLobby?.players || [], newPlayer),
-    retryApplied: true,
-  };
 };
 
 Deno.serve(async (req) => {
@@ -310,15 +483,21 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}));
-    const inviteId = String(body?.inviteId || '').trim();
-    if (!inviteId) {
-      return Response.json({ error: 'inviteId is required' }, { status: 400 });
+    const inviteRef = String(body?.inviteRef || body?.inviteId || '').trim();
+    const action = String(body?.action || 'accept').trim().toLowerCase();
+    if (!inviteRef) {
+      return Response.json({ error: 'inviteRef is required' }, { status: 400 });
     }
+    if (!['accept', 'decline'].includes(action)) return Response.json({ error: 'Unsupported invite action' }, { status: 400 });
 
-    const invite = await base44.asServiceRole.entities.GameInvite.get(inviteId);
+    const publicRows = await base44.asServiceRole.entities.GameInvite
+      .filter({ public_ref: inviteRef }, '-updated_date', 2)
+      .catch(() => []);
+    let invite = publicRows?.[0] || await base44.asServiceRole.entities.GameInvite.get(inviteRef).catch(() => null);
     if (!invite) {
       return Response.json({ code: 'invite_not_found', error: 'Davet bulunamadı.' }, { status: 404 });
     }
+    const inviteRowId = String(invite?.id || invite?._id || '').trim();
 
     const myEmail = String(user.email || '').trim().toLowerCase();
     const toEmail = String(invite.to_email || '').trim().toLowerCase();
@@ -327,6 +506,17 @@ Deno.serve(async (req) => {
     if (toEmail !== myEmail) {
       return Response.json({ code: 'unauthorized', error: 'Bu davet sana ait değil' }, { status: 403 });
     }
+    invite = await ensurePublicInviteRef(base44, invite);
+    if (action === 'decline') {
+      if (invite.status !== 'pending') {
+        return Response.json({ code: `already_${invite.status}`, error: `Davet zaten ${invite.status}.` }, { status: 409 });
+      }
+      const declined = await base44.asServiceRole.entities.GameInvite.update(inviteRowId, {
+        status: 'declined',
+        declined_at: new Date().toISOString(),
+      });
+      return Response.json({ ok: true, success: true, invite: publicInvite({ ...invite, ...declined }, null) });
+    }
     if (invite.status !== 'pending') {
       if (invite.status === 'accepted' && invite.lobby_id) {
         const acceptedLobby = await base44.asServiceRole.entities.Lobby.get(invite.lobby_id).catch(() => null);
@@ -334,6 +524,9 @@ Deno.serve(async (req) => {
           let returnLobby = acceptedLobby;
           if (acceptedLobby.status === 'waiting') {
             const newPlayer = {
+              actor_key_hash: stableOwnerKey(user.email),
+              participant_ref: randomRef('player'),
+              player_type: 'linked',
               kronox_user_id: normalizeKronoxUserId(invite?.to_kronox_user_id || currentUser?.kronox_user_id || user?.kronox_user_id),
               email: user.email,
               name: getInvitePlayerName(user, invite),
@@ -344,19 +537,30 @@ Deno.serve(async (req) => {
             const restored = await appendPlayerWithMergeRetry(base44, acceptedLobby, {
               ...newPlayer,
             });
+            if (!restored.joined) {
+              const status = Number(restored.status) || 409;
+              const code = restored.code || 'lobby_join_failed';
+              const error = code === 'lobby_full'
+                ? 'Lobi dolu.'
+                : code === 'lobby_lock_unavailable'
+                  ? 'Lobi şu anda güncellenemiyor. Lütfen tekrar dene.'
+                  : 'Lobi güncelleniyor. Lütfen tekrar dene.';
+              return Response.json({ code, error }, { status });
+            }
             returnLobby = restored.verifiedLobby || restored.joinedLobby || restored.lobby || acceptedLobby;
           }
-          const verifiedLobby = returnLobby;
+          const verifiedLobby = await ensurePublicLobbyRef(base44, returnLobby);
+          const publicVerifiedLobby = publicLobby(verifiedLobby, stableOwnerKey(user.email));
           return Response.json({
             ok: true,
             success: true,
             alreadyAccepted: true,
-            invite,
-            lobby: verifiedLobby,
-            joinedLobby: verifiedLobby,
-            verifiedLobby,
-            lobbyId: verifiedLobby.id,
-            lobbyCode: verifiedLobby.code || invite.lobby_code || '',
+            invite: publicInvite(invite, verifiedLobby),
+            lobby: publicVerifiedLobby,
+            joinedLobby: publicVerifiedLobby,
+            verifiedLobby: publicVerifiedLobby,
+            lobbyId: publicVerifiedLobby.id,
+            lobbyCode: publicVerifiedLobby.code || invite.lobby_code || '',
           });
         }
         return Response.json({ code: 'lobby_not_found', error: 'Lobi artık mevcut değil.' }, { status: 404 });
@@ -365,7 +569,7 @@ Deno.serve(async (req) => {
     }
     const expiresAt = getInviteExpiry(invite);
     if (Number.isFinite(expiresAt) && expiresAt <= Date.now()) {
-      await base44.asServiceRole.entities.GameInvite.update(inviteId, {
+      await base44.asServiceRole.entities.GameInvite.update(inviteRowId, {
         status: 'expired',
         expired_at: new Date().toISOString(),
       }).catch(() => {});
@@ -382,7 +586,7 @@ Deno.serve(async (req) => {
     }
     if (lobby.status !== 'waiting') {
       // Mark expired so the recipient stops seeing it.
-      await base44.asServiceRole.entities.GameInvite.update(inviteId, { status: 'expired' }).catch(() => {});
+      await base44.asServiceRole.entities.GameInvite.update(inviteRowId, { status: 'expired' }).catch(() => {});
       return Response.json({ code: 'lobby_not_joinable', error: 'Bu davet artık geçerli değil — oyun başlamış olabilir.' }, { status: 409 });
     }
 
@@ -393,7 +597,7 @@ Deno.serve(async (req) => {
     // host (or a later cleanup pass) can delete it; we only block join.
     const lobbyExpiresAt = getLobbyExpiry(lobby);
     if (Number.isFinite(lobbyExpiresAt) && lobbyExpiresAt <= Date.now()) {
-      await base44.asServiceRole.entities.GameInvite.update(inviteId, {
+      await base44.asServiceRole.entities.GameInvite.update(inviteRowId, {
         status: 'expired',
         expired_at: new Date().toISOString(),
       }).catch(() => {});
@@ -412,6 +616,9 @@ Deno.serve(async (req) => {
     const nowIso = new Date().toISOString();
     const acceptedPlayerName = getInvitePlayerName(user, invite);
     const newPlayer = {
+      actor_key_hash: stableOwnerKey(user.email),
+      participant_ref: randomRef('player'),
+      player_type: 'linked',
       kronox_user_id: normalizeKronoxUserId(invite?.to_kronox_user_id || currentUser?.kronox_user_id || user?.kronox_user_id),
       email: user.email,
       name: acceptedPlayerName,
@@ -424,12 +631,22 @@ Deno.serve(async (req) => {
       verifiedLobby = mergeResult.verifiedLobby || mergeResult.joinedLobby || mergeResult.lobby || updatedLobby;
       updatedLobby = verifiedLobby || updatedLobby;
       if (mergeResult.statusChanged) {
-        await base44.asServiceRole.entities.GameInvite.update(inviteId, { status: 'expired' }).catch(() => {});
+        await base44.asServiceRole.entities.GameInvite.update(inviteRowId, { status: 'expired' }).catch(() => {});
         return Response.json({ code: 'lobby_not_joinable', error: 'Bu davet artık geçerli değil — oyun başlamış olabilir.' }, { status: 409 });
+      }
+      if (!mergeResult.joined) {
+        const status = Number(mergeResult.status) || 409;
+        const code = mergeResult.code || 'lobby_join_failed';
+        const error = code === 'lobby_full'
+          ? 'Lobi dolu.'
+          : code === 'lobby_lock_unavailable'
+            ? 'Lobi şu anda güncellenemiyor. Lütfen tekrar dene.'
+            : 'Lobi güncelleniyor. Lütfen tekrar dene.';
+        return Response.json({ code, error }, { status });
       }
     }
 
-    const updatedInvite = await base44.asServiceRole.entities.GameInvite.update(inviteId, {
+    const updatedInvite = await base44.asServiceRole.entities.GameInvite.update(inviteRowId, {
       status: 'accepted',
       accepted_at: nowIso,
       ...(normalizeKronoxUserId(invite?.to_kronox_user_id || currentUser?.kronox_user_id || user?.kronox_user_id) ? {
@@ -438,27 +655,21 @@ Deno.serve(async (req) => {
       to_name: acceptedPlayerName,
     });
 
-    const joinedLobby = verifiedLobby || updatedLobby || lobby;
+    const joinedLobby = await ensurePublicLobbyRef(base44, verifiedLobby || updatedLobby || lobby);
+    const publicJoinedLobby = publicLobby(joinedLobby, stableOwnerKey(user.email));
 
     return Response.json({
       ok: true,
       success: true,
-      invite: updatedInvite,
-      lobby: joinedLobby,
-      joinedLobby,
-      verifiedLobby: joinedLobby,
-      lobbyId: joinedLobby?.id || lobby.id,
-      lobbyCode: joinedLobby?.code || lobby.code || invite.lobby_code || '',
-      debug: {
-        inviteId,
-        lobbyId: lobby.id,
-        lobbyExpiresAt: Number.isFinite(lobbyExpiresAt) ? new Date(lobbyExpiresAt).toISOString() : null,
-        alreadyIn,
-        playerCount: joinedLobby?.players?.length || 0,
-      },
+      invite: publicInvite(updatedInvite, joinedLobby),
+      lobby: publicJoinedLobby,
+      joinedLobby: publicJoinedLobby,
+      verifiedLobby: publicJoinedLobby,
+      lobbyId: publicJoinedLobby.id,
+      lobbyCode: publicJoinedLobby.code || invite.lobby_code || '',
     });
   } catch (error) {
     console.error('[acceptGameInvite] error:', error.message);
-    return Response.json({ error: error.message }, { status: 500 });
+    return Response.json({ code: 'invite_accept_failed', error: 'Davet kabul edilemedi. Lütfen tekrar dene.' }, { status: 500 });
   }
 });

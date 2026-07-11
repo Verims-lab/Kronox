@@ -19,6 +19,7 @@ import { getOnlinePlayerElapsedSeconds } from '@/lib/onlinePlayerElapsed';
 import gameSource from '../../pages/Game.jsx?raw';
 import gameOverSource from './GameOver.jsx?raw';
 import applyOnlineResultSource from '../../lib/applyOnlineResult.js?raw';
+import updateLobbyGameStateSource from '../../../base44/functions/updateLobbyGameState/entry.ts?raw';
 import onlineRankingSource from '../../lib/onlineRanking.js?raw';
 import playerElapsedSource from '../../lib/onlinePlayerElapsed.js?raw';
 
@@ -74,7 +75,7 @@ export const EXTRA_SUITES = [
 
 export const EXTRA_TESTS = [
   makeCase('online_score_applied_on_match_completion',
-    'Online completion path calls score application',
+    'Online completion path calls the backend result commit wrapper',
     () => {
       const missing = missingTokens(gameSource, [
         'applyOnlineMatchToCurrentUser',
@@ -83,7 +84,9 @@ export const EXTRA_TESTS = [
         "result = localIsWinner ? 'win' : 'loss'",
       ]);
       if (missing.length) return fail('Game.jsx no longer applies Online score on match completion.', { verification: 'STATIC_CONTRACT', missing });
-      return pass('Game.jsx applies the Online result once and stores popup score state.', { verification: 'STATIC_CONTRACT' });
+      const backendMissing = missingTokens(applyOnlineResultSource, ['commitOnlineMatchResult', 'clientProfileScoreWrites: false']);
+      if (backendMissing.length) return fail('Online completion wrapper can bypass backend authority.', { verification: 'STATIC_CONTRACT', missing: backendMissing });
+      return pass('Game.jsx submits completion once through the backend result commit and stores returned popup score state.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('online_score_winner_gain_loser_loss',
@@ -166,23 +169,21 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('online_score_idempotent_per_user_lobby',
-    'Score applies once per current user and lobby',
+    'Backend score applies once per actor and lobby',
     () => {
-      const missing = missingTokens(applyOnlineResultSource, [
-        'findExistingOnlineMatchResult',
-        "{ lobby_id: String(lobbyId), player_email: playerEmail }",
-        'already_recorded',
-        'lastMatchId',
+      const missing = missingTokens(updateLobbyGameStateSource, [
+        'online_match_result:${rowId(lobby)}:${actor.actorKeyHash}',
+        "resultEntity.filter({ idempotency_key: idempotencyKey }",
+        'canonicalApplied',
+        'reservationAlreadyWritten',
       ]);
-      const blocksFirstApply = safeStr(applyOnlineResultSource).includes("where: 'online_match_result_lookup'");
-      if (missing.length || blocksFirstApply) {
-        return fail('Online score idempotency is missing or can block the first apply on audit lookup failure.', {
+      if (missing.length) {
+        return fail('Backend Online score idempotency/recovery contract is missing.', {
           verification: 'STATIC_CONTRACT',
           missing,
-          blocksFirstApply,
         });
       }
-      return pass('Online scoring checks player+lobby audit rows and falls back without blocking first apply.', { verification: 'STATIC_CONTRACT' });
+      return pass('Backend Online scoring uses one actor/lobby receipt and reconciles interrupted retries.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('online_score_code_lobby_path_supported',
@@ -232,16 +233,18 @@ export const EXTRA_TESTS = [
   makeCase('online_score_not_solo_total_score',
     'Online scoring does not mutate Solo totalSoloScore',
     () => {
-      const src = safeStr(applyOnlineResultSource);
-      const bad = src.includes('totalSoloScore') || src.includes('solo_progress:');
-      const missing = missingTokens(src, ['online_progress', 'OnlineMatchResult', 'kronox_puan_total']);
+      const client = safeStr(applyOnlineResultSource);
+      const backend = safeStr(updateLobbyGameStateSource);
+      const bad = client.includes('totalSoloScore') || client.includes('solo_progress:') ||
+        client.includes('entities.OnlineMatchResult') || client.includes('auth.updateMe(');
+      const missing = missingTokens(backend, ['online_progress', 'OnlineMatchResult', 'kronox_puan_total']);
       if (bad || missing.length) {
-        return fail('Online scoring writer may mutate Solo score/progress instead of Online + unified projection only.', {
+        return fail('Online result path may bypass backend authority or mutate Solo score/progress.', {
           verification: 'STATIC_CONTRACT',
           actual: { bad, missing },
         });
       }
-      return pass('Online scoring writes online_progress, OnlineMatchResult, and unified projection without mutating Solo progress.', { verification: 'STATIC_CONTRACT' });
+      return pass('Client delegates to backend; backend writes Online progress/result/unified projection without mutating Solo progress.', { verification: 'STATIC_CONTRACT' });
     }),
 
   // ─── Codex146 — Player-own elapsed time + popup/scoring parity ──────
@@ -333,24 +336,26 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('online_score_idempotency_does_not_block_first_persist',
-    'Idempotency guard does not block the first real apply',
+    'Backend idempotency reserves before the first real apply',
     () => {
-      const src = safeStr(applyOnlineResultSource);
+      const src = safeStr(updateLobbyGameStateSource);
       const missing = missingTokens(src, [
-        "where: 'persist'",
-        'lastMatchId: String(lobbyId)',
-        'already_recorded',
+        'resultReservation = await resultEntity.create',
+        "status: 'reserved'",
+        'await actor.profileEntity.update',
+        "status: 'applied'",
       ]);
-      // The guard must not abort the apply when the audit lookup itself fails.
-      const blocksFirstApply = src.includes("where: 'online_match_result_lookup'");
-      if (missing.length || blocksFirstApply) {
-        return fail('Idempotency may block the first real persist.', {
+      const reservationIndex = src.indexOf('resultReservation = await resultEntity.create');
+      const scoreIndex = src.indexOf('await actor.profileEntity.update');
+      if (missing.length || reservationIndex < 0 || scoreIndex < 0 || reservationIndex > scoreIndex) {
+        return fail('Backend idempotency reservation does not precede the first score write.', {
           verification: 'STATIC_CONTRACT',
           missing,
-          blocksFirstApply,
+          reservationIndex,
+          scoreIndex,
         });
       }
-      return pass('First completion persists; only AFTER successful updateMe is lastMatchId stored.', { verification: 'STATIC_CONTRACT' });
+      return pass('First completion reserves its receipt before profile/projection mutation, then marks it applied.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('online_score_helper_file_exists',

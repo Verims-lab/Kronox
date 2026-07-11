@@ -74,6 +74,15 @@ recipients. Public player-selection, lobby, invite, notification, and push
 payloads must use username-safe labels and must not expose target email,
 provider IDs, owner keys, raw guest IDs, or internal player keys.
 
+Online Lobby snapshots use opaque `public_ref` and `participant_ref` values.
+Backend-private email, `actor_key_hash`, guest proof, auth/internal row IDs,
+transaction IDs, and private game/storage metadata are stripped recursively
+before response. Lobby create/join/leave/start/turn/result operations are
+backend-owned and guarded by fail-closed deterministic-winner
+`EconomyOperationLock` rows plus expected monotonic revision. The backend
+derives terminal Online result and fixed winner `+15` / loser `-6`; the client
+cannot create `OnlineMatchResult` or write profile/leaderboard score.
+
 ## Base44 SDK alignment
 
 Security Pass 1 pins the frontend `@base44/sdk` dependency exactly at
@@ -82,6 +91,12 @@ Base44 Deno function imports to `npm:@base44/sdk@0.8.34`. Do not reintroduce
 `^` on the frontend SDK package or older `npm:@base44/sdk@0.8.25` function
 imports unless a Base44 runtime compatibility incident requires an explicit
 documented split.
+
+`scripts/checkBase44FunctionsCompile.mjs` is the deploy gate: it caps the repo
+at 50 Base44 function entry files, requires exactly 50 or fewer deployable
+entries, verifies the exact SDK pin in `package.json`, package-lock root spec,
+installed package metadata when available, and all Deno imports, and rejects
+the removed legacy/test/diagnostic function directories if reintroduced.
 
 `@base44/vite-plugin` remains unchanged in this pass; it is build/runtime
 tooling, not the SDK auth/entity/function client.
@@ -287,17 +302,14 @@ Daily Calendar runtime and legacy Daily Quest definition management:
 
 * Profile / `Admin Ekranı` must not mount `Günlük Görev Yönetimi`; legacy Daily
   Quest definitions are not added or monitored through app UI.
-* Legacy definition writes, if called directly, go through
-  `createDailyQuestDefinition`, a Base44 callable with an inline
-  AdminUser-backed guard so flat function deployment does not depend on a local
-  shared import.
-* normal users and disabled/passive admins must receive 401/403 before legacy
-  list, seed, create, or status updates.
+* No deployed `createDailyQuestDefinition` writer remains. Legacy definition
+  rows are cleanup/compatibility data only and are handled by the existing
+  AdminUser-gated, dry-run-first cleanup path.
 * no hardcoded admin email allowlists are allowed
 * admin-entered `title` and `description` are display-only; free text, AI/NLP,
   regex, or scripts must never become executable quest logic
-* current runtime progress logic is the canonical `solo_level_complete` quest
-  plus `target_value`.
+* current runtime tasks are code-owned deterministic Daily Calendar task keys;
+  free text is never executable logic.
 * `DailyQuestDefinition.quest_key` is the logical unique key for legacy/manual
   cleanup paths. Runtime does not list, seed, or select definition rows; any
   explicit legacy seed/create flow must skip/reject existing keys.
@@ -309,17 +321,21 @@ Daily Calendar runtime and legacy Daily Quest definition management:
   `claimDailyQuestReward` streak reward path and
   `DiamondTransaction.source = daily_calendar_streak_reward`
 * Daily Calendar does not grant Kronox Puan and does not affect Leaderboard
-* Home `getDailyQuestStatus` ensures 3 `daily_calendar:*`
-  `UserDailyQuestProgress` rows per UTC day and must not read, create, seed, or
-  select active `DailyQuestDefinition` rows. Definition rows are ignored by
-  runtime, and loading/ensuring today’s tasks does not grant Diamonds.
+* Home `getDailyQuestStatus` serializes assignment repair and returns one
+  canonical `UserDailyQuestProgress` row for each of three deterministic
+  expected `daily_calendar:*` keys per actor/UTC day. Duplicate rows cannot
+  substitute for a missing key, complete the day, or unlock the reward.
+  Definition rows are ignored, and status/repair never grants Diamonds.
 * `getDailyQuestStatus` is authenticated runtime, not admin-only; it derives
   the user from backend auth context, writes only that user's progress rows,
   and treats no active definitions as a safe empty state.
 * Loading or ensuring today’s quests does not grant Diamonds;
   `claimDailyQuestReward` remains the only reward path.
-* Completing progress alone does not grant Diamonds; completed and unclaimed
-  quests expose an `Al` claim action.
+* `recordDailyQuestProgress` ignores client amount and accepts only persisted
+  same-actor/server-day source proof for the relevant wheel, attempt, answer,
+  real Joker/Hint spend, profile, or friend event. Missing, foreign, stale, and
+  unsupported proof is rejected. Training levels 1-6 have no spend receipt and
+  cannot satisfy Joker/Hint tasks; Hint is not Joker.
 * User-facing Daily entry is the Home `GÜNLÜK` shortcut and `/daily` calendar;
   the security contract remains Diamonds-only, no Kronox Puan, and no
   Leaderboard impact.
@@ -332,11 +348,13 @@ Daily Calendar runtime and legacy Daily Quest definition management:
 * `daily_quest_last_claim_date` and `daily_quest_next_available_at` are
   active summary/availability fields; duplicate-claim prevention is enforced
   by `UserDailyQuestProgress` and `DiamondTransaction` idempotency
-* One claim per quest per UTC day is the runtime contract; duplicate claim
-  attempts return a safe already-claimed result without another Diamond grant
+* One 7-day streak reward per canonical cycle is the runtime contract; all
+  three distinct expected keys are required and duplicate claim attempts return
+  a safe already-claimed result without another Diamond grant
 * `getDailyQuestStatus`, `recordDailyQuestProgress`, and
-  `claimDailyQuestReward` derive the user from backend auth context; the client
-  cannot choose another user, set reward amount, or grant Kronox Puan
+  `claimDailyQuestReward` derive a linked or token-proven completed guest actor
+  backend-side; the client cannot choose another user, set progress/reward
+  amount, or grant Kronox Puan
 
 Admin-only maintenance helpers must also fail closed. The legacy one-off
 test-account progress reset helper now uses only the centralized AdminUser
@@ -516,9 +534,12 @@ Configured function auth/public matrix:
 | `linkGuestAccount` | Authenticated user + guest-token | Auth user from `base44.auth.me()` and guest ownership from token hash. |
 | `sendFriendRequest` | Authenticated user | Current user from `base44.auth.me()`; email or username target is resolved server-side, self/open-pending/expired-outgoing guards run under `FriendRequestOperationLock`, new rows get 72-hour `expires_at`, creates `FriendRequest` only through the backend service/admin path, and username add responses return username-safe labels without target email. |
 | `updatePlayerPresence` | Guest-token or authenticated user | Auth path derives the current user from `base44.auth.me()`; guest path verifies `guest_id + guest_token` against `GuestProfile.guest_token_hash`; request body cannot mark another actor online; rows store anonymized owner_key_hash plus backend-private user_email for linked invite routing, never returned by public presence/selection responses. |
-| `getFriendPresence` | Authenticated accepted-friend lookup | Current user from `base44.auth.me()`; response is restricted to accepted FriendRequest relationships and returns username-safe presence rows plus safe avatar fields only. |
-| `getOnlinePlayerSelection` | Guest-token or authenticated player selection lookup | Auth path derives the current user from `base44.auth.me()`; guest path verifies `guest_id + guest_token`; returns online friends, fresh online non-friends, and offline friends as username + opaque target_ref plus safe avatar fields only. Fresh guest presence can appear without product login; non-email-routable rows are marked non-invitable for the current GameInvite path instead of crashing. |
-| `createGameInvitesForTargets` | Authenticated lobby host | Current user from `base44.auth.me()` and `Lobby.host_email`; opaque `u_`/`g_` target refs are accepted, but only backend-routable linked recipients create `GameInvite` rows. Non-routable guest refs return safe per-target failure codes; response returns invite ids for push/open operations, not recipient email. |
+| `getOnlinePlayerSelection` | Guest-token or authenticated player/social snapshot | Auth path derives the current user from `base44.auth.me()`; guest path verifies `guest_id + guest_token`; action `social_snapshot` also owns accepted-friend presence reads. Responses return username, sanitized avatar/status, and opaque `target_ref` only. Fresh guest presence can appear without product login; non-routable rows are disabled safely. |
+| `createGameInvitesForTargets` | Guest-token or authenticated lobby host | The linked user or completed GuestProfile token is verified backend-side and must match the Lobby host actor hash; opaque `social_*` target refs are resolved privately. Guest-host invite rows use backend-private `from_actor_key_hash`, not synthetic email authority. Responses return public invite/lobby refs and username-safe labels, never recipient email or internal row/actor IDs. |
+| `findLobbyByCode` | Guest-token or authenticated lobby create/find/get/join/leave | Resolves actor backend-side, validates completed guest token proof, serializes mutation with a fail-closed lock, enforces waiting status/max four/no duplicates/host leave rules, and returns a public Lobby DTO. |
+| `acceptGameInvite` | Authenticated invite recipient | Recipient and invite expiry are verified; invite join uses the same fail-closed roster lock/cap and returns public invite plus `joinedLobby`/`verifiedLobby` DTOs. |
+| `startLobbyGame` | Guest-token or authenticated verified host | Resolves host participant, checks expected revision/status, reconciles accepted invitees, commits one canonical shared deck under a fail-closed start lock, and returns a public Lobby DTO. |
+| `updateLobbyGameState` | Guest-token or authenticated participant | Validates actor membership, expected revision, turn/action, persisted deck, and terminal winner. `commit_result` computes fixed +15/-6 backend-side, reserves/reconciles one result receipt, and publishes materialized score without accepting client result/delta. |
 | `getSoloLeaderboard` | Authenticated user or completed guest-token | Public-safe rows only; guest path verifies token and strips owner_key/raw guest_id/display_name while allowing safe avatar fields. |
 | `getAdminStatus` | Authenticated status check | Uses current authenticated email and AdminUser row; normal users receive non-admin status. |
 | `ensureUserJokerInventory` | Authenticated user | Current user from `base44.auth.me()`. |
@@ -527,10 +548,8 @@ Configured function auth/public matrix:
 | `getDailyWheelStatus` | Authenticated user or completed guest-token | Same player proof model; no reward grant during status read. |
 | `claimDailyWheelReward` | Authenticated user or completed guest-token | Same player proof model; server reward selection and once-per-UTC-day idempotency. |
 | `getDailyQuestStatus` | Authenticated user or completed guest-token | Auth path uses `base44.auth.me()`; guest path verifies `guest_id + guest_token` and completed GuestProfile. |
-| `recordDailyQuestProgress` | Authenticated user or completed guest-token | Same player proof model; Solo-only progress event. |
-| `claimDailyQuestReward` | Authenticated user or completed guest-token | Same player proof model; reward amount from stored quest progress. |
-| `createDailyQuestDefinition` | Admin-only | Inline AdminUser active owner/admin guard. |
-| `diagnoseSoloQuestionStartQuery` | Admin-only diagnostic | Inline AdminUser active owner/admin guard. |
+| `recordDailyQuestProgress` | Authenticated user or completed guest-token | Same player proof model; ignores client amount and verifies persisted same-actor/day source provenance before progress. |
+| `claimDailyQuestReward` | Authenticated user or completed guest-token | Same player proof model; requires canonical completion of all three distinct expected keys and derives the fixed reward from backend state. |
 | `sendQuestionAnalyticsReportEmail` | Admin-only reporting | Inline AdminUser active owner/admin guard, email-body-only output. |
 
 Frontend route guards are UX only. `/admin` waits for AuthContext plus
@@ -673,11 +692,8 @@ After deployment, verify:
 * unauthenticated admin-only calls return 401
 * authenticated non-admin admin-only calls return 403
 * authorized admins can still use intended admin tools
-* `resetTestAccountProgress` no longer uses `KRONOX_TEST_RESET_EMAILS` or
-  `TEST_RESET_EMAILS`; remove those legacy env vars after deploy
-* runtime reset proof checks unauthenticated blocked, normal user blocked,
-  disabled admin blocked, and active owner/admin allowed only with exact target
-  email confirmation
+* the legacy `resetTestAccountProgress` callable is not deployed; supported
+  reset/cleanup tools remain AdminUser-gated with explicit preview/confirmation
 * Profile shows normal users screen-navigation rows for `Profil Bilgileri`,
   `Arkadaşlarım`, and `Ayarlar`; privacy/account-deletion actions live under
   Settings
@@ -698,14 +714,9 @@ After deployment, verify:
   the current user from auth and enforce active `AdminUser` owner/admin status
 * Admin Ekranı list refresh uses scoped Pull-to-Refresh only after the admin UI
   gate has passed; it must not expose admin maintenance data to normal users
-* `simulateOnlineGame` and `runTestSuite` are admin-only backend tools. They
-  must call the inline AdminUser guard before any service-role simulation/test
-  writes; `user.role`, request-body role fields, hardcoded admin emails, and
-  typo role strings such as `en_core_news_sm` are not valid authorization.
-* Runtime auth proof for `simulateOnlineGame` must verify unauthenticated,
-  normal user, and disabled/passive admin calls are blocked, while active
-  `owner`/`admin` AdminUser rows succeed. `npm run build` does not prove this
-  deployed backend behavior.
+* removed `simulateOnlineGame` and `runTestSuite` callables are not deployment
+  dependencies; source-connected targeted Health simulations run locally and
+  remaining backend admin tools retain inline AdminUser guards
 
 ## Questions
 
@@ -857,9 +868,11 @@ Joker inventory is user-owned data:
 * Solo joker usage is spent by `spendUserJoker` using authenticated user
   context, positive-balance validation, `solo_use` ledger rows, and
   idempotency keys
-* Solo Hint / İpucu is a separate consumable inventory: `ensureUserHintInventory`
-  initializes exactly 3 starter Hints once for authenticated and token-proven
-  completed guests, and `consumeUserHint` spends one Hint server-side with
+* Solo Hint / İpucu is a separate consumable inventory: the
+  `ensureUserHintInventory` client helper invokes the consolidated
+  `consumeUserHint` action `ensure` to initialize exactly 3 starter Hints once
+  for authenticated and token-proven completed guests; no separate ensure
+  callable is deployed. `consumeUserHint` spends one Hint server-side with
   `HintTransaction.reason = solo_use`, `source = solo_hint`, `EconomyOperationLock`,
   and idempotency re-checks
 * Opening the Hint popup never spends inventory; the popup has one hammer action,

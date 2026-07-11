@@ -31,7 +31,6 @@ import adminResetDailyWheelStateSource from '../../../base44/functions/adminRese
 import aggregateQuestionStatsSource from '../../../base44/functions/aggregateQuestionStats/entry.ts?raw';
 import cancelStaleLobbiesSource from '../../../base44/functions/cancelStaleLobbies/entry.ts?raw';
 import cleanupAdminMaintenanceLogSource from '../../../base44/functions/cleanupAdminMaintenanceLog/entry.ts?raw';
-import diagnoseSoloQuestionStartQuerySource from '../../../base44/functions/diagnoseSoloQuestionStartQuery/entry.ts?raw';
 import expireOldGameInvitesSource from '../../../base44/functions/expireOldGameInvites/entry.ts?raw';
 import expirePushSubscriptionsSource from '../../../base44/functions/expirePushSubscriptions/entry.ts?raw';
 import generateTechDocSource from '../../../base44/functions/generateTechDoc/entry.ts?raw';
@@ -48,13 +47,8 @@ import linkGuestAccountManifestSource from '../../../base44/functions/linkGuestA
 import updateProfileSettingsSource from '../../../base44/functions/updateProfileSettings/entry.ts?raw';
 import updateProfileSettingsManifestSource from '../../../base44/functions/updateProfileSettings/function.jsonc?raw';
 import refreshLeaderboardProjectionSource from '../../../base44/functions/refreshLeaderboardProjection/entry.ts?raw';
-import resetTestAccountProgressSource from '../../../base44/functions/resetTestAccountProgress/entry.ts?raw';
-import runTestSuiteSource from '../../../base44/functions/runTestSuite/entry.ts?raw';
-import simulateOnlineGameSource from '../../../base44/functions/simulateOnlineGame/entry.ts?raw';
 import purchaseJokerWithDiamondsSource from '../../../base44/functions/purchaseJokerWithDiamonds/entry.ts?raw';
 import purchaseJokerWithDiamondsManifestSource from '../../../base44/functions/purchaseJokerWithDiamonds/function.jsonc?raw';
-import createDailyQuestDefinitionSource from '../../../base44/functions/createDailyQuestDefinition/entry.ts?raw';
-import createDailyQuestDefinitionManifestSource from '../../../base44/functions/createDailyQuestDefinition/function.jsonc?raw';
 import getDailyQuestStatusSource from '../../../base44/functions/getDailyQuestStatus/entry.ts?raw';
 import getDailyQuestStatusManifestSource from '../../../base44/functions/getDailyQuestStatus/function.jsonc?raw';
 import recordDailyQuestProgressSource from '../../../base44/functions/recordDailyQuestProgress/entry.ts?raw';
@@ -99,7 +93,6 @@ const KNOWN_BACKEND_FUNCTIONS = new Set([
   'getDailyWheelStatus',
   'claimDailyWheelReward',
   'purchaseJokerWithDiamonds',
-  'createDailyQuestDefinition',
   'getDailyQuestStatus',
   'recordDailyQuestProgress',
   'claimDailyQuestReward',
@@ -124,7 +117,6 @@ const DEPLOY_RISK_BASE44_FUNCTIONS = [
   { name: 'aggregateQuestionStats', source: aggregateQuestionStatsSource },
   { name: 'cancelStaleLobbies', source: cancelStaleLobbiesSource },
   { name: 'cleanupAdminMaintenanceLog', source: cleanupAdminMaintenanceLogSource },
-  { name: 'diagnoseSoloQuestionStartQuery', source: diagnoseSoloQuestionStartQuerySource },
   { name: 'expireOldGameInvites', source: expireOldGameInvitesSource },
   { name: 'expirePushSubscriptions', source: expirePushSubscriptionsSource },
   { name: 'generateTechDoc', source: generateTechDocSource },
@@ -132,9 +124,6 @@ const DEPLOY_RISK_BASE44_FUNCTIONS = [
   { name: 'getAdminStatus', source: getAdminStatusSource },
   { name: 'getQuestions', source: getQuestionsSource },
   { name: 'refreshLeaderboardProjection', source: refreshLeaderboardProjectionSource },
-  { name: 'resetTestAccountProgress', source: resetTestAccountProgressSource },
-  { name: 'runTestSuite', source: runTestSuiteSource },
-  { name: 'simulateOnlineGame', source: simulateOnlineGameSource },
 ];
 
 const BASE44_DEPLOY_RISK_IMPORT_TOKENS = [
@@ -216,19 +205,22 @@ export const EXTRA_TESTS = [
         'requestPayload',
         'responsePayload',
         'per_category_projection_v2',
+        'MAX_BASE44_FUNCTIONS = 50',
+        "BASE44_SDK_VERSION = '0.8.34'",
+        'deploymentManifestDiagnostics(entryFiles)',
       ]);
       if (missing.length) {
         return fail('Base44 function compile/deploy gate is missing or too weak to catch dashboard deploy blockers.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           files: ['package.json', 'scripts/checkBase44FunctionsCompile.mjs'],
-          expected: 'npm run check:base44-functions validates all base44/functions entry.ts files for syntax, duplicate declarations, deploy-risk imports, email literals, and getQuestions marker diagnostics',
+          expected: 'npm run check:base44-functions validates entry count <= 50, exact SDK 0.8.34, syntax, duplicate declarations, deploy-risk imports, email literals, and getQuestions markers',
           actual: { missing },
           actionType: ACTION_TYPES.CODE_FIX,
           nextStep: 'Wire npm run check:base44-functions into pre-deploy validation before Base44 Save & Deploy.',
         });
       }
-      return pass('Base44 function compile/deploy gate is registered and checks function syntax, duplicate declarations, deploy-risk imports, email literals, and getQuestions markers.', {
+      return pass('Base44 function compile/deploy gate checks the 50-entry ceiling, exact SDK pin, syntax, duplicate declarations, deploy-risk imports, email literals, and getQuestions markers.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         files: ['package.json', 'scripts/checkBase44FunctionsCompile.mjs'],
@@ -272,7 +264,6 @@ export const EXTRA_TESTS = [
         linkGuestAccountManifestSource,
         updateProfileSettingsManifestSource,
         purchaseJokerWithDiamondsManifestSource,
-        createDailyQuestDefinitionManifestSource,
         getDailyQuestStatusManifestSource,
         recordDailyQuestProgressManifestSource,
         claimDailyQuestRewardManifestSource,
@@ -285,7 +276,6 @@ export const EXTRA_TESTS = [
         linkGuestAccountSource,
         updateProfileSettingsSource,
         purchaseJokerWithDiamondsSource,
-        createDailyQuestDefinitionSource,
         deployedReportSource,
       ].map(text).join('\n');
       const manifestMissing = missingTokens(manifestCombined, [
@@ -658,69 +648,27 @@ export const EXTRA_TESTS = [
       });
     }),
 
-  makeCase('daily_quest_definition_backend_function_deployable_contract',
-    'createDailyQuestDefinition backend function is registered and deployable',
+  makeCase('legacy_daily_definition_callable_removed_from_deploy_surface',
+    'Legacy Daily definition creation is absent from the live deploy surface',
     () => {
-      const missing = missingTokens(`${createDailyQuestDefinitionSource}\n${createDailyQuestDefinitionManifestSource}\n${dailyQuestGatewaySource}`, [
-        '"name": "createDailyQuestDefinition"',
-        '"entry": "entry.ts"',
-        "base44.functions.invoke('createDailyQuestDefinition'",
-        'createClientFromRequest',
-        'Deno.serve',
-        'base44.auth.me()',
-        'entities?.AdminUser',
-        'entities?.DailyQuestDefinition',
+      const missing = missingTokens(base44FunctionCompileScriptSource, [
+        'MAX_BASE44_FUNCTIONS = 50',
+        'REMOVED_FUNCTION_NAMES',
+        'createDailyQuestDefinition',
       ]);
-      const forbidden = forbiddenTokens(createDailyQuestDefinitionSource, [
-        "from './_shared",
-        "from '../_shared",
-        'file://' + '/src/_shared',
+      const forbidden = forbiddenTokens(dailyQuestGatewaySource, [
+        "functions.invoke('createDailyQuestDefinition'",
       ]);
       if (missing.length || forbidden.length) {
-        return fail('createDailyQuestDefinition is not clearly registered/deployable or has broken local imports.', {
+        return fail('Legacy Daily definition creation can re-enter the deploy surface or escape the function-count gate.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
-          files: ['base44/functions/createDailyQuestDefinition/entry.ts', 'base44/functions/createDailyQuestDefinition/function.jsonc', 'src/lib/dbGateway/dailyQuestGateway.js'],
           actual: { missing, forbidden },
         });
       }
-      return pass('createDailyQuestDefinition is a registered Base44 callable function with no broken local imports.', {
+      return pass('Legacy definitions are cleanup-only; no live gateway invokes their removed creator function.', {
         verification: 'STATIC_CONTRACT',
-        classification: 'STATIC_CHECK_LIMITATION',
-      });
-    }),
-
-  makeCase('daily_quest_definition_backend_admin_scope',
-    'createDailyQuestDefinition uses AdminUser-backed admin authorization',
-    () => {
-      const missing = missingTokens(createDailyQuestDefinitionSource, [
-        'function requireAdmin(base44)',
-        'getAdminAuthorization',
-        'entities?.AdminUser',
-        "value === 'owner' || value === 'admin'",
-        'isActiveStatus',
-        'Admin yetkisi gerekli.',
-        'requireAdmin(base44)',
-        'if (admin.response) return admin.response',
-        'created_by: admin.adminEmail',
-        'updated_by: admin.adminEmail',
-      ]);
-      const forbidden = forbiddenTokens(createDailyQuestDefinitionSource, [
-        'body?.adminEmail',
-        'body?.user_email',
-        'hardcoded',
-      ]);
-      if (missing.length || forbidden.length) {
-        return fail('createDailyQuestDefinition admin guard can drift from the AdminUser-backed contract.', {
-          verification: 'STATIC_CONTRACT',
-          classification: 'REAL_PRODUCT_RISK',
-          file: 'base44/functions/createDailyQuestDefinition/entry.ts',
-          actual: { missing, forbidden },
-        });
-      }
-      return pass('createDailyQuestDefinition authorizes active owner/admin AdminUser rows before list/create/status writes.', {
-        verification: 'STATIC_CONTRACT',
-        classification: 'STATIC_CHECK_LIMITATION',
+        classification: 'RUNTIME_PATH_VERIFIED',
       });
     }),
 

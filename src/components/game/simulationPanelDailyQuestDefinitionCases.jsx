@@ -15,7 +15,6 @@ import getDailyQuestStatusSource from '../../../base44/functions/getDailyQuestSt
 import recordDailyQuestProgressSource from '../../../base44/functions/recordDailyQuestProgress/entry.ts?raw';
 import claimDailyQuestRewardSource from '../../../base44/functions/claimDailyQuestReward/entry.ts?raw';
 import cleanupLegacyDailyQuestsSource from '../../../base44/functions/cleanupLegacyDailyQuests/entry.ts?raw';
-import createDailyQuestDefinitionSource from '../../../base44/functions/createDailyQuestDefinition/entry.ts?raw';
 import {
   RELEASE_PROOF_CHECKLIST_DOC as releaseProofSource,
   SECURITY_DEPLOYMENT_DOC as securitySource,
@@ -221,27 +220,23 @@ export const EXTRA_TESTS = [
       return pass('cleanupLegacyDailyQuests provides the required dry-run/delete path without touching unrelated systems.', { verification: 'STATIC_CONTRACT' });
     }),
 
-  makeCase('legacy_definition_callable_guarded_not_runtime_ui',
-    'Old definition callable remains AdminUser-guarded and unmounted from runtime/Admin UI',
+  makeCase('legacy_definition_callable_removed_from_deploy_surface',
+    'Old definition callable is removed from the deploy/runtime surface',
     () => {
-      const missing = missingTokens(createDailyQuestDefinitionSource, [
-        'requireAdmin(base44)',
-        'asServiceRole?.entities?.AdminUser',
-        "value === 'owner' || value === 'admin'",
-      ]);
-      const forbidden = forbiddenTokens(`${adminPageSource}\n${appSource}\n${runtimeSources}`, [
+      const forbidden = forbiddenTokens(`${dailyQuestGatewaySource}\n${adminPageSource}\n${appSource}\n${runtimeSources}`, [
+        "functions.invoke('createDailyQuestDefinition'",
         '<DailyQuestDefinitionManager',
         'Günlük Görev Yönetimi',
         'listDailyQuestDefinitions()',
         'seedDailyQuestDefinitions(',
       ]);
-      if (missing.length || forbidden.length) {
-        return fail('Legacy definition tools can leak into runtime or lose admin guard.', {
+      if (forbidden.length) {
+        return fail('Removed legacy definition tooling is still reachable from a live runtime surface.', {
           verification: 'STATIC_CONTRACT',
-          actual: { missing, forbidden },
+          actual: { forbidden },
         });
       }
-      return pass('Legacy definition callable is still guarded, while active runtime/Admin UI does not mount old definition management.', { verification: 'STATIC_CONTRACT' });
+      return pass('Legacy definition rows remain cleanup-only and no callable/runtime UI path can create new definitions.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('docs_state_replacement_not_parallel_runtime',

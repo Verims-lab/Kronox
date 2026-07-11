@@ -7,6 +7,8 @@ const DAILY_CALENDAR_TEMPLATE_CYCLE_LENGTH = 9;
 const DAILY_TEMPLATE_EPOCH_DATE = '2026-07-06';
 const DAY_MS = 24 * 60 * 60 * 1000;
 const GUEST_ID_PREFIX = 'guest_';
+const ASSIGNMENT_LOCK_TTL_MS = 8_000;
+const ASSIGNMENT_LOCK_SETTLE_MS = 80;
 
 const TASK_TYPES = {
   DAILY_WHEEL_CLAIM: 'daily_wheel_claim',
@@ -57,7 +59,8 @@ const DAILY_TASK_TEMPLATE_CYCLE = [
   ['wheel', 'hint', 'level3'],
   ['wheel', 'joker2', 'level3'],
 ];
-const SAFE_GUEST_FALLBACKS = ['correct5', 'level1'];
+const PROVENANCE_SAFE_FALLBACKS = ['level1', 'hint', 'profile', 'friendInvite', 'joker1', 'timeFreeze'];
+const DEFERRED_PROVENANCE_TASK_KEYS = new Set(['correct4', 'correct5', 'jokerless']);
 
 function json(payload: unknown, status = 200) {
   return Response.json(payload, { status });
@@ -201,7 +204,67 @@ function normalizeEventType(value: unknown) {
 function progressEntity(base44: any, player: any = null) {
   const serviceEntity = base44?.asServiceRole?.entities?.UserDailyQuestProgress || null;
   const authEntity = base44?.entities?.UserDailyQuestProgress || null;
-  return player?.isGuest ? serviceEntity : (authEntity || serviceEntity);
+  return serviceEntity || authEntity;
+}
+
+function economyOperationLockEntity(base44: any) {
+  return base44?.asServiceRole?.entities?.EconomyOperationLock || null;
+}
+
+function canonicalRow(rows: any[] = []) {
+  return [...rows].sort((left, right) => {
+    const timeDelta = Date.parse(String(left?.created_at || left?.created_date || '')) - Date.parse(String(right?.created_at || right?.created_date || ''));
+    if (Number.isFinite(timeDelta) && timeDelta !== 0) return timeDelta;
+    return String(rowId(left) || '').localeCompare(String(rowId(right) || ''));
+  })[0] || null;
+}
+
+function canonicalRowsForTasks(rows: any[], tasks: any[]) {
+  return tasks.map((task) => canonicalRow(rows.filter((row) => String(row?.quest_key || '') === task.questKey))).filter(Boolean);
+}
+
+async function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function withAssignmentLock(base44: any, player: any, dateKey: string, callback: (canCreate: boolean) => Promise<any[]>) {
+  const entity = economyOperationLockEntity(base44);
+  if (!entity?.filter || !entity?.create || !entity?.update) return callback(true);
+  const lockKey = `daily-calendar-assignment:${player.ownerKey}:${dateKey}`;
+  const nowMs = Date.now();
+  const activeRows = await entity.filter({ lock_key: lockKey, status: 'active' }, 'acquired_at', 20).catch(() => []);
+  const active = (activeRows || []).find((row: any) => {
+    const expiresAt = Date.parse(String(row?.expires_at || ''));
+    return !Number.isFinite(expiresAt) || expiresAt > nowMs;
+  });
+  if (active) {
+    await sleep(ASSIGNMENT_LOCK_SETTLE_MS * 3);
+    return callback(false);
+  }
+  const acquiredAt = new Date().toISOString();
+  const lock = await entity.create({
+    lock_key: lockKey,
+    actor_key: player.playerKey,
+    operation_scope: 'daily_calendar_assignment',
+    operation_id: `${dateKey}:ensure-three-tasks`,
+    status: 'active',
+    acquired_at: acquiredAt,
+    expires_at: new Date(nowMs + ASSIGNMENT_LOCK_TTL_MS).toISOString(),
+    metadata: { runtimeVersion: DAILY_CALENDAR_RUNTIME_VERSION, expectedTaskCount: DAILY_CALENDAR_TASKS_PER_DAY },
+  }).catch(() => null);
+  await sleep(ASSIGNMENT_LOCK_SETTLE_MS);
+  const contenders = await entity.filter({ lock_key: lockKey, status: 'active' }, 'acquired_at', 20).catch(() => []);
+  const winner = canonicalRow((contenders || []).filter((row: any) => {
+    const expiresAt = Date.parse(String(row?.expires_at || ''));
+    return !Number.isFinite(expiresAt) || expiresAt > Date.now();
+  }));
+  const canCreate = Boolean(rowId(lock) && rowId(winner) === rowId(lock));
+  try {
+    if (!canCreate) await sleep(ASSIGNMENT_LOCK_SETTLE_MS * 3);
+    return await callback(canCreate);
+  } finally {
+    if (rowId(lock)) await entity.update(rowId(lock), { status: 'released', released_at: new Date().toISOString() }).catch(() => null);
+  }
 }
 
 function resolveTaskTemplates(dateKey: string, player: any) {
@@ -212,16 +275,21 @@ function resolveTaskTemplates(dateKey: string, player: any) {
     let key = templateKey;
     let fallbackReason = '';
     if (key === 'profile' && profileComplete) {
-      key = 'correct5';
+      key = 'level1';
       fallbackReason = 'profile_already_complete';
     }
     let task = TASK_LIBRARY[key] || TASK_LIBRARY.correct5;
-    if (task.requiresRegisteredUser && player?.isGuest) {
-      fallbackReason = `${task.key}_requires_registered_user`;
-      const fallbackKey = SAFE_GUEST_FALLBACKS.find((candidate) => {
+    if (DEFERRED_PROVENANCE_TASK_KEYS.has(task.key) || (task.requiresRegisteredUser && player?.isGuest) || usedQuestTypes.has(task.questType)) {
+      fallbackReason = DEFERRED_PROVENANCE_TASK_KEYS.has(task.key)
+        ? `${task.key}_awaiting_authoritative_receipt`
+        : (task.requiresRegisteredUser && player?.isGuest ? `${task.key}_requires_registered_user` : `${task.key}_duplicate_event_type`);
+      const fallbackKey = PROVENANCE_SAFE_FALLBACKS.find((candidate) => {
         const fallbackTask = TASK_LIBRARY[candidate];
-        return fallbackTask && !usedQuestTypes.has(fallbackTask.questType);
-      }) || 'correct5';
+        return fallbackTask
+          && !(fallbackTask.requiresRegisteredUser && player?.isGuest)
+          && !(candidate === 'profile' && profileComplete)
+          && !usedQuestTypes.has(fallbackTask.questType);
+      }) || 'level1';
       task = TASK_LIBRARY[fallbackKey];
     }
     usedQuestTypes.add(task.questType);
@@ -305,16 +373,16 @@ async function createProgressRow(base44: any, player: any, dateKey: string, task
 
 async function ensureTodayTasks(base44: any, player: any, dateKey: string) {
   const tasks = resolveTaskTemplates(dateKey, player).slice(0, DAILY_CALENDAR_TASKS_PER_DAY);
-  const rows = await readRowsForDate(base44, player, dateKey);
-  const byQuestKey = new Map(rows.map((row: any) => [String(row?.quest_key || ''), row]));
-  for (const task of tasks) {
-    if (byQuestKey.has(task.questKey)) continue;
-    const created = await createProgressRow(base44, player, dateKey, task);
-    if (created) byQuestKey.set(task.questKey, created);
-  }
-  const refreshed = await readRowsForDate(base44, player, dateKey);
-  const refreshedByKey = new Map(refreshed.map((row: any) => [String(row?.quest_key || ''), row]));
-  return tasks.map((task) => refreshedByKey.get(task.questKey) || byQuestKey.get(task.questKey)).filter(Boolean);
+  return withAssignmentLock(base44, player, dateKey, async (canCreate) => {
+    const rows = await readRowsForDate(base44, player, dateKey);
+    if (canCreate) {
+      const existingKeys = new Set(rows.map((row: any) => String(row?.quest_key || '')));
+      for (const task of tasks) {
+        if (!existingKeys.has(task.questKey)) await createProgressRow(base44, player, dateKey, task);
+      }
+    }
+    return canonicalRowsForTasks(await readRowsForDate(base44, player, dateKey), tasks);
+  });
 }
 
 function boundedEventKeys(metadata: any) {
@@ -326,7 +394,7 @@ function publicTask(row: any) {
   const targetValue = Math.max(1, normalizeNumber(row?.target_value, 1));
   const progressValue = Math.min(targetValue, normalizeNumber(row?.progress_value, 0));
   return {
-    id: rowId(row),
+    id: String(row?.quest_key || ''),
     questKey: String(row?.quest_key || ''),
     questDate: String(row?.quest_date || ''),
     title: String(row?.title || ''),
@@ -341,12 +409,28 @@ function publicTask(row: any) {
   };
 }
 
+function timestampMatchesDate(value: unknown, dateKey: string) {
+  const time = Date.parse(String(value || ''));
+  return Number.isFinite(time) && new Date(time).toISOString().slice(0, 10) === dateKey;
+}
+
+function readSoloLevelNumber(body: any) {
+  const value = body?.soloLevelNumber ?? body?.solo_level_number ?? body?.levelNumber ?? body?.level_number
+    ?? body?.metadata?.soloLevelNumber ?? body?.metadata?.solo_level_number;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? Math.max(1, Math.floor(numeric)) : 0;
+}
+
+function readAttemptId(body: any) {
+  return String(body?.attemptId || body?.attempt_id || body?.metadata?.soloAttemptId || '').trim();
+}
+
 async function eventSourceIsVerified(base44: any, player: any, body: any, eventType: string, dateKey: string) {
   if (eventType === TASK_TYPES.DAILY_WHEEL_CLAIM) {
     const entity = base44?.asServiceRole?.entities?.DailyWheelSpin || base44?.entities?.DailyWheelSpin;
     if (!entity?.filter) return { ok: false, reason: 'daily_wheel_spin_entity_missing' };
     const rows = await entity.filter({ user_email: player.playerKey, spin_date: dateKey }, '-claimed_at', 3).catch(() => []);
-    return Array.isArray(rows) && rows.some((row: any) => rowId(row))
+    return Array.isArray(rows) && rows.some((row: any) => rowId(row) && timestampMatchesDate(row?.claimed_at, dateKey))
       ? { ok: true, reason: 'daily_wheel_spin_verified' }
       : { ok: false, reason: 'daily_wheel_not_claimed' };
   }
@@ -356,15 +440,21 @@ async function eventSourceIsVerified(base44: any, player: any, body: any, eventT
     const entity = base44?.asServiceRole?.entities?.JokerTransaction || base44?.entities?.JokerTransaction;
     if (!entity?.filter) return { ok: false, reason: 'joker_transaction_entity_missing' };
     const idempotencyKey = String(body?.idempotencyKey || body?.idempotency_key || '').trim();
-    const transactionId = String(body?.transactionId || body?.transaction_id || '').trim();
     const filters: Record<string, unknown>[] = [];
     if (idempotencyKey) filters.push({ user_email: player.playerKey, idempotency_key: idempotencyKey });
-    if (transactionId) filters.push({ user_email: player.playerKey, id: transactionId });
     if (!filters.length) return { ok: false, reason: 'joker_ledger_key_missing' };
     for (const filter of filters) {
       const rows = await entity.filter(filter, '-created_at', 3).catch(() => []);
       const match = Array.isArray(rows)
-        ? rows.find((row: any) => rowId(row) && (eventType !== TASK_TYPES.TIME_FREEZE_JOKER_USED || String(row?.joker_type || '') === 'time_freeze'))
+        ? rows.find((row: any) => {
+          const levelNumber = Number(row?.metadata?.soloLevelNumber || 0);
+          return rowId(row)
+            && Number(row?.quantity_delta) === -1
+            && String(row?.reason || '') === 'solo_use'
+            && timestampMatchesDate(row?.created_at, dateKey)
+            && levelNumber > 6
+            && (eventType !== TASK_TYPES.TIME_FREEZE_JOKER_USED || String(row?.joker_type || '') === 'time_freeze');
+        })
         : null;
       if (match) return { ok: true, reason: 'joker_transaction_verified' };
     }
@@ -375,15 +465,17 @@ async function eventSourceIsVerified(base44: any, player: any, body: any, eventT
     const entity = base44?.asServiceRole?.entities?.HintTransaction || base44?.entities?.HintTransaction;
     if (!entity?.filter) return { ok: false, reason: 'hint_transaction_entity_missing' };
     const idempotencyKey = String(body?.idempotencyKey || body?.idempotency_key || '').trim();
-    const transactionId = String(body?.transactionId || body?.transaction_id || '').trim();
     const filters: Record<string, unknown>[] = [];
     if (idempotencyKey) filters.push({ user_email: player.playerKey, idempotency_key: idempotencyKey });
-    if (transactionId) filters.push({ user_email: player.playerKey, id: transactionId });
     if (!filters.length) return { ok: false, reason: 'hint_ledger_key_missing' };
     for (const filter of filters) {
       const rows = await entity.filter(filter, '-created_at', 3).catch(() => []);
       const match = Array.isArray(rows)
-        ? rows.find((row: any) => rowId(row) && String(row?.reason || '') === 'solo_use')
+        ? rows.find((row: any) => rowId(row)
+          && Number(row?.quantity_delta) === -1
+          && String(row?.reason || '') === 'solo_use'
+          && Number(row?.metadata?.soloLevelNumber || 0) > 6
+          && timestampMatchesDate(row?.created_at, dateKey))
         : null;
       if (match) return { ok: true, reason: 'hint_transaction_verified' };
     }
@@ -392,18 +484,72 @@ async function eventSourceIsVerified(base44: any, player: any, body: any, eventT
 
   if (eventType === TASK_TYPES.FRIEND_INVITE_SENT || eventType === TASK_TYPES.FRIEND_ADDED) {
     if (player.isGuest) return { ok: false, reason: 'guest_friend_task_disabled' };
-    const requestId = String(body?.requestId || body?.request_id || body?.eventId || body?.event_id || '').trim();
-    if (!requestId) return { ok: false, reason: 'friend_request_id_missing' };
-    return { ok: true, reason: 'friend_event_from_backend_success' };
+    const requestRef = String(body?.requestRef || body?.requestId || body?.request_id || body?.eventId || body?.event_id || '').trim();
+    if (!requestRef) return { ok: false, reason: 'friend_request_ref_missing' };
+    const entity = base44?.asServiceRole?.entities?.FriendRequest;
+    if (!entity?.filter) return { ok: false, reason: 'friend_request_entity_missing' };
+    const rows = await entity.filter({ public_ref: requestRef }, '-updated_date', 2).catch(() => []);
+    const match = (rows || []).find((row: any) => {
+      const fromEmail = normalizeEmail(row?.from_email);
+      const toEmail = normalizeEmail(row?.to_email);
+      if (eventType === TASK_TYPES.FRIEND_INVITE_SENT) {
+        return fromEmail === player.playerKey
+          && timestampMatchesDate(row?.created_at || row?.created_date, dateKey);
+      }
+      return String(row?.status || '') === 'accepted'
+        && (fromEmail === player.playerKey || toEmail === player.playerKey)
+        && timestampMatchesDate(row?.accepted_at, dateKey);
+    });
+    return match
+      ? { ok: true, reason: eventType === TASK_TYPES.FRIEND_ADDED ? 'friend_acceptance_verified' : 'friend_invite_verified' }
+      : { ok: false, reason: 'friend_request_provenance_invalid' };
   }
 
-  if (eventType === TASK_TYPES.JOKERLESS_LEVEL_COMPLETE && body?.jokerUsed === true) {
-    return { ok: false, reason: 'joker_used_in_attempt' };
+  if (eventType === TASK_TYPES.PROFILE_COMPLETE) {
+    return isProfileComplete(player?.row, player?.isGuest === true)
+      ? { ok: true, reason: 'profile_state_verified' }
+      : { ok: false, reason: 'profile_not_complete' };
   }
-  if ((eventType === TASK_TYPES.SOLO_LEVEL_COMPLETE || eventType === TASK_TYPES.JOKERLESS_LEVEL_COMPLETE) && body?.passed === false) {
-    return { ok: false, reason: 'solo_level_not_passed' };
+
+  if (eventType === TASK_TYPES.JOKERLESS_LEVEL_COMPLETE) {
+    return { ok: false, reason: 'authoritative_jokerless_attempt_receipt_unavailable' };
   }
-  return { ok: true, reason: 'gameplay_event' };
+
+  if (eventType === TASK_TYPES.SOLO_LEVEL_COMPLETE) {
+    if (body?.passed !== true) return { ok: false, reason: 'solo_level_not_passed' };
+    const levelNumber = readSoloLevelNumber(body);
+    const entry = player?.row?.solo_progress?.levels?.[String(levelNumber)] || null;
+    const completedAt = entry?.lastAttemptAt || entry?.completedAt;
+    return levelNumber > 0 && Number(entry?.bestStars || 0) > 0 && timestampMatchesDate(completedAt, dateKey)
+      ? { ok: true, reason: 'persisted_solo_progress_verified' }
+      : { ok: false, reason: 'persisted_solo_progress_missing' };
+  }
+
+  if (eventType === TASK_TYPES.CORRECT_ANSWER || eventType === TASK_TYPES.CONSECUTIVE_CORRECT_4) {
+    if (player.isGuest) return { ok: false, reason: 'guest_answer_receipt_unavailable' };
+    const entity = base44?.asServiceRole?.entities?.QuestionAttemptEvent;
+    if (!entity?.filter) return { ok: false, reason: 'question_attempt_event_entity_missing' };
+    const attemptId = readAttemptId(body);
+    if (!attemptId) return { ok: false, reason: 'question_attempt_id_missing' };
+    let rows: any[] = [];
+    for (const delay of [0, 100, 220]) {
+      if (delay) await sleep(delay);
+      rows = await entity.filter({ user_email: player.playerKey, attempt_id: attemptId, event_type: 'answered' }, '-answered_at', 20).catch(() => []);
+      const correctCount = rows.filter((row: any) => row?.is_correct === true).length;
+      if ((eventType === TASK_TYPES.CONSECUTIVE_CORRECT_4 && correctCount >= 4) || (eventType === TASK_TYPES.CORRECT_ANSWER && rows.length)) break;
+    }
+    const verifiedCorrectRows = (rows || []).filter((row: any) => row?.is_correct === true && timestampMatchesDate(row?.answered_at || row?.created_at, dateKey));
+    if (eventType === TASK_TYPES.CONSECUTIVE_CORRECT_4) {
+      return verifiedCorrectRows.length >= 4
+        ? { ok: true, reason: 'four_correct_attempt_events_verified' }
+        : { ok: false, reason: 'four_correct_attempt_events_missing' };
+    }
+    const eventId = String(body?.eventId || body?.event_id || '').trim();
+    return verifiedCorrectRows.some((row: any) => !eventId || String(row?.event_id || '') === eventId)
+      ? { ok: true, reason: 'correct_question_attempt_event_verified' }
+      : { ok: false, reason: 'correct_question_attempt_event_missing' };
+  }
+  return { ok: false, reason: 'event_provenance_not_supported' };
 }
 
 Deno.serve(async (req: Request) => {
@@ -434,19 +580,20 @@ Deno.serve(async (req: Request) => {
     const verification = await eventSourceIsVerified(base44, player, body, eventType, dateKey);
     if (!verification.ok) {
       return json({
-        ok: true,
-        skipped: true,
+        ok: false,
+        code: 'daily_event_provenance_invalid',
         reason: verification.reason,
+        error: 'Günlük ilerleme kaynağı doğrulanamadı.',
         eventType,
         updated: [],
         noDiamondGrantDuringProgress: true,
-      });
+      }, 422);
     }
 
     const rows = await ensureTodayTasks(base44, player, dateKey);
     const entity = progressEntity(base44, player);
     const baseEventId = String(body?.eventId || body?.event_id || body?.idempotencyKey || body?.idempotency_key || body?.transactionId || body?.requestId || '').trim();
-    const amount = Math.max(1, Math.min(10, normalizeNumber(body?.amount, 1)));
+    const amount = 1;
     const updates: any[] = [];
 
     for (const row of rows) {

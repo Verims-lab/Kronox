@@ -23,6 +23,10 @@
       "type": "string",
       "description": "Operational marker for how kronox_user_id was assigned, for example system_create_guest_profile, system_backfill, or preserved_from_guest_profile."
     },
+    "social_ref": {
+      "type": "string",
+      "description": "Random opaque public selection reference assigned server-side. It is not an owner key, email hash, auth id, or authorization proof."
+    },
     "solo_progress": {
       "type": "object",
       "description": "Codex139 \u2014 Per-user Solo Level Path progress. Server User.solo_progress is the signed-in source of truth; localStorage is only a user-scoped mirror/cache. Writes go through base44.auth.updateMe and never overwrite better stars/scores/times with worse replay data.",
@@ -105,7 +109,7 @@
     },
     "online_progress": {
       "type": "object",
-      "description": "Codex477 \u2014 Per-user Online ranking summary. score is the player's current Online score component: win +15, loss -6, no Online speed bonus, then protected by peakCheckpoint on losses. OnlineMatchResult is the durable per-user/lobby idempotency audit source.",
+      "description": "Per-player Online ranking summary written only by the backend result commit. score is the current Online score component: win +15, loss -6, no Online speed bonus, then protected by peakCheckpoint on losses. OnlineMatchResult lobby_id + actor_key_hash is the durable idempotency audit source for linked and guest actors.",
       "properties": {
         "score": {
           "type": "number",
@@ -131,7 +135,7 @@
         },
         "lastMatchId": {
           "type": "string",
-          "description": "Lobby id of the last match whose result was applied. Retained as a recent-match guard; durable idempotency is OnlineMatchResult(player_email,lobby_id)."
+          "description": "Public lobby reference of the last match whose result was applied by the backend. Retained as a recent-match guard; durable idempotency is OnlineMatchResult(lobby_id, actor_key_hash)."
         },
         "lastMatchAt": {
           "type": "string",

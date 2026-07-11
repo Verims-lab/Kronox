@@ -439,7 +439,7 @@ Helpers:
 ```text
 getOnlineCheckpoint(score)
 applyOnlineScoreWithCheckpoint(currentScore, delta)
-applyOnlineMatchResult(progress, { result, durationSeconds })
+updateLobbyGameState({ action: "commit_result", lobby_ref })
 ```
 
 ## 3.6 Online Helper Expectations
@@ -451,7 +451,7 @@ calculateOnlineWinnerDelta(elapsedSeconds)
 calculateOnlineLoserDelta()
 getOnlineCheckpoint(score)
 applyOnlineScoreWithCheckpoint(currentScore, delta)
-applyOnlineMatchResultOnce(matchResult)
+commitOnlineResult(lobbyRef)
 ```
 
 Expected behavior:
@@ -474,7 +474,11 @@ Rules:
 * same match must not deduct points twice
 * refreshing result screen must not apply score again
 * re-entering a completed lobby/game must not apply score again
-* idempotency is per user, because winner and loser each need their own update
+* idempotency is per backend-resolved linked/guest actor, because winner and
+  loser each need their own receipt
+* the client cannot submit the authoritative result, delta, score, or winner
+* the backend verifies terminal Lobby state and participant membership before
+  computing winner `+15` or loser `-6`
 
 Expected durable idempotency source:
 
@@ -486,8 +490,8 @@ Expected fields include:
 
 ```text
 idempotency_key
-player_email
 lobby_id
+actor_key_hash
 result
 score_before
 score_after
@@ -498,11 +502,14 @@ applied_at
 
 Critical rule:
 
-A durable per-user/lobby idempotency record must exist before or safely together with the visible score write.
+A durable per-actor/lobby reservation must exist before the visible score write.
+If a prior attempt wrote the profile but did not finalize the receipt, the
+backend reconciles the reserved row from `online_progress.lastMatchId` and the
+recorded `score_after`; conflicting partial state fails closed.
 The current idempotency key shape is:
 
 ```text
-online_match_result:<lobby_id>:<player_email>
+online_match_result:<lobby_id>:<actor_key_hash>
 ```
 
 If score persistence fails:
@@ -532,6 +539,9 @@ Rules:
 * Solo scoring must not mutate Online progress.
 * Visible Kronox Puan combines Solo + Online through the shared helper.
 * Legacy `draws` or `lastUpdatedAt` fields may be tolerated for old rows but must not be written by new scoring logic.
+* `src/lib/applyOnlineResult.js` is a thin backend-function caller. Client code
+  must not create `OnlineMatchResult`, update `User`/`GuestProfile` score, or
+  publish leaderboard projection rows for an Online result.
 
 ---
 

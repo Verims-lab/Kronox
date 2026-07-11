@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex586 — Hamle 2 P0 authority, integrity, and deployability pass:
+//   • Online Lobby/result mutations are backend-owned for linked and
+//     token-proven guest actors, lock/revision guarded, and privacy-sanitized.
+//   • Daily assignments require canonical distinct keys and progress requires
+//     persisted same-actor/day provenance; notification open is nonterminal.
+//   • Base44 deploy gate caps 50 functions and exact-pins SDK 0.8.34; stale
+//     Health cases and docs now point at active source contracts.
+//
 // Codex585 — Daily Wheel Health exact close/reopen contract alignment:
 //   • Source-connected no-spin close comments guard that closing the
 //     auto-popup does not consume the free spin or complete Çark çevir.
@@ -72,7 +80,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex585';
+const BUILD_MARKER = 'Codex586';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

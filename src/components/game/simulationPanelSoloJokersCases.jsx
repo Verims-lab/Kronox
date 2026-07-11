@@ -13,7 +13,6 @@ import soloTimerSource from './SoloLevelTimer.jsx?raw';
 import jokerInventorySource from '../../lib/jokerInventory.js?raw';
 import hintInventorySource from '../../lib/hintInventory.js?raw';
 import spendUserJokerSource from '../../../base44/functions/spendUserJoker/entry.ts?raw';
-import ensureUserHintInventorySource from '../../../base44/functions/ensureUserHintInventory/entry.ts?raw';
 import consumeUserHintSource from '../../../base44/functions/consumeUserHint/entry.ts?raw';
 import marketPageSource from '../../pages/MarketPage.jsx?raw';
 import purchaseJokerWithDiamondsSource from '../../../base44/functions/purchaseJokerWithDiamonds/entry.ts?raw';
@@ -215,7 +214,7 @@ export const EXTRA_TESTS = [
         safeStr(gameSource).indexOf('const handleUseSoloHint'),
         safeStr(gameSource).indexOf('const handleRestart'),
       );
-      const missing = missingTokens(`${hintHandler}\n${hintInventorySource}\n${ensureUserHintInventorySource}\n${consumeUserHintSource}`, [
+      const missing = missingTokens(`${hintHandler}\n${hintInventorySource}\n${consumeUserHintSource}`, [
         'consumeUserHint',
         'buildSoloHintUseIdempotencyKey',
         "eventType: 'hint_used'",

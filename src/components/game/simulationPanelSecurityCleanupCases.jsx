@@ -15,8 +15,6 @@
 import adminSource from '../../lib/admin.js?raw';
 import gameInviteSelectorsSource from '../../lib/gameInviteSelectors.js?raw';
 import sendGameInvitePushSource from '../../../base44/functions/sendGameInvitePush/entry.ts?raw';
-import resetTestAccountProgressSource from '../../../base44/functions/resetTestAccountProgress/entry.ts?raw';
-import diagnoseSoloQuestionStartQuerySource from '../../../base44/functions/diagnoseSoloQuestionStartQuery/entry.ts?raw';
 import diagnoseSoloQuestionStartQueryScriptSource from '../../../scripts/diagnoseSoloQuestionStartQuery.mjs?raw';
 import accountDeletionPageSource from '../../pages/AccountDeletionPage.jsx?raw';
 import privacyPolicySource from '../../pages/PrivacyPolicy.jsx?raw';
@@ -57,8 +55,6 @@ const LIVE_SOURCES = [
   adminSource,
   gameInviteSelectorsSource,
   sendGameInvitePushSource,
-  resetTestAccountProgressSource,
-  diagnoseSoloQuestionStartQuerySource,
   diagnoseSoloQuestionStartQueryScriptSource,
   accountDeletionPageSource,
   privacyPolicySource,
@@ -471,43 +467,6 @@ export const EXTRA_TESTS = [
       });
     }),
 
-  makeCase('reset_test_account_progress_env_allowlist_removed',
-    'resetTestAccountProgress uses AdminUser authorization, not KRONOX_TEST_RESET_EMAILS',
-    () => {
-      const required = [
-        'requireAdmin(base44)',
-        "source: 'AdminUser'",
-        'confirmEmail',
-        'confirmation_mismatch',
-        'base44.asServiceRole.entities.User.update',
-        'updateSoloLeaderboardRows',
-      ];
-      const forbidden = [
-        'KRONOX_TEST_RESET_EMAILS',
-        'TEST_RESET_EMAILS',
-        'getConfiguredEmails',
-        'getResettableTestEmails',
-        'test_account_not_allowlisted',
-        'body?.role',
-        'user.role',
-      ].filter((token) => resetTestAccountProgressSource.includes(token));
-      const missing = missingTokens(resetTestAccountProgressSource, required);
-      if (missing.length || forbidden.length) {
-        return fail('resetTestAccountProgress still has unsafe test-reset authorization markers.', {
-          verification: 'STATIC_CONTRACT',
-          classification: 'REAL_PRODUCT_RISK',
-          file: 'base44/functions/resetTestAccountProgress/entry.ts',
-          expected: 'AdminUser-backed requireAdmin, exact target confirmation, no KRONOX_TEST_RESET_EMAILS / TEST_RESET_EMAILS runtime authorization',
-          actual: { missing, forbidden },
-          actionType: ACTION_TYPES.CODE_FIX,
-        });
-      }
-      return pass('resetTestAccountProgress no longer reads env email allowlists and remains AdminUser-gated.', {
-        verification: 'STATIC_CONTRACT',
-        actionType: ACTION_TYPES.CODE_FIX,
-      });
-    }),
-
   makeCase('vapid_public_and_subject_docs_aligned',
     'VAPID public key and subject scanner context is documented accurately',
     () => {
@@ -565,7 +524,6 @@ export const EXTRA_TESTS = [
     'Diagnostics and public contact pages avoid committed email literals',
     () => {
       const combined = [
-        diagnoseSoloQuestionStartQuerySource,
         diagnoseSoloQuestionStartQueryScriptSource,
         accountDeletionPageSource,
         privacyPolicySource,
@@ -579,7 +537,6 @@ export const EXTRA_TESTS = [
         'buildPublicSupportMailto',
         'SOLO_DIAGNOSTIC_REQUESTED_EMAIL',
         'requestedUserEmailMasked',
-        'requireAdmin(base44)',
       ];
       const forbidden = presentTokens(combined, [
         personalEmail,

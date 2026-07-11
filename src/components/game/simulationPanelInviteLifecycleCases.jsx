@@ -173,6 +173,8 @@ export const EXTRA_TESTS = [
       const src = safeStr(acceptGameInviteFnSource);
       const required = [
         'LOBBY_STALE_AFTER_MS = 10 * 60 * 1000',
+        'const lobbyExpiresAt = getLobbyExpiry(lobby)',
+        "code: 'lobby_expired'",
         'Lobi süresi doldu',
       ];
       const missing = required.filter((t) => !src.includes(t));
@@ -196,7 +198,8 @@ export const EXTRA_TESTS = [
       const src = safeStr(findLobbyByCodeFnSource);
       const required = [
         'LOBBY_STALE_AFTER_MS = 10 * 60 * 1000',
-        'Lobi süresi doldu',
+        'lobbyIsStale(lobby)',
+        "code: 'lobby_not_joinable'",
       ];
       const missing = required.filter((t) => !src.includes(t));
       if (missing.length) {

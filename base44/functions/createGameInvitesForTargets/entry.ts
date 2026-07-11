@@ -3,11 +3,39 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 const GAME_INVITE_TTL_MS = 10 * 60 * 1000;
 const LOBBY_STALE_AFTER_MS = 10 * 60 * 1000;
 const PRESENCE_ONLINE_TTL_MS = 75 * 1000;
-const TARGET_REF_PATTERN = /^[ug]_[a-z0-9]{3,32}$/;
+const TARGET_REF_PATTERN = /^social_[A-Za-z0-9_-]{20,80}$/;
 const KRONOX_ID_PATTERN = /^KX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
 
 const normalizeEmail = (value: unknown) => String(value || '').trim().toLowerCase();
 const json = (body: unknown, status = 200) => Response.json(body, { status });
+
+function bytesToBase64Url(bytes: Uint8Array) {
+  let binary = '';
+  bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+function randomRef(prefix: string) {
+  return `${prefix}_${bytesToBase64Url(crypto.getRandomValues(new Uint8Array(24)))}`;
+}
+
+async function ensureSocialRef(base44: any, profile: any, entity: any = base44.asServiceRole.entities.User) {
+  const current = String(profile?.social_ref || '').trim();
+  if (TARGET_REF_PATTERN.test(current)) return current;
+  const id = String(profile?.id || profile?._id || '').trim();
+  if (!id) return '';
+  const socialRef = randomRef('social');
+  await entity.update(id, { social_ref: socialRef });
+  return socialRef;
+}
+
+async function ensureInviteRef(base44: any, invite: any) {
+  const current = String(invite?.public_ref || '').trim();
+  if (current) return current;
+  const publicRef = randomRef('invite');
+  await base44.asServiceRole.entities.GameInvite.update(invite.id, { public_ref: publicRef });
+  return publicRef;
+}
 
 function makeOwnerKeyHash(email: unknown) {
   const normalized = normalizeEmail(email);
@@ -18,6 +46,46 @@ function makeOwnerKeyHash(email: unknown) {
     hash = Math.imul(hash, 16777619);
   }
   return `u_${(hash >>> 0).toString(36)}`;
+}
+
+function makeGuestOwnerKeyHash(guestId: unknown) {
+  const normalized = String(guestId || '').trim().toLowerCase();
+  if (!normalized) return '';
+  let hash = 2166136261;
+  for (let i = 0; i < normalized.length; i += 1) {
+    hash ^= normalized.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `g_${(hash >>> 0).toString(36)}`;
+}
+
+function safeCredentialText(value: unknown, maxLength = 180) {
+  const text = String(value || '').trim();
+  if (!text || text.length > maxLength) return '';
+  return /^[A-Za-z0-9_-]+$/.test(text) ? text : '';
+}
+
+function normalizeGuestId(value: unknown) {
+  const text = safeCredentialText(value, 80);
+  return text.startsWith('guest_') ? text : '';
+}
+
+function normalizeGuestToken(value: unknown) {
+  return safeCredentialText(value, 220);
+}
+
+async function sha256Base64Url(input: string) {
+  const data = new TextEncoder().encode(input);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return bytesToBase64Url(new Uint8Array(digest));
+}
+
+async function hashGuestToken(guestId: string, guestToken: string) {
+  return sha256Base64Url(`kronox_guest_v1:${guestId}:${guestToken}`);
+}
+
+function guestProfileEntity(base44: any) {
+  return base44?.asServiceRole?.entities?.GuestProfile || base44?.entities?.GuestProfile || null;
 }
 
 function makeUsernameFallback(seed: unknown) {
@@ -99,10 +167,13 @@ async function getAcceptedFriendTargetMap(base44: any, myEmail: string) {
     base44.asServiceRole.entities.FriendRequest.filter({ from_email: myEmail, status: 'accepted' }, '-updated_date', 200),
   ]);
   const byTargetRef = new Map<string, any>();
-  const addFriend = (email: string, username: unknown, kronoxUserId: unknown) => {
+  const addFriend = async (email: string, username: unknown, kronoxUserId: unknown) => {
     const normalized = normalizeEmail(email);
-    const targetRef = makeOwnerKeyHash(normalized);
-    if (!normalized || !targetRef || normalized === myEmail || byTargetRef.has(targetRef)) return;
+    if (!normalized || normalized === myEmail) return;
+    const profiles = await base44.asServiceRole.entities.User.filter({ email: normalized }, '-updated_date', 1).catch(() => []);
+    const profile = profiles?.[0] || null;
+    const targetRef = profile ? await ensureSocialRef(base44, profile) : '';
+    if (!targetRef || byTargetRef.has(targetRef)) return;
     byTargetRef.set(targetRef, {
       targetRef,
       email: normalized,
@@ -111,14 +182,71 @@ async function getAcceptedFriendTargetMap(base44: any, myEmail: string) {
       relation: 'friend',
     });
   };
-  (incomingAccepted || []).forEach((row: any) => addFriend(row.from_email, row.from_username || row.from_name, row.from_kronox_user_id));
-  (outgoingAccepted || []).forEach((row: any) => addFriend(row.to_email, row.to_username || row.to_name, row.to_kronox_user_id));
+  await Promise.all([
+    ...(incomingAccepted || []).map((row: any) => addFriend(row.from_email, row.from_username || row.from_name, row.from_kronox_user_id)),
+    ...(outgoingAccepted || []).map((row: any) => addFriend(row.to_email, row.to_username || row.to_name, row.to_kronox_user_id)),
+  ]);
   return byTargetRef;
 }
 
 async function findCurrentUserRow(base44: any, user: any, email: string) {
   const rows = await base44.asServiceRole.entities.User.filter({ email }, '-updated_date', 1).catch(() => []);
   return rows?.[0] || user || null;
+}
+
+async function resolveInviteActor(base44: any, body: any) {
+  const user = await base44.auth.me().catch(() => null);
+  if (user?.email) {
+    const email = normalizeEmail(user.email);
+    const profile = await findCurrentUserRow(base44, user, email);
+    const actorKeyHash = makeOwnerKeyHash(email);
+    const socialRef = await ensureSocialRef(base44, profile);
+    return {
+      ok: true,
+      response: null,
+      actor: {
+        actorKeyHash,
+        email,
+        socialRef,
+        kronoxUserId: normalizeKronoxUserId(profile?.kronox_user_id || user?.kronox_user_id),
+        username: safePublicUsername(
+          profile?.username || profile?.public_username || profile?.display_name || user?.username || user?.public_username || user?.display_name,
+          socialRef || email,
+        ),
+        playerType: 'linked',
+      },
+    };
+  }
+
+  const guestId = normalizeGuestId(body?.guest_id);
+  const guestToken = normalizeGuestToken(body?.guest_token);
+  if (!guestId || !guestToken) {
+    return { ok: false, response: json({ ok: false, error: 'Unauthorized' }, 401), actor: null };
+  }
+  const entity = guestProfileEntity(base44);
+  if (!entity?.filter) {
+    return { ok: false, response: json({ ok: false, error: 'GuestProfile unavailable' }, 503), actor: null };
+  }
+  const rows = await entity.filter({ guest_id: guestId }, '-created_at', 5).catch(() => []);
+  const guest = rows?.[0] || null;
+  const expectedHash = String(guest?.guest_token_hash || '');
+  const providedHash = await hashGuestToken(guestId, guestToken);
+  if (!guest || !expectedHash || expectedHash !== providedHash) {
+    return { ok: false, response: json({ ok: false, error: 'invalid_guest_token' }, 401), actor: null };
+  }
+  const socialRef = await ensureSocialRef(base44, guest, entity);
+  return {
+    ok: true,
+    response: null,
+    actor: {
+      actorKeyHash: makeGuestOwnerKeyHash(guestId),
+      email: '',
+      socialRef,
+      kronoxUserId: normalizeKronoxUserId(guest?.kronox_user_id),
+      username: safePublicUsername(guest?.username || guest?.display_name, socialRef || guestId),
+      playerType: 'guest',
+    },
+  };
 }
 
 async function resolveTarget(base44: any, targetRef: string, {
@@ -140,7 +268,7 @@ async function resolveTarget(base44: any, targetRef: string, {
   if (friend?.email) return { ok: true, ...friend };
 
   const presenceRows = await base44.asServiceRole.entities.PlayerPresence.filter(
-    { owner_key_hash: targetRef },
+    { selection_ref: targetRef },
     '-last_seen_at',
     10,
   ).catch(() => []);
@@ -163,22 +291,27 @@ async function resolveTarget(base44: any, targetRef: string, {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me().catch(() => null);
-    if (!user?.email) return json({ ok: false, error: 'Unauthorized' }, 401);
-
     const body = await req.json().catch(() => ({}));
+    const resolvedActor = await resolveInviteActor(base44, body);
+    if (!resolvedActor.ok) return resolvedActor.response;
+    const actor = resolvedActor.actor;
     const lobbyId = String(body?.lobby_id || body?.lobbyId || '').trim();
     const targetRefs = normalizeTargetRefs(body?.target_refs || body?.invite_targets || body?.targets);
     if (!lobbyId) return json({ ok: false, error: 'lobby_id is required' }, 400);
     if (!targetRefs.length) return json({ ok: false, error: 'At least one invite target is required' }, 400);
 
-    const myEmail = normalizeEmail(user.email);
-    const currentUser = await findCurrentUserRow(base44, user, myEmail);
-    const fromKronoxUserId = normalizeKronoxUserId(currentUser?.kronox_user_id || user?.kronox_user_id);
-    const myPresenceKey = makeOwnerKeyHash(myEmail);
-    const lobby = await base44.asServiceRole.entities.Lobby.get(lobbyId);
+    const myEmail = normalizeEmail(actor.email);
+    const fromKronoxUserId = normalizeKronoxUserId(actor.kronoxUserId);
+    const mySelectionRef = String(actor.socialRef || '');
+    const publicMatches = await base44.asServiceRole.entities.Lobby
+      .filter({ public_ref: lobbyId }, '-updated_date', 2)
+      .catch(() => []);
+    const lobby = publicMatches?.[0] || await base44.asServiceRole.entities.Lobby.get(lobbyId).catch(() => null);
     if (!lobby) return json({ ok: false, error: 'Lobi bulunamadı.' }, 404);
-    if (normalizeEmail(lobby.host_email) !== myEmail) {
+    if (
+      String(lobby.host_actor_key_hash || '') !== actor.actorKeyHash &&
+      (!myEmail || normalizeEmail(lobby.host_email) !== myEmail)
+    ) {
       return json({ ok: false, error: 'Bu lobi için davet oluşturamazsın.' }, 403);
     }
     if (lobby.status !== 'waiting') {
@@ -189,11 +322,11 @@ Deno.serve(async (req) => {
       return json({ ok: false, error: 'Lobi süresi doldu.' }, 409);
     }
 
-    const friendMap = await getAcceptedFriendTargetMap(base44, myEmail);
+    const friendMap = myEmail ? await getAcceptedFriendTargetMap(base44, myEmail) : new Map<string, any>();
     const nowMs = Date.now();
     const resolved = await Promise.all(targetRefs.map((targetRef) => resolveTarget(base44, targetRef, {
       myEmail,
-      myPresenceKey,
+      myPresenceKey: mySelectionRef,
       friendMap,
       nowMs,
     })));
@@ -211,8 +344,8 @@ Deno.serve(async (req) => {
     const createErrors: any[] = [];
     const playerCount = normalizePlayerCount(body?.player_count || body?.playerCount, deduped.size + 1);
     const fromName = safePublicUsername(
-      user.username || user.public_username || user.display_name || user.full_name,
-      myEmail,
+      actor.username,
+      actor.socialRef || actor.actorKeyHash,
     );
 
     for (const target of deduped.values()) {
@@ -227,8 +360,10 @@ Deno.serve(async (req) => {
         const createdAt = new Date();
         const expiresAt = new Date(createdAt.getTime() + GAME_INVITE_TTL_MS);
         const invite = existing?.[0] || await base44.asServiceRole.entities.GameInvite.create({
+          public_ref: randomRef('invite'),
           lobby_id: lobby.id,
           lobby_code: lobby.code || '',
+          from_actor_key_hash: actor.actorKeyHash,
           from_email: myEmail,
           ...(fromKronoxUserId ? { from_kronox_user_id: fromKronoxUserId } : {}),
           from_name: fromName,
@@ -244,8 +379,10 @@ Deno.serve(async (req) => {
           recipient_relation: target.relation,
           created_source: 'online_player_selection',
         });
+        const inviteRef = await ensureInviteRef(base44, invite);
         created.push({
-          id: invite?.id || null,
+          id: inviteRef,
+          invite_ref: inviteRef,
           target_ref: target.targetRef,
           relation: target.relation,
           duplicatePending: Boolean(existing?.[0]),

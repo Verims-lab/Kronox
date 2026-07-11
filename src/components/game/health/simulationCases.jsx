@@ -2,8 +2,8 @@
 //
 // SCOPE
 //   Inline (non-registry) Health cases extracted from SimulationPanel.jsx.
-//   Includes BASE_SUITES + SUITES, raw source map (SRC), backend contract
-//   mirror strings (findLobbyByCode/startLobbyGame/updateLobbyGameState),
+//   Includes BASE_SUITES + SUITES, raw source map (SRC), active backend
+//   function sources (findLobbyByCode/startLobbyGame/updateLobbyGameState),
 //   tiny case-factory helpers (sourceHas/sourceLacks/valueCase/...), and
 //   the TESTS array (built-in cases + ...EXTRA_TESTS from the registry).
 //
@@ -52,6 +52,9 @@ import questionCacheSource from '../../../lib/questionCache.js?raw';
 // Codex560 — shared Daily status cache helper (60s TTL + idle refresh) that
 // useDailyWheel/useDailyQuests consume; performance_ux cases scan it directly.
 import dailyStatusCacheSource from '../../../lib/dailyStatusCache.js?raw';
+import findLobbyByCodeSource from '../../../../base44/functions/findLobbyByCode/entry.ts?raw';
+import startLobbyGameSource from '../../../../base44/functions/startLobbyGame/entry.ts?raw';
+import updateLobbyGameStateSource from '../../../../base44/functions/updateLobbyGameState/entry.ts?raw';
 
 import { getNextPlayerIndex, hasPlayerWon, isCorrectPlacement, selectNextQuestion } from '../../../lib/gameRules';
 import { normalizeCode, removePlayerByIdentity, summarizePlayers } from '../../../lib/lobbyUtils';
@@ -73,68 +76,6 @@ import {
 import { STATUS, pass, fail, warning, blocked, notAutomatable } from './healthStatus';
 import { captureEnvironment, extractBuildMarker } from './simulationRunner';
 import { buildBlockerCopyJson, buildReport, buildHumanSummary } from './simulationReportBuilder';
-
-// Backend function files (functions/*.js) live OUTSIDE /src and cannot be
-// imported with `?raw` under the current Vite config — doing so emits an
-// invalid module that triggers `SyntaxError: Invalid or unexpected token`
-// at chunk-evaluation time and brings down the entire Settings lazy route
-// (regression observed in Codex073).
-//
-// We embed the public-contract tokens here as plain strings. These mirror
-// the live functions/*.js files and MUST be kept in sync when those
-// server-side functions change.
-const findLobbyByCodeSource = `
-  // Public contract of functions/findLobbyByCode.js — mirrored for static
-  // contract checks. The live file lives outside /src.
-  const lobby = await findLobbyByCode(normalizedCode);
-  const alreadyIn = lobby.players.some((p) => p.email === user.email);
-  if (!alreadyIn) {
-    await base44.asServiceRole.entities.Lobby.update(lobby.id, {
-      players: [...lobby.players, newPlayer],
-    });
-  }
-`;
-
-const startLobbyGameSource = `
-  // Public contract of functions/startLobbyGame.js — mirrored.
-  const ONLINE_DECK_SELECTION_SOURCE = 'online_shared_selected_category_deck_v1';
-  const ONLINE_ALLOWED_DIFFICULTIES = new Set([1, 2]);
-  const online_question_deck = buildSharedOnlineDeck({ selected_category_ids: lobby.selected_category_ids, difficultyRule: 'difficulty_1_or_2_only' });
-  await base44.asServiceRole.entities.Lobby.update(lobby.id, {
-    status: 'starting',
-    online_question_deck,
-    online_deck_meta: { source: ONLINE_DECK_SELECTION_SOURCE, selectedCategoriesOnly: true },
-    state_revision: (lobby.state_revision || 0) + 1,
-  });
-  // startLobbyGame
-`;
-
-const updateLobbyGameStateSource = `
-  // Public contract of functions/updateLobbyGameState.js — mirrored.
-  if (activePlayer.email !== user.email) {
-    return Response.json({ error: 'Sira sizde degil.' }, { status: 403 });
-  }
-  if (incomingPlayers[index]?.email !== lobbyPlayers[index]?.email) {
-    return Response.json({ error: 'Oyuncu sirasi veya kimligi degistirilemez.' }, { status: 400 });
-  }
-  if (index !== activeIndex) {
-    // Aktif olmayan oyuncunun kartlari degistirilemez.
-  }
-  // Mevcut kartlar degistirilemez.
-  const containsAllPreviousIds = previousUsedIds.every((id) => incomingUsedIds.includes(id));
-  if (!containsAllPreviousIds) {
-    return Response.json({ error: 'Kullanilmis soru gecmisi eksiltilemez.' }, { status: 400 });
-  }
-  if (typeof winnerIndex === 'number') {
-    const winnerEmail = lobbyPlayers[winnerIndex]?.email;
-    if (!winnerEmail) {
-      return Response.json({ error: 'Kazanan oyuncu lobi oyuncularindan biri olmali.' }, { status: 400 });
-    }
-  }
-  if (lobby.current_player_index !== previousPlayerIndex || lobby.current_question_id !== previousQuestionId) {
-    return Response.json({ error: 'stale_write', state_revision: lobby.state_revision }, { status: 409 });
-  }
-`;
 
 export const BASE_SUITES = [
   { id: 'environment', name: 'Environment Suite', critical: false, color: '#67e8f9' },
@@ -407,8 +348,8 @@ export const TESTS = [
   valueCase('game_rules', 'has_player_won', 'hasPlayerWon condition', () => [hasPlayerWon({ cards: [{}, {}, {}] }, 3), hasPlayerWon({ cards: [{}, {}] }, 3)], [true, false]),
   valueCase('game_rules', 'next_player_normal', 'getNextPlayerIndex normal flow', () => [getNextPlayerIndex(0, 3), getNextPlayerIndex(1, 3)], [1, 2]),
   valueCase('game_rules', 'next_player_wrap', 'getNextPlayerIndex wraparound', () => getNextPlayerIndex(2, 3), 0),
-  sourceHas('game_rules', 'used_ids_cannot_shrink_server_helper', 'used_question_ids cannot shrink if server rule helper is available', 'updateLobbyGameState', SRC.UpdateLobbyGameState, ['containsAllPreviousIds', 'Kullanilmis soru gecmisi eksiltilemez']),
-  sourceHas('game_rules', 'player_card_mutation_rules', 'duplicate player/card mutation rules if helpers exist', 'updateLobbyGameState', SRC.UpdateLobbyGameState, ['Oyuncu sirasi veya kimligi degistirilemez', 'Aktif olmayan oyuncunun kartlari degistirilemez', 'Mevcut kartlar degistirilemez']),
+  sourceHas('game_rules', 'used_ids_cannot_shrink_server_helper', 'used_question_ids cannot shrink in the active backend function', 'updateLobbyGameState', SRC.UpdateLobbyGameState, ['previousUsedIds', 'incomingUsedIds', 'invalid_question_history']),
+  sourceHas('game_rules', 'player_card_mutation_rules', 'participant order and existing cards are protected by the active backend function', 'updateLobbyGameState', SRC.UpdateLobbyGameState, ['normalizeIncomingPlayers', 'other_player_cards_changed', 'existing_cards_changed']),
 
   makeCase('multiplayer_authority', 'authoritative_update_path_expected', 'updateLobbyGameState is the only authoritative in-game update path where expected', () => {
     const findings = classifyDirectLobbyUpdates();
@@ -418,23 +359,23 @@ export const TESTS = [
       : pass('No direct in-game Lobby.update usage detected in gameplay sync/action files.', { actual: findings });
   }),
   makeCase('multiplayer_authority', 'direct_lobby_update_classification', 'Direct Lobby.update usages are listed and classified', () => pass('Direct Lobby.update usages classified.', { actual: classifyDirectLobbyUpdates() })),
-  sourceHas('multiplayer_authority', 'server_rejects_non_current_actor_source', 'server function rejects non-current actor if function can be tested/mocked', 'updateLobbyGameState', SRC.UpdateLobbyGameState, ['Sira sizde degil', 'activePlayer.email !== user.email']),
-  sourceHas('multiplayer_authority', 'players_cannot_reorder_source', 'players array cannot be reordered if helper validation can be tested', 'updateLobbyGameState', SRC.UpdateLobbyGameState, ['incomingPlayers[index]?.email !== lobbyPlayers[index]?.email', 'Oyuncu sirasi veya kimligi degistirilemez']),
-  sourceHas('multiplayer_authority', 'non_active_cards_cannot_mutate_source', 'non-active player cards cannot be mutated', 'updateLobbyGameState', SRC.UpdateLobbyGameState, ['index !== activeIndex', 'Aktif olmayan oyuncunun kartlari degistirilemez']),
-  sourceHas('multiplayer_authority', 'used_ids_cannot_shrink_source', 'used_question_ids cannot shrink', 'updateLobbyGameState', SRC.UpdateLobbyGameState, ['containsAllPreviousIds', 'previousUsedIds', 'incomingUsedIds']),
-  sourceHas('multiplayer_authority', 'winner_maps_to_real_player_source', 'winner must map to real player', 'updateLobbyGameState', SRC.UpdateLobbyGameState, ['winnerIndex', 'winnerEmail', 'Kazanan oyuncu lobi oyuncularindan biri olmali']),
-  sourceHas('multiplayer_authority', 'stale_revision_protection_source', 'stale revision/update conflict protection exists if implemented', 'updateLobbyGameState', SRC.UpdateLobbyGameState, ['previousPlayerIndex', 'previousQuestionId', 'stale_write', 'state_revision']),
-  sourceHas('multiplayer_authority', 'optimistic_rejection_self_heal_source', 'optimistic rejection path can self-heal from fetched Lobby state if simulator can mock it', 'useGameActions/useLobbySync', `${SRC.UseGameActions}\n${SRC.UseLobbySync}`, ['recoverLatestLobbyState', 'base44.entities.Lobby.get', 'setLobbyData']),
-  sourceHas('multiplayer_authority', 'retry_no_blind_overwrite_source', 'retry path does not blindly overwrite newer state if protection exists', 'useGameActions/updateLobbyGameState', `${SRC.UseGameActions}\n${SRC.UpdateLobbyGameState}`, ['previousPlayerIndex', 'previousQuestionId', 'stale_write']),
+  sourceHas('multiplayer_authority', 'server_rejects_non_current_actor_source', 'active backend rejects a non-current actor', 'updateLobbyGameState', SRC.UpdateLobbyGameState, ['actorMatchesPlayer(actor, storedPlayers[activeIndex])', 'not_your_turn']),
+  sourceHas('multiplayer_authority', 'players_cannot_reorder_source', 'players array is keyed by opaque participant_ref and cannot be reordered', 'updateLobbyGameState', SRC.UpdateLobbyGameState, ['normalizeIncomingPlayers', 'participant_ref', 'invalid_roster']),
+  sourceHas('multiplayer_authority', 'non_active_cards_cannot_mutate_source', 'non-active player cards cannot be mutated', 'updateLobbyGameState', SRC.UpdateLobbyGameState, ['index !== activeIndex', 'other_player_cards_changed']),
+  sourceHas('multiplayer_authority', 'used_ids_cannot_shrink_source', 'used_question_ids cannot shrink or leave the persisted deck', 'updateLobbyGameState', SRC.UpdateLobbyGameState, ['previousUsedIds', 'incomingUsedIds', 'invalid_question_history']),
+  sourceHas('multiplayer_authority', 'winner_maps_to_real_player_source', 'winner is derived from the verified active participant', 'updateLobbyGameState', SRC.UpdateLobbyGameState, ['const winnerPlayer = storedPlayers[activeIndex]', 'winner_participant_ref', 'winner_actor_key_hash']),
+  sourceHas('multiplayer_authority', 'stale_revision_protection_source', 'expected revision conflicts are rejected', 'updateLobbyGameState', SRC.UpdateLobbyGameState, ['expected_state_revision', 'stale_write', 'state_revision']),
+  sourceHas('multiplayer_authority', 'optimistic_rejection_self_heal_source', 'optimistic rejection path refetches the public backend snapshot', 'useGameActions/useLobbySync', `${SRC.UseGameActions}\n${SRC.UseLobbySync}`, ['recoverLatestLobbyState', 'getLobbySnapshot', 'setLobbyData']),
+  sourceHas('multiplayer_authority', 'retry_no_blind_overwrite_source', 'retry path carries expected revision and operation id instead of blind overwrite', 'useGameActions/updateLobbyGameState', `${SRC.UseGameActions}\n${SRC.UpdateLobbyGameState}`, ['expected_state_revision', 'operation_key', 'stale_write']),
 
   valueCase('waiting_room_start', 'lobby_code_validation', 'lobby code validation', () => normalizeCode(' ab-12 c '), 'AB12C'),
-  valueCase('waiting_room_start', 'player_list_normalization', 'player list normalization', () => summarizePlayers([{ email: 'a@q.local', name: 'A', cards: [{}] }]), [{ index: 0, email: 'a@q.local', name: 'A', cardCount: 1 }]),
-  valueCase('waiting_room_start', 'duplicate_player_identity_remove', 'duplicate player handling', () => removePlayerByIdentity([{ email: 'a', name: 'Same' }, { email: 'b', name: 'Same' }], { email: 'b', name: 'Same' }).map(player => player.email), ['a']),
+  valueCase('waiting_room_start', 'player_list_normalization', 'public player list normalization', () => summarizePlayers([{ participant_ref: 'player_a', name: 'A', cards: [{}] }]), [{ index: 0, participantRef: 'player_a', name: 'A', cardCount: 1 }]),
+  valueCase('waiting_room_start', 'duplicate_player_identity_remove', 'opaque participant identity removal', () => removePlayerByIdentity([{ participant_ref: 'player_a', name: 'Same' }, { participant_ref: 'player_b', name: 'Same' }], { participantRef: 'player_b', name: 'Same' }).map(player => player.participant_ref), ['player_a']),
   makeCase('waiting_room_start', 'ready_state_persistence_path', 'ready state persistence path exists', () => pass('Ready-state toggle is intentionally absent in the current waiting-room UX; host start is the active contract.', { classification: 'CURRENT_PRODUCT_CONTRACT', expected: 'host-controlled start path', actual: 'current waiting room starts from host action and does not expose a ready toggle' })),
   sourceHas('waiting_room_start', 'host_start_server_authoritative', 'host start path is classified as server-authoritative or waiting-room-safe', 'WaitingRoom/startLobbyGame', `${SRC.WaitingRoomPanel}\n${SRC.StartLobbyGame}`, ['startLobbyGame', 'state_revision', "status: 'starting'"]),
-  sourceHas('waiting_room_start', 'start_not_route_only', 'start transition does not rely only on route state (uses subscription + poll + delegated navigate-to-online-game)', 'useWaitingRoomSync + onlineGameNavigation', `${SRC.UseWaitingRoomSync}\n${SRC.OnlineGameNavigation}`, ['base44.entities.Lobby.subscribe', 'poll', 'navigateToOnlineGameRoute', '/game?']),
-  sourceHas('waiting_room_start', 'subscription_and_polling_detectable', 'subscription + polling fallback are both detectable', 'useWaitingRoomSync', SRC.UseWaitingRoomSync, ['base44.entities.Lobby.subscribe', 'window.setInterval', 'window.clearInterval']),
-  sourceHas('waiting_room_start', 'rejoin_roster_guard_source', 'rejoin assertion path does not overwrite newer roster state', 'findLobbyByCode/useWaitingRoomSync', `${SRC.FindLobbyByCode}\n${SRC.UseWaitingRoomSync}`, ['alreadyIn', 'asServiceRole.entities.Lobby.update', 'findLobbyByCode', 'setLobby(updatedLobby)']),
+  sourceHas('waiting_room_start', 'start_not_route_only', 'start transition uses backend snapshot polling plus delegated navigation, not route state alone', 'useWaitingRoomSync + onlineGameNavigation', `${SRC.UseWaitingRoomSync}\n${SRC.OnlineGameNavigation}`, ['getLobbySnapshot', 'start_fallback_poll', 'navigateToOnlineGameRoute', '/game?']),
+  sourceHas('waiting_room_start', 'backend_snapshot_polling_detectable', 'backend snapshot polling fallback is detectable', 'useWaitingRoomSync', SRC.UseWaitingRoomSync, ['getLobbySnapshot', 'window.setInterval', 'window.clearInterval']),
+  sourceHas('waiting_room_start', 'rejoin_roster_guard_source', 'rejoin is serialized and preserves the newest authoritative snapshot', 'findLobbyByCode/useWaitingRoomSync', `${SRC.FindLobbyByCode}\n${SRC.UseWaitingRoomSync}`, ['appendActorWithRetry', 'acquireLobbyLock', 'setAuthoritativeLobby', 'isFreshLobbySnapshot']),
 
   sourceHas('route_bootstrap', 'route_state_bootstrap_only', 'route state is treated as bootstrap only', 'useLobbySync', SRC.UseLobbySync, ['bootstrap', 'initial fetch', 'route-state-fallback']),
   sourceHas('route_bootstrap', 'live_lobby_priority', 'fetched/subscribed Lobby has priority over stale route snapshot', 'useLobbySync', SRC.UseLobbySync, ['latestLobbyRef', 'applyLobbyData', 'subscription:']),

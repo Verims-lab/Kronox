@@ -179,6 +179,10 @@ function makeGuestToken() {
   return bytesToBase64Url(randomBytes(TOKEN_BYTE_LENGTH));
 }
 
+function makeSocialRef() {
+  return `social_${bytesToBase64Url(randomBytes(24))}`;
+}
+
 function randomUsernameCandidate() {
   const bytes = randomBytes(4);
   const value = (
@@ -460,6 +464,9 @@ async function updateLastSeen(base44: any, row: any) {
   const existingKronoxUserId = normalizeKronoxUserId(row?.kronox_user_id);
   return entity.update(id, {
     last_seen_at: timestamp,
+    ...(/^social_[A-Za-z0-9_-]{20,80}$/.test(String(row?.social_ref || '')) ? {} : {
+      social_ref: makeSocialRef(),
+    }),
     ...(existingKronoxUserId ? {} : {
       kronox_user_id: await generateUniqueKronoxUserId(base44),
       kronox_user_id_created_at: timestamp,
@@ -918,6 +925,7 @@ async function createGuestProfile(base44: any, throttle: any = {}) {
         kronox_user_id: kronoxUserId,
         kronox_user_id_created_at: timestamp,
         kronox_user_id_source: 'system_create_guest_profile',
+        social_ref: makeSocialRef(),
         username,
         username_normalized: normalizeUsernameKey(username),
         display_name: username,

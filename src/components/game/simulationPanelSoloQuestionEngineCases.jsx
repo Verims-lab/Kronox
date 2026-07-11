@@ -59,7 +59,6 @@ import useGameActionsSource from '../../hooks/useGameActions.js?raw';
 import questionHistorySource from '../../lib/questionHistory.js?raw';
 import userCategoryPreferenceHelperSource from '../../lib/userCategoryPreferences.js?raw';
 import getQuestionsFunctionSource from '../../../base44/functions/getQuestions/entry.ts?raw';
-import diagnoseSoloQuestionStartQuerySource from '../../../base44/functions/diagnoseSoloQuestionStartQuery/entry.ts?raw';
 import diagnoseSoloQuestionStartQueryScriptSource from '../../../scripts/diagnoseSoloQuestionStartQuery.mjs?raw';
 import adminPageSource from '../../pages/AdminPage.jsx?raw';
 import onlineGameStartSource from '../../lib/onlineGameStart.js?raw';
@@ -2424,48 +2423,10 @@ export const EXTRA_TESTS = [
   ),
 
   makeCase(
-    'solo_level_start_real_query_diagnostic_admin_only',
-    'Admin diagnostic captures real Solo level-start query path for requested and preference users',
+    'solo_level_start_real_query_diagnostic_script_only',
+    'Local service-role diagnostic captures the real Solo level-start query path',
     () => {
-      const functionSource = safeStr(diagnoseSoloQuestionStartQuerySource);
       const scriptSource = safeStr(diagnoseSoloQuestionStartQueryScriptSource);
-      const requiredFunctionTokens = [
-        "const JOB_NAME = 'diagnoseSoloQuestionStartQuery'",
-        'const MAX_PREFERENCE_USERS = 10',
-        'normalizeDiagnosticCategoryIds',
-        'diagnosticCategoryIds',
-        'diagnosticCategoryIdSource',
-        'historicalRegressionCategoryIdsAreRuntimePolicy: false',
-        'const QUESTION_CACHE_KEY',
-        'const QUESTION_CACHE_VERSION',
-        'requireAdmin(base44)',
-        'normalizeRequestedDiagnosticEmail',
-        'requestedUserEmailConfigured',
-        'requestedUserEmailMasked',
-        'requestedUserIncluded',
-        'maskEmail',
-        'readOnly: true',
-        'dryRun: true',
-        'mutatesGameplay: false',
-        'mutatesAnalytics: false',
-        'mutatesProgress: false',
-        'mutatesEconomy: false',
-        'UserCategoryPreference',
-        'Question',
-        '.filter(descriptor.filters, descriptor.sort, descriptor.limit)',
-        'QUERY_PER_CATEGORY_LIMIT = 1000',
-        'questionFetchSource',
-        'queryDescriptor',
-        'cacheDescriptor',
-        'actualSoloLevelStartPath',
-        'rawFetchedCountsByCategory',
-        'soloEligibleCountsByCategory',
-        'globalDifficulty1CandidateCountsByCategory',
-        'categoryProof',
-        'presentInGlobalDifficulty1',
-        'removalReason',
-        'runtimeQuestions',
-      ];
       const requiredScriptTokens = [
         "const JOB_NAME = 'diagnoseSoloQuestionStartQuery'",
         'const MAX_PREFERENCE_USERS = 10',
@@ -2487,8 +2448,6 @@ export const EXTRA_TESTS = [
         'missing_base44_app_config',
         'missing_live_base44_service_token',
         'token_app_mismatch_or_wrong_app_id',
-        'BASE44_DIAGNOSTIC_MODE=service-role or backend-function',
-        'invokeBackendFunctionDiagnostic',
         'createClient({',
         'base44.asServiceRole.entities.UserCategoryPreference.list',
         'base44.asServiceRole.entities.Question.filter',
@@ -2533,11 +2492,9 @@ export const EXTRA_TESTS = [
         hardcodedRequestedAccountEmail,
       ];
       const missing = [
-        ...missingTokens(functionSource, requiredFunctionTokens).map((token) => `function:${token}`),
         ...missingTokens(scriptSource, requiredScriptTokens).map((token) => `script:${token}`),
       ];
       const forbidden = [
-        ...forbiddenFunctionTokens.filter((token) => functionSource.includes(token)).map((token) => `function:${token}`),
         ...forbiddenFunctionTokens.filter((token) => scriptSource.includes(token)).map((token) => `script:${token}`),
         ...forbiddenScriptTokens.filter((token) => scriptSource.includes(token)).map((token) => `script:${token}`),
         ...(adminPageSource.includes('SoloQuestionStartDiagnosticsTool')
@@ -2546,21 +2503,20 @@ export const EXTRA_TESTS = [
       ];
 
       if (missing.length || forbidden.length) {
-        return fail('Solo level-start query diagnostic is missing admin-only/read-only/direct-run query-proof contracts.', {
+        return fail('Solo level-start query diagnostic script is missing read-only/direct-run query-proof contracts.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           files: [
-            'base44/functions/diagnoseSoloQuestionStartQuery/entry.ts',
             'scripts/diagnoseSoloQuestionStartQuery.mjs',
             'src/pages/AdminPage.jsx',
           ],
-          expected: 'AdminUser-gated backend dry-run plus direct Codex/admin script with optional requested account + 10 preference users, generic email masking, query/cache descriptors, current/requested diagnostic category proof, and frontend buildSoloAttemptDeck dry-run JSON; no broken Admin UI button',
+          expected: 'Direct local service-role script with optional requested account + 10 preference users, generic email masking, query/cache descriptors, category proof, and frontend buildSoloAttemptDeck dry-run JSON; no deploy-slot backend diagnostic',
           actual: { missing, forbidden },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
 
-      return pass('Admin-only backend diagnostic and direct Codex/admin script can capture the real Solo query path and frontend deck-builder result without mutating gameplay or analytics.', {
+      return pass('The local service-role diagnostic captures the real Solo query path and frontend deck-builder result without consuming a Base44 deploy slot.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
       });

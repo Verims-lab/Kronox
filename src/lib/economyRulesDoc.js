@@ -137,8 +137,12 @@ Daily Wheel flow.
 Home exposes Daily Wheel through the Çark shortcut and the Daily Calendar /
 Streak through the Home GÜNLÜK shortcut. Daily Calendar creates 3
 daily_calendar:* UserDailyQuestProgress rows per UTC server day from a 9-day
-rotating task template cycle. Task progress is real-event-based and idempotent;
-recordDailyQuestProgress does not grant Diamonds. Çark çevir completes only
+rotating task template cycle. Assignment repair is serialized with an actor/day
+EconomyOperationLock, and day completion/reward eligibility requires one
+canonical completed row for each of the three distinct expected quest keys.
+Duplicate rows cannot substitute for a missing key. Task progress is
+real-event-based and idempotent; recordDailyQuestProgress ignores client amount
+and does not grant Diamonds. Çark çevir completes only
 after a successful server Daily Wheel claim/recovery for the same UTC day;
 claimDailyWheelReward records the active wheel task backend-side when the
 idempotent DailyWheelSpin row is created or recovered. Opening the wheel popup,
@@ -159,6 +163,14 @@ countdown, task cards show title-only rows, and the 7-day reward UI shows only
 200 Elmas with no Gift Box icon/name. Completed guests can see, progress, and
 claim Daily Calendar rewards through guest_id + guest_token proof; guest rewards
 persist on GuestProfile.diamonds.
+
+Daily event authority is backend-source based. recordDailyQuestProgress accepts
+only same-actor, same-server-day proof from the relevant persisted wheel claim,
+Solo attempt/completion, question-attempt event, Joker/Hint spend transaction,
+profile state, or FriendRequest state. Missing, foreign, stale, or unsupported
+source references are rejected. Levels 1-6 training Joker/Hint actions have no
+spend receipt and cannot satisfy Daily tasks. Hint is not Joker. Daily progress
+never grants Kronox Puan or affects Leaderboard.
 
 Legacy DailyQuestDefinition rows are ignored by the active runtime. The
 admin-gated cleanupLegacyDailyQuests path defaults to dry_run and only deletes
@@ -254,7 +266,9 @@ Calendar joker/hint tasks. From level 7 onward, normal Solo joker use still
 spends UserJokerInventory and writes JokerTransaction.
 Hint gameplay consumption is active only for Solo Hint / İpucu from level 7
 onward: each player
-gets exactly 3 starter Hints once through ensureUserHintInventory, consumeUserHint
+gets exactly 3 starter Hints once through the ensureUserHintInventory client
+helper, which calls consumeUserHint action ensure; there is no separate deployed
+ensure callable. consumeUserHint
 spends one Hint server-side with HintTransaction.reason = solo_use and source =
 solo_hint, and double-tap/retry paths use idempotency plus EconomyOperationLock.
 The gameplay Hint launcher only opens the popup; the popup has one hammer action,
@@ -273,7 +287,7 @@ not be summed on Solo open or Profile open. Profile Joker Çantası displays
 Kronokalkan, Kart Değiştir, Zamanı Dondur, and İpucu as four compact cards in one
 non-scrolling row; the İpucu card reads UserHintInventory.quantity through a
 display-only helper and must not initialize, consume, grant, or mutate Hint
-inventory. ensureUserHintInventory is idempotent and must preserve spent
+inventory. The consolidated ensure action is idempotent and must preserve spent
 balances; it must not refill a user back to 3 on every app open. consumeUserHint
 uses EconomyOperationLock, rechecks the HintTransaction idempotency key after the
 lock, decrements one Hint, and returns a sanitized balance response. Hint popup

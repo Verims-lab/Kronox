@@ -103,8 +103,12 @@ special_event_future
 Home exposes Daily Wheel through the `Çark` shortcut and Daily Calendar /
 Streak through the Home `GÜNLÜK` calendar shortcut. Daily Calendar creates 3
 `daily_calendar:*` `UserDailyQuestProgress` rows per UTC server day from a
-9-day rotating task template cycle. Task progress is real-event-based and
-idempotent; `recordDailyQuestProgress` never grants Diamonds.
+9-day rotating task template cycle. Assignment repair is serialized with an
+actor/day `EconomyOperationLock`; completion and streak eligibility require one
+canonical completed row for each of the three distinct expected quest keys.
+Duplicate rows cannot substitute for a missing key or unlock the 200-Diamond
+reward. Task progress is real-event-based and idempotent;
+`recordDailyQuestProgress` never grants Diamonds and ignores client amount.
 `Çark çevir` completes only after a successful server Daily Wheel claim for
 the same UTC day. Opening the Daily Wheel popup, tapping `SONRA`, or reopening
 an already-claimed read-only result must not create progress; opening or
@@ -115,6 +119,14 @@ backend-side when the idempotent `DailyWheelSpin` row is created or recovered.
 `DailyWheelSpin` row if the separate progress row was missed, and task-relevant
 events invalidate/refresh the Daily status cache so completed tasks appear
 without an app restart.
+
+Daily event authority is backend-source based. `recordDailyQuestProgress`
+accepts only same-actor, same-server-day proof from the relevant persisted
+wheel claim, Solo attempt/completion, question-attempt event, Joker/Hint spend
+transaction, profile state, or FriendRequest state. Missing, foreign, stale, or
+unsupported source references are rejected. Levels 1-6 training Joker/Hint
+actions have no spend receipt and therefore cannot satisfy Daily tasks. Hint is
+not Joker, and Daily progress never grants Kronox Puan or affects Leaderboard.
 
 Daily Calendar grants Diamonds only through the server-backed
 `claimDailyQuestReward` callable when the 7-day streak reward is ready. Claims write
@@ -818,8 +830,10 @@ Hint balance read-performance contract:
 * Profile reads the `İpucu` count from `UserHintInventory.quantity` only; the
   display path is read-only and must not initialize, consume, grant, or mutate
   Hint inventory.
-* `ensureUserHintInventory` is idempotent and must preserve spent balances; it
-  must not refill a user back to 3 on every app open.
+* The `ensureUserHintInventory` client helper calls the consolidated
+  `consumeUserHint` backend action `ensure`; there is no separate deployed
+  ensure callable. The ensure action is idempotent, preserves spent balances,
+  and must not refill a user back to 3 on every app open.
 * `consumeUserHint` uses `EconomyOperationLock`, rechecks the
   `HintTransaction` idempotency key after the lock, decrements one Hint, and
   returns a sanitized balance response.

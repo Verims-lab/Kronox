@@ -66,14 +66,24 @@ Deno.serve(async (req) => {
     if (!user) return json({ ok: false, error: 'Unauthorized' }, 401);
 
     const body = await req.json().catch(() => ({}));
-    const requestId = String(body?.requestId || '').trim();
-    if (!requestId) return json({ ok: false, error: 'requestId is required' }, 400);
+    const requestRef = String(body?.requestRef || body?.requestId || '').trim();
+    const action = String(body?.action || 'accept').trim().toLowerCase();
+    if (!requestRef) return json({ ok: false, error: 'requestRef is required' }, 400);
+    if (!['accept', 'reject', 'cancel'].includes(action)) {
+      return json({ ok: false, error: 'Unsupported friend request action' }, 400);
+    }
 
     let fr = null;
-    try {
-      fr = await base44.asServiceRole.entities.FriendRequest.get(requestId);
-    } catch (_e) {
-      // Base44 throws on missing entity; normalize to 404 for the client.
+    const publicRows = await base44.asServiceRole.entities.FriendRequest
+      .filter({ public_ref: requestRef }, '-updated_date', 2)
+      .catch(() => []);
+    fr = publicRows?.[0] || null;
+    if (!fr) {
+      try {
+        fr = await base44.asServiceRole.entities.FriendRequest.get(requestRef);
+      } catch (_e) {
+        // Legacy internal references are accepted only after owner validation below.
+      }
     }
     if (!fr) return json({ ok: false, error: 'Friend request not found' }, 404);
 
@@ -81,21 +91,43 @@ Deno.serve(async (req) => {
     const myEmail = normalizeEmail(user.email);
     const toEmail = normalizeEmail(fr.to_email);
     const fromEmail = normalizeEmail(fr.from_email);
+    const rowId = String(fr?.id || fr?._id || '').trim();
 
-    // Security: only the recipient can accept their own request.
-    if (toEmail !== myEmail) {
-      return json({ ok: false, error: 'Only the receiver can accept this request' }, 403);
+    const callerIsRecipient = toEmail === myEmail;
+    const callerIsSender = fromEmail === myEmail;
+    if ((action === 'accept' || action === 'reject') && !callerIsRecipient) {
+      return json({ ok: false, error: 'Only the receiver can update this request' }, 403);
+    }
+    if (action === 'cancel' && !callerIsSender) {
+      return json({ ok: false, error: 'Only the sender can cancel this request' }, 403);
     }
     // Self-request guard (defense in depth — client already blocks).
     if (!fromEmail || fromEmail === toEmail) {
       return json({ ok: false, error: 'Invalid friend request' }, 400);
     }
+    if (action === 'reject') {
+      if (fr.status !== 'pending') return json({ ok: false, error: `Request is already ${fr.status}` }, 409);
+      await base44.asServiceRole.entities.FriendRequest.update(rowId, {
+        status: 'rejected',
+        cancelled_at: new Date().toISOString(),
+      });
+      return json({ ok: true, success: true, requestRef: fr.public_ref || requestRef, requestStatus: 'rejected' });
+    }
+    if (action === 'cancel') {
+      if (!['pending', 'expired'].includes(fr.status)) return json({ ok: false, error: `Request is already ${fr.status}` }, 409);
+      await base44.asServiceRole.entities.FriendRequest.update(rowId, {
+        status: 'cancelled',
+        cancelled_at: new Date().toISOString(),
+      });
+      return json({ ok: true, success: true, requestRef: fr.public_ref || requestRef, requestStatus: 'cancelled' });
+    }
+
     // Status guard: only pending or already-accepted is valid.
     if (fr.status !== 'pending' && fr.status !== 'accepted') {
       return json({ ok: false, error: `Request is already ${fr.status}` }, 409);
     }
     if (fr.status === 'pending' && isFriendRequestExpired(fr)) {
-      await base44.asServiceRole.entities.FriendRequest.update(requestId, {
+      await base44.asServiceRole.entities.FriendRequest.update(rowId, {
         status: 'expired',
         expired_at: new Date().toISOString(),
       }).catch(() => null);
@@ -115,8 +147,9 @@ Deno.serve(async (req) => {
       // from_kronox_user_id/to_kronox_user_id on the FriendRequest row.
       const trustedFromKronoxUserId = normalizeKronoxUserId(senderUser?.kronox_user_id);
       const trustedToKronoxUserId = normalizeKronoxUserId(receiverUser?.kronox_user_id);
-      await base44.asServiceRole.entities.FriendRequest.update(requestId, {
+      await base44.asServiceRole.entities.FriendRequest.update(rowId, {
         status: 'accepted',
+        accepted_at: new Date().toISOString(),
         ...(trustedFromKronoxUserId ? { from_kronox_user_id: trustedFromKronoxUserId } : {}),
         ...(trustedToKronoxUserId ? { to_kronox_user_id: trustedToKronoxUserId } : {}),
       });
@@ -126,6 +159,7 @@ Deno.serve(async (req) => {
       ok: true,
       success: true,
       requestStatus: 'accepted',
+      requestRef: fr.public_ref || requestRef,
       alreadyFriends: fr.status === 'accepted',
     });
   } catch (error) {
