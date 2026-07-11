@@ -5,6 +5,22 @@ const KRONOX_ID_PATTERN = /^KX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9
 
 const normalizeEmail = (value: unknown) => String(value || '').trim().toLowerCase();
 const json = (body: unknown, status = 200) => Response.json(body, { status });
+const SOCIAL_REF_PATTERN = /^social_[A-Za-z0-9_-]{20,80}$/;
+
+function randomSocialRef() {
+  const bytes = crypto.getRandomValues(new Uint8Array(24));
+  return `social_${bytesToBase64Url(bytes)}`;
+}
+
+async function ensureSocialRef(entity: any, row: any) {
+  const current = String(row?.social_ref || '').trim();
+  if (SOCIAL_REF_PATTERN.test(current)) return current;
+  const id = String(row?.id || row?._id || '').trim();
+  if (!id || !entity?.update) throw new Error('Actor profile cannot be updated');
+  const socialRef = randomSocialRef();
+  await entity.update(id, { social_ref: socialRef });
+  return socialRef;
+}
 
 function makeOwnerKeyHash(email: unknown) {
   const normalized = normalizeEmail(email);
@@ -116,11 +132,13 @@ async function verifyGuestProfile(base44: any, body: any) {
   }
 
   const ownerKeyHash = makeGuestOwnerKeyHash(guestId);
+  const socialRef = await ensureSocialRef(entity, guest);
   return {
     ok: true,
     response: null,
     actor: {
       ownerKeyHash,
+      socialRef,
       kronoxUserId: normalizeKronoxUserId(guest?.kronox_user_id),
       userEmail: '',
       playerType: 'guest',
@@ -143,11 +161,13 @@ async function resolvePresenceActor(base44: any, body: any) {
     if (!ownerKeyHash) {
       return { ok: false, response: json({ ok: false, error: 'Invalid actor' }, 400), actor: null };
     }
+    const socialRef = await ensureSocialRef(base44.asServiceRole.entities.User, storedUser);
     return {
       ok: true,
       response: null,
       actor: {
         ownerKeyHash,
+        socialRef,
         kronoxUserId: normalizeKronoxUserId(storedUser?.kronox_user_id || user?.kronox_user_id),
         userEmail: myEmail,
         playerType: 'linked',
@@ -182,6 +202,7 @@ Deno.serve(async (req) => {
 
     const payload = {
       owner_key_hash: actor.ownerKeyHash,
+      selection_ref: actor.socialRef,
       ...(actor.kronoxUserId ? { kronox_user_id: actor.kronoxUserId } : {}),
       user_email: actor.userEmail,
       player_type: actor.playerType,
@@ -207,7 +228,7 @@ Deno.serve(async (req) => {
     return json({
       ok: true,
       presence: {
-        presence_key: actor.ownerKeyHash,
+        presence_ref: actor.socialRef,
         username: actor.username,
         status: row?.status || status,
         last_seen_at: row?.last_heartbeat_at || row?.last_seen_at || payload.last_heartbeat_at,

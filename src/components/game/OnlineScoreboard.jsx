@@ -72,7 +72,7 @@ export default function OnlineScoreboard({
     >
       {players.map((player, idx) => {
         const isActive = idx === safeIndex;
-        const isMe = !!(myEmail && player?.email && player.email === myEmail);
+        const isMe = Boolean(player?.is_self || (myEmail && player?.email && player.email === myEmail));
         const tokens = COLOR_TOKENS[idx % COLOR_TOKENS.length];
         const name = displayNameOf(player);
         const score = scoreOf(player);

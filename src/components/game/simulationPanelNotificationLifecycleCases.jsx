@@ -137,7 +137,7 @@ export const EXTRA_TESTS = [
       const integrationRequired = missing(useNotificationCenterSource, [
         'notificationReducer',
         'NOTIFICATION_ACTIONS.FETCH_EMPTY_STALE',
-        'NOTIFICATION_ACTIONS.SUBSCRIPTION_ROW',
+        'NOTIFICATION_ACTIONS.FETCH_FAILED',
         'NOTIFICATION_ACTIONS.TERMINAL_ROW',
         'NOTIFICATION_ACTIONS.TOAST_DISMISSED',
         'NOTIFICATION_ACTIONS.INVITE_OPENED',
@@ -202,7 +202,8 @@ export const EXTRA_TESTS = [
         type: NOTIFICATION_ACTIONS.INVITE_REJECTED,
         inviteId: freshInvite.id,
       });
-      if (openedInvite.gameInvites.length !== 0 || rejectedInvite.gameInvites.length !== 0) executableFailures.push('invite open/reject did not close relevant notification');
+      if (openedInvite.gameInvites.length !== 1) executableFailures.push('invite open incorrectly closed a still-pending notification');
+      if (rejectedInvite.gameInvites.length !== 0) executableFailures.push('confirmed invite rejection did not close relevant notification');
 
       const acceptedFriend = notificationReducer(loaded, {
         type: NOTIFICATION_ACTIONS.FRIEND_REQUEST_ACCEPTED,
@@ -319,9 +320,10 @@ export const EXTRA_TESTS = [
         { preserveExisting: true },
       );
       const m = missing(useNotificationCenterSource, [
-        '{ to_email: email }',
+        'loadSocialSnapshot',
+        'incomingFriendRequests',
         'mergePendingFriendRequests',
-        'friend_request_subscription',
+        "source: 'poll'",
       ]);
       if (staleEmpty.length !== 1 || terminal.length !== 0 || m.length) {
         return fail('Friend request notification lifecycle can still flicker empty or ignore terminal updates.', {

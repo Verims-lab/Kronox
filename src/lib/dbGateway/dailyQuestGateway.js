@@ -73,16 +73,6 @@ function unwrapFunctionResponse(response) {
   return {};
 }
 
-function safeError(body, fallback) {
-  const code = String(body?.code || '').trim();
-  if (code === 'duplicate_quest_key') return 'Bu görev anahtarı zaten var.';
-  if (code === 'invalid_quest_type') return 'Geçerli bir görev tipi seçin.';
-  if (code === 'invalid_positive_numbers') return 'Hedef ve ödül 1 veya daha büyük olmalı.';
-  if (code === 'admin_required') return 'Admin yetkisi gerekli.';
-  if (code === 'unauthenticated') return 'Oturum doğrulaması gerekli.';
-  return body?.error || fallback;
-}
-
 function unwrapInvokeError(error) {
   if (error?.body && typeof error.body === 'object') return error.body;
   if (error?.response) return unwrapFunctionResponse(error.response);
@@ -100,31 +90,6 @@ function safeRuntimeError(errorOrBody, fallback) {
   if (code === 'daily_quest_already_claimed') return 'Bu görev ödülü zaten alındı.';
   if (code === 'daily_quest_legacy_not_claimable') return 'Bu günlük görev artık geçerli değil.';
   return fallback;
-}
-
-export async function callDailyQuestDefinitionAdmin(payload = {}) {
-  const response = await base44.functions.invoke('createDailyQuestDefinition', payload);
-  const body = unwrapFunctionResponse(response);
-  if (body?.ok === false) {
-    throw new Error(safeError(body, 'Günlük görev işlemi başarısız oldu.'));
-  }
-  return body;
-}
-
-export function legacyListDailyQuestDefinitionRows() {
-  return callDailyQuestDefinitionAdmin({ action: 'list' });
-}
-
-export function legacyCreateDailyQuestDefinitionRow(payload) {
-  return callDailyQuestDefinitionAdmin({ ...payload, action: 'create' });
-}
-
-export function legacyUpdateDailyQuestDefinitionStatus(id, status) {
-  return callDailyQuestDefinitionAdmin({ action: 'update_status', id, status });
-}
-
-export function legacySeedDailyQuestDefinitionRows() {
-  return callDailyQuestDefinitionAdmin({ action: 'seed' });
 }
 
 export async function getDailyQuestStatus(payload = {}) {

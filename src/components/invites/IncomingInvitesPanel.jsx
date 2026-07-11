@@ -55,8 +55,8 @@ export default function IncomingInvitesPanel({ user, variant = 'fantasy' }) {
         onAccepted: async () => center.refresh({ preserveExisting: true, source: 'online_panel_accepted_followup' }),
       });
       if (!res.ok) setLocalError(res.reason || 'Davet kabul edilemedi.');
-    } catch (err) {
-      setLocalError(err?.message || 'Davet kabul edilemedi.');
+    } catch {
+      setLocalError('Davet kabul edilemedi.');
     } finally {
       setBusyId(null);
     }
@@ -70,8 +70,8 @@ export default function IncomingInvitesPanel({ user, variant = 'fantasy' }) {
     try {
       const res = await rejectNotificationCenterGameInvite(invite.id);
       if (!res.ok) setLocalError(res.reason || 'Davet reddedilemedi.');
-    } catch (err) {
-      setLocalError(err?.message || 'Davet reddedilemedi.');
+    } catch {
+      setLocalError('Davet reddedilemedi.');
     } finally {
       setBusyId(null);
     }

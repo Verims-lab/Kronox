@@ -3,15 +3,12 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Loader2, Users, Inbox, Send, UserPlus } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import {
-  loadFriends,
-  loadIncomingRequests,
-  loadOutgoingRequests,
+  loadFriendsPageSnapshot,
   sendFriendRequest,
   acceptIncomingRequest,
   rejectIncomingRequest,
   cancelOutgoingRequest,
   removeFriend,
-  normalizeEmail,
   getSafeFriendsErrorMessage,
   OPEN_INVITE_EXISTS_MESSAGE,
 } from '@/lib/friendsApi';
@@ -82,14 +79,10 @@ export default function FriendsPage() {
     setLoading(true);
     setLoadError('');
     try {
-      const [f, inc, out] = await Promise.all([
-        loadFriends(email),
-        loadIncomingRequests(email),
-        loadOutgoingRequests(email),
-      ]);
-      setFriends(f);
-      setIncoming(inc);
-      setOutgoing(out);
+      const snapshot = await loadFriendsPageSnapshot(email);
+      setFriends(snapshot.friends);
+      setIncoming(snapshot.incoming);
+      setOutgoing(snapshot.outgoing);
     } catch (err) {
       // Codex571 — Never show raw backend/SDK errors (e.g. "Rate limit
       // exceeded") on the Friends screen; always a safe Turkish message.
@@ -166,18 +159,17 @@ export default function FriendsPage() {
     await cancelOutgoingRequest(req.id);
     await refresh(user.email);
   };
-  const handleRemove = async (friendEmail) => {
+  const handleRemove = async (targetRef) => {
     // Codex571 — Rate-limit-safe delete: remove the row optimistically and
     // do NOT trigger a full list reload (loadFriends + loadIncoming +
     // loadOutgoing) after every single delete. Deleting many friends back
     // to back previously fired 3 extra reads per delete, which could hit
     // the backend rate limit. A single removeFriend call per delete, with
     // local state update, keeps deleting many friends safe.
-    const target = normalizeEmail(friendEmail);
     const previousFriends = friends;
-    setFriends((current) => current.filter((f) => normalizeEmail(f.friend_email) !== target));
+    setFriends((current) => current.filter((friend) => friend.target_ref !== targetRef));
     try {
-      await removeFriend(friendEmail);
+      await removeFriend(targetRef);
     } catch (err) {
       setFriends(previousFriends);
       throw err;

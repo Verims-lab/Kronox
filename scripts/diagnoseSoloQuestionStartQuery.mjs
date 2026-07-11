@@ -562,7 +562,6 @@ function buildConfig() {
   );
   const serviceToken = getEnv('BASE44_SERVICE_TOKEN') || getEnv('BASE44_SERVICE_ROLE_TOKEN');
   const accessToken = getEnv('BASE44_ACCESS_TOKEN') || getEnv('BASE44_ADMIN_ACCESS_TOKEN');
-  const diagnosticMode = (getEnv('BASE44_DIAGNOSTIC_MODE') || 'service-role').toLowerCase();
   const requestedUserEmail = normalizeRequestedDiagnosticEmail(
     getEnv('SOLO_DIAGNOSTIC_REQUESTED_EMAIL') || getEnv('SOLO_DIAGNOSTIC_TARGET_EMAIL'),
   );
@@ -572,7 +571,7 @@ function buildConfig() {
     serverUrl,
     serviceToken,
     accessToken,
-    diagnosticMode,
+    diagnosticMode: 'service-role',
     requestedUserEmail,
     diagnosticCategoryIds,
     loadedEnvFiles,
@@ -584,11 +583,7 @@ function buildMissingConfigOutput(config) {
   const requiredEnv = [];
   if (!config.appId) requiredEnv.push('BASE44_APP_ID or VITE_BASE44_APP_ID');
   if (!config.serverUrl) requiredEnv.push('BASE44_APP_BASE_URL or VITE_BASE44_APP_BASE_URL');
-  if (config.diagnosticMode === 'backend-function') {
-    if (!config.accessToken) requiredEnv.push('BASE44_ACCESS_TOKEN or BASE44_ADMIN_ACCESS_TOKEN');
-  } else if (!config.serviceToken) {
-    requiredEnv.push('BASE44_SERVICE_TOKEN or BASE44_SERVICE_ROLE_TOKEN');
-  }
+  if (!config.serviceToken) requiredEnv.push('BASE44_SERVICE_TOKEN or BASE44_SERVICE_ROLE_TOKEN');
   return {
     ok: false,
     jobName: JOB_NAME,
@@ -611,43 +606,10 @@ function buildMissingConfigOutput(config) {
     requiredEnv,
     optionalEnv: [
       'BASE44_APP_ID or VITE_BASE44_APP_ID (defaults to base44/.app.jsonc id)',
-      'BASE44_DIAGNOSTIC_MODE=service-role or backend-function',
+      'SOLO_DIAGNOSTIC_CATEGORY_IDS=<comma-separated-category-ids>',
     ],
     command: 'SOLO_DIAGNOSTIC_REQUESTED_EMAIL=<target-email> BASE44_APP_BASE_URL=<deployed-kronox-base44-url> BASE44_SERVICE_TOKEN=<service-token> node scripts/diagnoseSoloQuestionStartQuery.mjs > /tmp/solo-query-diagnostic.json',
-    backendFunctionCommand: 'SOLO_DIAGNOSTIC_REQUESTED_EMAIL=<target-email> BASE44_DIAGNOSTIC_MODE=backend-function BASE44_APP_BASE_URL=<deployed-kronox-base44-url> BASE44_ACCESS_TOKEN=<admin-user-access-token> node scripts/diagnoseSoloQuestionStartQuery.mjs > /tmp/solo-query-diagnostic.json',
     message: 'Node diagnostics cannot use the frontend same-origin /api proxy. Set BASE44_APP_BASE_URL or VITE_BASE44_APP_BASE_URL to the same deployed Kronox Base44 app URL used by the frontend.',
-  };
-}
-
-async function invokeBackendFunctionDiagnostic(config, { levelNumber, yearStart, yearEnd }) {
-  const url = `${config.serverUrl}/api/functions/${JOB_NAME}`;
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${config.accessToken}`,
-    },
-    body: JSON.stringify({
-      levelNumber,
-      yearStart,
-      yearEnd,
-      requestedUserEmail: config.requestedUserEmail || undefined,
-      diagnosticCategoryIds: config.diagnosticCategoryIds?.length ? config.diagnosticCategoryIds : undefined,
-    }),
-  });
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok || body?.ok === false) {
-    const error = new Error(body?.error || body?.message || `Backend function returned ${response.status}`);
-    error.status = response.status;
-    error.response = { status: response.status, data: body };
-    throw error;
-  }
-  return {
-    ...body,
-    diagnosticTransport: 'backend-function',
-    attemptedAppId: config.appId,
-    attemptedBase44ServerUrl: config.serverUrl,
-    configSummary: buildConfigSummary(config),
   };
 }
 
@@ -662,16 +624,10 @@ async function run() {
     ? Number(getEnv('SOLO_DIAGNOSTIC_YEAR_END'))
     : new Date().getFullYear();
 
-  if (!config.appId || !config.serverUrl || (config.diagnosticMode === 'backend-function' ? !config.accessToken : !config.serviceToken)) {
+  if (!config.appId || !config.serverUrl || !config.serviceToken) {
     const output = buildMissingConfigOutput(config);
     console.log(JSON.stringify(output, null, 2));
     process.exitCode = 2;
-    return;
-  }
-
-  if (config.diagnosticMode === 'backend-function') {
-    const output = await invokeBackendFunctionDiagnostic(config, { levelNumber, yearStart, yearEnd });
-    console.log(JSON.stringify(output, null, 2));
     return;
   }
 

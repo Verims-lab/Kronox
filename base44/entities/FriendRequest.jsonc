@@ -3,6 +3,10 @@
   "type": "object",
   "description": "Friend request and accepted friendship source. Base44/platform lookup contract: from_email + status and to_email + status support friend list and leaderboard badge reads; from_email + to_email + status is the logical duplicate guard. sendFriendRequest uses FriendRequestOperationLock as a function-level duplicate-send guard because DB unique/index syntax is not repo-proven. Create is backend service/admin owned; read/update/delete remain sender, recipient, or admin/owner only.",
   "properties": {
+    "public_ref": {
+      "type": "string",
+      "description": "Opaque client-facing request reference. Internal Base44 entity IDs remain backend-only."
+    },
     "from_email": {
       "type": "string",
       "description": "Lowercased email of the sender. Hot lookup with status for outgoing accepted/pending rows."
@@ -62,6 +66,11 @@
       "format": "date-time",
       "description": "Timestamp when the sender/recipient cancels or removes the request."
     },
+    "accepted_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Server timestamp when the recipient accepted the request. Used as Daily task provenance."
+    },
     "description": {
       "type": "string",
       "maxLength": 1000,
@@ -78,50 +87,8 @@
         "role": "admin"
       }
     },
-    "read": {
-      "$or": [
-        {
-          "data.from_email": "{{user.email}}"
-        },
-        {
-          "data.to_email": "{{user.email}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
-    },
-    "update": {
-      "$or": [
-        {
-          "data.from_email": "{{user.email}}"
-        },
-        {
-          "data.to_email": "{{user.email}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
-    },
-    "delete": {
-      "$or": [
-        {
-          "data.from_email": "{{user.email}}"
-        },
-        {
-          "data.to_email": "{{user.email}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
-    }
+    "read": { "user_condition": { "role": "admin" } },
+    "update": { "user_condition": { "role": "admin" } },
+    "delete": { "user_condition": { "role": "admin" } }
   }
 }

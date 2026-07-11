@@ -19,13 +19,165 @@ const readNumber = (value: unknown, fallback: number) => {
 const normalizeEmail = (value: unknown) =>
   String(value ?? '').trim().toLowerCase();
 const KRONOX_ID_PATTERN = /^KX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
+const LOBBY_LOCK_TTL_MS = 12 * 1000;
+const LOBBY_LOCK_SETTLE_MS = 90;
 
 const normalizeKronoxUserId = (value: unknown) => {
   const text = String(value || '').trim().toUpperCase();
   return KRONOX_ID_PATTERN.test(text) ? text : '';
 };
 
+const rowId = (row: any) => row?.id || row?._id || '';
+
+const stableOwnerKey = (prefix: 'u' | 'g', value: unknown) => {
+  const text = String(value || '').trim().toLowerCase();
+  if (!text) return '';
+  let hash = 2166136261;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `${prefix}_${(hash >>> 0).toString(36)}`;
+};
+
+const randomRef = (prefix: string) => {
+  const bytes = new Uint8Array(18);
+  crypto.getRandomValues(bytes);
+  let binary = '';
+  bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+  return `${prefix}_${btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')}`;
+};
+
+const safeCredentialText = (value: unknown, maxLength = 220) => {
+  const text = String(value || '').trim();
+  return text && text.length <= maxLength && /^[A-Za-z0-9_-]+$/.test(text) ? text : '';
+};
+
+const bytesToBase64Url = (bytes: Uint8Array) => {
+  let binary = '';
+  bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+};
+
+async function hashGuestToken(guestId: string, guestToken: string) {
+  const data = new TextEncoder().encode(`kronox_guest_v1:${guestId}:${guestToken}`);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return bytesToBase64Url(new Uint8Array(digest));
+}
+
+const safeUsername = (value: unknown, seed: unknown) => {
+  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  if (text && /^[A-Za-z0-9_]{3,24}$/.test(text) && !text.includes('@')) return text;
+  const suffix = parseInt(stableOwnerKey('u', seed).replace(/^u_/, '') || '0', 36) || 0;
+  return `KronoxUser${1000 + (suffix % 90000)}`;
+};
+
+async function resolveOnlineActor(base44: any, body: any) {
+  const user = await base44.auth.me().catch(() => null);
+  const email = normalizeEmail(user?.email);
+  if (email) {
+    const rows = await base44.asServiceRole.entities.User.filter({ email }, '-updated_date', 1).catch(() => []);
+    const profile = rows?.[0] || user;
+    return {
+      ok: true,
+      authUser: user,
+      actor: {
+        playerType: 'linked',
+        actorKeyHash: stableOwnerKey('u', email),
+        email,
+        kronoxUserId: normalizeKronoxUserId(profile?.kronox_user_id),
+      },
+    };
+  }
+  const guestId = safeCredentialText(body?.guest_id, 80);
+  const guestToken = safeCredentialText(body?.guest_token, 220);
+  if (!guestId.startsWith('guest_') || !guestToken) {
+    return { ok: false, response: json({ error: 'Oyuncu oturumu doğrulanamadı.', code: 'unauthenticated' }, 401) };
+  }
+  const rows = await base44.asServiceRole.entities.GuestProfile.filter({ guest_id: guestId }, '-created_at', 5).catch(() => []);
+  const profile = rows?.[0] || null;
+  const providedHash = await hashGuestToken(guestId, guestToken);
+  if (!profile || !profile.guest_token_hash || String(profile.guest_token_hash) !== providedHash || String(profile.status || '') === 'linked') {
+    return { ok: false, response: json({ error: 'Misafir oturumu doğrulanamadı.', code: 'invalid_guest_token' }, 401) };
+  }
+  return {
+    ok: true,
+    authUser: null,
+    actor: {
+      playerType: 'guest',
+      actorKeyHash: stableOwnerKey('g', guestId),
+      email: '',
+      kronoxUserId: normalizeKronoxUserId(profile?.kronox_user_id),
+    },
+  };
+}
+
+const actorMatchesPlayer = (actor: any, player: any) => Boolean(
+  (actor?.actorKeyHash && actor.actorKeyHash === String(player?.actor_key_hash || '')) ||
+  (actor?.kronoxUserId && actor.kronoxUserId === normalizeKronoxUserId(player?.kronox_user_id)) ||
+  (actor?.email && actor.email === normalizeEmail(player?.email))
+);
+
+const actorIsHost = (actor: any, lobby: any) => Boolean(
+  (actor?.actorKeyHash && actor.actorKeyHash === String(lobby?.host_actor_key_hash || '')) ||
+  (actor?.kronoxUserId && actor.kronoxUserId === normalizeKronoxUserId(lobby?.host_kronox_user_id)) ||
+  (actor?.email && actor.email === normalizeEmail(lobby?.host_email))
+);
+
+const publicLobby = (lobby: any, actor: any) => {
+  const players = Array.isArray(lobby?.players) ? lobby.players : [];
+  const hostActorKey = String(lobby?.host_actor_key_hash || players[0]?.actor_key_hash || '');
+  return {
+    id: String(lobby?.public_ref || ''),
+    code: String(lobby?.code || ''),
+    status: String(lobby?.status || 'waiting'),
+    host_name: safeUsername(lobby?.host_name || players[0]?.name, lobby?.public_ref || lobby?.code),
+    current_actor_is_host: actorIsHost(actor, lobby),
+    players: players.map((player: any) => ({
+      participant_ref: String(player?.participant_ref || ''),
+      username: safeUsername(player?.name, player?.participant_ref),
+      name: safeUsername(player?.name, player?.participant_ref),
+      avatar_type: player?.avatar_type || '',
+      avatar_icon_id: player?.avatar_icon_id || '',
+      avatar_color_id: player?.avatar_color_id || 'gold',
+      avatar_url: String(player?.avatar_url || '').startsWith('https://') ? player.avatar_url : '',
+      ready: Boolean(player?.ready),
+      cards: Array.isArray(player?.cards) ? player.cards : [],
+      is_self: actorMatchesPlayer(actor, player),
+      is_host: Boolean(hostActorKey && hostActorKey === String(player?.actor_key_hash || '')),
+    })),
+    state_revision: readRevision(lobby?.state_revision),
+    category: lobby?.category || 'karisik',
+    selected_category_ids: Array.isArray(lobby?.selected_category_ids) ? lobby.selected_category_ids : [],
+    year_start: lobby?.year_start,
+    year_end: lobby?.year_end,
+    turn_duration: lobby?.turn_duration,
+    win_card_count: lobby?.win_card_count,
+    max_players: lobby?.max_players,
+    current_player_index: lobby?.current_player_index ?? 0,
+    current_question_id: lobby?.current_question_id || null,
+    used_question_ids: Array.isArray(lobby?.used_question_ids) ? lobby.used_question_ids : [],
+    online_question_deck: Array.isArray(lobby?.online_question_deck) ? lobby.online_question_deck : [],
+    online_deck_meta: lobby?.online_deck_meta || null,
+    winner: lobby?.winner || null,
+    winner_participant_ref: lobby?.winner_participant_ref || null,
+    started_at: lobby?.started_at || null,
+    completed_at: lobby?.completed_at || null,
+    last_activity_at: lobby?.last_activity_at || null,
+    expires_at: lobby?.expires_at || null,
+  };
+};
+
+async function resolveLobbyByPublicRef(base44: any, lobbyRef: unknown) {
+  const ref = String(lobbyRef || '').trim();
+  if (!ref) return null;
+  const rows = await base44.asServiceRole.entities.Lobby.filter({ public_ref: ref }, '-updated_date', 2).catch(() => []);
+  return rows?.[0] || await base44.asServiceRole.entities.Lobby.get(ref).catch(() => null);
+}
+
 const getPlayerIdentityKey = (player: any) => {
+  const actorKeyHash = String(player?.actor_key_hash || '').trim();
+  if (actorKeyHash) return `actor:${actorKeyHash}`;
   const kronoxUserId = normalizeKronoxUserId(player?.kronox_user_id);
   if (kronoxUserId) return `kronox:${kronoxUserId}`;
   const email = normalizeEmail(player?.email);
@@ -36,6 +188,11 @@ const getPlayerIdentityKey = (player: any) => {
 
 const normalizeLobbyPlayer = (player: any) => ({
   ...player,
+  actor_key_hash: String(player?.actor_key_hash || '') || (
+    normalizeEmail(player?.email) ? stableOwnerKey('u', normalizeEmail(player?.email)) : ''
+  ),
+  participant_ref: String(player?.participant_ref || '') || randomRef('player'),
+  player_type: player?.player_type || (normalizeEmail(player?.email) ? 'linked' : 'guest'),
   kronox_user_id: normalizeKronoxUserId(player?.kronox_user_id),
   email: player?.email || '',
   name: String(player?.name || '').trim() || 'Oyuncu',
@@ -82,6 +239,9 @@ const loadAcceptedInvitePlayers = async (base44: any, lobbyId: string) => {
       const email = normalizeEmail(invite?.to_email);
       if (!email) return null;
       return {
+        actor_key_hash: stableOwnerKey('u', email),
+        participant_ref: randomRef('player'),
+        player_type: 'linked',
         kronox_user_id: normalizeKronoxUserId(invite?.to_kronox_user_id),
         email,
         name: getInvitePlayerName(invite),
@@ -96,7 +256,9 @@ const reconcileAcceptedInvitePlayers = async (base44: any, lobby: any) => {
   const players = Array.isArray(lobby?.players) ? lobby.players : [];
   const acceptedInvitePlayers = await loadAcceptedInvitePlayers(base44, lobby.id);
   const mergedPlayers = mergePlayersByIdentity(players, acceptedInvitePlayers);
-  const changed = mergedPlayers.length !== players.length;
+  const changed = mergedPlayers.length !== players.length || players.some((player: any) => (
+    !player?.participant_ref || !player?.actor_key_hash
+  ));
   if (!changed) {
     return {
       lobby,
@@ -123,8 +285,8 @@ const reconcileAcceptedInvitePlayers = async (base44: any, lobby: any) => {
 const summarizePlayers = (players: any[] = []) =>
   players.map((player, index) => ({
     index,
-    email: player?.email || null,
     name: player?.name || null,
+    participantRef: player?.participant_ref || null,
     cardCount: Array.isArray(player?.cards) ? player.cards.length : 0,
   }));
 
@@ -351,18 +513,34 @@ const filterQuestionsForLobbySettings = (questions: any[] = [], settings: any = 
   return [];
 };
 
-const shuffleQuestions = (questions: any[] = []) => {
+const seededRandom = (seed: string) => {
+  let state = 2166136261;
+  for (let index = 0; index < seed.length; index += 1) {
+    state ^= seed.charCodeAt(index);
+    state = Math.imul(state, 16777619);
+  }
+  return () => {
+    state += 0x6D2B79F5;
+    let value = state;
+    value = Math.imul(value ^ (value >>> 15), value | 1);
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+  };
+};
+
+const shuffleQuestions = (questions: any[] = [], seed = 'kronox-online') => {
   const shuffled = [...questions];
+  const random = seededRandom(seed);
   for (let i = shuffled.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(random() * (i + 1));
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
   return shuffled;
 };
 
-const buildInitialState = ({ players, questions, settings, activeMainCategoryIds }: { players: any[]; questions: any[]; settings: any; activeMainCategoryIds: Set<number> }) => {
+const buildInitialState = ({ players, questions, settings, activeMainCategoryIds, seed }: { players: any[]; questions: any[]; settings: any; activeMainCategoryIds: Set<number>; seed: string }) => {
   const filteredQuestions = filterQuestionsForLobbySettings(questions, settings, activeMainCategoryIds);
-  const shuffled = shuffleQuestions(filteredQuestions);
+  const shuffled = shuffleQuestions(filteredQuestions, seed);
   const neededCount = players.length * 2 + 1;
   const requestedDeckCount = Math.min(
     ONLINE_SHARED_DECK_MAX_QUESTIONS,
@@ -462,46 +640,90 @@ const buildInitialState = ({ players, questions, settings, activeMainCategoryIds
   };
 };
 
+const readTime = (value: unknown) => {
+  const text = String(value || '').trim();
+  if (!text) return NaN;
+  return Date.parse(/(?:Z|[+-]\d{2}:?\d{2})$/i.test(text) ? text : `${text}Z`);
+};
+
+async function acquireStartLock(base44: any, lobby: any, actor: any) {
+  const entity = base44?.asServiceRole?.entities?.EconomyOperationLock;
+  if (!entity?.filter || !entity?.create || !entity?.update) {
+    return {
+      ok: false,
+      response: json({ error: 'Lobi şu anda başlatılamıyor. Lütfen tekrar dene.', code: 'lobby_lock_unavailable' }, 503),
+    };
+  }
+  const lockKey = `lobby:start:${rowId(lobby)}:${readRevision(lobby?.state_revision)}`;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const now = new Date();
+    const active = await entity.filter({ lock_key: lockKey }, 'acquired_at', 20).catch(() => []);
+    if ((active || []).some((row: any) => String(row?.status) === 'active' && readTime(row?.expires_at) > now.getTime())) {
+      await new Promise((resolve) => setTimeout(resolve, 80 + attempt * 90));
+      continue;
+    }
+    const lock = await entity.create({
+      lock_key: lockKey,
+      actor_key: actor.actorKeyHash,
+      operation_scope: 'lobby_start',
+      operation_id: randomRef('start'),
+      status: 'active',
+      acquired_at: now.toISOString(),
+      expires_at: new Date(now.getTime() + LOBBY_LOCK_TTL_MS).toISOString(),
+      metadata: { lobbyPublicRef: lobby?.public_ref || null, expectedRevision: readRevision(lobby?.state_revision) },
+    }).catch(() => null);
+    if (!lock) continue;
+    await new Promise((resolve) => setTimeout(resolve, LOBBY_LOCK_SETTLE_MS));
+    const contenders = await entity.filter({ lock_key: lockKey }, 'acquired_at', 20).catch(() => []);
+    const winner = (contenders || [])
+      .filter((row: any) => String(row?.status) === 'active' && readTime(row?.expires_at) > Date.now())
+      .sort((a: any, b: any) => (readTime(a?.acquired_at) - readTime(b?.acquired_at)) || String(rowId(a)).localeCompare(String(rowId(b))))[0];
+    if (rowId(winner) === rowId(lock)) return { ok: true, lock };
+    await entity.update(rowId(lock), { status: 'released', released_at: new Date().toISOString() }).catch(() => null);
+  }
+  return { ok: false, response: json({ error: 'Lobi başlatılıyor. Lütfen bekle.', code: 'lobby_start_in_progress' }, 409) };
+}
+
+async function releaseStartLock(base44: any, lock: any) {
+  if (!rowId(lock)) return;
+  await base44.asServiceRole.entities.EconomyOperationLock.update(rowId(lock), {
+    status: 'released',
+    released_at: new Date().toISOString(),
+  }).catch(() => null);
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    let user: any = null;
-    try {
-      user = await base44.auth.me();
-    } catch (_authError) {
-      return json({ error: 'Oturum gerekli.', code: 'unauthenticated' }, 401);
-    }
-    const actorEmail = normalizeEmail(user?.email);
-    if (!actorEmail) {
-      return json({ error: 'Oturum gerekli.', code: 'unauthenticated' }, 401);
-    }
-
     const body = await req.json().catch(() => ({}));
     const lobbyId = body?.lobbyId;
-
     if (!lobbyId) {
       return json({ error: 'lobbyId gerekli.' }, 400);
     }
-
-    const lobby = await base44.asServiceRole.entities.Lobby.get(lobbyId);
+    const resolved = await resolveOnlineActor(base44, body);
+    if (!resolved.ok) return resolved.response;
+    const actor = resolved.actor;
+    const user = resolved.authUser;
+    const lobby = await resolveLobbyByPublicRef(base44, lobbyId);
     if (!lobby) {
       return json({ error: 'Lobi bulunamadi.' }, 404);
     }
-
-    const hostEmail = normalizeEmail(lobby.host_email);
-    const authenticatedHost = Boolean(hostEmail && actorEmail === hostEmail);
     const canSeeDebug = canSeeAdminDebug(user);
     const withDebug = (payload: Record<string, unknown>, debug: Record<string, unknown>) =>
       canSeeDebug ? { ...payload, debug } : payload;
 
-    if (!authenticatedHost) {
+    if (!actorIsHost(actor, lobby)) {
       return json(withDebug({
         error: 'Sadece host oyunu baslatabilir.',
       }, {
-          lobbyId,
-          actorEmail,
-          hostEmail,
+          lobbyRef: lobby?.public_ref || null,
       }), 403);
+    }
+
+    const expectedRevisionProvided = body?.expected_state_revision !== undefined && body?.expected_state_revision !== null;
+    const expectedRevision = readRevision(body?.expected_state_revision);
+    if (expectedRevisionProvided && expectedRevision !== readRevision(lobby?.state_revision)) {
+      return json({ error: 'Lobi durumu güncel değil. Son durum yükleniyor.', code: 'stale_write' }, 409);
     }
 
     if (lobby.status !== 'waiting') {
@@ -509,9 +731,9 @@ Deno.serve(async (req) => {
         return json(withDebug({
           success: true,
           idempotent: true,
-          lobby,
+          lobby: publicLobby(lobby, actor),
         }, {
-            lobbyId,
+            lobbyRef: lobby?.public_ref || null,
             status: lobby.status,
             state_revision: readRevision(lobby.state_revision),
             current_question_id: lobby.current_question_id || null,
@@ -521,11 +743,23 @@ Deno.serve(async (req) => {
       }
       return json(withDebug({
         error: 'Lobi bekleme durumunda degil.',
-      }, { lobbyId, status: lobby.status }), 409);
+      }, { lobbyRef: lobby?.public_ref || null, status: lobby.status }), 409);
     }
 
-    const participantState = await reconcileAcceptedInvitePlayers(base44, lobby);
-    const startLobby = participantState.lobby || lobby;
+    const startLock = await acquireStartLock(base44, lobby, actor);
+    if (!startLock.ok) return startLock.response;
+
+    try {
+      const lockedLobby = await base44.asServiceRole.entities.Lobby.get(rowId(lobby));
+      if ((lockedLobby.status === 'starting' || lockedLobby.status === 'in_game') && hasAuthoritativeGamePayload(lockedLobby)) {
+        return json({ success: true, idempotent: true, lobby: publicLobby(lockedLobby, actor) });
+      }
+      if (lockedLobby.status !== 'waiting') {
+        return json({ error: 'Lobi bekleme durumunda degil.', code: 'lobby_not_waiting' }, 409);
+      }
+
+    const participantState = await reconcileAcceptedInvitePlayers(base44, lockedLobby);
+    const startLobby = participantState.lobby || lockedLobby;
     const players = Array.isArray(participantState.players) ? participantState.players : [];
 
     if (players.length < 2) {
@@ -548,6 +782,7 @@ Deno.serve(async (req) => {
       questions: questions || [],
       settings,
       activeMainCategoryIds,
+      seed: `${startLobby.public_ref || rowId(startLobby)}:${readRevision(startLobby.state_revision)}:${settings.selected_category_ids.join(',')}`,
     });
 
     if (!initialState.ok) {
@@ -579,17 +814,21 @@ Deno.serve(async (req) => {
       players: initialState.playersWithCards,
       winner: null,
       winner_email: null,
+      winner_actor_key_hash: null,
+      winner_participant_ref: null,
       started_at: new Date().toISOString(),
+      last_activity_at: new Date().toISOString(),
       state_revision: currentRevision + 1,
     };
 
-    const updatedLobby = await base44.asServiceRole.entities.Lobby.update(lobbyId, updateData);
+    await base44.asServiceRole.entities.Lobby.update(rowId(startLobby), updateData);
+    const updatedLobby = await base44.asServiceRole.entities.Lobby.get(rowId(startLobby));
 
     return json(withDebug({
       success: true,
-      lobby: updatedLobby,
+      lobby: publicLobby(updatedLobby, actor),
     }, {
-        lobbyId,
+        lobbyRef: startLobby.public_ref || null,
         statusBefore: lobby.status,
         statusAfter: updateData.status,
         state_revision_before: currentRevision,
@@ -603,6 +842,9 @@ Deno.serve(async (req) => {
         players: summarizePlayers(updateData.players),
         settings,
     }));
+    } finally {
+      await releaseStartLock(base44, startLock.lock);
+    }
   } catch (error) {
     console.error('[startLobbyGame] failed:', error);
     return json({

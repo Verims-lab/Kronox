@@ -345,8 +345,12 @@ export async function writeSoloProgress(user, progress) {
   const normalized = normalizeProgressShape(progress);
   safeWriteLocal(user || null, normalized); // same-user mirror so guests + flakey network still see it
   if (!user || !user.email) {
-    syncGuestProfileProgress({ soloProgress: normalized }).catch(() => {});
-    return;
+    try {
+      const result = await syncGuestProfileProgress({ soloProgress: normalized });
+      return result?.ok !== false;
+    } catch {
+      return false;
+    }
   }
   try {
     const leaderboardPayload = buildSoloLeaderboardPayload(user, normalized);
@@ -355,8 +359,10 @@ export async function writeSoloProgress(user, progress) {
       kronox_puan_total: leaderboardPayload.total_kronox_score,
     });
     await publishSoloLeaderboardEntry(user, normalized);
+    return true;
   } catch {
     /* ignore — local mirror keeps the UI honest */
+    return false;
   }
 }
 

@@ -34,11 +34,10 @@ import lobbyRoomSource from '../../pages/LobbyRoom.jsx?raw';
 import onlineChallengeScreenSource from '../../components/lobby/OnlineChallengeScreen.jsx?raw';
 import activeLobbyCardSource from '../../components/lobby/ActiveLobbyCard.jsx?raw';
 import activeLobbyLibSource from '../../lib/activeLobby.js?raw';
-import {
-  startLobbyGameFnSource,
-  acceptGameInviteFnSource,
-  findLobbyByCodeFnSource,
-} from './simulationPanelContractStrings.jsx';
+import lobbyGatewaySource from '../../lib/dbGateway/lobbyGateway.js?raw';
+import startLobbyGameFnSource from '../../../base44/functions/startLobbyGame/entry.ts?raw';
+import acceptGameInviteFnSource from '../../../base44/functions/acceptGameInvite/entry.ts?raw';
+import findLobbyByCodeFnSource from '../../../base44/functions/findLobbyByCode/entry.ts?raw';
 import { isLobbyStale, LOBBY_STALE_AFTER_MS } from '@/lib/inviteApi';
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL' };
@@ -145,17 +144,17 @@ export const EXTRA_TESTS = [
 
   /* 3. Frontend handleStart no longer sends a settings payload */
   makeCase('lobby_simplification', 'lobby_start_payload_no_settings',
-    'WaitingRoomPanel.handleStart calls startLobbyGame with { lobbyId, playerName } — no settings',
+    'WaitingRoomPanel.handleStart calls the lobby gateway with lobby id/revision and no settings',
     () => {
       const src = safeStr(waitingRoomPanelSource);
-      if (/functions\.invoke\(\s*'startLobbyGame'[\s\S]{0,200}settings\s*,/.test(src)) {
+      if (/startLobbyGame\([^)]*settings/.test(src)) {
         return fail('startLobbyGame invocation still forwards a `settings` payload.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      if (!src.includes("functions.invoke('startLobbyGame'")) {
+      if (!src.includes('startLobbyGame(startLobby.id, startLobby.state_revision)')) {
         return fail('Could not locate startLobbyGame invocation in WaitingRoomPanel.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
@@ -167,12 +166,12 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 4. Backend ignores incoming settings (Codex132 — uses startLobbyGameFnSource mirror) */
+  /* 4. Backend ignores incoming settings and derives config from the locked lobby snapshot. */
   makeCase('lobby_simplification', 'backend_start_ignores_incoming_settings',
-    'functions/startLobbyGame.js calls normalizeSettings(lobby, {}) — no body.settings passthrough',
+    'functions/startLobbyGame.js calls normalizeSettings(startLobby, {}) — no body.settings passthrough',
     () => {
       const src = safeStr(startLobbyGameFnSource);
-      if (!src.includes('normalizeSettings(lobby, {})')) {
+      if (!src.includes('normalizeSettings(startLobby, {})')) {
         return fail('Backend startLobbyGame still uses body.settings as a passthrough.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
@@ -197,11 +196,12 @@ export const EXTRA_TESTS = [
   makeCase('lobby_simplification', 'lobby_uses_online_selected_categories',
     'LobbyRoom persists OnlineChallengeScreen selectedCategories onto lobby.selected_category_ids',
     () => {
-      const src = safeStr(lobbyRoomSource);
+      const src = `${safeStr(lobbyRoomSource)}\n${safeStr(findLobbyByCodeFnSource)}`;
       const required = [
         'selectedCategories',
         'selected_category_ids',
-        'lobbyPayload.selected_category_ids = [...selectedCategories]',
+        'selectedCategories,',
+        'body?.selectedCategories || body?.selected_category_ids',
       ];
       const missing = required.filter((t) => !src.includes(t));
       if (missing.length) {
@@ -225,17 +225,16 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 6. Host-only start enforcement preserved (Codex132 — uses startLobbyGameFnSource mirror) */
+  /* 6. Host-only start enforcement supports linked and token-proven guest hosts. */
   makeCase('lobby_simplification', 'lobby_start_host_only',
-    'startLobbyGame requires auth and rejects non-host actors with 403 Sadece host',
+    'startLobbyGame resolves linked/guest actors and rejects non-host actors with 403 Sadece host',
     () => {
       const src = safeStr(startLobbyGameFnSource);
       const required = [
-        'await base44.auth.me()',
-        'Oturum gerekli.',
-        '401',
-        'authenticatedHost',
-        'Sadece host oyunu baslatabilir',
+        'resolveOnlineActor(base44, body)',
+        'invalid_guest_token',
+        'actorIsHost(actor, lobby)',
+        'Sadece host oyunu baslatabilir.',
         '403',
       ];
       const missing = required.filter((t) => !src.includes(t));
@@ -313,13 +312,15 @@ export const EXTRA_TESTS = [
 
   /* 9. Active lobby loader respects 10-min staleness — executable */
   makeCase('lobby_simplification', 'active_lobby_can_be_rejoined_helper_contract',
-    'loadActiveLobbyForUser helper exists and filters stale lobbies via isLobbyStale',
+    'loadActiveLobbyForUser uses the backend-owned active-lobby query and backend stale guard',
     () => {
-      const src = safeStr(activeLobbyLibSource);
+      const src = `${safeStr(activeLobbyLibSource)}\n${safeStr(lobbyGatewaySource)}\n${safeStr(findLobbyByCodeFnSource)}`;
       const required = [
         'loadActiveLobbyForUser',
-        'isLobbyStale',
-        "status: 'waiting'",
+        'findActiveLobby',
+        "invokeLobbyMutation('find_active')",
+        "candidate?.status === 'waiting'",
+        '!lobbyIsStale(candidate)',
       ];
       const missing = required.filter((t) => !src.includes(t));
       if (missing.length) {
@@ -352,15 +353,16 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 10. Stale lobby still blocked on join paths (Codex132 — uses mirrors) */
+  /* 10. Stale lobby still blocked on join paths. */
   makeCase('lobby_simplification', 'stale_lobby_expires_after_10_minutes_preserved',
     'Backend join/accept paths still enforce LOBBY_STALE_AFTER_MS',
     () => {
       const join = safeStr(findLobbyByCodeFnSource);
       const accept = safeStr(acceptGameInviteFnSource);
-      const required = ['LOBBY_STALE_AFTER_MS = 10 * 60 * 1000', 'Lobi süresi doldu'];
-      const missingJoin = required.filter((t) => !join.includes(t));
-      const missingAccept = required.filter((t) => !accept.includes(t));
+      const requiredJoin = ['LOBBY_STALE_AFTER_MS = 10 * 60 * 1000', 'lobbyIsStale(lobby)', "code: 'lobby_not_joinable'"];
+      const requiredAccept = ['LOBBY_STALE_AFTER_MS = 10 * 60 * 1000', 'Lobi süresi doldu'];
+      const missingJoin = requiredJoin.filter((t) => !join.includes(t));
+      const missingAccept = requiredAccept.filter((t) => !accept.includes(t));
       if (missingJoin.length || missingAccept.length) {
         return fail('Backend stale-lobby guard regressed.', {
           verification: 'STATIC_CONTRACT',

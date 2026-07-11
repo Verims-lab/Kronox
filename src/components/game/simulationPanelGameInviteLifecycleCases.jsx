@@ -25,6 +25,7 @@ import incomingInvitesPanelSource from '../invites/IncomingInvitesPanel.jsx?raw'
 import gameInviteNotifierSource from '../invites/GameInviteNotifier.jsx?raw';
 import inviteApiSource from '../../lib/inviteApi.js?raw';
 import notificationViewModelSource from '../../lib/notificationViewModel.js?raw';
+import notificationReducerSource from '../../lib/notificationReducer.js?raw';
 import {
   GAME_INVITE_TTL_MS,
   filterActiveIncomingGameInvites,
@@ -158,10 +159,11 @@ export const EXTRA_TESTS = [
   makeCase('game_invite_active_selector_shared',
     'Header bell + IncomingInvitesPanel + GameInviteNotifier all read active invites through the shared notification center',
     () => {
-      const missingInCenter = missing(useNotificationCenterSource, [
-        "from '@/lib/gameInviteSelectors'",
+      const missingInCenter = missing(`${safeStr(useNotificationCenterSource)}\n${safeStr(notificationReducerSource)}`, [
+        'notificationReducer',
+        "from './gameInviteSelectors'",
         'mergeActiveIncomingGameInvites',
-        'getGameInviteActiveFilterReason',
+        'isActiveIncomingGameInvite',
       ]);
       const missingInPanel = missing(incomingInvitesPanelSource, [
         'useNotificationCenter',

@@ -170,7 +170,8 @@ Phase 1 foundation:
   valid pending friend requests and game invites.
 - `src/hooks/usePresenceHeartbeat.js` and `src/hooks/useFriendPresence.js`
   provide the focused Online/social presence foundation. Presence writes go
-  through `updatePlayerPresence`, reads go through `getFriendPresence`, and
+  through `updatePlayerPresence`, reads go through the
+  `getOnlinePlayerSelection` social snapshot action, and
   both remain backend-owned instead of letting UI mark arbitrary users online.
   Heartbeats use a runtime app-session id, a 25 second visible interval, and a
   75 second server-owned TTL. Authenticated actors are derived from `auth.me`;
@@ -179,7 +180,7 @@ Phase 1 foundation:
   `src/lib/onlinePlayerSelection.js`. The picker order is online friends,
   online non-friends, then offline friends; offline non-friends are excluded.
   Linked actors use `auth.me`; completed guests can use the same picker with
-  `guest_id + guest_token` proof. The UI stores opaque `u_`/`g_` `target_ref`
+  `guest_id + guest_token` proof. The UI stores random opaque `social_*` `target_ref`
   values only. `createGameInvitesForTargets` resolves routable refs
   backend-side to existing `GameInvite` recipients; non-email-routable guest
   presence rows stay visible but disabled for direct invite creation.
@@ -189,8 +190,10 @@ Phase 1 foundation:
   instead of raw network/Axios messages.
 
 Parity plan:
-- Preserve exact user-facing behavior: dismissing a toast is visual only;
-  accepted/expired/rejected rows close actionable notifications.
+- Preserve exact user-facing behavior: dismissing a toast or opening an invite
+  is visual/read state only; confirmed accepted/expired/rejected/deleted/
+  invalidated rows close actionable notifications. Failed mutation preserves
+  the row and safe Turkish retry copy.
 - Keep labels username-safe.
 - Keep push optional and manual device-proven.
 

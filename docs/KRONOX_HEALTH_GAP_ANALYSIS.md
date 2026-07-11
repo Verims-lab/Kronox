@@ -55,6 +55,13 @@ fallback polling/refetch.
 - Added executable notification reducer coverage for transient empty fetches,
   subscription upserts, terminal row closure, visual-only toast dismissal,
   accept/reject closure, stable-id dedupe, and private identifier guardrails.
+- Retargeted P0 false-pass cases to active source: Online result Health now
+  requires backend terminal-state authority and forbids client result/score/
+  leaderboard writes; invite open is nonterminal; lobby checks require linked/
+  guest actor proof, fail-closed locks, max four, monotonic revision, and public
+  DTO sanitization; Daily checks execute canonical distinct-key selection and
+  verify backend-source provenance rather than row-count/query-before-create
+  strings. The deployment suite gates 50 functions and exact SDK 0.8.34.
 - Added focused friend/presence coverage so fake-online friend pickers, email
   display fallbacks, unscoped presence reads, non-current-user presence writes,
   stale heartbeat timing, missing guest token proof, transient-fetch clearing,
@@ -147,7 +154,7 @@ fallback polling/refetch.
 
 | Flow / contract | Current coverage | Needed next |
 | --- | --- | --- |
-| 4-player Online lobby join/start | `online_lobby_start_regression` static suite plus executable reducer phase simulation | Add a real or mocked multi-client simulation harness when feasible |
+| 4-player Online lobby join/start | Source-connected backend lock/revision/cap/one-deck checks plus executable reducer phase simulation | Live parallel multi-client Base44 probe remains manual |
 | Host start shared state | Static source markers for deck/current question/status/revision | Backend runtime probe against deployed `startLobbyGame` |
 | Non-host recovery | Static subscription + poll/refetch markers plus reducer recovery simulation | Browser automation with delayed/missed subscription event |
 | Invite accept verified lobby | Static `verifiedLobby`/`joinedLobby` contract | Deployed function freshness marker or Base44 test-function proof |
@@ -162,7 +169,7 @@ fallback polling/refetch.
 | Mağaza open / purchase readiness | Static Market checks for idle chunk/cache warm-up, fast inventory read before starter self-heal, explicit purchase-readiness helper, and backend server-price/idempotency/lock guards | Manual low-end mobile proof for first open/reopen, sufficient/insufficient Diamond CTA state, purchase success, and double-tap/retry behavior |
 | Liderlik open / score projection performance | Static Leaderboard checks for idle chunk/snapshot warm-up, projection-only `getSoloLeaderboard` fast mode, cached rows during refetch, deferred friend enrichment, bounded repair, and materialized score reads | Manual low-end mobile proof for cold/repeat BottomNav opens, deployed Base44 latency, DB index/sort behavior, exact rank at scale, and post-score-change refresh |
 | App startup / Home first render | Static startup fast-path checks for direct Home shell import, cached GuestProfile repeat launch, post-paint AuthContext maintenance, deferred presence/invite/category modules, idle Market/Liderlik warm-up, and delayed Daily Wheel/Daily Calendar status refresh | Manual Android/WebView proof for cold/repeat app launch, splash duration, dark-loader duration, first Home paint, and deployed Base44 latency |
-| Daily Calendar / Streak Diamond-only | Static runtime/backend checks | Two-device claim race proof |
+| Daily Calendar / Streak Diamond-only | Executable canonical distinct-key fixture plus source-connected assignment/provenance/claim guards | Two-device assignment/claim race and platform unique-index proof |
 | Leaderboard username-only | Static public payload checks | RLS/BOLA live probe |
 | Online category isolation | Static start/Game/Health mirror checks | Live lobby start with Solo preferences set differently |
 | No raw Question.list gameplay fallback | Static source checks | Deployed `getQuestions` marker proof |

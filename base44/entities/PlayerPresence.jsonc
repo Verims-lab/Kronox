@@ -7,6 +7,10 @@
       "type": "string",
       "description": "Internal anonymized key derived server-side from the authenticated owner. Not displayed in public UI."
     },
+    "selection_ref": {
+      "type": "string",
+      "description": "Random opaque public selection reference copied from the actor profile. It is routable only by backend functions and is not authorization proof."
+    },
     "kronox_user_id": {
       "type": "string",
       "description": "Immutable Kronox ID of the presence actor when available. Used by backend-owned presence/invite logic as a durable app user reference; public responses must not display it."

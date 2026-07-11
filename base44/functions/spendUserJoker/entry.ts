@@ -43,7 +43,6 @@ function emptyBalances() {
 
 function publicInventoryRow(row: any) {
   return {
-    id: rowId(row),
     jokerType: row?.joker_type || '',
     quantity: normalizeQuantity(row?.quantity),
     updatedAt: row?.updated_at || row?.created_at || null,
@@ -378,13 +377,10 @@ Deno.serve(async (req: Request) => {
       return json({
         ok: true,
         alreadyApplied: true,
-        userEmail: email,
         jokerType,
         quantityDelta: -1,
         reason: SOLO_USE_REASON,
         source: SOLO_SOURCE,
-        idempotencyKey,
-        transactionId: rowId(existingTransaction),
         balanceAfter,
         ...(await readBalancePayload(base44, email)),
         duplicateRowsRepaired,
@@ -429,13 +425,10 @@ Deno.serve(async (req: Request) => {
       return json({
         ok: true,
         alreadyApplied: true,
-        userEmail: email,
         jokerType,
         quantityDelta: -1,
         reason: SOLO_USE_REASON,
         source: SOLO_SOURCE,
-        idempotencyKey,
-        transactionId: rowId(secondExistingTransaction),
         balanceAfter,
         ...(await readBalancePayload(base44, email)),
         duplicateRowsRepaired,
@@ -506,13 +499,10 @@ Deno.serve(async (req: Request) => {
 
     return json({
       ok: true,
-      userEmail: email,
       jokerType,
       quantityDelta: -1,
       reason: SOLO_USE_REASON,
       source: SOLO_SOURCE,
-      idempotencyKey,
-      transactionId: rowId(transaction),
       balanceBefore: quantityBefore,
       balanceAfter,
       inventory: publicInventoryRow(finalInventory),

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   getFriendDisplayPresence,
-  getPresenceLookupKeyForEmail,
   loadFriendPresence,
   PRESENCE_REFRESH_MS,
 } from '@/lib/presence';
@@ -13,7 +12,7 @@ export default function useFriendPresence(friends, { enabled = true, pollMs = PR
 
   const friendPresenceKeys = useMemo(() => {
     return (Array.isArray(friends) ? friends : [])
-      .map((friend) => friend?.presence_key || getPresenceLookupKeyForEmail(friend?.friend_email))
+      .map((friend) => friend?.presence_ref || friend?.presence_key || friend?.target_ref)
       .filter(Boolean)
       .sort()
       .join('|');

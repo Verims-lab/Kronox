@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
-import { base44 } from '@/api/base44Client';
 import {
-  loadIncomingInviteSnapshot,
   openGameInvite as openGameInviteAction,
   rejectGameInvite as rejectGameInviteAction,
 } from '@/lib/inviteApi';
-import { getFriendRequestDedupeKey } from '@/lib/headerNotifications';
+import { loadSocialSnapshot } from '@/lib/onlinePlayerSelection';
 import { buildNotificationViewModel } from '@/lib/notificationViewModel';
 import {
   createNotificationInitialState,
@@ -13,13 +11,7 @@ import {
   NOTIFICATION_ACTIONS,
   NOTIFICATION_ROW_TYPES,
 } from '@/lib/notificationReducer';
-import {
-  getGameInviteActiveFilterReason,
-  getInviteRecipientEmail,
-  getInviteSenderEmail,
-  normalizeEmail,
-  traceGameInviteLifecycle,
-} from '@/lib/gameInviteSelectors';
+import { normalizeEmail, traceGameInviteLifecycle } from '@/lib/gameInviteSelectors';
 
 const POLL_INTERVAL_MS = 20000;
 const REFRESH_DEBOUNCE_MS = 250;
@@ -37,7 +29,6 @@ let pollTimer = null;
 let pruneTimer = null;
 let refreshTimer = null;
 let inFlightFetch = null;
-const handledAcceptedOutgoingIds = new Set();
 
 function emit(next) {
   state = next;
@@ -79,34 +70,32 @@ async function fetchNotificationCenter({ preserveExisting = true, source = 'fetc
   if (inFlightFetch) return inFlightFetch;
 
   dispatchNotification({ type: NOTIFICATION_ACTIONS.FETCH_STARTED, source });
-  inFlightFetch = Promise.all([
-    base44.entities.FriendRequest.filter(
-      { to_email: email },
-      '-updated_date',
-      50,
-    ).catch(() => []),
-    loadIncomingInviteSnapshot(email),
-  ]).then(([friendRows, inviteSnapshot]) => {
+  inFlightFetch = loadSocialSnapshot().then((snapshot) => {
+    const friendRows = Array.isArray(snapshot?.incomingFriendRequests) ? snapshot.incomingFriendRequests : [];
+    const gameInviteRows = Array.isArray(snapshot?.incomingGameInvites) ? snapshot.incomingGameInvites : [];
+    const acceptedOutgoingInvites = (Array.isArray(snapshot?.outgoingGameInvites) ? snapshot.outgoingGameInvites : [])
+      .filter((invite) => invite?.status === 'accepted');
     const now = Date.now();
     updateState((prev) => {
       if (prev.email !== email) return prev;
       const next = notificationReducer(prev, {
-        type: (inviteSnapshot?.rows || []).length === 0 && (friendRows || []).length === 0 && preserveExisting
+        type: gameInviteRows.length === 0 && friendRows.length === 0 && preserveExisting
           ? NOTIFICATION_ACTIONS.FETCH_EMPTY_STALE
           : NOTIFICATION_ACTIONS.FETCH_SUCCESS,
         email,
         currentUser: prev.currentUser,
         friendRequestRows: friendRows || [],
-        gameInviteRows: inviteSnapshot?.rows || [],
+        gameInviteRows,
+        acceptedOutgoingInvites,
         preserveExisting,
         now,
         source,
       });
-      traceGameInviteLifecycle('notification_center_fetch_merged', { id: `count:${next.gameInvites.length}`, status: 'pending', to_email: email }, {
+      traceGameInviteLifecycle('notification_center_fetch_merged', { id: `count:${next.gameInvites.length}`, status: 'pending', recipient_is_self: true }, {
         source: `useNotificationCenter.${source}`,
         user: prev.currentUser,
         userEmail: email,
-        reason: (inviteSnapshot?.rows || []).length === 0 && prev.gameInvites.length > 0
+        reason: gameInviteRows.length === 0 && prev.gameInvites.length > 0
           ? 'stale_empty_fetch_preserved'
           : 'lifecycle_merge',
       });
@@ -119,7 +108,7 @@ async function fetchNotificationCenter({ preserveExisting = true, source = 'fetc
       error: error?.message || 'Bildirimler yüklenemedi.',
       source,
     });
-    traceGameInviteLifecycle('notification_center_fetch_failed', { id: 'fetch:error', status: 'pending', to_email: email }, {
+    traceGameInviteLifecycle('notification_center_fetch_failed', { id: 'fetch:error', status: 'pending', recipient_is_self: true }, {
       source: `useNotificationCenter.${source}`,
       user: state.currentUser,
       userEmail: email,
@@ -140,100 +129,8 @@ function scheduleRefresh(options) {
   }, REFRESH_DEBOUNCE_MS);
 }
 
-function startSubscriptions(email, currentUser) {
+function startSubscriptions() {
   const unsubs = [];
-
-  try {
-    const unsubFriend = base44.entities.FriendRequest.subscribe?.((event) => {
-      const eventType = event?.type || event?.eventType || 'update';
-      const request = event?.data || event;
-      const oldRequest = event?.old_data || event?.oldData || {};
-      const requestId = request?.id || oldRequest?.id;
-      const toEmail = normalizeEmail(request?.to_email || oldRequest?.to_email);
-      const fromEmail = normalizeEmail(request?.from_email || oldRequest?.from_email);
-      if (!toEmail && !fromEmail) {
-        scheduleRefresh({ preserveExisting: true, source: 'friend_request_subscription' });
-        return;
-      }
-      if (toEmail !== email && fromEmail !== email) return;
-
-      if (toEmail === email) {
-        if (eventType === 'delete' && requestId) {
-          dispatchNotification({
-            type: NOTIFICATION_ACTIONS.TERMINAL_ROW,
-            rowType: NOTIFICATION_ROW_TYPES.FRIEND_REQUEST,
-            rowId: requestId,
-            source: 'friend_request_subscription_delete',
-          });
-        } else if (requestId || getFriendRequestDedupeKey(request)) {
-          dispatchNotification({
-            type: NOTIFICATION_ACTIONS.SUBSCRIPTION_ROW,
-            rowType: NOTIFICATION_ROW_TYPES.FRIEND_REQUEST,
-            row: request,
-            email,
-            source: 'friend_request_subscription',
-          });
-        }
-      }
-      scheduleRefresh({ preserveExisting: true, source: 'friend_request_subscription' });
-    });
-    if (typeof unsubFriend === 'function') unsubs.push(unsubFriend);
-  } catch { /* realtime optional */ }
-
-  try {
-    const unsubInvite = base44.entities.GameInvite.subscribe?.((event) => {
-      const eventType = event?.type || event?.eventType || 'update';
-      const invite = event?.data || event;
-      if (eventType === 'delete') return;
-
-      const toEmail = getInviteRecipientEmail(invite);
-      const fromEmail = getInviteSenderEmail(invite);
-      if (
-        fromEmail === email
-        && invite?.status === 'accepted'
-        && invite?.id
-        && !handledAcceptedOutgoingIds.has(invite.id)
-      ) {
-        handledAcceptedOutgoingIds.add(invite.id);
-        dispatchNotification({
-          type: NOTIFICATION_ACTIONS.OUTGOING_INVITE_ACCEPTED,
-          invite,
-          source: `game_invite_subscription:${eventType}`,
-        });
-        return;
-      }
-      if (toEmail !== email) return;
-
-      const reason = getGameInviteActiveFilterReason(invite, email);
-      traceGameInviteLifecycle(reason.startsWith('active') ? 'invite_passed_active_filter' : 'invite_failed_active_filter', invite, {
-        source: `useNotificationCenter.subscription:${eventType}`,
-        user: currentUser,
-        userEmail: email,
-        reason,
-      });
-
-      if (reason.startsWith('active')) {
-        dispatchNotification({
-          type: NOTIFICATION_ACTIONS.SUBSCRIPTION_ROW,
-          rowType: NOTIFICATION_ROW_TYPES.GAME_INVITE,
-          row: invite,
-          email,
-          now: Date.now(),
-          source: `game_invite_subscription:${eventType}`,
-        });
-        scheduleRefresh({ preserveExisting: true, source: 'game_invite_subscription_followup' });
-      } else {
-        dispatchNotification({
-          type: NOTIFICATION_ACTIONS.TERMINAL_ROW,
-          rowType: NOTIFICATION_ROW_TYPES.GAME_INVITE,
-          rowId: invite.id,
-          source: `game_invite_subscription:${eventType}`,
-        });
-        scheduleRefresh({ preserveExisting: true, source: 'game_invite_terminal_followup' });
-      }
-    });
-    if (typeof unsubInvite === 'function') unsubs.push(unsubInvite);
-  } catch { /* realtime optional */ }
 
   const onFocus = () => scheduleRefresh({ preserveExisting: true, source: 'window_focus' });
   const onVisibility = () => {
@@ -265,7 +162,6 @@ function ensureNotificationCenter(user) {
   }
 
   stopNotificationCenter();
-  handledAcceptedOutgoingIds.clear();
   emit({
     ...createNotificationInitialState(),
     email,
@@ -273,7 +169,7 @@ function ensureNotificationCenter(user) {
     loading: true,
     dismissedToastIds: new Set(),
   });
-  stopSubscriptions = startSubscriptions(email, user);
+  stopSubscriptions = startSubscriptions();
   fetchNotificationCenter({ preserveExisting: false, source: 'initial_load' });
   pollTimer = window.setInterval(() => {
     fetchNotificationCenter({ preserveExisting: true, source: 'poll' });
@@ -342,28 +238,34 @@ export async function openNotificationCenterGameInvite(invite, {
     });
     const verifiedLobby = res?.verifiedLobby || res?.joinedLobby || res?.lobby || null;
     const joinedLobby = verifiedLobby || null;
+    dispatchNotification({
+      type: NOTIFICATION_ACTIONS.TERMINAL_ROW,
+      rowType: NOTIFICATION_ROW_TYPES.GAME_INVITE,
+      rowId: invite.id,
+      source: `${source}_accepted`,
+    });
     scheduleRefresh({ preserveExisting: true, source: `${source}_accepted_followup` });
     return { ok: true, lobby: joinedLobby, joinedLobby, verifiedLobby, result: res };
   } catch (error) {
     scheduleRefresh({ preserveExisting: true, source: `${source}_failed_followup` });
-    return { ok: false, reason: error?.message || 'accept_failed', error };
+    return { ok: false, reason: 'Davet kabul edilemedi.', error };
   }
 }
 
 export async function rejectNotificationCenterGameInvite(inviteId) {
   if (!inviteId) return { ok: false, reason: 'invalid' };
-  dispatchNotification({
-    type: NOTIFICATION_ACTIONS.INVITE_REJECTED,
-    inviteId,
-    source: 'reject_invite',
-  });
   try {
     await rejectGameInviteAction(inviteId);
+    dispatchNotification({
+      type: NOTIFICATION_ACTIONS.INVITE_REJECTED,
+      inviteId,
+      source: 'reject_invite_confirmed',
+    });
     scheduleRefresh({ preserveExisting: true, source: 'rejected_followup' });
     return { ok: true };
   } catch (error) {
     scheduleRefresh({ preserveExisting: true, source: 'reject_failed_followup' });
-    return { ok: false, reason: error?.message || 'reject_failed', error };
+    return { ok: false, reason: 'Davet reddedilemedi.', error };
   }
 }
 

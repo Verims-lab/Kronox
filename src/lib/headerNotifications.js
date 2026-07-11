@@ -28,6 +28,7 @@ export { GAME_INVITE_TTL_MS, isInviteExpired };
 /** Returns true when the FriendRequest row is a pending request addressed to me. */
 export function isPendingFriendRequestForUser(row, myEmail) {
   if (!row || row.status !== 'pending') return false;
+  if (row.direction === 'incoming') return true;
   const me = normalizeEmail(myEmail);
   if (!me) return false;
   return normalizeEmail(row.to_email) === me;
@@ -36,9 +37,8 @@ export function isPendingFriendRequestForUser(row, myEmail) {
 export function getFriendRequestDedupeKey(row) {
   if (!row) return '';
   if (row.id) return `id:${row.id}`;
-  const from = normalizeEmail(row.from_email);
-  const to = normalizeEmail(row.to_email);
-  return from && to ? `${from}->${to}` : '';
+  const actor = String(row.from_name || row.sender_name || row.username || '').trim();
+  return actor ? `incoming:${actor}` : '';
 }
 
 function getFriendRequestCreatedAt(row) {

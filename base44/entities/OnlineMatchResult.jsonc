@@ -1,11 +1,26 @@
 {
   "name": "OnlineMatchResult",
   "type": "object",
-  "description": "Codex171 \u2014 Durable per-user Online scoring audit/idempotency record. One logical row should exist per idempotency_key (online_match_result:<lobby_id>:<player_email>). Base44 schema uniqueness is not assumed, so runtime checks prefer idempotency_key and fall back to player_email + lobby_id before applying score.",
+  "description": "Backend-owned per-actor Online scoring reservation/audit record. One logical row exists per idempotency_key (online_match_result:<lobby_id>:<actor_key_hash>). Linked and guest actors use the same private actor key contract. Base44 schema uniqueness is not assumed, so the backend reserves, re-reads, and reconciles the canonical row under EconomyOperationLock before publishing score.",
   "properties": {
     "idempotency_key": {
       "type": "string",
-      "description": "Durable per-player/per-lobby idempotency key, e.g. online_match_result:<lobby_id>:<player_email>."
+      "description": "Durable per-actor/per-lobby idempotency key, e.g. online_match_result:<lobby_id>:<actor_key_hash>."
+    },
+    "actor_key_hash": {
+      "type": "string",
+      "description": "Private backend actor key for linked or guest players. Never returned by public APIs."
+    },
+    "player_type": {
+      "type": "string",
+      "enum": [
+        "linked",
+        "guest"
+      ]
+    },
+    "lobby_ref": {
+      "type": "string",
+      "description": "Opaque client-safe lobby reference retained for support diagnostics."
     },
     "lobby_id": {
       "type": "string",
@@ -13,7 +28,7 @@
     },
     "player_email": {
       "type": "string",
-      "description": "Lowercased email of the user whose Online score was updated."
+      "description": "Legacy/private linked-user audit field when available. Empty for guests and never public."
     },
     "player_kronox_user_id": {
       "type": "string",
@@ -73,6 +88,15 @@
       "type": "string",
       "description": "Best-effort source path such as code_lobby, friend_invite, or active_lobby_return."
     },
+    "status": {
+      "type": "string",
+      "enum": [
+        "reserved",
+        "applied",
+        "failed"
+      ],
+      "description": "Backend result-commit lifecycle. Only applied rows are canonical visible score proof."
+    },
     "metadata": {
       "type": "object",
       "description": "Optional debug-safe metadata. Must not contain private profile, push, or auth fields."
@@ -85,28 +109,26 @@
   },
   "required": [
     "idempotency_key",
+    "actor_key_hash",
+    "player_type",
+    "lobby_ref",
     "lobby_id",
-    "player_email",
     "result",
     "score_before",
     "score_after",
-    "applied_at"
+    "status",
+    "created_at"
   ],
   "rls": {
     "create": {
-      "data.player_email": "{{user.email}}"
+      "user_condition": {
+        "role": "admin"
+      }
     },
     "read": {
-      "$or": [
-        {
-          "data.player_email": "{{user.email}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
+      "user_condition": {
+        "role": "admin"
+      }
     },
     "update": {
       "user_condition": {
@@ -114,16 +136,9 @@
       }
     },
     "delete": {
-      "$or": [
-        {
-          "data.player_email": "{{user.email}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
+      "user_condition": {
+        "role": "admin"
+      }
     }
   }
 }

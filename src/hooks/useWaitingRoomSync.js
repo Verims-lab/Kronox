@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
-import { base44 } from '@/api/base44Client';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { debugLog, debugWarn } from '@/lib/debugLog';
-import { isHost as isLobbyHost, summarizePlayers } from '@/lib/lobbyUtils';
+import { summarizePlayers } from '@/lib/lobbyUtils';
 import { navigateToOnlineGame as navigateToOnlineGameRoute } from '@/lib/onlineGameNavigation';
 import {
   createOnlineLobbyInitialState,
   onlineLobbyReducer,
   ONLINE_LOBBY_ACTIONS,
 } from '@/lib/onlineLobbyReducer';
+import { getLobbySnapshot, joinLobbyByCode } from '@/lib/dbGateway/lobbyGateway';
 
 const STATUS_RANK = {
   waiting: 1,
@@ -44,7 +44,7 @@ export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, 
     shouldNavigateToGame: false,
     navigateCalled: false,
     currentPathname: window.location.pathname,
-    currentUserEmail: user?.email || null,
+    currentActorResolved: Boolean(user),
     currentPlayerName: playerName || null,
     source: null,
     error: null,
@@ -97,7 +97,8 @@ export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, 
 
   const refreshLobby = useCallback(async () => {
     if (!lobby?.id) return;
-    const fresh = await base44.entities.Lobby.get(lobby.id);
+    const response = await getLobbySnapshot({ lobbyId: lobby.id });
+    const fresh = response?.data?.lobby;
     if (fresh) applyLobbySnapshot(fresh, 'pull_to_refresh');
   }, [applyLobbySnapshot, lobby?.id]);
 
@@ -109,10 +110,10 @@ export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, 
       subscribedLobbyId: lobby?.id || null,
       localLobbyStatus: lobby?.status || null,
       currentPathname: window.location.pathname,
-      currentUserEmail: user?.email || null,
+      currentActorResolved: Boolean(user),
       currentPlayerName: playerName || null,
     }));
-  }, [lobby?.id, lobby?.status, user?.email, playerName]);
+  }, [lobby?.id, lobby?.status, user, playerName]);
 
   useEffect(() => {
     debugLog('[WaitingRoom] rendered roster:', {
@@ -120,7 +121,6 @@ export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, 
       subscriptionPlayersCount: lobby?.players?.length || 0,
       renderedPlayersCount: lobby?.players?.length || 0,
       renderedPlayerNames: (lobby?.players || []).map(p => p?.name),
-      renderedPlayerEmails: (lobby?.players || []).map(p => p?.email),
       isHost,
     });
   }, [lobby?.id, lobby?.players, isHost]);
@@ -139,7 +139,7 @@ export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, 
       shouldNavigateToGame: true,
       navigateCalled: true,
       currentPathname: window.location.pathname,
-      currentUserEmail: userRef.current?.email || null,
+      currentActorResolved: Boolean(userRef.current),
       currentPlayerName: playerNameRef.current || null,
       source,
       error: null,
@@ -154,116 +154,14 @@ export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, 
   }, [lobby?.id, lobby?.status, navigate]);
 
   useEffect(() => {
-    if (!lobby?.id) return undefined;
-
-    const registrationDebug = {
-      lobbyId: lobby.id,
-      timestamp: new Date().toISOString(),
-      playerName: playerNameRef.current,
-      userEmail: userRef.current?.email || null,
-    };
-    debugLog('[WaitingRoom] subscription registered:', registrationDebug);
-    setStartDebug(prev => ({
-      ...prev,
-      subscribedLobbyId: lobby.id,
-      localLobbyStatus: lobby.status,
-      currentPathname: window.location.pathname,
-      currentUserEmail: userRef.current?.email || null,
-      currentPlayerName: playerNameRef.current || null,
-      source: 'subscription-registered',
-      error: null,
-    }));
-
-    const unsub = base44.entities.Lobby.subscribe((event) => {
-      const eventType = event?.type || event?.eventType || 'update';
-      const updatedLobby = event?.data || event;
-      const receivedLobbyId = updatedLobby?.id || event?.id;
-      const status = updatedLobby?.status;
-      const playerCount = updatedLobby?.players?.length || 0;
-
-      debugLog('[WaitingRoom] subscription event:', {
-        eventType,
-        receivedLobbyId,
-        status,
-        playerCount,
-        players: summarizePlayers(updatedLobby?.players || []),
-        current_question_id: updatedLobby?.current_question_id || null,
-        current_player_index: updatedLobby?.current_player_index ?? null,
-      });
-
-      if (receivedLobbyId !== lobby.id) return;
-
-      if (eventType === 'delete') {
-        dispatchLobbyPhase({
-          type: ONLINE_LOBBY_ACTIONS.LOBBY_CANCELLED,
-          source: `subscription:${eventType}`,
-        });
-        setLobby(null);
-        return;
-      }
-
-      const applied = applyLobbySnapshot(updatedLobby, `subscription:${eventType}`);
-      if (!applied) return;
-
-      const currentUser = userRef.current;
-      const currentPlayerName = playerNameRef.current?.trim();
-      const isAuthHost = isLobbyHost(updatedLobby, currentUser);
-      const isGuestHost = !currentUser?.email && (
-        currentPlayerName === updatedLobby?.host_name ||
-        currentPlayerName === updatedLobby?.players?.[0]?.name
-      );
-      const isCurrentUserHost = isAuthHost || isGuestHost;
-      const shouldNavigate = !isCurrentUserHost && (status === 'starting' || status === 'in_game');
-
-      const debugData = {
-        subscribedLobbyId: lobby.id,
-        localLobbyStatus: updatedLobby?.status || lobby.status || null,
-        lastEventAt: new Date().toISOString(),
-        lastEventStatus: status || null,
-        lastEventLobbyId: receivedLobbyId || null,
-        shouldNavigateToGame: shouldNavigate,
-        navigateCalled: false,
-        currentPathname: window.location.pathname,
-        currentUserEmail: currentUser?.email || null,
-        currentPlayerName,
-        source: `subscription:${eventType}`,
-        error: null,
-      };
-
-      debugLog('[WaitingRoom] navigation decision:', {
-        shouldNavigate,
-        currentPathname: window.location.pathname,
-        navigateCalled: false,
-        status,
-        isHost: isCurrentUserHost,
-        playerName: currentPlayerName,
-        userEmail: currentUser?.email || null,
-        hostEmail: updatedLobby?.host_email || '',
-      });
-      debugLog('[WaitingRoom] start debug:', debugData);
-      setStartDebug(debugData);
-
-      if (shouldNavigate) {
-        dispatchLobbyPhase({
-          type: ONLINE_LOBBY_ACTIONS.START_CONFIRMED,
-          lobby: updatedLobby,
-          source: 'subscription_navigation',
-        });
-        navigateToOnlineGame(updatedLobby, 'subscription');
-      }
-    });
-
-    return () => unsub();
-  }, [applyLobbySnapshot, lobby?.id, lobby?.status, navigateToOnlineGame, setLobby]);
-
-  useEffect(() => {
     if (!lobby?.id || lobby.status !== 'waiting') return undefined;
 
     const intervalId = window.setInterval(async () => {
       if (hasNavigatedToGameRef.current) return;
 
       try {
-        const fresh = await base44.entities.Lobby.get(lobby.id);
+        const response = await getLobbySnapshot({ lobbyId: lobby.id });
+        const fresh = response?.data?.lobby;
         if (!fresh) return;
 
         const currentPlayers = lobby.players || [];
@@ -278,7 +176,6 @@ export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, 
           localPlayersCount: currentPlayers.length,
           fetchedPlayersCount: freshPlayers.length,
           fetchedPlayerNames: freshPlayers.map(p => p?.name),
-          fetchedPlayerEmails: freshPlayers.map(p => p?.email),
         });
 
         if (rosterChanged) {
@@ -296,12 +193,9 @@ export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, 
   }, [applyLobbySnapshot, lobby?.id, lobby?.players, lobby.status]);
 
   useEffect(() => {
-    const currentEmail = user?.email;
     const currentName = playerName?.trim();
     const roster = lobby?.players || [];
-    const isCurrentPlayerVisible = currentEmail
-      ? roster.some(p => p?.email === currentEmail)
-      : roster.some(p => p?.name === currentName);
+    const isCurrentPlayerVisible = roster.some(p => p?.is_self) || roster.some(p => p?.name === currentName);
 
     if (isCurrentPlayerVisible) {
       rejoinAttemptRef.current = false;
@@ -315,16 +209,12 @@ export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, 
     debugWarn('[WaitingRoom] current player missing from waiting roster, reasserting join:', {
       lobbyId: lobby.id,
       code: lobby.code,
-      currentUserEmail: currentEmail || null,
       currentPlayerName: currentName || null,
       rosterCount: roster.length,
       roster: summarizePlayers(roster),
     });
 
-    base44.functions.invoke('findLobbyByCode', {
-      code: lobby.code,
-      playerName: currentName,
-    }).then((res) => {
+    joinLobbyByCode(lobby.code, currentName).then((res) => {
       const updatedLobby = res?.data?.lobby;
       debugLog('[WaitingRoom] rejoin assertion result:', {
         lobbyId: updatedLobby?.id || lobby.id,
@@ -334,9 +224,7 @@ export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, 
       });
       if (updatedLobby) {
         const updatedRoster = updatedLobby.players || [];
-        const isVisibleAfterRejoin = currentEmail
-          ? updatedRoster.some(p => p?.email === currentEmail)
-          : updatedRoster.some(p => p?.name === currentName);
+        const isVisibleAfterRejoin = updatedRoster.some(p => p?.is_self) || updatedRoster.some(p => p?.name === currentName);
         if (!isVisibleAfterRejoin) rejoinAttemptRef.current = false;
         applyLobbySnapshot(updatedLobby, 'rejoin_assertion');
       }
@@ -347,7 +235,7 @@ export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, 
       });
       rejoinAttemptRef.current = false;
     });
-  }, [applyLobbySnapshot, lobby?.id, lobby?.status, lobby?.players, lobby?.code, playerName, user?.email]);
+  }, [applyLobbySnapshot, lobby?.id, lobby?.status, lobby?.players, lobby?.code, playerName]);
 
   useEffect(() => {
     if (!lobby?.id || isHost) return undefined;
@@ -357,7 +245,7 @@ export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, 
       lobbyId: lobby.id,
       timestamp: pollStartedAt,
       playerName: playerNameRef.current,
-      userEmail: userRef.current?.email || null,
+      currentActorResolved: Boolean(userRef.current),
     });
 
     const intervalId = window.setInterval(async () => {
@@ -368,7 +256,8 @@ export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, 
           type: ONLINE_LOBBY_ACTIONS.RECOVERY_REQUESTED,
           source: 'start_fallback_poll',
         });
-        const fresh = await base44.entities.Lobby.get(lobby.id);
+        const response = await getLobbySnapshot({ lobbyId: lobby.id });
+        const fresh = response?.data?.lobby;
         const status = fresh?.status;
         const shouldNavigate = status === 'starting' || status === 'in_game';
         const pollDebug = {
@@ -380,7 +269,7 @@ export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, 
           shouldNavigateToGame: shouldNavigate,
           navigateCalled: false,
           currentPathname: window.location.pathname,
-          currentUserEmail: userRef.current?.email || null,
+          currentActorResolved: Boolean(userRef.current),
           currentPlayerName: playerNameRef.current || null,
           source: 'poll',
           error: null,
@@ -408,7 +297,7 @@ export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, 
           shouldNavigateToGame: false,
           navigateCalled: false,
           currentPathname: window.location.pathname,
-          currentUserEmail: userRef.current?.email || null,
+          currentActorResolved: Boolean(userRef.current),
           currentPlayerName: playerNameRef.current || null,
           source: 'poll',
           error: err.message,

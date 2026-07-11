@@ -29,6 +29,7 @@ import {
 // resolve to objects → "object is not a function" crashes).
 import { userEntitySource } from './simulationPanelContractStrings.jsx';
 import gameSource from '../../pages/Game.jsx?raw';
+import applyOnlineResultSource from '../../lib/applyOnlineResult.js?raw';
 
 function safeStr(src) {
   if (src == null) return '';
@@ -322,24 +323,28 @@ export const EXTRA_TESTS = [
 
   /* 11. Game.jsx idempotent wiring kontrolü (static) */
   makeCase('online_ranking', 'game_applies_result_once_per_lobby',
-    'Game.jsx wires applyOnlineMatchToCurrentUser with an onlineResultAppliedRef guard',
+    'Game.jsx submits completion once through the backend-authoritative wrapper',
     () => {
-      const src = safeStr(gameSource);
+      const src = `${safeStr(gameSource)}\n${safeStr(applyOnlineResultSource)}`;
       const required = [
         'applyOnlineMatchToCurrentUser',
         'onlineResultAppliedRef',
         "result = localIsWinner ? 'win' : 'loss'",
+        'commitOnlineMatchResult',
+        'clientOnlineMatchResultWrites: false',
       ];
-      const missing = required.filter((t) => !src.includes(t));
-      if (missing.length) {
-        return fail('Online result is not wired into Game.jsx correctly.', {
+      const missing = required.filter((token) => !src.includes(token));
+      const forbidden = ['OnlineMatchResult.create', 'base44.auth.updateMe']
+        .filter((token) => safeStr(applyOnlineResultSource).includes(token));
+      if (missing.length || forbidden.length) {
+        return fail('Online result is not wired to the backend-only commit correctly.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          missing,
+          actual: { missing, forbidden },
         });
       }
-      return pass('Game.jsx applies the online match result exactly once per match.',
+      return pass('Game.jsx submits one completion request and the wrapper performs no client score/result writes.',
         { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION' });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ToastAction } from '@/components/ui/toast';
 import { toast } from '@/components/ui/use-toast';
-import { base44 } from '@/api/base44Client';
+import { getLobbySnapshot } from '@/lib/dbGateway/lobbyGateway';
 import { useAuth } from '@/lib/AuthContext';
 import {
   markAcceptedOutgoingInviteHandled,
@@ -173,8 +173,9 @@ export default function GameInviteNotifier() {
       handledAcceptedOutgoingInviteIdsRef.current.add(invite.id);
       markAcceptedOutgoingInviteHandled(invite.id);
       if (pathnameRef.current !== '/game' && pathnameRef.current !== '/lobby' && invite.lobby_id) {
-        base44.entities.Lobby.get(invite.lobby_id)
-          .then((acceptedLobby) => {
+        getLobbySnapshot({ lobbyId: invite.lobby_ref || invite.lobby_id })
+          .then((response) => {
+            const acceptedLobby = response?.data?.lobby;
             if (acceptedLobby?.id) {
               navigate('/lobby', { state: { joinedLobby: acceptedLobby } });
             }

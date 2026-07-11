@@ -22,9 +22,6 @@ import cleanupAdminMaintenanceLogSource from '../../../base44/functions/cleanupA
 import expireOldGameInvitesSource from '../../../base44/functions/expireOldGameInvites/entry.ts?raw';
 import expirePushSubscriptionsSource from '../../../base44/functions/expirePushSubscriptions/entry.ts?raw';
 import refreshLeaderboardProjectionSource from '../../../base44/functions/refreshLeaderboardProjection/entry.ts?raw';
-import resetTestAccountProgressSource from '../../../base44/functions/resetTestAccountProgress/entry.ts?raw';
-import diagnoseSoloQuestionStartQuerySource from '../../../base44/functions/diagnoseSoloQuestionStartQuery/entry.ts?raw';
-import runTestSuiteSource from '../../../base44/functions/runTestSuite/entry.ts?raw';
 import sendQuestionAnalyticsReportEmailSource from '../../../base44/functions/sendQuestionAnalyticsReportEmail/entry.ts?raw';
 import getUserReportSource from '../../../base44/functions/getUserReport/entry.ts?raw';
 import getUserReportConfigSource from '../../../base44/functions/getUserReport/function.jsonc?raw';
@@ -36,10 +33,8 @@ import cleanupInactiveGuestUsernamesSource from '../../../base44/functions/clean
 import cleanupInactiveGuestUsernamesConfigSource from '../../../base44/functions/cleanupInactiveGuestUsernames/function.jsonc?raw';
 import recordAppOpenSource from '../../../base44/functions/recordAppOpen/entry.ts?raw';
 import recordAppOpenConfigSource from '../../../base44/functions/recordAppOpen/function.jsonc?raw';
-import createDailyQuestDefinitionSource from '../../../base44/functions/createDailyQuestDefinition/entry.ts?raw';
 import aggregateQuestionStatsSource from '../../../base44/functions/aggregateQuestionStats/entry.ts?raw';
 import cancelStaleLobbiesSource from '../../../base44/functions/cancelStaleLobbies/entry.ts?raw';
-import simulateOnlineGameSource from '../../../base44/functions/simulateOnlineGame/entry.ts?raw';
 import getQuestionsSource from '../../../base44/functions/getQuestions/entry.ts?raw';
 import adminMaintenanceLogSchemaSource from '../../../base44/entities/AdminMaintenanceLog.jsonc?raw';
 import userSchemaSource from '../../../base44/entities/User.jsonc?raw';
@@ -168,15 +163,10 @@ const TARGET_FUNCTIONS = [
   { name: 'expireOldGameInvites', file: 'base44/functions/expireOldGameInvites/entry.ts', source: expireOldGameInvitesSource },
   { name: 'expirePushSubscriptions', file: 'base44/functions/expirePushSubscriptions/entry.ts', source: expirePushSubscriptionsSource },
   { name: 'refreshLeaderboardProjection', file: 'base44/functions/refreshLeaderboardProjection/entry.ts', source: refreshLeaderboardProjectionSource },
-  { name: 'resetTestAccountProgress', file: 'base44/functions/resetTestAccountProgress/entry.ts', source: resetTestAccountProgressSource },
-  { name: 'diagnoseSoloQuestionStartQuery', file: 'base44/functions/diagnoseSoloQuestionStartQuery/entry.ts', source: diagnoseSoloQuestionStartQuerySource },
-  { name: 'runTestSuite', file: 'base44/functions/runTestSuite/entry.ts', source: runTestSuiteSource },
   { name: 'sendQuestionAnalyticsReportEmail', file: 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts', source: sendQuestionAnalyticsReportEmailSource },
   { name: 'cleanupInactiveGuestUsernames', file: 'base44/functions/cleanupInactiveGuestUsernames/entry.ts', source: cleanupInactiveGuestUsernamesSource },
-  { name: 'createDailyQuestDefinition', file: 'base44/functions/createDailyQuestDefinition/entry.ts', source: createDailyQuestDefinitionSource },
   { name: 'aggregateQuestionStats', file: 'base44/functions/aggregateQuestionStats/entry.ts', source: aggregateQuestionStatsSource },
   { name: 'cancelStaleLobbies', file: 'base44/functions/cancelStaleLobbies/entry.ts', source: cancelStaleLobbiesSource },
-  { name: 'simulateOnlineGame', file: 'base44/functions/simulateOnlineGame/entry.ts', source: simulateOnlineGameSource },
   { name: 'getAdminStatus', file: 'base44/functions/getAdminStatus/entry.ts', source: getAdminStatusSource },
   { name: 'getQuestions', file: 'base44/functions/getQuestions/entry.ts', source: getQuestionsSource },
 ];
@@ -343,7 +333,6 @@ export const EXTRA_TESTS = [
       ];
       const perFunctionRequirements = new Map([
         ['sendQuestionAnalyticsReportEmail', legacyInlineGuardRequirements],
-        ['createDailyQuestDefinition', legacyInlineGuardRequirements],
       ]);
       const brokenLocalImportTokens = [
         "from './_shared/adminAuth.js'",
@@ -387,51 +376,6 @@ export const EXTRA_TESTS = [
     },
   ),
 
-  makeCase(
-    'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
-    'simulate_online_game_admin_guard_typo_removed',
-    'simulateOnlineGame rejects scanner typo role checks and uses AdminUser-backed authorization',
-    () => {
-      const src = safeStr(simulateOnlineGameSource);
-      const missing = [
-        'function requireAdmin(base44)',
-        'entities?.AdminUser',
-        'ADMIN_AUTH_FIELD_CANDIDATES',
-        'const admin = await requireAdmin(base44)',
-        'if (admin.response) return admin.response',
-        'base44.asServiceRole.entities.Lobby.create',
-        'base44.asServiceRole.entities.Lobby.delete',
-      ].filter((token) => !src.includes(token));
-      const forbidden = [
-        'en_core_news_sm',
-        'user.role',
-        'body.role',
-        'requestRole',
-        'body.admin_email',
-        'body?.admin_email',
-        'requestPayload.admin_email',
-        'requestPayload?.admin_email',
-        'payload.admin_email',
-        'payload?.admin_email',
-        'ADMIN_EMAIL',
-      ].filter((token) => src.includes(token));
-      if (missing.length || forbidden.length) {
-        return fail('simulateOnlineGame admin authorization is not clearly hardened.', {
-          verification: 'STATIC_CONTRACT',
-          classification: 'REAL_PRODUCT_RISK',
-          expected: 'AdminUser-backed requireAdmin guard before service-role simulation writes; no typo/client/profile role trust.',
-          actual: { missing, forbidden },
-          actionType: ACTION_TYPES.CODE_FIX,
-        });
-      }
-      return pass('simulateOnlineGame uses an inline AdminUser guard and contains no scanner typo/client-role authorization tokens.', {
-        verification: 'STATIC_CONTRACT',
-        classification: 'STATIC_CHECK_LIMITATION',
-        actionType: ACTION_TYPES.CODE_FIX,
-      });
-    },
-  ),
-
   // 5) Env email allowlists are not used for authorization.
   makeCase(
     'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
@@ -459,66 +403,6 @@ export const EXTRA_TESTS = [
         actionType: ACTION_TYPES.CODE_FIX,
       });
     },
-  ),
-
-  makeCase(
-    'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
-    'reset_test_account_progress_adminuser_guard',
-    'resetTestAccountProgress uses AdminUser-backed authorization and exact target confirmation instead of env email allowlists',
-    () => {
-      const src = safeStr(resetTestAccountProgressSource);
-      const required = [
-        'function requireAdmin',
-        'entities?.AdminUser',
-        'ADMIN_AUTH_FIELD_CANDIDATES',
-        'const adminAuth = await requireAdmin(base44)',
-        'if (adminAuth.response) return adminAuth.response',
-        'confirmEmail',
-        'confirmation_mismatch',
-        "source: 'AdminUser'",
-        'role: adminAuth.adminRole',
-        'base44.asServiceRole.entities.User.update',
-        'updateSoloLeaderboardRows',
-      ].filter((token) => !src.includes(token));
-      const forbidden = [
-        'KRONOX_TEST_RESET_EMAILS',
-        'TEST_RESET_EMAILS',
-        'getConfiguredEmails',
-        'getResettableTestEmails',
-        'test_account_not_allowlisted',
-        'body?.role',
-        'user.role',
-      ].filter((token) => src.includes(token));
-      if (required.length || forbidden.length) {
-        return fail('resetTestAccountProgress can still drift from the AdminUser-backed reset contract.', {
-          verification: 'STATIC_CONTRACT',
-          classification: 'REAL_PRODUCT_RISK',
-          file: 'base44/functions/resetTestAccountProgress/entry.ts',
-          expected: 'AdminUser-backed requireAdmin + exact target-email confirmation + no KRONOX_TEST_RESET_EMAILS/TEST_RESET_EMAILS runtime auth',
-          actual: { missing: required, forbidden },
-          actionType: ACTION_TYPES.CODE_FIX,
-        });
-      }
-      return pass('resetTestAccountProgress is AdminUser-gated, exact-email confirmed, and no longer reads test reset email allowlists.', {
-        verification: 'STATIC_CONTRACT',
-        classification: 'STATIC_CHECK_LIMITATION',
-        actionType: ACTION_TYPES.CODE_FIX,
-      });
-    },
-  ),
-
-  makeCase(
-    'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
-    'reset_test_account_progress_runtime_probe_needed',
-    'Runtime probe: resetTestAccountProgress blocks unauthenticated, normal, and disabled admins',
-    () => notAutomatable('Static Health can verify the AdminUser guard and absence of env allowlist auth, but deployed proof still requires calls as unauthenticated, normal user, disabled/passive admin, and active owner/admin with exact target-email confirmation.', {
-      verification: 'NOT_AUTOMATABLE',
-      classification: 'DEPLOYMENT_RUNTIME_REQUIRED',
-      verificationLabels: ['NOT_AUTOMATABLE', 'BACKEND_RUNTIME_PROBE', 'MANUAL_REQUIRED'],
-      actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE,
-      expected: 'unauthenticated -> 401; normal user -> 403; disabled/passive admin -> 403; active owner/admin + confirmEmail -> success for intended test target',
-    }),
-    { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE },
   ),
 
   // 6) Admin source-of-truth is documented and bootstrapping stays manual.

@@ -4,15 +4,15 @@
  * Lobby subscription ve ilk yükleme işlemlerini UI'dan ayırır.
  */
 import { useEffect, useRef } from 'react';
-import { base44 } from '@/api/base44Client';
 import { addGameLog } from '@/components/game/GameDebugLog';
 import { debugLog, debugWarn } from '@/lib/debugLog';
 import { normalizeLobbyState, summarizeLobbyShape } from '@/lib/lobbyState';
+import { getLobbySnapshot } from '@/lib/dbGateway/lobbyGateway';
 
 const summarizePlayers = (players = []) =>
   players.map(p => ({
     name: p.name,
-    email: p.email,
+    participantRef: p.participant_ref || null,
     cardCount: p.cards?.length || 0,
   }));
 
@@ -20,7 +20,8 @@ const toWinnerState = (data) => {
   if (data?.status !== 'finished' || !data?.winner) return null;
   return {
     name: typeof data.winner === 'object' ? data.winner.name : data.winner,
-    email: data.winner_email || (typeof data.winner === 'object' ? data.winner.email : null),
+    email: null,
+    participantRef: data.winner_participant_ref || null,
   };
 };
 
@@ -64,7 +65,6 @@ export function useLobbySync({
   const currentQuestionIdRef = useRef(currentQuestionIdFromState);
   const initialOnlineQuestionDeckRef = useRef(initialOnlineQuestionDeck);
   const initialOnlineDeckMetaRef = useRef(initialOnlineDeckMeta);
-  const lastSubscriptionAtRef = useRef(0);
 
   useEffect(() => {
     if (!lobbyId && !lobbyCode) return;
@@ -129,7 +129,7 @@ export function useLobbySync({
         lobbyId: nextLobbyData.id || activeLobbyId,
         status: nextLobbyData.status,
         winner: nextLobbyData.winner || null,
-        winner_email: nextLobbyData.winner_email || null,
+        winner_participant_ref: nextLobbyData.winner_participant_ref || null,
         state_revision: nextLobbyData.state_revision ?? 0,
         current_player_index: nextLobbyData.current_player_index,
         current_question_id: nextLobbyData.current_question_id,
@@ -147,7 +147,7 @@ export function useLobbySync({
           lobbyId: nextLobbyData.id || activeLobbyId,
           setWinnerCalled: true,
           winner: winnerState.name,
-          winner_email: winnerState.email || null,
+          winner_participant_ref: winnerState.participantRef || null,
           currentScreenState: 'online-game',
           renderedGameOver: true,
         });
@@ -157,15 +157,10 @@ export function useLobbySync({
     };
 
     const resolveInitialLobby = async () => {
-      if (activeLobbyId) {
-        return base44.entities.Lobby.get(activeLobbyId);
-      }
-
       const normalizedCode = normalizeLobbyCode(lobbyCode);
-      if (!normalizedCode) return null;
-
-      const matches = await base44.entities.Lobby.filter({ code: normalizedCode }, '-created_date', 1);
-      return matches?.[0] || null;
+      if (!activeLobbyId && !normalizedCode) return null;
+      const response = await getLobbySnapshot({ lobbyId: activeLobbyId, code: normalizedCode });
+      return response?.data?.lobby || null;
     };
 
     // Codex083 — Host bootstrap retry. The first fetch race-loses against the
@@ -228,42 +223,10 @@ export function useLobbySync({
 
       if (cancelled || !activeLobbyId) return;
 
-      // Realtime subscription — Android Flow'a eşdeğer
-      if (unsubRef.current) unsubRef.current();
-      const unsub = base44.entities.Lobby.subscribe((event) => {
-        const eventType = event?.type || event?.eventType || 'update';
-        const updatedLobby = event?.data || event;
-        const receivedLobbyId = updatedLobby?.id || event?.id;
-        if (receivedLobbyId !== activeLobbyId) return;
-
-        addGameLog(`SUB event=${eventType} idx=${updatedLobby?.current_player_index} status=${updatedLobby?.status}`);
-        debugLog('[useLobbySync] subscription event:', {
-          subscriptionEventReceived: true,
-          eventType,
-          receivedLobbyId,
-          status: updatedLobby?.status,
-          state_revision: updatedLobby?.state_revision ?? null,
-          playerCount: updatedLobby?.players?.length || 0,
-          current_question_id: updatedLobby?.current_question_id || null,
-          current_player_index: updatedLobby?.current_player_index ?? null,
-          used_question_count: updatedLobby?.used_question_ids?.length || 0,
-          players: summarizePlayers(updatedLobby?.players || []),
-        });
-
-        if (eventType === 'delete') {
-          setLobbyData(null);
-          setError('Lobi kapatıldı.');
-          return;
-        }
-        lastSubscriptionAtRef.current = Date.now();
-        applyLobbyData(updatedLobby, `subscription:${eventType}`);
-      });
-      unsubRef.current = unsub;
-
       pollIntervalId = window.setInterval(async () => {
         try {
-          if (Date.now() - lastSubscriptionAtRef.current < 1200) return;
-          const fresh = await base44.entities.Lobby.get(activeLobbyId);
+          const response = await getLobbySnapshot({ lobbyId: activeLobbyId });
+          const fresh = response?.data?.lobby;
           if (!fresh) return;
 
           const previous = latestLobbyRef.current;
@@ -294,7 +257,7 @@ export function useLobbySync({
         } catch (err) {
           debugWarn('[useLobbySync] poll failed:', err.message);
         }
-      }, 3000);
+      }, 1800);
     };
 
     startSync();

@@ -11,7 +11,7 @@ export const LEADERBOARD_FETCH_LIMIT = 100;
 export const LEADERBOARD_CACHE_STALE_MS = 45 * 1000;
 export const LEADERBOARD_FAST_SNAPSHOT_OPTIONS = Object.freeze({
   repairMode: 'skip',
-  includeFriendBadges: false,
+  includeFriendBadges: true,
 });
 export const LEADERBOARD_SOLO_LEVEL_COUNT = 20;
 const SOLO_LEADERBOARD_ENTITY = 'SoloLeaderboardEntry';

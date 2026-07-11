@@ -43,6 +43,7 @@
 //   they cannot throw.
 
 import deployedRootReportFunctionSource from '../../../base44/functions/sendQuestionAnalyticsReportEmail/entry.ts?raw';
+import appSource from '../../App.jsx?raw';
 import addFriendFormSource from '../friends/AddFriendForm.jsx?raw';
 import friendsPageSource from '../../pages/FriendsPage.jsx?raw';
 import friendsApiSource from '../../lib/friendsApi.js?raw';
@@ -55,7 +56,7 @@ import profilePageSource from '../../pages/ProfilePage.jsx?raw';
 import createLobbyInvitePanelSource from '../lobby/CreateLobbyInvitePanel.jsx?raw';
 import lobbyCreateJoinPanelSource from '../lobby/LobbyCreateJoinPanel.jsx?raw';
 import lobbyRoomSource from '../../pages/LobbyRoom.jsx?raw';
-import lobbyUtilsSource from '../../lib/lobbyUtils.js?raw';
+import waitingRoomPanelSource from '../lobby/WaitingRoomPanel.jsx?raw';
 import onlineChallengeScreenSource from '../lobby/OnlineChallengeScreen.jsx?raw';
 import onlineCategoryCarouselSource from '../lobby/OnlineCategoryCarousel.jsx?raw';
 // Codex132 follow-up — new override sources for the three re-targeted cases.
@@ -63,6 +64,7 @@ import mainMenuSource from '../../pages/MainMenu.jsx?raw';
 import {
   createGameInvitesForTargetsFnSource,
   gameInviteEntitySource,
+  sendFriendRequestFnSource,
 } from './simulationPanelContractStrings.jsx';
 // Codex153 — Solo path mimarisi tamamen yeni yapıya geçti (bottom CTA
 // yok, "SIRADAKİ X. SEVİYE" hero node, helper-tabanlı focus). Stale Solo
@@ -76,6 +78,16 @@ import onboardingPageSource from '../../pages/OnboardingPage.jsx?raw';
 import gameSource from '../../pages/Game.jsx?raw';
 import guestProfileSource from '../../lib/guestProfile.js?raw';
 import createGuestProfileSource from '../../../base44/functions/createGuestProfile/entry.ts?raw';
+import friendRequestEntitySource from '../../../base44/entities/FriendRequest.jsonc?raw';
+import acceptFriendRequestSource from '../../../base44/functions/acceptFriendRequest/entry.ts?raw';
+import acceptGameInviteSource from '../../../base44/functions/acceptGameInvite/entry.ts?raw';
+import findLobbyByCodeSource from '../../../base44/functions/findLobbyByCode/entry.ts?raw';
+import startLobbyGameSource from '../../../base44/functions/startLobbyGame/entry.ts?raw';
+import updateLobbyGameStateSource from '../../../base44/functions/updateLobbyGameState/entry.ts?raw';
+import getOnlinePlayerSelectionSource from '../../../base44/functions/getOnlinePlayerSelection/entry.ts?raw';
+import removeFriendSource from '../../../base44/functions/removeFriend/entry.ts?raw';
+import lobbyGatewaySource from '../../lib/dbGateway/lobbyGateway.js?raw';
+import notificationReducerSource from '../../lib/notificationReducer.js?raw';
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL', NOT_AUTOMATABLE: 'NOT_AUTOMATABLE' };
 const ACTION_TYPES = {
@@ -160,6 +172,26 @@ export const OVERRIDDEN_CASE_KEYS = new Set([
   // subscription rows away. The old cases expected the active-only loader call.
   'game_invites.incoming_invites_visible_to_recipient',
   'invite_contract_drift.incoming_panel_uses_loader',
+  'friends_security.friend_request_rls_addressed',
+  'friends_security.friend_request_manage_delete_rls_sender_recipient_admin',
+  'friends_security.accepted_request_is_normalized_friendship',
+  'friends_security.accept_is_receiver_only_server',
+  'friends_security.accept_does_not_create_friendship_rows',
+  'game_invites.game_invite_entity_exists',
+  'game_invites.reject_marks_status_declined',
+  'game_invites.sent_invites_filter_supported',
+  'invite_expiration_health.incoming_loader_expires_old_pending_invites',
+  'invite_contract_drift.create_lobby_creates_invites_after_lobby',
+  'invite_contract_drift.reject_invite_marks_declined_safe',
+  'invite_contract_drift.pending_list_filters_to_email_user',
+  'online_category_taxonomy.selected_category_ids_forwarded_to_lobby',
+  'online_question_mode_health.online_active_state_requires_readable_shared_deck',
+  'lobby_code_ux.invite_centric_copy',
+  'friend_request_email_deep_link.send_request_triggers_email_after_create',
+  'friend_request_email_deep_link.email_backend_requires_pending_request',
+  'friend_request_email_deep_link.email_deep_link_routes_to_friends',
+  'friend_request_email_deep_link.no_arbitrary_email_spam_endpoint',
+  'historical_kronox_regression.friend_request_email_and_deep_link_wired',
   // Codex152/Codex317 — Profile economy values are real persisted/shared
   // sources; the suite no longer expects placeholder-only markers.
   'profile_economy.profile_uses_real_shared_economy_sources',
@@ -569,22 +601,25 @@ export const EXTRA_TESTS = [
     'authenticated_user_identity_used',
     'Current app player identity is resolved automatically for guest and logged-in users',
     () => {
-      const source = `${safeStr(createLobbyInvitePanelSource)}\n${safeStr(lobbyRoomSource)}\n${safeStr(lobbyUtilsSource)}\n${safeStr(onlineChallengeScreenSource)}`;
+      const source = `${safeStr(lobbyRoomSource)}\n${safeStr(lobbyGatewaySource)}\n${safeStr(findLobbyByCodeSource)}\n${safeStr(onlineChallengeScreenSource)}`;
       const required = [
-        'const currentActor = currentUser || currentGuestProfile',
         'deriveDisplayName(currentUser)',
-        'buildPlayerPayload(currentActor, derivedName)',
-        'guestProfile={currentGuestProfile}',
-        'getCompletedGuestCredentialsPayload(guestProfile)',
-        'username || playerName || \'Oyuncu\'',
-        'pickPublicAvatarFields(player)',
+        "currentGuestProfile?.username || playerName || 'Oyuncu'",
+        'createLobby(lobbyPayload)',
+        'withActorProof',
+        'getStoredGuestCredentials',
+        'guest_id: guest.guest_id',
+        'guest_token: guest.guest_token',
+        'async function resolveActor',
+        "playerType: 'guest'",
+        'invalid_guest_token',
       ];
       const missing = required.filter((token) => !source.includes(token));
       if (missing.length) {
         return fail('Online lobby identity can drift from the current app-player contract.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
-          file: 'LobbyRoom.jsx + lobbyUtils.js + OnlineChallengeScreen.jsx + CreateLobbyInvitePanel.jsx',
+          file: 'LobbyRoom.jsx + lobbyGateway.js + findLobbyByCode + OnlineChallengeScreen.jsx',
           expected: required,
           actual: { missing },
           actionType: ACTION_TYPES.CODE_FIX,
@@ -593,7 +628,7 @@ export const EXTRA_TESTS = [
       return pass('Online lobby create flow resolves currentUser or completed guest profile automatically without product-login requirement.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
-        file: 'LobbyRoom.jsx + lobbyUtils.js',
+        file: 'LobbyRoom.jsx + lobbyGateway.js + findLobbyByCode',
         actionType: ACTION_TYPES.CODE_FIX,
       });
     },
@@ -607,9 +642,10 @@ export const EXTRA_TESTS = [
     () => {
       const source = `${safeStr(lobbyRoomSource)}\n${safeStr(inviteApiSource)}\n${safeStr(createGameInvitesForTargetsFnSource)}`;
       const required = [
-        'const newLobby = await base44.entities.Lobby.create(lobbyPayload)',
+        'const createResponse = await createLobby(lobbyPayload)',
+        'const newLobby = createResponse?.data?.lobby',
         'createGameInvites({',
-        'host: identity',
+        'host: currentActor',
         'lobby: newLobby',
         'inviteTargets',
         'createGameInvitesForTargets',
@@ -664,9 +700,9 @@ export const EXTRA_TESTS = [
     `${useNotificationCenterSource}\n${inviteApiSource}\n${incomingInvitesPanelSource}`,
     [
       'useNotificationCenter',
-      'to_email: email',
-      'mergeActiveIncomingGameInvites',
-      'base44.entities.GameInvite.filter',
+      'loadSocialSnapshot',
+      'incomingGameInvites',
+      'notificationReducer',
     ],
   ),
 
@@ -674,10 +710,475 @@ export const EXTRA_TESTS = [
     'invite_contract_drift', 'Invite Contract Drift Suite',
     'incoming_panel_uses_loader',
     'Incoming invites panel uses the shared notification center, not direct global GameInvite queries',
-    'IncomingInvitesPanel.jsx + useNotificationCenter.js',
-    `${incomingInvitesPanelSource}\n${useNotificationCenterSource}`,
-    ['useNotificationCenter', 'mergeActiveIncomingGameInvites', 'buildNotificationViewModel'],
+    'IncomingInvitesPanel.jsx + useNotificationCenter.js + notificationReducer.js',
+    `${incomingInvitesPanelSource}\n${useNotificationCenterSource}\n${notificationReducerSource}`,
+    ['useNotificationCenter', 'notificationReducer', 'mergeActiveIncomingGameInvites', 'buildNotificationViewModel'],
     { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW },
+  ),
+
+  makeCase(
+    'friends_security', 'Friends Security Suite',
+    'friend_request_rls_addressed',
+    'FriendRequest direct reads are closed and social snapshots are actor-scoped by the backend',
+    () => {
+      const entity = safeStr(friendRequestEntitySource);
+      const backend = safeStr(getOnlinePlayerSelectionSource);
+      const requiredEntity = [
+        '"read": { "user_condition": { "role": "admin" } }',
+        '"update": { "user_condition": { "role": "admin" } }',
+        '"delete": { "user_condition": { "role": "admin" } }',
+      ];
+      const requiredBackend = [
+        "if (action === 'social_snapshot')",
+        'FriendRequest.filter({ to_email: myEmail }',
+        'FriendRequest.filter({ from_email: myEmail }',
+        'publicFriendRequest',
+      ];
+      const missing = [
+        ...requiredEntity.filter((token) => !entity.includes(token)),
+        ...requiredBackend.filter((token) => !backend.includes(token)),
+      ];
+      if (missing.length) {
+        return fail('FriendRequest authorization no longer proves closed direct reads plus actor-scoped backend access.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'entities/FriendRequest.jsonc + functions/getOnlinePlayerSelection',
+          expected: { requiredEntity, requiredBackend },
+          actual: { missing },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('FriendRequest direct reads are admin-only; the social snapshot function scopes rows to the authenticated actor and emits public DTOs.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        file: 'entities/FriendRequest.jsonc + functions/getOnlinePlayerSelection',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true },
+  ),
+
+  makeCase(
+    'friends_security', 'Friends Security Suite',
+    'friend_request_manage_delete_rls_sender_recipient_admin',
+    'Friend request lifecycle mutations run through recipient/sender-authorized backend functions',
+    () => {
+      const source = `${safeStr(friendRequestEntitySource)}\n${safeStr(acceptFriendRequestSource)}\n${safeStr(removeFriendSource)}`;
+      const required = [
+        '"update": { "user_condition": { "role": "admin" } }',
+        'base44.asServiceRole.entities.FriendRequest.update',
+        "status: 'accepted'",
+        "status: 'rejected'",
+        'const callerIsRecipient = toEmail === myEmail',
+        "(action === 'accept' || action === 'reject') && !callerIsRecipient",
+        'const callerIsSender = fromEmail === myEmail',
+        "filter({ from_email: myEmail, status: 'accepted' }",
+        "filter({ to_email: myEmail, status: 'accepted' }",
+      ];
+      const missing = required.filter((token) => !source.includes(token));
+      if (missing.length) {
+        return fail('Friend request lifecycle authorization drifted from backend-owned recipient/sender checks.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'FriendRequest.jsonc + acceptFriendRequest + removeFriend',
+          expected: required,
+          actual: { missing },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Direct mutation is closed; accept/reject/remove functions authorize the actor before service-role lifecycle writes.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        file: 'FriendRequest.jsonc + acceptFriendRequest + removeFriend',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true },
+  ),
+
+  sourceHasReplacement(
+    'friends_security', 'Friends Security Suite',
+    'accept_is_receiver_only_server',
+    'Friend request accept/reject is restricted to the authenticated recipient',
+    'acceptFriendRequest',
+    acceptFriendRequestSource,
+    [
+      'const callerIsRecipient = toEmail === myEmail',
+      "(action === 'accept' || action === 'reject') && !callerIsRecipient",
+      'Only the receiver can update this request',
+      '403',
+    ],
+  ),
+
+  makeCase(
+    'friends_security', 'Friends Security Suite',
+    'accept_does_not_create_friendship_rows',
+    'Accepting a friend request updates the normalized FriendRequest row and never creates a Friendship mirror',
+    () => {
+      const source = safeStr(acceptFriendRequestSource);
+      const required = ['base44.asServiceRole.entities.FriendRequest.update', "status: 'accepted'", 'accepted_at'];
+      const forbidden = [
+        'base44.asServiceRole.entities.Friendship.create',
+        'base44.entities.Friendship.create',
+        'ensureFriendshipPair(',
+      ];
+      const missing = required.filter((token) => !source.includes(token));
+      const found = forbidden.filter((token) => source.includes(token));
+      if (missing.length || found.length) {
+        return fail('Friend acceptance can regress to an RLS-blocked duplicate Friendship write.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'acceptFriendRequest',
+          expected: { required, forbidden },
+          actual: { missing, found },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Friend acceptance mutates only the normalized FriendRequest lifecycle row.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        file: 'acceptFriendRequest',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true },
+  ),
+
+  sourceHasReplacement(
+    'friends_security', 'Friends Security Suite',
+    'accepted_request_is_normalized_friendship',
+    'Accepted FriendRequest rows are the normalized friendship source exposed by the social snapshot',
+    'acceptFriendRequest + getOnlinePlayerSelection + friendsApi.js',
+    `${acceptFriendRequestSource}\n${getOnlinePlayerSelectionSource}\n${friendsApiSource}`,
+    [
+      "status: 'accepted'",
+      'accepted_at: new Date().toISOString()',
+      "row?.status === 'accepted'",
+      'acceptedPairs',
+      'friends: Array.from(friendByRef.values())',
+      'loadSocialSnapshot',
+    ],
+  ),
+
+  makeCase(
+    'game_invites', 'Game Invites Suite',
+    'game_invite_entity_exists',
+    'GameInvite stores private routing fields behind admin-only direct access and exposes actor-scoped public DTOs',
+    () => {
+      const entity = safeStr(gameInviteEntitySource);
+      const snapshot = safeStr(getOnlinePlayerSelectionSource);
+      const requiredEntity = [
+        '"name": "GameInvite"',
+        '"lobby_id"',
+        '"from_actor_key_hash"',
+        '"to_email"',
+        '"status"',
+        '"read": { "user_condition": { "role": "admin" } }',
+      ];
+      const requiredSnapshot = [
+        "GameInvite.filter({ to_email: myEmail }",
+        "GameInvite.filter({ from_actor_key_hash: actorKeyHash }",
+        'const publicInvite = async',
+        'incomingGameInvites',
+        'outgoingGameInvites',
+      ];
+      const missing = [
+        ...requiredEntity.filter((token) => !entity.includes(token)),
+        ...requiredSnapshot.filter((token) => !snapshot.includes(token)),
+      ];
+      if (missing.length) {
+        return fail('GameInvite private storage/public DTO boundary drifted.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'GameInvite.jsonc + getOnlinePlayerSelection',
+          expected: { requiredEntity, requiredSnapshot },
+          actual: { missing },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('GameInvite direct access is closed and actor-scoped public DTOs preserve invite lifecycle without exposing routing fields.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        file: 'GameInvite.jsonc + getOnlinePlayerSelection',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true },
+  ),
+
+  sourceHasReplacement(
+    'game_invites', 'Game Invites Suite',
+    'reject_marks_status_declined',
+    'Rejecting a game invite calls the backend decline action and persists a declined terminal row',
+    'inviteApi.js + acceptGameInvite',
+    `${inviteApiSource}\n${acceptGameInviteSource}`,
+    ["action: 'decline'", "status: 'declined'", 'declined_at: new Date().toISOString()'],
+  ),
+
+  sourceHasReplacement(
+    'game_invites', 'Game Invites Suite',
+    'sent_invites_filter_supported',
+    'Outgoing lobby invites are returned by the actor-scoped social snapshot and filtered by public lobby ref',
+    'inviteApi.js + getOnlinePlayerSelection',
+    `${inviteApiSource}\n${getOnlinePlayerSelectionSource}`,
+    [
+      'loadOutgoingInvitesForLobby',
+      'loadSocialSnapshot',
+      'outgoingGameInvites',
+      "GameInvite.filter({ from_email: myEmail }",
+      'lobby_ref',
+    ],
+  ),
+
+  sourceHasReplacement(
+    'invite_expiration_health', 'Invite Expiration Health Suite',
+    'incoming_loader_expires_old_pending_invites',
+    'Incoming invite loading preserves lifecycle rows and the backend marks overdue pending rows expired',
+    'inviteApi.js + gameInviteSelectors.js + getOnlinePlayerSelection',
+    `${inviteApiSource}\n${gameInviteSelectorsSource}\n${getOnlinePlayerSelectionSource}`,
+    [
+      'loadIncomingInviteSnapshot',
+      'getGameInviteActiveFilterReason',
+      'filterActiveIncomingGameInvites',
+      'effectiveLifecycleStatus',
+      "status: 'expired'",
+      'expired_at',
+    ],
+  ),
+
+  makeCase(
+    'invite_contract_drift', 'Invite Contract Drift Suite',
+    'create_lobby_creates_invites_after_lobby',
+    'Invite creation runs only after the backend has returned the created lobby',
+    () => {
+      const room = safeStr(lobbyRoomSource);
+      const createIndex = room.indexOf('const createResponse = await createLobby(lobbyPayload)');
+      const lobbyIndex = room.indexOf('const newLobby = createResponse?.data?.lobby');
+      const inviteIndex = room.indexOf('const summary = await createGameInvites({');
+      const backend = safeStr(createGameInvitesForTargetsFnSource);
+      const orderOk = createIndex >= 0 && lobbyIndex > createIndex && inviteIndex > lobbyIndex;
+      const backendOk = [
+        'target_refs',
+        'filter({ public_ref: lobbyId }',
+        'lobby_id: lobby.id',
+      ].every((token) => backend.includes(token));
+      if (!orderOk || !backendOk) {
+        return fail('Lobby/invite ordering or opaque target-ref contract drifted.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'LobbyRoom.jsx + createGameInvitesForTargets',
+          expected: 'create lobby -> read returned lobby -> create invites with target_refs/lobby_ref',
+          actual: { createIndex, lobbyIndex, inviteIndex, backendOk },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Lobby creation completes before backend-owned invite creation, using opaque target and lobby references.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        file: 'LobbyRoom.jsx + createGameInvitesForTargets',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true },
+  ),
+
+  sourceHasReplacement(
+    'invite_contract_drift', 'Invite Contract Drift Suite',
+    'reject_invite_marks_declined_safe',
+    'Invite rejection uses an opaque invite ref and the backend-owned decline lifecycle',
+    'inviteApi.js + acceptGameInvite',
+    `${inviteApiSource}\n${acceptGameInviteSource}`,
+    [
+      "base44.functions.invoke('acceptGameInvite', { inviteRef: inviteId, action: 'decline' })",
+      "if (action === 'decline')",
+      "status: 'declined'",
+      'publicInvite',
+    ],
+  ),
+
+  sourceHasReplacement(
+    'invite_contract_drift', 'Invite Contract Drift Suite',
+    'pending_list_filters_to_email_user',
+    'Incoming invite lists are recipient-scoped by the backend before public DTOs reach the client',
+    'getOnlinePlayerSelection + inviteApi.js',
+    `${getOnlinePlayerSelectionSource}\n${inviteApiSource}`,
+    [
+      "GameInvite.filter({ to_email: myEmail }",
+      'incomingGameInvites',
+      "publicInvite(row, 'incoming')",
+      'loadSocialSnapshot',
+    ],
+  ),
+
+  makeCase(
+    'online_category_taxonomy', 'Online Category Taxonomy Suite',
+    'selected_category_ids_forwarded_to_lobby',
+    'Selected Online categories survive challenge setup, lobby creation, and backend deck policy',
+    () => {
+      const challenge = safeStr(onlineChallengeScreenSource);
+      const room = safeStr(lobbyRoomSource);
+      const createBackend = safeStr(findLobbyByCodeSource);
+      const startBackend = safeStr(startLobbyGameSource);
+      const checks = {
+        challenge: ['selectedCategories: [...selectedCategories]'].every((token) => challenge.includes(token)),
+        room: ['selectedCategories', 'createLobby(lobbyPayload)'].every((token) => room.includes(token)),
+        createBackend: ['body?.selectedCategories || body?.selected_category_ids', 'selected_category_ids: selectedCategoryIds'].every((token) => createBackend.includes(token)),
+        startBackend: ['settings.selected_category_ids', 'selectedCategoriesOnly: true'].every((token) => startBackend.includes(token)),
+      };
+      if (Object.values(checks).some((value) => !value)) {
+        return fail('Selected Online category propagation drifted.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'OnlineChallengeScreen.jsx + LobbyRoom.jsx + findLobbyByCode + startLobbyGame',
+          expected: 'selectedCategories -> selected_category_ids -> selected-only deck policy',
+          actual: checks,
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Selected categories flow into the authoritative lobby and constrain backend deck generation.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        file: 'OnlineChallengeScreen.jsx + LobbyRoom.jsx + findLobbyByCode + startLobbyGame',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true },
+  ),
+
+  makeCase(
+    'online_question_mode_health', 'Online Question Mode Health Suite',
+    'online_active_state_requires_readable_shared_deck',
+    'Online start and active play require a readable shared deck and a valid current question',
+    () => {
+      const source = `${safeStr(waitingRoomPanelSource)}\n${safeStr(startLobbyGameSource)}\n${safeStr(updateLobbyGameStateSource)}\n${safeStr(gameSource)}`;
+      const required = [
+        'const startedHasGameState = Boolean(',
+        'startedLobby.online_question_deck.length > 0',
+        'online_question_deck: initialState.onlineQuestionDeck',
+        'current_question_id: initialState.firstQuestion.id',
+        "code: 'question_not_in_deck'",
+        "code: 'next_question_invalid'",
+        'const onlineDeckReady = isOnline && onlineQuestionDeck.length > 0',
+        'onlineDeckReady && lobbyData?.current_question_id && currentQuestion != null',
+      ];
+      const missing = required.filter((token) => !source.includes(token));
+      if (missing.length) {
+        return fail('Online shared-deck readiness contract drifted.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'startLobbyGame + updateLobbyGameState + Game.jsx',
+          expected: required,
+          actual: { missing },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Backend start writes one shared deck/current question, turn updates reject out-of-deck IDs, and Game waits for both.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        file: 'startLobbyGame + updateLobbyGameState + Game.jsx',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true },
+  ),
+
+  sourceHasReplacement(
+    'lobby_code_ux', 'Lobby Code UX Suite',
+    'invite_centric_copy',
+    'Waiting room uses invite-centric copy without exposing invited email lists',
+    'WaitingRoomPanel.jsx',
+    waitingRoomPanelSource,
+    ['Daveti kabul eden arkadaşların buraya katılır.', 'Yedek kod', 'Oyuncular ('],
+  ),
+
+  makeCase(
+    'friend_request_email_deep_link', 'Friend Request Email / Deep-Link Suite',
+    'send_request_triggers_email_after_create',
+    'The backend creates a pending FriendRequest before attempting its best-effort email',
+    () => {
+      const source = safeStr(sendFriendRequestFnSource);
+      const createIndex = source.indexOf('entities.FriendRequest.create({');
+      const emailIndex = source.indexOf('const emailResult = await sendFriendRequestEmail(');
+      const valid = createIndex >= 0 && emailIndex > createIndex && source.includes("status: 'pending'");
+      if (!valid) {
+        return fail('FriendRequest row/email ordering drifted.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'sendFriendRequest',
+          expected: 'create pending FriendRequest before best-effort email',
+          actual: { createIndex, emailIndex },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('A durable pending FriendRequest exists before best-effort email delivery is attempted.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        file: 'sendFriendRequest',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true },
+  ),
+
+  sourceHasReplacement(
+    'friend_request_email_deep_link', 'Friend Request Email / Deep-Link Suite',
+    'email_backend_requires_pending_request',
+    'Friend-request email is an internal helper reachable only after authenticated, locked pending-row creation',
+    'sendFriendRequest',
+    sendFriendRequestFnSource,
+    [
+      'const authUser = await base44.auth.me().catch(() => null)',
+      'withFriendRequestOperationLock',
+      'entities.FriendRequest.create({',
+      "status: 'pending'",
+      'async function sendFriendRequestEmail(',
+    ],
+  ),
+
+  sourceHasReplacement(
+    'friend_request_email_deep_link', 'Friend Request Email / Deep-Link Suite',
+    'email_deep_link_routes_to_friends',
+    'Friend-request email uses the trusted Kronox base URL and routes to /friends',
+    'sendFriendRequest + App.jsx',
+    `${sendFriendRequestFnSource}\n${appSource}`,
+    [
+      "const KRONOX_DEFAULT_APP_URL = 'https://kronox.base44.app'",
+      'const deepLink = `${appUrl}/friends`',
+      "new URLSearchParams(location.search).get('next')",
+      "next.startsWith('/')",
+      "!next.startsWith('//')",
+    ],
+  ),
+
+  sourceHasReplacement(
+    'friend_request_email_deep_link', 'Friend Request Email / Deep-Link Suite',
+    'no_arbitrary_email_spam_endpoint',
+    'There is no standalone mail endpoint; recipient resolution, self guard, lock, row creation, and email share one authenticated function',
+    'sendFriendRequest',
+    sendFriendRequestFnSource,
+    [
+      'const authUser = await base44.auth.me().catch(() => null)',
+      'findTargetByEmail',
+      'findTargetByUsername',
+      'if (targetEmail === fromEmail)',
+      'buildFriendRequestLockKey(fromEmail, targetEmail)',
+      'entities.FriendRequest.create({',
+      'targetEmailReturned: false',
+    ],
+  ),
+
+  sourceHasReplacement(
+    'historical_kronox_regression', 'Historical Kronox Regression Suite',
+    'friend_request_email_and_deep_link_wired',
+    'Friend request creation, trusted /friends email link, and safe post-login redirect remain wired',
+    'friendsApi.js + sendFriendRequest + App.jsx',
+    `${friendsApiSource}\n${sendFriendRequestFnSource}\n${appSource}`,
+    [
+      "functions.invoke('sendFriendRequest'",
+      'const deepLink = `${appUrl}/friends`',
+      "new URLSearchParams(location.search).get('next')",
+      "!next.startsWith('//')",
+    ],
   ),
 
   /* ------------------------------------------------------------------
@@ -1484,7 +1985,7 @@ export const EXTRA_TESTS = [
     'game_invite_active_selector_shared',
     'Header bell + IncomingInvitesPanel + GameInviteNotifier all read active invites through the shared notification center/selectors',
     'hooks/useNotificationCenter.js + hooks/useHeaderNotifications.js + components/invites/IncomingInvitesPanel.jsx + components/invites/GameInviteNotifier.jsx',
-    `${safeStr(useNotificationCenterSource)}\n${safeStr(useHeaderNotificationsSource)}\n${safeStr(incomingInvitesPanelSource)}\n${safeStr(gameInviteNotifierSource)}`,
+    `${safeStr(gameInviteSelectorsSource)}\n${safeStr(useNotificationCenterSource)}\n${safeStr(useHeaderNotificationsSource)}\n${safeStr(incomingInvitesPanelSource)}\n${safeStr(gameInviteNotifierSource)}`,
     [
       "from '@/lib/gameInviteSelectors'",
       'mergeActiveIncomingGameInvites',

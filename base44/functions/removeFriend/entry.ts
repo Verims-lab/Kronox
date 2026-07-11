@@ -16,27 +16,42 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}));
-    const friendEmail = String(body?.friendEmail || '').trim().toLowerCase();
-    if (!friendEmail) {
-      return Response.json({ error: 'friendEmail is required' }, { status: 400 });
+    const targetRef = String(body?.targetRef || body?.friendRef || '').trim();
+    const legacyFriendEmail = String(body?.friendEmail || '').trim().toLowerCase();
+    if (!targetRef && !legacyFriendEmail) {
+      return Response.json({ error: 'targetRef is required' }, { status: 400 });
     }
 
     const myEmail = String(user.email || '').toLowerCase();
-    if (friendEmail === myEmail) {
+    if (legacyFriendEmail === myEmail) {
       return Response.json({ error: 'Cannot remove self' }, { status: 400 });
     }
 
-    // Find the accepted FriendRequest(s) between the two emails (either direction).
-    const [outgoing, incoming] = await Promise.all([
-      base44.asServiceRole.entities.FriendRequest.filter({
-        from_email: myEmail, to_email: friendEmail, status: 'accepted',
-      }),
-      base44.asServiceRole.entities.FriendRequest.filter({
-        from_email: friendEmail, to_email: myEmail, status: 'accepted',
-      }),
+    const [allOutgoing, allIncoming] = await Promise.all([
+      base44.asServiceRole.entities.FriendRequest.filter({ from_email: myEmail, status: 'accepted' }, '-updated_date', 200),
+      base44.asServiceRole.entities.FriendRequest.filter({ to_email: myEmail, status: 'accepted' }, '-updated_date', 200),
     ]);
+    const candidates = [
+      ...(allOutgoing || []).map((row) => ({ row, otherEmail: String(row?.to_email || '').trim().toLowerCase() })),
+      ...(allIncoming || []).map((row) => ({ row, otherEmail: String(row?.from_email || '').trim().toLowerCase() })),
+    ];
+    let friendEmail = legacyFriendEmail;
+    if (!friendEmail && targetRef) {
+      for (const candidate of candidates) {
+        const profiles = await base44.asServiceRole.entities.User.filter({ email: candidate.otherEmail }, '-updated_date', 1).catch(() => []);
+        if (String(profiles?.[0]?.social_ref || '') === targetRef) {
+          friendEmail = candidate.otherEmail;
+          break;
+        }
+      }
+    }
+    if (!friendEmail || friendEmail === myEmail) {
+      return Response.json({ error: 'Not friends' }, { status: 404 });
+    }
 
-    const acceptedRows = [...(outgoing || []), ...(incoming || [])];
+    const acceptedRows = candidates
+      .filter((candidate) => candidate.otherEmail === friendEmail)
+      .map((candidate) => candidate.row);
     if (!acceptedRows.length) {
       // Nothing accepted — also nothing to clean up beyond legacy Friendship rows below.
     }
@@ -70,7 +85,7 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Not friends' }, { status: 404 });
     }
 
-    return Response.json({ success: true });
+    return Response.json({ success: true, targetRef: targetRef || null });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }

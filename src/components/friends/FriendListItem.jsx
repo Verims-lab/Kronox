@@ -20,7 +20,7 @@ export default function FriendListItem({ friend, presence, onRemove }) {
     setBusy(true);
     setError('');
     try {
-      await onRemove(friend.friend_email);
+      await onRemove(friend.target_ref);
     } catch (err) {
       setError(err.message || 'Arkadaş kaldırılamadı.');
       setBusy(false);

@@ -18,6 +18,7 @@ import {
   isCorrectPlacement,
   selectNextQuestion,
 } from '@/lib/gameRules';
+import { getLobbySnapshot, updateLobbyGameState } from '@/lib/dbGateway/lobbyGateway';
 
 const isStaleWriteError = (err) =>
   err?.code === 'stale_write' || /stale|guncel/i.test(err?.message || '');
@@ -78,7 +79,7 @@ export function useGameActions({
       next_current_question_id: updateData.current_question_id || null,
       statusWritten: updateData.status || 'in_game',
       winner: updateData.winner || null,
-      winner_email: updateData.winner_email || null,
+      winner_participant_ref: updateData.winner_participant_ref || null,
       playersSummary: summarizePlayers(updateData.players),
       updateFields: Object.keys(updateData),
     };
@@ -88,8 +89,9 @@ export function useGameActions({
 
     const recoverLatestLobbyState = () => {
       isPlacingRef.current = false;
-      return base44.entities.Lobby.get(lobbyId)
-        .then((freshLobby) => {
+      return getLobbySnapshot({ lobbyId })
+        .then((response) => {
+          const freshLobby = response?.data?.lobby;
           if (freshLobby) {
             setLobbyData({ ...freshLobby });
             addGameLog('DB_WRITE recovery fetched latest lobby');
@@ -112,38 +114,32 @@ export function useGameActions({
     };
 
     const attemptUpdate = (retries = 0) => {
-      base44.auth.me()
-        .catch(() => null)
-        .then((actor) => {
-          const debugWithActor = {
-            ...debugBase,
-            actorEmail: actor?.email || null,
-            actorName: debugBase.actorName || actor?.full_name || actor?.email || null,
-          };
+      const debugWithActor = {
+        ...debugBase,
+        actorName: debugBase.actorName || null,
+      };
 
-          debugLog('[useGameActions] online turn update payload:', debugWithActor);
-          if (updateData.status === 'finished') {
-            debugLog('[useGameActions] online game finish payload:', {
-              actorEmail: debugWithActor.actorEmail,
-              actorName: debugWithActor.actorName,
-              winner: updateData.winner || null,
-              winner_email: updateData.winner_email || null,
-              lobbyId,
-              statusWritten: updateData.status,
-              playersCount: updateData.players?.length || 0,
-              updatePayload: updateData,
-            });
-          }
+      debugLog('[useGameActions] online turn update payload:', debugWithActor);
+      if (updateData.status === 'finished') {
+        debugLog('[useGameActions] online game finish payload:', {
+          actorName: debugWithActor.actorName,
+          winner: updateData.winner || null,
+          winner_participant_ref: updateData.winner_participant_ref || null,
+          lobbyId,
+          statusWritten: updateData.status,
+          playersCount: updateData.players?.length || 0,
+        });
+      }
 
-          return base44.functions.invoke('updateLobbyGameState', {
-            lobbyId,
-            ...updateData,
-            expected_state_revision: expectedRevision,
-            actorName: debugWithActor.actorName,
-            previous_player_index: debugWithActor.current_player_index_before,
-            previous_question_id: debugWithActor.current_question_id_before,
-          });
-        })
+      return updateLobbyGameState({
+        lobbyId,
+        ...updateData,
+        expected_state_revision: expectedRevision,
+        operation_key: `lobby_turn:${lobbyId}:${expectedRevision}:${updateData.action || 'advance_turn'}:${context.currentQuestionIdBefore || ''}`,
+        actorName: debugWithActor.actorName,
+        previous_player_index: debugWithActor.current_player_index_before,
+        previous_question_id: debugWithActor.current_question_id_before,
+      })
         .then((response) => {
           if (!response?.data?.success || response?.data?.error) {
             const serviceError = new Error(response?.data?.error || 'Online oyun durumu reddedildi.');
@@ -161,7 +157,7 @@ export function useGameActions({
             debugLog('[useGameActions] online game finish update success:', {
               lobbyId,
               winner: updateData.winner || null,
-              winner_email: updateData.winner_email || null,
+              winner_participant_ref: updateData.winner_participant_ref || null,
               statusWritten: updateData.status,
             });
           }
@@ -184,7 +180,7 @@ export function useGameActions({
             console.error('[useGameActions] online game finish update failed:', {
               lobbyId,
               winner: updateData.winner || null,
-              winner_email: updateData.winner_email || null,
+              winner_participant_ref: updateData.winner_participant_ref || null,
               statusWritten: updateData.status,
               error: err,
             });
@@ -352,7 +348,11 @@ export function useGameActions({
       current_player_index: hasWon ? snapshotIndex : nextIndex,
       current_question_id: hasWon ? prev.current_question_id : (nextQ?.id || prev.current_question_id),
       used_question_ids: [...newUsed],
-      ...(hasWon ? { status: 'finished', winner: newPlayers[snapshotIndex].name, winner_email: newPlayers[snapshotIndex].email || null } : {})
+      ...(hasWon ? {
+        status: 'finished',
+        winner: newPlayers[snapshotIndex].name,
+        winner_participant_ref: newPlayers[snapshotIndex].participant_ref || null,
+      } : {})
     }));
 
     setSelectedZone(null);
@@ -360,19 +360,20 @@ export function useGameActions({
     // Online: veritabanına yaz
     if (lobbyId) {
       const lobbyPlayers = newPlayers.map(p => ({
-        email: p.email || `player_${p.name}`,
+        participant_ref: p.participant_ref,
         name: p.name,
         ready: true,
         cards: p.cards
       }));
       const updateData = {
         action: 'place_card',
+        placement_zone: zone,
         players: lobbyPlayers,
         used_question_ids: [...newUsed],
         status: hasWon ? 'finished' : 'in_game',
         current_player_index: hasWon ? snapshotIndex : nextIndex,
         current_question_id: hasWon ? (lobbyData?.current_question_id || currentQuestion.id) : (nextQ?.id || lobbyData?.current_question_id),
-        ...(hasWon ? { winner: newPlayers[snapshotIndex].name, winner_email: newPlayers[snapshotIndex].email || null } : {})
+        ...(hasWon ? { winner: newPlayers[snapshotIndex].name, winner_participant_ref: newPlayers[snapshotIndex].participant_ref || null } : {})
       };
       writeOnlineLobbyState(updateData, {
         actorName: snapshotPlayer.name,
@@ -389,7 +390,11 @@ export function useGameActions({
       saveGameRecord(newPlayers[snapshotIndex].name, finalSecs, { category, yearStart, yearEnd });
       scheduleTimeout(() => {
         setFeedback(null);
-        setWinner({ name: newPlayers[snapshotIndex].name, email: newPlayers[snapshotIndex].email || null, durationSeconds: finalSecs });
+        setWinner({
+          name: newPlayers[snapshotIndex].name,
+          participantRef: newPlayers[snapshotIndex].participant_ref || null,
+          durationSeconds: finalSecs,
+        });
       }, 2200);
       return;
     }
@@ -433,7 +438,7 @@ export function useGameActions({
       writeOnlineLobbyState({
         action: 'advance_turn',
         players: players.map(p => ({
-          email: p.email || `player_${p.name}`,
+          participant_ref: p.participant_ref,
           name: p.name,
           ready: true,
           cards: p.cards || []
@@ -472,7 +477,7 @@ export function useGameActions({
       writeOnlineLobbyState({
         action: 'skip_question',
         players: players.map(p => ({
-          email: p.email || `player_${p.name}`,
+          participant_ref: p.participant_ref,
           name: p.name,
           ready: true,
           cards: p.cards || []

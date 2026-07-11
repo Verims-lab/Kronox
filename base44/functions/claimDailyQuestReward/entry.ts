@@ -144,7 +144,7 @@ async function resolveDailyCalendarPlayer(base44: any, body: any) {
 function progressEntity(base44: any, player: any = null) {
   const serviceEntity = base44?.asServiceRole?.entities?.UserDailyQuestProgress || null;
   const authEntity = base44?.entities?.UserDailyQuestProgress || null;
-  return player?.isGuest ? serviceEntity : (authEntity || serviceEntity);
+  return serviceEntity || authEntity;
 }
 
 function playerEntity(base44: any, player: any) {
@@ -171,7 +171,7 @@ function publicProgress(row: any) {
   const targetValue = Math.max(1, normalizeNumber(row?.target_value, 1));
   const progressValue = Math.min(targetValue, normalizeNumber(row?.progress_value, 0));
   return {
-    id: rowId(row),
+    id: String(row?.quest_key || ''),
     questKey: String(row?.quest_key || ''),
     questDate: String(row?.quest_date || ''),
     questType: String(row?.quest_type || ''),
@@ -181,10 +181,30 @@ function publicProgress(row: any) {
   };
 }
 
+function canonicalRow(rows: any[] = []) {
+  return [...rows].sort((left, right) => {
+    const leftTime = Date.parse(String(left?.created_at || left?.created_date || ''));
+    const rightTime = Date.parse(String(right?.created_at || right?.created_date || ''));
+    if (Number.isFinite(leftTime) && Number.isFinite(rightTime) && leftTime !== rightTime) {
+      return leftTime - rightTime;
+    }
+    return String(rowId(left) || '').localeCompare(String(rowId(right) || ''));
+  })[0] || null;
+}
+
+function dailyCalendarSlot(row: any) {
+  const match = String(row?.quest_key || '').match(/^daily_calendar:d\d+:s([1-3]):/);
+  return match ? Number(match[1]) : 0;
+}
+
 function isDayCompleted(rows: any[] = []) {
   const calendarRows = rows.filter(isDailyCalendarRow);
-  if (calendarRows.length < DAILY_CALENDAR_TASKS_PER_DAY) return false;
-  return calendarRows.slice(0, DAILY_CALENDAR_TASKS_PER_DAY).every((row) => publicProgress(row).completed);
+  const canonicalRows = [1, 2, 3]
+    .map((slot) => canonicalRow(calendarRows.filter((row) => dailyCalendarSlot(row) === slot)))
+    .filter(Boolean);
+  return canonicalRows.length === DAILY_CALENDAR_TASKS_PER_DAY
+    && new Set(canonicalRows.map((row) => String(row?.quest_key || ''))).size === DAILY_CALENDAR_TASKS_PER_DAY
+    && canonicalRows.every((row) => publicProgress(row).completed);
 }
 
 function groupRowsByDate(rows: any[] = []) {
@@ -285,7 +305,9 @@ async function sleep(ms: number) {
 
 async function withEconomyLock(base44: any, lockKey: string, context: Record<string, unknown>, callback: () => Promise<Response>) {
   const entity = economyOperationLockEntity(base44);
-  if (!entity?.filter || !entity?.create || !entity?.update) return callback();
+  if (!entity?.filter || !entity?.create || !entity?.update) {
+    return json({ ok: false, code: 'economy_lock_unavailable', error: 'Ekonomi işlemi şu anda doğrulanamıyor. Lütfen tekrar dene.' }, 503);
+  }
   const now = nowIso();
   const nowMs = Date.parse(now);
   const existingRows = await entity.filter({ lock_key: lockKey }, '-acquired_at', 20).catch(() => []);
@@ -306,7 +328,17 @@ async function withEconomyLock(base44: any, lockKey: string, context: Record<str
       ttlMs: ECONOMY_LOCK_TTL_MS,
     },
   }).catch(() => null);
+  if (!rowId(lock)) {
+    return json({ ok: false, code: 'economy_lock_unavailable', error: 'Ekonomi işlemi şu anda doğrulanamıyor. Lütfen tekrar dene.' }, 503);
+  }
   await sleep(ECONOMY_LOCK_SETTLE_MS);
+  const settledAt = Date.now();
+  const contenders = await entity.filter({ lock_key: lockKey, status: 'active' }, 'acquired_at', 20).catch(() => []);
+  const winner = canonicalRow((Array.isArray(contenders) ? contenders : []).filter((row: any) => isActiveLock(row, settledAt)));
+  if (!winner || String(rowId(winner)) !== String(rowId(lock))) {
+    await entity.update(rowId(lock), { status: 'released', released_at: nowIso() }).catch(() => null);
+    return json({ ok: false, code: 'economy_operation_in_progress', error: 'Ekonomi işlemi işleniyor. Lütfen tekrar dene.' }, 409);
+  }
   try {
     return await callback();
   } finally {
@@ -316,16 +348,13 @@ async function withEconomyLock(base44: any, lockKey: string, context: Record<str
   }
 }
 
-function claimResponse(player: any, tx: any, rewardState: any, balanceAfter: number, alreadyClaimed: boolean, timestamp: string) {
+function claimResponse(player: any, rewardState: any, balanceAfter: number, alreadyClaimed: boolean, timestamp: string) {
   return {
     ok: true,
     alreadyClaimed,
     source: DAILY_CALENDAR_REWARD_SOURCE,
     rewardDiamonds: DAILY_STREAK_REWARD_DIAMONDS,
     diamondBalanceAfter: balanceAfter,
-    idempotencyKey: rewardState.idempotencyKey,
-    transactionId: rowId(tx),
-    streakRewardCycleId: rewardState.cycleId,
     currentStreak: rewardState.currentStreak,
     claimNumber: rewardState.claimNumber,
     playerType: player.isGuest ? 'guest' : 'registered',
@@ -376,8 +405,8 @@ Deno.serve(async (req: Request) => {
     const timestamp = nowIso();
     if (existingTx) {
       const balanceAfter = Math.max(normalizeNumber(existingTx.balance_after), normalizeNumber(player.row?.diamonds));
-      await updateDailyCalendarPlayer(base44, player, claimResponse(player, existingTx, rewardState, balanceAfter, true, timestamp).userPatch).catch(() => null);
-      return json(claimResponse(player, existingTx, rewardState, balanceAfter, true, timestamp));
+      await updateDailyCalendarPlayer(base44, player, claimResponse(player, rewardState, balanceAfter, true, timestamp).userPatch).catch(() => null);
+      return json(claimResponse(player, rewardState, balanceAfter, true, timestamp));
     }
 
     return await withEconomyLock(base44, buildEconomyLockKey(player.playerKey), {
@@ -387,8 +416,8 @@ Deno.serve(async (req: Request) => {
       const postLockExisting = await findDiamondTransaction(base44, player, rewardState.idempotencyKey);
       if (postLockExisting) {
         const balanceAfter = Math.max(normalizeNumber(postLockExisting.balance_after), normalizeNumber(player.row?.diamonds));
-        await updateDailyCalendarPlayer(base44, player, claimResponse(player, postLockExisting, rewardState, balanceAfter, true, timestamp).userPatch).catch(() => null);
-        return json(claimResponse(player, postLockExisting, rewardState, balanceAfter, true, timestamp));
+        await updateDailyCalendarPlayer(base44, player, claimResponse(player, rewardState, balanceAfter, true, timestamp).userPatch).catch(() => null);
+        return json(claimResponse(player, rewardState, balanceAfter, true, timestamp));
       }
 
       const balanceBefore = normalizeNumber(player.row?.diamonds, 0);
@@ -423,7 +452,7 @@ Deno.serve(async (req: Request) => {
         description: DAILY_CALENDAR_REWARD_SOURCE,
       });
       if (!tx) throw new Error('daily_calendar_streak_reward_transaction_missing');
-      const response = claimResponse(player, tx, rewardState, balanceAfter, false, timestamp);
+      const response = claimResponse(player, rewardState, balanceAfter, false, timestamp);
       await updateDailyCalendarPlayer(base44, player, response.userPatch);
       return json(response);
     });

@@ -360,7 +360,9 @@ export const EXTRA_TESTS = [
         'actor_key_hash',
         'target_key_hash',
         '"friend_request_send"',
-        '"active","released","stale"',
+        '"active"',
+        '"released"',
+        '"stale"',
         'role": "admin"',
         'raw email',
       ];
@@ -461,8 +463,8 @@ export const EXTRA_TESTS = [
       // turn the case into an ERROR ("Cannot convert object to primitive").
       const src = safeStr(sendFriendRequestEmailFnSourceFull);
       const required = [
-        "error: 'email_failed'",
-        '[sendFriendRequestEmail] SendEmail failed',
+        "emailError: 'email_failed'",
+        '[sendFriendRequest] SendEmail failed:',
       ];
       const missing = required.filter((t) => !src.includes(t));
       if (missing.length) {
@@ -525,7 +527,9 @@ export const EXTRA_TESTS = [
         'user_email: actor.userEmail',
         "FriendRequest.filter({ to_email: myEmail, status: 'accepted' }",
         "FriendRequest.filter({ from_email: myEmail, status: 'accepted' }",
-        'requestedSet.has(friend.email)',
+        'buildPublicRow({',
+        'target_ref: targetRef',
+        'forbiddenIdentityFieldsReturned: false',
         'presence_key',
       ];
       const missing = required.filter((token) => !composed.includes(token));
@@ -675,7 +679,10 @@ export const EXTRA_TESTS = [
         'normalizeInviteTargetRef',
         'target_refs',
         "functions.invoke('createGameInvitesForTargets'",
-        'TARGET_REF_PATTERN = /^[ug]',
+        'TARGET_REF_PATTERN = /^social_',
+        'resolveInviteActor',
+        'invalid_guest_token',
+        'from_actor_key_hash: actor.actorKeyHash',
         'targetEmailReturned: false',
         "targetResolution: 'backend_only'",
         'freshPresence.user_email',
@@ -721,7 +728,9 @@ export const EXTRA_TESTS = [
         'verifyGuestProfile',
         'guest_token_hash',
         'makeGuestOwnerKeyHash',
-        'TARGET_REF_PATTERN = /^[ug]',
+        'TARGET_REF_PATTERN = /^social_',
+        'resolveInviteActor',
+        'from_actor_key_hash: actor.actorKeyHash',
         'invite_enabled',
         'selection_disabled_reason',
       ];

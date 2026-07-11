@@ -18,7 +18,7 @@ export function normalizeCode(code) {
 export function summarizePlayers(players = []) {
   return players.map((p, index) => ({
     index,
-    email: p?.email || null,
+    participantRef: p?.participant_ref || null,
     name: p?.name || null,
     cardCount: Array.isArray(p?.cards) ? p.cards.length : 0,
   }));
@@ -29,23 +29,8 @@ function normalizeKronoxUserId(value) {
   return /^KX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/.test(text) ? text : '';
 }
 
-function makeStableHash(value) {
-  const normalized = String(value || '').trim().toLowerCase();
-  let hash = 2166136261;
-  for (let i = 0; i < normalized.length; i += 1) {
-    hash ^= normalized.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return (hash >>> 0).toString(36);
-}
-
-function getGuestLobbyEmail(profile, playerName = '') {
-  const seed = profile?.guest_id || profile?.kronox_user_id || profile?.username || playerName || 'guest';
-  return `guest_${makeStableHash(seed)}@kronox.local`;
-}
-
-export function removePlayerByIdentity(players = [], { email, name } = {}) {
-  if (email) return players.filter(player => player?.email !== email);
+export function removePlayerByIdentity(players = [], { participantRef, name } = {}) {
+  if (participantRef) return players.filter(player => player?.participant_ref !== participantRef);
   return players.filter(player => player?.name !== name);
 }
 
@@ -60,19 +45,12 @@ export function validatePlayerName(name) {
 export function buildPlayerPayload(user, playerName) {
   const trimmedName = playerName.trim();
   const isGuestProfile = Boolean(user?.guest_id && !user?.email);
-  const player = user
-    ? {
-      ...user,
-      email: user.email || getGuestLobbyEmail(user, trimmedName),
-      full_name: user.full_name || user.display_name || user.username || trimmedName,
-    }
-    : { email: `guest_${makeStableHash(`${trimmedName}:${Date.now()}`)}@kronox.local`, full_name: trimmedName };
+  const player = user || { full_name: trimmedName };
   const kronoxUserId = normalizeKronoxUserId(player.kronox_user_id);
   return {
     identity: player,
     player: {
       ...(kronoxUserId ? { kronox_user_id: kronoxUserId } : {}),
-      email: player.email,
       name: trimmedName || player.username || player.full_name || 'Oyuncu',
       ...(isGuestProfile ? { player_type: 'guest' } : {}),
       ...pickPublicAvatarFields(player),
@@ -97,17 +75,11 @@ export function deriveDisplayName(user) {
 }
 
 export function isHost(lobby, user) {
-  return Boolean(lobby && user?.email && lobby.host_email === user.email);
+  return Boolean(lobby && user && lobby?.current_actor_is_host === true);
 }
 
-export function isGuestHost(lobby, user, playerName) {
-  if (!lobby || user?.email) return false;
-  const guestEmail = user?.guest_id ? getGuestLobbyEmail(user, playerName) : '';
-  const guestName = String(user?.username || user?.display_name || playerName || '').trim();
-  return Boolean(
-    (guestEmail && lobby.host_email === guestEmail) ||
-    (guestName && lobby.players?.[0]?.name === guestName),
-  );
+export function isGuestHost(lobby, user) {
+  return Boolean(lobby && user && lobby?.current_actor_is_host === true);
 }
 
 export function canJoinLobby(lobby) {

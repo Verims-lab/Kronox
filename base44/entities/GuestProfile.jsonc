@@ -31,6 +31,10 @@
       "type": "string",
       "description": "Operational marker for how kronox_user_id was assigned."
     },
+    "social_ref": {
+      "type": "string",
+      "description": "Random opaque public selection reference assigned server-side. It is not a raw guest id, owner key, or authorization proof."
+    },
     "username": {
       "type": "string",
       "description": "Public unique username, default format KronoxUser#### or KronoxUser#####. Not derived from email, Google ID, Apple ID, or provider UID."

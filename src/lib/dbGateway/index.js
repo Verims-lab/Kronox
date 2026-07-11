@@ -14,7 +14,7 @@ export const dbGatewayArchitectureContract = Object.freeze({
   publicLeaderboardProjection: 'leaderboardGateway -> SoloLeaderboardEntry',
   analyticsRuntimeGateway: 'analyticsGateway -> QuestionAttemptEvent',
   marketPurchaseGateway: 'economyGateway -> purchaseJokerWithDiamonds',
-  dailyQuestDefinitionGateway: 'dailyQuestGateway -> createDailyQuestDefinition',
+  dailyQuestDefinitionGateway: 'removed from deploy surface; legacy rows are cleanup-only',
   dailyQuestRuntimeGateway: 'dailyQuestGateway -> getDailyQuestStatus / recordDailyQuestProgress / claimDailyQuestReward',
   cleanupJobs: 'cleanupGateway -> admin backend functions',
 });

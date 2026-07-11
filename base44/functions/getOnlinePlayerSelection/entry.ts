@@ -12,6 +12,7 @@ const AVATAR_ICON_IDS = new Set([
   'moon', 'sun', 'star',
 ]);
 const AVATAR_COLOR_IDS = new Set(['gold', 'cyan', 'violet', 'emerald', 'rose', 'blue']);
+const SOCIAL_REF_PATTERN = /^social_[A-Za-z0-9_-]{20,80}$/;
 
 const normalizeEmail = (value: unknown) => String(value || '').trim().toLowerCase();
 const json = (body: unknown, status = 200) => Response.json(body, { status });
@@ -72,6 +73,20 @@ function bytesToBase64Url(bytes: Uint8Array) {
   let binary = '';
   bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+function randomSocialRef() {
+  return `social_${bytesToBase64Url(crypto.getRandomValues(new Uint8Array(24)))}`;
+}
+
+async function ensureSocialRef(entity: any, row: any) {
+  const current = String(row?.social_ref || '').trim();
+  if (SOCIAL_REF_PATTERN.test(current)) return current;
+  const id = String(row?.id || row?._id || '').trim();
+  if (!id || !entity?.update) throw new Error('Actor profile cannot be updated');
+  const socialRef = randomSocialRef();
+  await entity.update(id, { social_ref: socialRef });
+  return socialRef;
 }
 
 async function sha256Base64Url(input: string) {
@@ -242,15 +257,18 @@ async function verifyGuestProfile(base44: any, body: any) {
   }
 
   const ownerKeyHash = makeGuestOwnerKeyHash(guestId);
+  const socialRef = await ensureSocialRef(entity, guest);
   return {
     ok: true,
     response: null,
     actor: {
       ownerKeyHash,
+      socialRef,
       kronoxUserId: normalizeKronoxUserId(guest?.kronox_user_id),
       myEmail: '',
       playerType: 'guest',
       username: safePublicUsername(guest?.username || guest?.display_name, guestId),
+      profile: guest,
     },
   };
 }
@@ -264,11 +282,13 @@ async function resolveSelectionActor(base44: any, body: any) {
     if (!ownerKeyHash) {
       return { ok: false, response: json({ ok: false, error: 'Invalid actor' }, 400), actor: null };
     }
+    const socialRef = await ensureSocialRef(base44.asServiceRole.entities.User, storedUser);
     return {
       ok: true,
       response: null,
       actor: {
         ownerKeyHash,
+        socialRef,
         kronoxUserId: normalizeKronoxUserId(storedUser?.kronox_user_id || user?.kronox_user_id),
         myEmail,
         playerType: 'linked',
@@ -276,6 +296,7 @@ async function resolveSelectionActor(base44: any, body: any) {
           storedUser?.username || storedUser?.public_username || storedUser?.display_name || user.username || user.public_username || user.display_name || user.full_name,
           myEmail,
         ),
+        profile: storedUser,
       },
     };
   }
@@ -312,7 +333,7 @@ async function getAcceptedFriends(base44: any, myEmail: string) {
 function latestPresenceByOwner(rows: any[], nowMs: number) {
   const byOwner = new Map<string, any>();
   for (const row of Array.isArray(rows) ? rows : []) {
-    const key = String(row?.owner_key_hash || '').trim();
+    const key = String(row?.selection_ref || '').trim();
     if (!key) continue;
     const existing = byOwner.get(key);
     if (!existing || readTime(row?.last_heartbeat_at || row?.last_seen_at) > readTime(existing?.last_heartbeat_at || existing?.last_seen_at)) {
@@ -326,6 +347,178 @@ function latestPresenceByOwner(rows: any[], nowMs: number) {
   return { latest: byOwner, freshOnline };
 }
 
+function randomPublicRef(prefix: string) {
+  return `${prefix}_${bytesToBase64Url(crypto.getRandomValues(new Uint8Array(24)))}`;
+}
+
+async function ensurePublicRef(entity: any, row: any, prefix: string) {
+  const current = String(row?.public_ref || '').trim();
+  if (current) return current;
+  const id = String(row?.id || row?._id || '').trim();
+  if (!id || !entity?.update) return '';
+  const publicRef = randomPublicRef(prefix);
+  await entity.update(id, { public_ref: publicRef });
+  return publicRef;
+}
+
+function effectiveLifecycleStatus(row: any, nowMs: number) {
+  const status = String(row?.status || '').toLowerCase();
+  const expiresAt = readTime(row?.expires_at);
+  return status === 'pending' && Number.isFinite(expiresAt) && expiresAt <= nowMs ? 'expired' : status;
+}
+
+async function buildSocialSnapshot(base44: any, actor: any, nowMs: number) {
+  const myEmail = normalizeEmail(actor?.myEmail);
+  const actorKeyHash = String(actor?.ownerKeyHash || '').trim();
+  if (!myEmail && !actorKeyHash) {
+    return {
+      friends: [],
+      incomingFriendRequests: [],
+      outgoingFriendRequests: [],
+      incomingGameInvites: [],
+      outgoingGameInvites: [],
+    };
+  }
+
+  const [incomingFriendRows, outgoingFriendRows, incomingInviteRows, outgoingInviteRows, presenceRows] = await Promise.all([
+    myEmail
+      ? base44.asServiceRole.entities.FriendRequest.filter({ to_email: myEmail }, '-updated_date', 200).catch(() => [])
+      : Promise.resolve([]),
+    myEmail
+      ? base44.asServiceRole.entities.FriendRequest.filter({ from_email: myEmail }, '-updated_date', 200).catch(() => [])
+      : Promise.resolve([]),
+    myEmail
+      ? base44.asServiceRole.entities.GameInvite.filter({ to_email: myEmail }, '-updated_date', 100).catch(() => [])
+      : Promise.resolve([]),
+    myEmail
+      ? base44.asServiceRole.entities.GameInvite.filter({ from_email: myEmail }, '-updated_date', 100).catch(() => [])
+      : base44.asServiceRole.entities.GameInvite.filter({ from_actor_key_hash: actorKeyHash }, '-updated_date', 100).catch(() => []),
+    base44.asServiceRole.entities.PlayerPresence.filter({ status: 'online' }, '-last_seen_at', PRESENCE_SCAN_LIMIT).catch(() => []),
+  ]);
+
+  const profileCache = new Map<string, any>();
+  const getProfile = async (email: unknown) => {
+    const normalized = normalizeEmail(email);
+    if (!normalized) return null;
+    if (!profileCache.has(normalized)) {
+      profileCache.set(normalized, await getUserPublicProfile(base44, normalized));
+    }
+    return profileCache.get(normalized) || null;
+  };
+  const { freshOnline } = latestPresenceByOwner(presenceRows || [], nowMs);
+
+  const publicFriendRequest = async (row: any, direction: 'incoming' | 'outgoing') => {
+    const publicRef = await ensurePublicRef(base44.asServiceRole.entities.FriendRequest, row, 'friendreq');
+    const otherEmail = direction === 'incoming' ? row?.from_email : row?.to_email;
+    const profile = await getProfile(otherEmail);
+    const username = safePublicUsername(
+      direction === 'incoming'
+        ? (profile?.username || profile?.public_username || row?.from_username || row?.from_name)
+        : (profile?.username || profile?.public_username || row?.to_username || row?.to_name),
+      publicRef,
+    );
+    return {
+      id: publicRef,
+      request_ref: publicRef,
+      direction,
+      status: effectiveLifecycleStatus(row, nowMs),
+      username,
+      ...(direction === 'incoming'
+        ? { from_name: username, from_username: username, sender_name: username }
+        : { to_name: username, to_username: username, recipient_name: username }),
+      expires_at: row?.expires_at || null,
+      created_at: row?.created_at || row?.created_date || null,
+      updated_at: row?.updated_at || row?.updated_date || null,
+      ...pickPublicAvatarFields(profile),
+    };
+  };
+
+  const acceptedPairs = [
+    ...(incomingFriendRows || []).filter((row: any) => row?.status === 'accepted').map((row: any) => ({ row, email: row?.from_email, username: row?.from_username || row?.from_name })),
+    ...(outgoingFriendRows || []).filter((row: any) => row?.status === 'accepted').map((row: any) => ({ row, email: row?.to_email, username: row?.to_username || row?.to_name })),
+  ];
+  const friendByRef = new Map<string, any>();
+  for (const pair of acceptedPairs) {
+    const profile = await getProfile(pair.email);
+    if (!profile) continue;
+    const targetRef = await ensureSocialRef(base44.asServiceRole.entities.User, profile);
+    if (!targetRef || friendByRef.has(targetRef)) continue;
+    const presence = freshOnline.get(targetRef) || null;
+    const online = isOnlinePresence(presence, nowMs);
+    const username = safePublicUsername(profile?.username || profile?.public_username || pair.username, targetRef);
+    friendByRef.set(targetRef, {
+      id: targetRef,
+      target_ref: targetRef,
+      presence_ref: targetRef,
+      presence_key: targetRef,
+      friend_username: username,
+      friend_name: username,
+      username,
+      relation: 'friend',
+      online,
+      status: online ? 'online' : 'offline',
+      last_seen_at: presence?.last_heartbeat_at || presence?.last_seen_at || null,
+      ...pickPublicAvatarFields(profile || presence),
+    });
+  }
+
+  const lobbyCache = new Map<string, any>();
+  const getLobby = async (internalId: unknown) => {
+    const id = String(internalId || '').trim();
+    if (!id) return null;
+    if (!lobbyCache.has(id)) {
+      const lobby = await base44.asServiceRole.entities.Lobby.get(id).catch(() => null);
+      if (lobby && !lobby.public_ref) {
+        const publicRef = randomPublicRef('lobby');
+        await base44.asServiceRole.entities.Lobby.update(id, { public_ref: publicRef });
+        lobby.public_ref = publicRef;
+      }
+      lobbyCache.set(id, lobby);
+    }
+    return lobbyCache.get(id) || null;
+  };
+  const publicInvite = async (row: any, direction: 'incoming' | 'outgoing') => {
+    const inviteRef = await ensurePublicRef(base44.asServiceRole.entities.GameInvite, row, 'invite');
+    const lobby = await getLobby(row?.lobby_id);
+    const fromName = safePublicUsername(row?.from_name, inviteRef);
+    const toName = safePublicUsername(row?.to_name, inviteRef);
+    const status = effectiveLifecycleStatus(row, nowMs);
+    if (status === 'expired' && row?.status === 'pending') {
+      await base44.asServiceRole.entities.GameInvite.update(row.id, {
+        status: 'expired',
+        expired_at: new Date(nowMs).toISOString(),
+      }).catch(() => null);
+    }
+    return {
+      id: inviteRef,
+      invite_ref: inviteRef,
+      direction,
+      status,
+      from_name: fromName,
+      sender_name: fromName,
+      to_name: toName,
+      recipient_name: toName,
+      lobby_id: lobby?.public_ref || null,
+      lobby_ref: lobby?.public_ref || null,
+      lobby_code: lobby?.code || row?.lobby_code || '',
+      recipient_is_self: direction === 'incoming',
+      sender_is_self: direction === 'outgoing',
+      expires_at: row?.expires_at || null,
+      created_at: row?.created_at || row?.created_date || null,
+      accepted_at: row?.accepted_at || null,
+      declined_at: row?.declined_at || null,
+    };
+  };
+
+  return {
+    friends: Array.from(friendByRef.values()),
+    incomingFriendRequests: await Promise.all((incomingFriendRows || []).filter((row: any) => effectiveLifecycleStatus(row, nowMs) === 'pending').map((row: any) => publicFriendRequest(row, 'incoming'))),
+    outgoingFriendRequests: await Promise.all((outgoingFriendRows || []).filter((row: any) => ['pending', 'expired'].includes(effectiveLifecycleStatus(row, nowMs))).map((row: any) => publicFriendRequest(row, 'outgoing'))),
+    incomingGameInvites: await Promise.all((incomingInviteRows || []).map((row: any) => publicInvite(row, 'incoming'))),
+    outgoingGameInvites: await Promise.all((outgoingInviteRows || []).map((row: any) => publicInvite(row, 'outgoing'))),
+  };
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -334,13 +527,26 @@ Deno.serve(async (req) => {
     const resolved = await resolveSelectionActor(base44, body);
     if (!resolved.ok) return resolved.response;
     const actor = resolved.actor;
+    const action = String(body?.action || 'selection').trim().toLowerCase();
+    if (action === 'social_snapshot') {
+      const social = await buildSocialSnapshot(base44, actor, Date.now());
+      return json({
+        ok: true,
+        ...social,
+        privacy: {
+          publicIdentity: 'username',
+          publicReferences: 'random_opaque_refs',
+          forbiddenIdentityFieldsReturned: false,
+        },
+      });
+    }
     const myEmail = normalizeEmail(actor?.myEmail);
-    const myPresenceKey = String(actor?.ownerKeyHash || '');
-    if (!myPresenceKey) return json({ ok: false, error: 'Invalid actor' }, 400);
+    const mySelectionRef = String(actor?.socialRef || '');
+    if (!SOCIAL_REF_PATTERN.test(mySelectionRef)) return json({ ok: false, error: 'Invalid actor' }, 400);
 
     const nowMs = Date.now();
     const friends = await getAcceptedFriends(base44, myEmail);
-    const friendKeys = new Set(friends.map((friend) => makeOwnerKeyHash(friend.email)).filter(Boolean));
+    const friendRefs = new Set<string>();
 
     const onlinePresenceRows = await base44.asServiceRole.entities.PlayerPresence.filter(
       { status: 'online' },
@@ -358,18 +564,20 @@ Deno.serve(async (req) => {
     };
 
     for (const friend of friends) {
-      const targetRef = makeOwnerKeyHash(friend.email);
-      if (!targetRef || targetRef === myPresenceKey) continue;
+      const friendProfile = await getUserPublicProfile(base44, friend.email);
+      if (!friendProfile) continue;
+      const targetRef = await ensureSocialRef(base44.asServiceRole.entities.User, friendProfile);
+      if (!targetRef || targetRef === mySelectionRef) continue;
+      friendRefs.add(targetRef);
       let latest = freshOnline.get(targetRef) || null;
       if (!latest) {
         const friendPresence = await base44.asServiceRole.entities.PlayerPresence.filter(
-          { owner_key_hash: targetRef },
+          { selection_ref: targetRef },
           '-last_seen_at',
           10,
         ).catch(() => []);
         latest = (friendPresence || [])[0] || null;
       }
-      const friendProfile = await getUserPublicProfile(base44, friend.email);
       const online = isOnlinePresence(latest, nowMs);
       addRow(buildPublicRow({
         targetRef,
@@ -383,7 +591,7 @@ Deno.serve(async (req) => {
     }
 
     for (const [targetRef, presence] of freshOnline.entries()) {
-      if (!targetRef || targetRef === myPresenceKey || friendKeys.has(targetRef)) continue;
+      if (!targetRef || targetRef === mySelectionRef || friendRefs.has(targetRef)) continue;
       const targetEmail = normalizeEmail(presence?.user_email || presence?.backend_recipient_email);
       if (targetEmail && targetEmail === myEmail) continue;
       const targetProfile = targetEmail ? await getUserPublicProfile(base44, targetEmail) : null;
@@ -418,7 +626,7 @@ Deno.serve(async (req) => {
       privacy: {
         targetEmailReturned: false,
         publicIdentity: 'username',
-        targetReference: 'opaque_presence_key',
+        targetReference: 'random_social_ref',
         rawGuestIdReturned: false,
         ownerKeyReturned: false,
       },

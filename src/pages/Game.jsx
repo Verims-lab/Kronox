@@ -39,7 +39,7 @@ import GameBootstrapDiagnostics, { isDiagnosticsEnabled } from '@/components/gam
 import GameRenderErrorBoundary from '@/components/game/GameRenderErrorBoundary';
 import { useAuth } from '@/lib/AuthContext';
 import { GuidedTutorialPopup, GuidedSoloTutorialOverlay } from '@/components/game/GuidedTutorialOverlays';
-import { normalizeOnlineEmail, getOpponentEmailForOnlineResult, buildOnlineScorePopupState } from '@/lib/onlineScorePopup';
+import { buildOnlineScorePopupState } from '@/lib/onlineScorePopup';
 import { applyLevelAttempt, getSoloCardsRequiredForLevel, getSoloAttemptDeckSizeForLevel, getSoloMaxMovesForLevel, getSoloTimelineWinCardCountForLevel, getSoloLevelCount, isSoloSpecialLevel, SOLO_LEVEL_TIME_SECONDS, SOLO_MAX_MOVES, readSoloProgress, writeSoloProgress } from '@/lib/soloLevels';
 import {
   calculateSoloAttemptResult,
@@ -123,6 +123,7 @@ import {
 // Codex128 — Online score/checkpoint system. Online winner kararlaştığında
 // her client kendi kullanıcısının puanını günceller (idempotent).
 import { applyOnlineMatchToCurrentUser } from '@/lib/applyOnlineResult';
+import { getLobbySnapshot } from '@/lib/dbGateway/lobbyGateway';
 // Codex477 — Player-own elapsed seconds is retained for Online audit/display.
 // It does not affect Online score because Online has no speed bonus.
 import { getOnlinePlayerElapsedSeconds } from '@/lib/onlinePlayerElapsed';
@@ -213,6 +214,7 @@ export default function Game() {
   const routeTurnDuration = routeState.turnDuration ?? 60;
   const routeWinCardCount = routeState.winCardCount ?? 10;
   const routeMyPlayerName = routeState.myPlayerName ?? null;
+  const routeMyParticipantRef = routeState.myParticipantRef ?? null;
   const routeOnlineQuestionDeck = Array.isArray(routeState.onlineQuestionDeck) ? routeState.onlineQuestionDeck : [];
   const routeOnlineDeckMeta = routeState.onlineDeckMeta || null;
   const soloReturnTo = routeState.soloReturnTo || routeState.returnTo || routeState.source || null;
@@ -1208,17 +1210,22 @@ export default function Game() {
 
   const myPlayerName = useMemo(() => {
     if (!isOnline) return routeMyPlayerName;
+    const selfPlayer = players.find(p => p?.is_self || (
+      routeMyParticipantRef && p?.participant_ref === routeMyParticipantRef
+    ));
+    if (selfPlayer?.name) return selfPlayer.name;
     if (routeMyPlayerName) return routeMyPlayerName;
-    const email = currentUser?.email;
-    if (!email) return null;
-    return players.find(p => p.email === email)?.name || null;
-  }, [players, routeMyPlayerName, currentUser?.email, isOnline]);
+    return null;
+  }, [players, routeMyPlayerName, routeMyParticipantRef, isOnline]);
 
   const myPlayer = useMemo(() => {
-    if (!isOnline || !myPlayerName) return null;
-    return players.find(p => p.name === myPlayerName);
-  }, [players, myPlayerName, isOnline]);
-  const localPlayerEmail = isOnline ? (myPlayer?.email || currentUser?.email || null) : null;
+    if (!isOnline) return null;
+    return players.find(p => p?.is_self || (
+      routeMyParticipantRef && p?.participant_ref === routeMyParticipantRef
+    )) || players.find(p => p.name === myPlayerName) || null;
+  }, [players, myPlayerName, routeMyParticipantRef, isOnline]);
+  const localPlayerEmail = null;
+  const localParticipantRef = isOnline ? (myPlayer?.participant_ref || routeMyParticipantRef || null) : null;
 
   const currentPlayer = currentTimelinePlayer;
   const isMyTurn = !isOnline || (myPlayerName && currentPlayer?.name === myPlayerName);
@@ -1290,10 +1297,10 @@ export default function Game() {
   }), [getSoloQuestionAnalyticsPlacementIndex, soloAttemptId]);
 
   const recordSoloQuestionAnalyticsEvent = useCallback((question, eventType, extra = {}) => {
-    if (!isSoloLevelMode || !question || !soloAttemptId) return;
+    if (!isSoloLevelMode || !question || !soloAttemptId) return null;
     const placementIndex = extra.placement_index ?? getSoloQuestionAnalyticsPlacementIndex(question);
     const eventId = extra.event_id || getSoloQuestionAnalyticsEventId(question, eventType, placementIndex);
-    if (!eventId) return;
+    if (!eventId) return null;
 
     const nowIso = new Date().toISOString();
     if (
@@ -1342,7 +1349,7 @@ export default function Game() {
       }
     }
 
-    if (!currentUser?.email || soloAnalyticsEventIdsRef.current.has(eventId)) return;
+    if (!currentUser?.email || soloAnalyticsEventIdsRef.current.has(eventId)) return eventId;
     soloAnalyticsEventIdsRef.current.add(eventId);
 
     writeSoloQuestionAnalyticsEvent({
@@ -1367,6 +1374,7 @@ export default function Game() {
       answered_at: extra.answered_at || (eventType === QUESTION_ANALYTICS_EVENT_TYPES.ANSWERED ? nowIso : undefined),
       created_at: extra.created_at || nowIso,
     }, { user: currentUser }).catch(() => null);
+    return eventId;
   }, [
     currentUser,
     getSoloQuestionAnalyticsEventId,
@@ -1448,7 +1456,7 @@ export default function Game() {
     const nextMistakeNumber = event.isCorrect
       ? mistakeCount
       : (mistakeShieldActive ? mistakeCount : mistakeCount + 1);
-    recordSoloQuestionAnalyticsEvent(event.question, QUESTION_ANALYTICS_EVENT_TYPES.ANSWERED, {
+    const answerAttemptEventId = recordSoloQuestionAnalyticsEvent(event.question, QUESTION_ANALYTICS_EVENT_TYPES.ANSWERED, {
       is_correct: Boolean(event.isCorrect),
       response_time_ms: responseTimeMs,
       mistake_number: nextMistakeNumber,
@@ -1461,9 +1469,10 @@ export default function Game() {
       },
     });
     if (event.isCorrect) {
-      const correctEventId = `${soloAttemptId || 'solo_attempt'}:correct_answer:${questionId}`;
+      const correctEventId = answerAttemptEventId || `${soloAttemptId || 'solo_attempt'}:correct_answer:${questionId}`;
       recordDailyQuestSoloEvent('correct_answer', correctEventId, {
         questType: 'correct_answer',
+        attemptId: soloAttemptId,
         questionId,
         isCorrect: true,
       });
@@ -1471,6 +1480,7 @@ export default function Game() {
         const streakEventId = `${soloAttemptId || 'solo_attempt'}:consecutive_correct_4:${questionId}`;
         recordDailyQuestSoloEvent('consecutive_correct_4', streakEventId, {
           questType: 'consecutive_correct_4',
+          attemptId: soloAttemptId,
           questionId,
           consecutiveCorrect: nextDailyCorrectStreak,
         });
@@ -1525,15 +1535,11 @@ export default function Game() {
   useEffect(() => {
     if (!isOnline || !winner || !lobbyId) return;
     if (onlineResultAppliedRef.current) return;
-    const winnerEmail = winner.email || winner.winner_email || lobbyData?.winner_email || null;
     const winnerName = winner.name || lobbyData?.winner || null;
-    const isWinnerByEmail = Boolean(
-      winnerEmail &&
-      localPlayerEmail &&
-      normalizeOnlineEmail(winnerEmail) === normalizeOnlineEmail(localPlayerEmail),
-    );
+    const winnerParticipantRef = winner.participantRef || winner.participant_ref || lobbyData?.winner_participant_ref || null;
+    const isWinnerByParticipant = Boolean(winnerParticipantRef && localParticipantRef && winnerParticipantRef === localParticipantRef);
     const isWinnerByName = Boolean(winnerName && myPlayerName && winnerName === myPlayerName);
-    const localIsWinner = isWinnerByEmail || (!winnerEmail && isWinnerByName);
+    const localIsWinner = isWinnerByParticipant || (!winnerParticipantRef && isWinnerByName);
     const result = localIsWinner ? 'win' : 'loss';
 
     // Codex146 — Capture the player-own elapsed seconds exactly once,
@@ -1552,7 +1558,6 @@ export default function Game() {
       );
     }
     const durationSeconds = playerOwnElapsedRef.current;
-    const opponentEmail = getOpponentEmailForOnlineResult(players, localPlayerEmail);
     setOnlineScoreResult({
       result,
       elapsedSeconds: durationSeconds,
@@ -1567,7 +1572,6 @@ export default function Game() {
       lobbyId,
       result,
       durationSeconds,
-      opponentEmail,
       source: routeState?.inviteId ? 'friend_invite' : 'code_lobby',
     }).then((res) => {
       if (res?.refreshedUser) setCurrentUser(res.refreshedUser);
@@ -1592,31 +1596,27 @@ export default function Game() {
       });
       onlineResultAppliedRef.current = false;
     });
-  }, [isOnline, winner, lobbyId, lobbyData?.winner_email, lobbyData?.winner, localPlayerEmail, myPlayerName, overallSecondsRef, players, routeState?.inviteId]);
+  }, [isOnline, winner, lobbyId, lobbyData?.winner, lobbyData?.winner_participant_ref, localParticipantRef, myPlayerName, overallSecondsRef, routeState?.inviteId]);
 
   useEffect(() => {
     if (!isOnline || !winner) return;
 
-    const winnerEmail = winner.email || winner.winner_email || lobbyData?.winner_email || null;
     const winnerName = winner.name || lobbyData?.winner || null;
-    const isWinnerByEmail = Boolean(
-      winnerEmail &&
-      localPlayerEmail &&
-      normalizeOnlineEmail(winnerEmail) === normalizeOnlineEmail(localPlayerEmail),
-    );
+    const winnerParticipantRef = winner.participantRef || winner.participant_ref || lobbyData?.winner_participant_ref || null;
+    const isWinnerByParticipant = Boolean(winnerParticipantRef && localParticipantRef && winnerParticipantRef === localParticipantRef);
     const isWinnerByName = Boolean(winnerName && myPlayerName && winnerName === myPlayerName);
 
     debugLog('[Game] online GameOver perspective:', {
       playerName: myPlayerName,
-      playerEmail: localPlayerEmail,
+      playerParticipantRef: localParticipantRef,
       eventStatus: lobbyData?.status || null,
       eventWinner: winnerName,
-      eventWinnerEmail: winnerEmail,
+      eventWinnerParticipantRef: winnerParticipantRef,
       eventLobbyId: lobbyId,
       setWinnerCalled: true,
       currentScreenState: 'game-over',
       renderedGameOver: true,
-      isLocalWinner: isWinnerByEmail || (!winnerEmail && isWinnerByName),
+      isLocalWinner: isWinnerByParticipant || (!winnerParticipantRef && isWinnerByName),
       renderedTurnMessageText,
     });
   }, [
@@ -1624,9 +1624,9 @@ export default function Game() {
     winner,
     lobbyData?.status,
     lobbyData?.winner,
-    lobbyData?.winner_email,
+    lobbyData?.winner_participant_ref,
     lobbyId,
-    localPlayerEmail,
+    localParticipantRef,
     myPlayerName,
     renderedTurnMessageText,
   ]);
@@ -2220,9 +2220,8 @@ export default function Game() {
         eventType: 'joker_used',
         mode: 'joker',
         amount: 1,
-        eventId: response?.transactionId || idempotencyKey,
+        eventId: idempotencyKey,
         idempotencyKey,
-        transactionId: response?.transactionId,
         metadata: {
           source: 'Game.jsx',
           soloAttemptId,
@@ -2240,9 +2239,8 @@ export default function Game() {
           eventType: 'time_freeze_joker_used',
           mode: 'joker',
           amount: 1,
-          eventId: response?.transactionId || idempotencyKey,
+          eventId: idempotencyKey,
           idempotencyKey,
-          transactionId: response?.transactionId,
           metadata: {
             source: 'Game.jsx',
             soloAttemptId,
@@ -2631,9 +2629,8 @@ export default function Game() {
         eventType: 'hint_used',
         mode: 'solo_hint',
         amount: 1,
-        eventId: response?.transactionId || idempotencyKey,
+        eventId: idempotencyKey,
         idempotencyKey,
-        transactionId: response?.transactionId,
         metadata: {
           source: 'Game.jsx',
           soloAttemptId,
@@ -2761,27 +2758,6 @@ export default function Game() {
           stars: attempt.stars,
           training_consumable_used: Boolean(soloTrainingConsumableUsedRef.current),
         });
-      }
-      const completionEventId = `${soloAttemptId || 'solo_attempt'}:solo_level_complete:${soloLevel?.levelNumber || 1}`;
-      if (soloDailyQuestCompletionRecordedRef.current !== completionEventId) {
-        soloDailyQuestCompletionRecordedRef.current = completionEventId;
-        recordDailyQuestSoloEvent('solo_level_complete', completionEventId, {
-          questType: 'solo_level_complete',
-          passed: true,
-          cardsCompleted: cardTarget,
-          elapsedSeconds: elapsed,
-        });
-        const jokerlessCompletionEventId = `${soloAttemptId || 'solo_attempt'}:jokerless_solo_level_complete:${soloLevel?.levelNumber || 1}`;
-        const jokerUsedThisAttempt = soloJokerUsedByDecisionKeyRef.current.size > 0;
-        if (!jokerUsedThisAttempt && !soloTrainingConsumableUsedRef.current) {
-          recordDailyQuestSoloEvent('jokerless_solo_level_complete', jokerlessCompletionEventId, {
-            questType: 'jokerless_solo_level_complete',
-            passed: true,
-            jokerUsed: false,
-            cardsCompleted: cardTarget,
-            elapsedSeconds: elapsed,
-          });
-        }
       }
       return;
     }
@@ -2941,12 +2917,26 @@ export default function Game() {
           levelScore: soloLevelResult.levelScore,
           soloRulesVersion: soloLevelResult.soloRulesVersion || SOLO_RULES_VERSION,
         });
-        await writeSoloProgress(me, next);
+        const persisted = await writeSoloProgress(me, next);
+        if (persisted && soloLevelResult.passed) {
+          const completionEventId = `${soloAttemptId || 'solo_attempt'}:solo_level_complete:${levelNumber}`;
+          if (soloDailyQuestCompletionRecordedRef.current !== completionEventId) {
+            soloDailyQuestCompletionRecordedRef.current = completionEventId;
+            recordDailyQuestSoloEvent('solo_level_complete', completionEventId, {
+              questType: 'solo_level_complete',
+              passed: true,
+              soloLevelNumber: levelNumber,
+              attemptId: soloAttemptId,
+              cardsCompleted: soloLevelResult.cardsCompleted,
+              elapsedSeconds: soloLevelResult.timeSeconds,
+            });
+          }
+        }
       } catch (e) {
         debugLog('[Game] solo progress persist failed:', e?.message || e);
       }
     })();
-  }, [isSoloLevelMode, soloLevelResult, soloLevel, soloCardsRequired]);
+  }, [isSoloLevelMode, recordDailyQuestSoloEvent, soloAttemptId, soloLevelResult, soloLevel, soloCardsRequired]);
 
   const handleSoloRetry = useCallback(() => {
     if (!soloLevel) return;
@@ -3088,7 +3078,7 @@ export default function Game() {
       <GameDebugLog />
       <GameOver
         winner={winner.name}
-        winnerEmail={winner.email || winner.winner_email || lobbyData?.winner_email || null}
+        winnerEmail={null}
         durationSeconds={winner.durationSeconds}
         winCardCount={winCardCount}
         onRestart={handleRestart}
@@ -3459,9 +3449,8 @@ export default function Game() {
       onRefetchLobby={async () => {
         if (!lobbyId && !routeLobbyCode) return;
         try {
-          const fresh = lobbyId
-            ? await base44.entities.Lobby.get(lobbyId)
-            : (await base44.entities.Lobby.filter({ code: routeLobbyCode }, '-created_date', 1))?.[0];
+          const response = await getLobbySnapshot({ lobbyId, code: routeLobbyCode });
+          const fresh = response?.data?.lobby;
           if (fresh) setLobbyData(fresh);
         } catch (e) {
           debugLog('[Game] manual refetch failed:', e.message);

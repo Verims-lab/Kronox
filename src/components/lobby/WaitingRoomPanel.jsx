@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Check, Copy, Loader2, Users, Hourglass } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { Check, Copy, Loader2, Users } from 'lucide-react';
 import StonePanel from '@/components/ui/StonePanel';
 import GoldButton from '@/components/ui/GoldButton';
 import { useWaitingRoomSync } from '@/hooks/useWaitingRoomSync';
@@ -10,6 +9,7 @@ import { summarizePlayers } from '@/lib/lobbyUtils';
 import { debugLog, debugWarn } from '@/lib/debugLog';
 import { pushAppDiag } from '@/lib/appDiagBus';
 import KronoxAvatar from '@/components/profile/KronoxAvatar';
+import { getLobbySnapshot, startLobbyGame } from '@/lib/dbGateway/lobbyGateway';
 
 // Codex131 — Lobby simplification:
 //   "Oyun Ayarları" host panel and the non-host settings summary were
@@ -53,10 +53,11 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
     });
 
     try {
-      const latestLobby = await base44.entities.Lobby.get(lobby.id).catch((err) => {
+      const latestLobbyResponse = await getLobbySnapshot({ lobbyId: lobby.id }).catch((err) => {
         debugWarn('[handleStart] latest lobby fetch failed, using local lobby:', err.message);
         return null;
       });
+      const latestLobby = latestLobbyResponse?.data?.lobby || null;
       const startLobby = latestLobby || lobby;
       const startPlayers = Array.isArray(startLobby.players) ? startLobby.players : [];
 
@@ -75,10 +76,7 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
       // Codex131 — No `settings` payload. Backend startLobbyGame reads
       // category / year window / turn / win-card from the persisted lobby
       // (including the Online multi-select selected_category_ids).
-      const response = await base44.functions.invoke('startLobbyGame', {
-        lobbyId: startLobby.id,
-        playerName,
-      }).catch((err) => {
+      const response = await startLobbyGame(startLobby.id, startLobby.state_revision).catch((err) => {
         // Codex165 — Surface backend's safe error message instead of an
         // axios "status code 400" string. Base44 SDK throws on non-2xx;
         // err.response.data carries the JSON body { error, code, debug }.
@@ -102,9 +100,10 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
       // and only fall back to the function response if the re-fetch fails.
       let liveStartedLobby = null;
       try {
-        liveStartedLobby = await base44.entities.Lobby.get(startLobby.id);
+        const liveResponse = await getLobbySnapshot({ lobbyId: startLobby.id });
+        liveStartedLobby = liveResponse?.data?.lobby || null;
       } catch (fetchErr) {
-        debugWarn('[handleStart] post-start Lobby.get failed, falling back to function response:', fetchErr.message);
+        debugWarn('[handleStart] post-start lobby refresh failed, falling back to function response:', fetchErr.message);
       }
       const startedLobby = liveStartedLobby || result.lobby || startLobby;
       const startedHasGameState = Boolean(
@@ -248,15 +247,9 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
             </span>
             {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-amber-200/80" />}
           </button>
-          {Array.isArray(lobby.invited_emails) && lobby.invited_emails.length > 0 ? (
-            <p className="mt-2 font-inter text-xs text-blue-100/60">
-              Davet edilen arkadaşların kabul ettiklerinde otomatik katılır.
-            </p>
-          ) : (
-            <p className="mt-2 font-inter text-[11px] text-blue-100/45">
-              Daveti kabul eden arkadaşların buraya katılır.
-            </p>
-          )}
+          <p className="mt-2 font-inter text-[11px] text-blue-100/45">
+            Daveti kabul eden arkadaşların buraya katılır.
+          </p>
         </div>
 
         {/* Players panel */}
@@ -267,7 +260,7 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
           <div className="space-y-2">
             {(lobby.players || []).map((p, i) => (
               <motion.div
-                key={p.email || i}
+                key={p.participant_ref || `${p.name || 'player'}-${i}`}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 className="flex items-center gap-3 rounded-xl px-3 py-2.5"
@@ -295,59 +288,6 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
               </motion.div>
             ))}
           </div>
-          {(() => {
-            // Codex099 — show invited friends who haven't joined yet as
-            // "bekleniyor" rows. Pure derivation from existing lobby fields,
-            // no extra fetch, no mutation, no notification logic touched.
-            const invited = Array.isArray(lobby.invited_emails) ? lobby.invited_emails : [];
-            const joinedEmails = new Set(
-              (lobby.players || [])
-                .map((p) => String(p?.email || '').toLowerCase())
-                .filter(Boolean),
-            );
-            const pendingEmails = invited
-              .map((e) => String(e || '').toLowerCase())
-              .filter((e) => e && !joinedEmails.has(e));
-            if (pendingEmails.length === 0) return null;
-            return (
-              <div className="space-y-1.5 pt-1">
-                <p className="font-inter text-[10px] uppercase tracking-widest text-blue-100/55 font-black flex items-center gap-1">
-                  <Hourglass className="w-3 h-3" /> Bekleniyor ({pendingEmails.length})
-                </p>
-                {pendingEmails.map((email) => (
-                  <div
-                    key={email}
-                    className="flex items-center gap-3 rounded-xl px-3 py-2"
-                    style={{
-                      background: 'linear-gradient(180deg, rgba(20,32,68,0.45), rgba(8,14,32,0.55))',
-                      boxShadow: 'inset 0 0 0 1px rgba(120,170,255,0.18)',
-                    }}
-                  >
-                    <div
-                      className="w-7 h-7 rounded-full flex items-center justify-center"
-                      style={{
-                        background: 'rgba(148,163,184,0.18)',
-                        boxShadow: 'inset 0 0 0 1px rgba(148,163,184,0.30)',
-                      }}
-                    >
-                      <Hourglass className="w-3.5 h-3.5 text-blue-100/60" />
-                    </div>
-                    <span className="font-inter text-[12px] text-blue-100/70 flex-1 truncate">{email}</span>
-                    <span
-                      className="rounded-full px-2 py-0.5 font-inter text-[9px] font-black uppercase tracking-widest"
-                      style={{
-                        background: 'rgba(250,204,21,0.08)',
-                        color: '#fde68a',
-                        boxShadow: 'inset 0 0 0 1px rgba(250,204,21,0.30)',
-                      }}
-                    >
-                      Davet edildi
-                    </span>
-                  </div>
-                ))}
-              </div>
-            );
-          })()}
           {(lobby.players?.length || 0) < 2 && (
             <p className="font-inter text-xs text-blue-100/55 text-center pt-1">
               Oyun başlatmak için en az 2 oyuncu gerekli
@@ -393,7 +333,7 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
               <span className="text-yellow-300/80">shouldNavigateToGame</span><span>{String(startDebug.shouldNavigateToGame)}</span>
               <span className="text-yellow-300/80">navigate called</span><span>{String(startDebug.navigateCalled)}</span>
               <span className="text-yellow-300/80">current pathname</span><span>{startDebug.currentPathname || 'null'}</span>
-              <span className="text-yellow-300/80">current user email</span><span>{startDebug.currentUserEmail || 'null'}</span>
+              <span className="text-yellow-300/80">actor resolved</span><span>{String(startDebug.currentActorResolved)}</span>
               <span className="text-yellow-300/80">current player name</span><span>{startDebug.currentPlayerName || 'null'}</span>
               <span className="text-yellow-300/80">source</span><span>{startDebug.source || 'null'}</span>
               <span className="text-yellow-300/80">error</span><span>{startDebug.error || 'null'}</span>

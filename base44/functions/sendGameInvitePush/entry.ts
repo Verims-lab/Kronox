@@ -212,10 +212,10 @@ function skippedPushSummary(skipped: string, extra: Record<string, unknown> = {}
   };
 }
 
-function buildTargetUrl(invite: any) {
+function buildTargetUrl(invite: any, lobbyRef: string) {
   const params = new URLSearchParams();
-  if (invite?.id) params.set('inviteId', invite.id);
-  if (invite?.lobby_id) params.set('lobbyId', invite.lobby_id);
+  if (invite?.public_ref) params.set('inviteId', invite.public_ref);
+  if (lobbyRef) params.set('lobbyId', lobbyRef);
   if (invite?.lobby_code) params.set('lobbyCode', invite.lobby_code);
   const query = params.toString();
   return query ? `/lobby?${query}` : '/lobby';
@@ -228,11 +228,26 @@ Deno.serve(async (req) => {
     if (!user) return json({ ok: false, error: 'Giriş yapmanız gerekiyor.' }, 401);
 
     const body = await req.json().catch(() => ({}));
-    const inviteId = String(body?.inviteId || '').trim();
-    if (!inviteId) return json({ ok: false, error: 'inviteId is required' }, 400);
+    const inviteRef = String(body?.inviteRef || body?.inviteId || '').trim();
+    if (!inviteRef) return json({ ok: false, error: 'inviteRef is required' }, 400);
 
-    const invite = await base44.asServiceRole.entities.GameInvite.get(inviteId);
+    const publicRows = await base44.asServiceRole.entities.GameInvite.filter({ public_ref: inviteRef }, '-updated_date', 2).catch(() => []);
+    let invite = publicRows?.[0] || await base44.asServiceRole.entities.GameInvite.get(inviteRef).catch(() => null);
     if (!invite) return json({ ok: false, error: 'Davet bulunamadı.' }, 404);
+    const inviteRowId = String(invite?.id || invite?._id || '');
+    if (!invite.public_ref) {
+      const publicRef = `invite_${crypto.randomUUID().replace(/-/g, '')}`;
+      const updated = await base44.asServiceRole.entities.GameInvite.update(inviteRowId, { public_ref: publicRef });
+      invite = { ...invite, ...updated, public_ref: publicRef };
+    }
+    let lobby = invite.lobby_id
+      ? await base44.asServiceRole.entities.Lobby.get(invite.lobby_id).catch(() => null)
+      : null;
+    if (lobby && !lobby.public_ref) {
+      const publicRef = `lobby_${crypto.randomUUID().replace(/-/g, '')}`;
+      const updated = await base44.asServiceRole.entities.Lobby.update(lobby.id, { public_ref: publicRef });
+      lobby = { ...lobby, ...updated, public_ref: publicRef };
+    }
 
     const myEmail = normalizeEmail(user.email);
     const fromEmail = normalizeEmail(invite.from_email);
@@ -252,7 +267,7 @@ Deno.serve(async (req) => {
     }
     const expiresAt = getInviteExpiry(invite);
     if (Number.isFinite(expiresAt) && expiresAt <= Date.now()) {
-      await base44.asServiceRole.entities.GameInvite.update(inviteId, {
+      await base44.asServiceRole.entities.GameInvite.update(inviteRowId, {
         status: 'expired',
         expired_at: new Date().toISOString(),
       }).catch(() => null);
@@ -320,13 +335,13 @@ Deno.serve(async (req) => {
     webpush.setVapidDetails(config.subject, config.publicKey, config.privateKey);
 
     const senderName = safePublicActorName(invite.from_name, 'Bir arkadaşın');
-    const targetUrl = buildTargetUrl(invite);
+    const targetUrl = buildTargetUrl(invite, String(lobby?.public_ref || ''));
     const notificationPayload = JSON.stringify({
       title: 'Kronox',
       body: `${senderName} seni Kronox oyununa davet etti.`,
       data: {
-        inviteId: invite.id,
-        lobbyId: invite.lobby_id || null,
+        inviteId: invite.public_ref,
+        lobbyId: lobby?.public_ref || null,
         lobbyCode: invite.lobby_code || null,
         targetUrl,
         expiresAt: Number.isFinite(expiresAt) ? new Date(expiresAt).toISOString() : null,
@@ -364,7 +379,7 @@ Deno.serve(async (req) => {
           }).catch(() => null);
         }
         console.warn('[sendGameInvitePush] push failed:', {
-          inviteId,
+          inviteRef: invite.public_ref,
           subscriptionId: row.id,
           statusCode,
           reason: safeReason,

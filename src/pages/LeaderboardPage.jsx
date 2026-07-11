@@ -13,13 +13,11 @@ import { summarizeSoloProgress } from '@/lib/soloProgressHelpers';
 import { getKronoxVisibleScore } from '@/lib/kronoxScore';
 import {
   buildGuestSoloLeaderboardPayload,
-  getFriendLeaderboardKeys,
   getCachedSoloLeaderboardSnapshot,
   getLeaderboardSnapshotCacheKey,
   getGuestLeaderboardOwnerKey,
   getLeaderboardDiamondValue,
   getLeaderboardOwnerKey,
-  getFriendLeaderboardAvatarMap,
   getPublicLeaderboardId,
   LEADERBOARD_FAST_SNAPSHOT_OPTIONS,
   LEADERBOARD_FETCH_LIMIT,
@@ -39,7 +37,7 @@ import {
   isGuestOnboardingComplete,
   syncGuestProfileProgress,
 } from '@/lib/guestProfile';
-import { loadFriends, sendFriendRequest } from '@/lib/friendsApi';
+import { sendFriendRequest } from '@/lib/friendsApi';
 import { useToast } from '@/components/ui/use-toast';
 import { isAdminUser, withAdminStatus } from '@/lib/admin';
 import KronoxRankingSection from '@/components/leaderboard/KronoxRankingSection';
@@ -191,7 +189,6 @@ export default function LeaderboardPage() {
 
     const requestId = leaderboardRequestSeqRef.current + 1;
     leaderboardRequestSeqRef.current = requestId;
-    const normalizedUserEmail = String(user?.email || user?.user_email || '').trim().toLowerCase();
     const guestPayload = completedGuestProfile
       ? getCompletedGuestCredentialsPayload(completedGuestProfile)
       : null;
@@ -316,18 +313,6 @@ export default function LeaderboardPage() {
       if (!applySnapshot(snapshot)) return;
       publishOwnLeaderboardProjectionInBackground(user, currentProgress);
 
-      if (normalizedUserEmail) {
-        loadFriends(normalizedUserEmail)
-          .then((acceptedFriends) => {
-            const acceptedFriendKeys = getFriendLeaderboardKeys(
-              (acceptedFriends || []).map((friend) => friend.friend_email),
-            );
-            applySnapshot(snapshot, acceptedFriendKeys, {
-              friendAvatarByLeaderboardId: getFriendLeaderboardAvatarMap(acceptedFriends),
-            });
-          })
-          .catch(() => {});
-      }
     } catch (err) {
       const ownScoreRow = toSoloLeaderboardEntry(currentPayload, new Set(), currentOwnerKey);
       setLeaderboard((prev) => {

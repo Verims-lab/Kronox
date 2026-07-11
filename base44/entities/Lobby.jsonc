@@ -2,13 +2,21 @@
   "name": "Lobby",
   "type": "object",
   "properties": {
+    "public_ref": {
+      "type": "string",
+      "description": "Opaque client-safe lobby reference. Backend functions resolve it to the Base44 row id; raw entity ids are not returned by public lobby DTOs."
+    },
     "code": {
       "type": "string",
       "description": "6-character unique lobby code"
     },
     "host_email": {
       "type": "string",
-      "description": "Email of the lobby host"
+      "description": "Private backend-only email of a linked host. Empty for guests and never returned in public lobby DTOs."
+    },
+    "host_actor_key_hash": {
+      "type": "string",
+      "description": "Private backend actor ownership key for linked or token-proven guest hosts. Never returned to clients."
     },
     "host_kronox_user_id": {
       "type": "string",
@@ -24,7 +32,23 @@
         "type": "object",
         "properties": {
           "email": {
-            "type": "string"
+            "type": "string",
+            "description": "Private linked-player routing field. Empty for guests and stripped from every client lobby DTO."
+          },
+          "actor_key_hash": {
+            "type": "string",
+            "description": "Private backend participant ownership key. Never returned to clients."
+          },
+          "participant_ref": {
+            "type": "string",
+            "description": "Random opaque participant reference returned to authorized lobby clients for turn/winner correlation. It grants no authority by itself."
+          },
+          "player_type": {
+            "type": "string",
+            "enum": [
+              "linked",
+              "guest"
+            ]
           },
           "kronox_user_id": {
             "type": "string",
@@ -108,9 +132,21 @@
       "type": "string",
       "description": "Immutable Kronox ID of the winning player when available. Not displayed in public UI."
     },
+    "winner_actor_key_hash": {
+      "type": "string",
+      "description": "Private backend actor key of the server-validated winner. Never returned to clients."
+    },
+    "winner_participant_ref": {
+      "type": "string",
+      "description": "Opaque participant reference of the winner used by authorized clients without exposing email or internal actor keys."
+    },
     "state_revision": {
       "type": "number",
       "description": "Monotonic multiplayer state revision used by sync/merge guards."
+    },
+    "last_operation_key": {
+      "type": "string",
+      "description": "Private backend idempotency key for the most recently committed lobby mutation. Never returned by public lobby DTOs."
     },
     "category": {
       "type": "string",
@@ -242,51 +278,28 @@
     }
   },
   "required": [
-    "code",
-    "host_email"
+    "code"
   ],
   "rls": {
     "create": {
-      "data.host_email": "{{user.email}}"
+      "user_condition": {
+        "role": "admin"
+      }
     },
     "read": {
-      "$or": [
-        {
-          "data.host_email": "{{user.email}}"
-        },
-        {
-          "data.players.email": "{{user.email}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
+      "user_condition": {
+        "role": "admin"
+      }
     },
     "update": {
-      "$or": [
-        {
-          "data.host_email": "{{user.email}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
+      "user_condition": {
+        "role": "admin"
+      }
     },
     "delete": {
-      "$or": [
-        {
-          "data.host_email": "{{user.email}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
+      "user_condition": {
+        "role": "admin"
+      }
     }
   }
 }

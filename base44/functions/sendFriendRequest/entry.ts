@@ -14,6 +14,14 @@ const INTERNAL_ID_PUBLIC_USERNAME_PATTERN = /^(guest|player|owner|user_key|playe
 const normalizeEmail = (value: unknown) => String(value || '').trim().toLowerCase();
 const json = (payload: unknown, status = 200) => Response.json(payload, { status });
 
+function randomPublicRef(prefix: string) {
+  const bytes = crypto.getRandomValues(new Uint8Array(24));
+  let binary = '';
+  bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+  const token = btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  return `${prefix}_${token}`;
+}
+
 function isValidEmail(value: unknown) {
   const email = normalizeEmail(value);
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -306,7 +314,8 @@ function conflictResponse({
     error,
     message: error,
     requestStatus: request?.status || null,
-    requestId: request?.id || request?._id || null,
+    requestId: request?.public_ref || null,
+    requestRef: request?.public_ref || null,
     inputKind,
     targetLabel: target.username,
     recipientRegistered: target.registered,
@@ -498,7 +507,9 @@ Deno.serve(async (req) => {
       }
 
       const expiresAt = new Date(nowMs + FRIEND_REQUEST_TTL_MS);
+      const publicRef = randomPublicRef('friendreq');
       const created = await base44.asServiceRole.entities.FriendRequest.create({
+        public_ref: publicRef,
         from_email: fromEmail,
         ...(fromKronoxUserId ? { from_kronox_user_id: fromKronoxUserId } : {}),
         from_name: senderName,
@@ -524,7 +535,8 @@ Deno.serve(async (req) => {
 
       return json({
         ok: true,
-        requestId: created?.id || created?._id || null,
+        requestId: created?.public_ref || publicRef,
+        requestRef: created?.public_ref || publicRef,
         requestStatus: 'pending',
         inputKind,
         targetLabel: target.username,

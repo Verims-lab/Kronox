@@ -19,11 +19,11 @@ import {
   ONLINE_LOBBY_ACTIONS,
   ONLINE_LOBBY_PHASES,
 } from '@/lib/onlineLobbyReducer';
-import {
-  acceptGameInviteFnSource,
-  findLobbyByCodeFnSource,
-  startLobbyGameFnSource,
-} from './simulationPanelContractStrings.jsx';
+import acceptGameInviteFnSource from '../../../base44/functions/acceptGameInvite/entry.ts?raw';
+import findLobbyByCodeFnSource from '../../../base44/functions/findLobbyByCode/entry.ts?raw';
+import startLobbyGameFnSource from '../../../base44/functions/startLobbyGame/entry.ts?raw';
+import updateLobbyGameStateFnSource from '../../../base44/functions/updateLobbyGameState/entry.ts?raw';
+import lobbyGatewaySource from '../../lib/dbGateway/lobbyGateway.js?raw';
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL' };
 const ACTION_TYPES = { CODE_FIX: 'CODE_FIX' };
@@ -45,6 +45,14 @@ function missing(src, tokens) {
 function forbidden(src, tokens) {
   const s = safeStr(src);
   return tokens.filter((token) => s.includes(token));
+}
+
+function sourceSection(src, startToken, endToken) {
+  const s = safeStr(src);
+  const startIndex = s.indexOf(startToken);
+  if (startIndex < 0) return '';
+  const endIndex = s.indexOf(endToken, startIndex + startToken.length);
+  return s.slice(startIndex, endIndex < 0 ? s.length : endIndex);
 }
 
 function makeCase(id, name, run, options = {}) {
@@ -116,8 +124,9 @@ export const EXTRA_TESTS = [
       ]);
 
       const players = ['host', 'p2', 'p3', 'p4'].map((name, index) => ({
+        participant_ref: `player_${index + 1}`,
         name,
-        email: `${name}@example.com`,
+        username: name,
         ready: true,
         cards: index === 0 ? [{ id: 'seed-card', year: 1990 }] : [],
       }));
@@ -174,13 +183,17 @@ export const EXTRA_TESTS = [
 
       const newerWaiting = onlineLobbyReducer(created, {
         type: ONLINE_LOBBY_ACTIONS.LOBBY_REFRESHED,
-        lobby: { ...waitingLobby, state_revision: 4, players: [...players, { name: 'late-player', email: 'late@example.com' }] },
+        lobby: {
+          ...waitingLobby,
+          state_revision: 4,
+          players: players.map((player, index) => index === 3 ? { ...player, ready: false } : player),
+        },
       });
       const staleSameStatusRefresh = onlineLobbyReducer(newerWaiting, {
         type: ONLINE_LOBBY_ACTIONS.LOBBY_REFRESHED,
         lobby: { ...waitingLobby, state_revision: 2, players: [players[0]] },
       });
-      if (staleSameStatusRefresh.stateRevision !== 4 || staleSameStatusRefresh.playerCount !== 5) executableFailures.push('same-status stale refresh erased newer roster state');
+      if (staleSameStatusRefresh.stateRevision !== 4 || staleSameStatusRefresh.playerCount !== 4) executableFailures.push('same-status stale refresh erased newer roster state');
 
       const staleRefresh = onlineLobbyReducer(started, {
         type: ONLINE_LOBBY_ACTIONS.LOBBY_REFRESHED,
@@ -218,15 +231,20 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('four_player_join_uses_merge_retry',
-    'Code and invite joins merge/retry roster writes instead of blind array overwrite',
+    'Code and invite joins serialize and merge/retry roster writes',
     () => {
       const src = `${safeStr(findLobbyByCodeFnSource)}\n${safeStr(acceptGameInviteFnSource)}`;
       const m = missing(src, [
+        'appendActorWithRetry',
         'appendPlayerWithMergeRetry',
+        'acquireLobbyLock',
+        'acquireInviteJoinLock',
+        'mergePlayers',
         'mergePlayersByIdentity',
-        'hasPlayer',
         'state_revision: readRevision',
         'retryApplied',
+        'lobby_full',
+        'lobby_lock_unavailable',
       ]);
       if (m.length) {
         return fail('Join paths can still lose one of four concurrent players.', {
@@ -249,7 +267,7 @@ export const EXTRA_TESTS = [
         'loadAcceptedInvitePlayers',
         'mergePlayersByIdentity',
         'const startLobby',
-        'const players = startLobby.players',
+        'const players = Array.isArray(participantState.players)',
       ]);
       if (m.length) {
         return fail('startLobbyGame may still trust a stale Lobby.players array.', {
@@ -274,6 +292,8 @@ export const EXTRA_TESTS = [
         "status: 'starting'",
         'started_at',
         'state_revision: currentRevision + 1',
+        'acquireStartLock',
+        'expected_state_revision',
       ]);
       if (m.length) {
         return fail('Host start no longer clearly persists a complete shared Online state.', {
@@ -296,6 +316,7 @@ export const EXTRA_TESTS = [
         "lobby.status === 'starting'",
         "lobby.status === 'in_game'",
         'idempotent: true',
+        'hasAuthoritativeGamePayload(lockedLobby)',
       ]);
       if (m.length) {
         return fail('Host double-tap/retry can still be rejected after a successful start.', {
@@ -310,11 +331,11 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('all_participants_have_subscription_and_poll_transition',
-    'Non-host participants can transition via subscription or fallback poll',
+    'Non-host participants transition through backend snapshot polling and recovery',
     () => {
-      const src = `${safeStr(useWaitingRoomSyncSource)}\n${safeStr(onlineGameNavigationSource)}`;
+      const src = `${safeStr(useWaitingRoomSyncSource)}\n${safeStr(onlineGameNavigationSource)}\n${safeStr(lobbyGatewaySource)}`;
       const m = missing(src, [
-        'base44.entities.Lobby.subscribe',
+        'getLobbySnapshot',
         'start_fallback_poll',
         "status === 'starting' || status === 'in_game'",
         'navigateToOnlineGameRoute',
@@ -328,7 +349,7 @@ export const EXTRA_TESTS = [
           missing: m,
         });
       }
-      return pass('Waiting room has subscription + poll transition into the same online game route.',
+      return pass('Waiting room uses privacy-safe backend snapshots plus fallback polling to enter the same Online game route.',
         { verification: 'STATIC_CONTRACT' });
     }),
 
@@ -339,9 +360,9 @@ export const EXTRA_TESTS = [
       const m = missing(src, [
         'if (canRetryLobby)',
         'onRefetchLobby',
-        'base44.entities.Lobby.get',
+        'getLobbySnapshot',
         'pollIntervalId',
-        'lastSubscriptionAtRef',
+        "applyLobbyData(freshLobby, 'poll')",
       ]);
       if (m.length) {
         return fail('Game bootstrap recovery may not fetch the current started lobby after a missed event.', {
@@ -391,21 +412,81 @@ export const EXTRA_TESTS = [
         'guest_id',
         'player_key',
       ]);
-      const m = missing(`${waiting}\n${navigation}`, [
+      const backend = `${safeStr(findLobbyByCodeFnSource)}\n${safeStr(startLobbyGameFnSource)}\n${safeStr(updateLobbyGameStateFnSource)}`;
+      const m = missing(`${waiting}\n${navigation}\n${backend}`, [
         '{p.name}',
         'params.set(\'lobbyId\'',
         'params.set(\'lobbyCode\'',
+        'function publicLobby',
+        'participant_ref',
+        'username:',
       ]);
-      if (badVisible.length || m.length) {
+      const publicProjection = [
+        sourceSection(findLobbyByCodeFnSource, 'function publicPlayer', 'async function resolveLobby'),
+        sourceSection(acceptGameInviteFnSource, 'function publicLobby', 'async function ensurePublicLobbyRef'),
+        sourceSection(startLobbyGameFnSource, 'const publicLobby', 'async function resolveLobbyByPublicRef'),
+        sourceSection(updateLobbyGameStateFnSource, 'function publicLobby', 'async function resolveLobby'),
+      ].join('\n');
+      const forbiddenPublicProjection = forbidden(publicProjection, ['email:', 'owner_key', 'guest_id', 'actor_key_hash:']);
+      if (badVisible.length || m.length || forbiddenPublicProjection.length) {
         return fail('Public Online/lobby surfaces may expose private identity or lose username-first display.', {
           verification: 'STATIC_CONTRACT',
           actionType: ACTION_TYPES.CODE_FIX,
           file: 'WaitingRoomPanel + onlineGameNavigation',
-          badVisible,
+          badVisible: [...badVisible, ...forbiddenPublicProjection],
           missing: m,
         });
       }
       return pass('Lobby/start public UI remains username-first; route only carries lobby id/code.',
+        { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('guest_online_identity_is_backend_verified',
+    'Guest Online lobby and gameplay actions require a backend-verified guest proof',
+    () => {
+      const backend = `${safeStr(findLobbyByCodeFnSource)}\n${safeStr(startLobbyGameFnSource)}\n${safeStr(updateLobbyGameStateFnSource)}`;
+      const gateway = safeStr(lobbyGatewaySource);
+      const m = missing(backend, [
+        'guest_id',
+        'guest_token',
+        'hashGuestToken',
+        'guest_token_hash',
+        'invalid_guest_token',
+        "playerType: 'guest'",
+      ]);
+      const gatewayMissing = missing(gateway, ['withActorProof', 'guest_id', 'guest_token']);
+      if (m.length || gatewayMissing.length) {
+        return fail('Guest Online actions can no longer prove a stable guest actor to the backend.', {
+          verification: 'STATIC_CONTRACT',
+          actionType: ACTION_TYPES.CODE_FIX,
+          file: 'findLobbyByCode + startLobbyGame + updateLobbyGameState + lobbyGateway',
+          missing: { backend: m, gateway: gatewayMissing },
+        });
+      }
+      return pass('Guest lobby/start/gameplay calls carry a guest proof that backend functions verify before mutation.',
+        { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('lobby_mutations_fail_closed_without_lock',
+    'Create, join, invite-join, start, and turn mutations fail closed when the shared lock is unavailable',
+    () => {
+      const sources = [findLobbyByCodeFnSource, acceptGameInviteFnSource, startLobbyGameFnSource, updateLobbyGameStateFnSource];
+      const missingBySource = sources.map((source) => missing(source, [
+        'EconomyOperationLock',
+        'lobby_lock_unavailable',
+        '503',
+      ]));
+      const unsafeFallback = sources.map((source) => forbidden(source, ['return { ok: true, lock: null }']));
+      if (missingBySource.some((tokens) => tokens.length) || unsafeFallback.some((tokens) => tokens.length)) {
+        return fail('A lobby mutation path can proceed without the shared backend lock.', {
+          verification: 'STATIC_CONTRACT',
+          actionType: ACTION_TYPES.CODE_FIX,
+          file: 'lobby backend mutation functions',
+          missingBySource,
+          unsafeFallback,
+        });
+      }
+      return pass('All P0 lobby mutation paths stop with a recoverable 503 when the backend lock contract is unavailable.',
         { verification: 'STATIC_CONTRACT' });
     }),
 ];

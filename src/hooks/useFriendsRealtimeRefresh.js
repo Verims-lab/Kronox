@@ -22,8 +22,6 @@
 // local mutations, no Friendship.create reintroduced.
 
 import { useEffect, useRef } from 'react';
-import { base44 } from '@/api/base44Client';
-
 const POLL_INTERVAL_MS = 20_000;
 
 export function useFriendsRealtimeRefresh({ enabled, myEmail, refresh }) {
@@ -50,29 +48,7 @@ export function useFriendsRealtimeRefresh({ enabled, myEmail, refresh }) {
       }
     };
 
-    // (1) FriendRequest subscription — best case, near-instant.
-    let unsubscribe = null;
-    try {
-      if (base44?.entities?.FriendRequest?.subscribe) {
-        unsubscribe = base44.entities.FriendRequest.subscribe((event) => {
-          if (cancelled) return;
-          // Only react if the change involves the current user, to avoid
-          // useless refreshes when other people's requests change.
-          const me = emailRef.current;
-          const d = event?.data || {};
-          const od = event?.old_data || {};
-          const involves =
-            d.from_email === me || d.to_email === me ||
-            od.from_email === me || od.to_email === me;
-          if (involves) safeRefresh();
-        });
-      }
-    } catch (_err) {
-      // Subscription not supported in this environment — fall through to
-      // focus/polling fallbacks. Do not throw.
-    }
-
-    // (2) visibilitychange + focus — catches mobile tab-return case.
+    // Backend-sanitized snapshots are refreshed on focus and by a light poll.
     const onVisibility = () => {
       if (document.visibilityState === 'visible') safeRefresh();
     };
@@ -80,7 +56,7 @@ export function useFriendsRealtimeRefresh({ enabled, myEmail, refresh }) {
     document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('focus', onFocus);
 
-    // (3) Light interval polling fallback — only while visible.
+    // Light interval polling fallback — only while visible.
     const startPolling = () => {
       if (pollTimer) return;
       pollTimer = window.setInterval(() => {
@@ -99,7 +75,6 @@ export function useFriendsRealtimeRefresh({ enabled, myEmail, refresh }) {
 
     return () => {
       cancelled = true;
-      try { if (typeof unsubscribe === 'function') unsubscribe(); } catch (_e) { /* noop */ }
       document.removeEventListener('visibilitychange', onVisibility);
       document.removeEventListener('visibilitychange', onVisibilityPoll);
       window.removeEventListener('focus', onFocus);

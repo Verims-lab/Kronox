@@ -99,9 +99,10 @@ export const EXTRA_TESTS = [
         "import PullToRefresh from '@/components/mobile/PullToRefresh'",
         '<PullToRefresh',
         'onRefresh={() => refresh(user.email)}',
-        'loadIncomingRequests(email)',
-        'loadOutgoingRequests(email)',
-        'loadFriends(email)',
+        'loadFriendsPageSnapshot(email)',
+        'setFriends(snapshot.friends)',
+        'setIncoming(snapshot.incoming)',
+        'setOutgoing(snapshot.outgoing)',
       ]);
       if (missing.length) return fail('FriendsPage does not wire PullToRefresh to the real friend/request reload path.', { verification: 'STATIC_CONTRACT', missing });
       return pass('FriendsPage pull-to-refresh calls the same authoritative refresh that reloads friends and requests.', { verification: 'STATIC_CONTRACT' });

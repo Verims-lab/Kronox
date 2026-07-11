@@ -20,6 +20,13 @@
         "daily_wheel_claim",
         "daily_calendar_streak_claim",
         "daily_quest_claim",
+        "daily_calendar_assignment",
+        "online_match_result",
+        "lobby_create",
+        "lobby_join",
+        "lobby_leave",
+        "lobby_start",
+        "lobby_turn",
         "admin_diamond_grant"
       ],
       "description": "Economy operation type guarded by this lock."

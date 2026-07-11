@@ -13,7 +13,6 @@
 import updateProfileSettingsSource from '../../../base44/functions/updateProfileSettings/entry.ts?raw';
 import acceptGameInviteSource from '../../../base44/functions/acceptGameInvite/entry.ts?raw';
 import findLobbyByCodeSource from '../../../base44/functions/findLobbyByCode/entry.ts?raw';
-import getFriendPresenceSource from '../../../base44/functions/getFriendPresence/entry.ts?raw';
 import getOnlinePlayerSelectionSource from '../../../base44/functions/getOnlinePlayerSelection/entry.ts?raw';
 import getSoloLeaderboardSource from '../../../base44/functions/getSoloLeaderboard/entry.ts?raw';
 import createLobbyInvitePanelSource from '../lobby/CreateLobbyInvitePanel.jsx?raw';
@@ -235,7 +234,6 @@ export const EXTRA_TESTS = [
         onlinePlayerSelectionSource,
         leaderboardSource,
         lobbyUtilsSource,
-        getFriendPresenceSource,
         getOnlinePlayerSelectionSource,
         getSoloLeaderboardSource,
       ].join('\n');

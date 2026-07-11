@@ -3,10 +3,9 @@ import { isGameInviteExpired } from '@/lib/inviteApi';
 
 function hasFriendRequestShape(invite) {
   return Boolean(
-    (invite?.from_email || invite?.to_email)
-      && !invite?.lobby_id
+    invite?.request_ref
+      && !invite?.lobby_ref
       && !invite?.lobby_code
-      && !invite?.invite_target_ref
   );
 }
 

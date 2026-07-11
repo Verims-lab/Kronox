@@ -982,16 +982,10 @@ Checklist:
   `/test-suite` / Health Simulator, and the admin question analytics trigger;
   a normal account remains blocked from those surfaces and receives 403 from
   backend admin-only functions; a disabled `AdminUser` row also receives 403.
-* Runtime proof: `simulateOnlineGame` blocks unauthenticated callers, normal
-  users, and disabled/passive admins; only active `AdminUser` owner/admin rows
-  may run it. The function must not contain `en_core_news_sm`, trust
-  `user.role`, trust request-body roles, or use hardcoded admin emails.
-* Runtime proof: `resetTestAccountProgress` blocks unauthenticated callers,
-  normal users, and disabled/passive admins; only active `AdminUser`
-  owner/admin rows may reset the intended test target, and the request must
-  include exact target-email confirmation. It must not read
-  `KRONOX_TEST_RESET_EMAILS` or `TEST_RESET_EMAILS`; remove those legacy env vars
-  from deployment after this migration.
+* Removed `simulateOnlineGame`, `runTestSuite`, and
+  `resetTestAccountProgress` callables are absent from the deployment manifest;
+  local targeted Health uses source-connected helpers, and supported reset
+  tools retain AdminUser authorization plus preview/confirmation.
 * Runtime proof: when each active admin triggers the Question Analytics Report,
   the backend response shows `requestedBy` and `recipientEmail` as that same
   authenticated admin email, plus a safe email dispatch status. The report
@@ -1073,10 +1067,8 @@ Checklist:
 * Normal users cannot see `Admin Ekranı` or the `Reset User Progress` tool.
 * Unauthenticated `/adminResetUserProgress` calls return 401.
 * Authenticated non-admin `/adminResetUserProgress` calls return 403.
-* Legacy `/resetTestAccountProgress` calls also use AdminUser-backed
-  authorization, return 401/403 for unauthenticated or non-admin callers, block
-  disabled/passive admins, require exact target-email confirmation, and do not
-  use `KRONOX_TEST_RESET_EMAILS` / `TEST_RESET_EMAILS`.
+* The removed `/resetTestAccountProgress` callable is not deployed or called;
+  current admin reset routes remain AdminUser-gated.
 * Admin preview by target email shows only safe summary values.
 * Execute requires typing the exact target email again.
 * `Hard zero reset` sets visible Kronox Puan, Solo progress, Online progress, Elmas, legacy GameRecord rows, and leaderboard projection to 0 / starting state.
@@ -1222,11 +1214,9 @@ Checklist:
 * Question Analytics report handles stale/deleted question IDs, unknown
   categories, section-level render failures, and empty analytics state without
   truncating the email; large sections remain capped.
-* Solo category-distribution investigations use
-  `scripts/diagnoseSoloQuestionStartQuery.mjs` with live Base44 service-role
-  credentials, or the optional admin-only `diagnoseSoloQuestionStartQuery`
-  backend function after it is deployed. Do not expose a production Admin
-  Ekranı button unless the function path is deployed and verified. The script
+* Solo category-distribution investigations use the local service-role-only
+  `scripts/diagnoseSoloQuestionStartQuery.mjs`; no diagnostic backend callable
+  or production Admin Ekranı button is deployed. The script
   must be run with the app-specific `BASE44_APP_BASE_URL` or
   `VITE_BASE44_APP_BASE_URL`; do not let Node diagnostics silently default to
   the generic `base44.app` host. The script prints a safe config summary
@@ -1387,3 +1377,39 @@ Before release, manually verify guest-to-account linking:
   existing section
 * analytics per-player labels are `User0001` style and do not expose email,
   provider ids, raw guest id/token, owner key, internal player key, or username
+
+## Hamle 2 P0 Release Gates
+
+Automated/source-connected gates:
+
+* `npm run check:base44-functions` reports at most 50 entries, exact
+  `@base44/sdk` `0.8.34` package/lock/Deno pins, and no removed callable paths.
+* Online client source contains no direct `OnlineMatchResult`, User/GuestProfile
+  Online score, or leaderboard projection writes.
+* `updateLobbyGameState` rejects forged/nonterminal/nonparticipant result
+  commits, derives `+15`/`-6`, reserves one actor/lobby receipt, and reconciles
+  an interrupted profile-before-receipt write.
+* Linked and token-proven guest actors can use backend lobby/result paths;
+  invalid guest proof fails. Public Online/social DTO recursive checks reject
+  email, display_name, provider/owner/raw guest/actor/internal IDs, and private
+  storage/transaction metadata.
+* Create/join/invite-join/leave/start/turn mutations use expected revision and
+  fail-closed deterministic lock guards. Capacity is four and duplicate starts
+  return the canonical one-deck state.
+* Daily assignment simulation requires all three distinct expected task keys;
+  duplicate rows cannot complete a day/cycle. Progress ignores client amount
+  and requires same-actor/server-day persisted source proof. Training Joker/
+  Hint use has no valid spend receipt.
+* `INVITE_OPENED` and toast dismissal preserve actionable rows. Failed
+  accept/decline preserves rows and safe Turkish errors; confirmed terminal
+  state removes/closes them.
+* BottomNav still exposes only `Ana Sayfa`, `Liderlik`, and `Profil`.
+
+Manual release gates that source cannot prove:
+
+* Run a fresh `adminDuplicateKeyReport` dry-run and require zero duplicates for
+  documented P0 logical keys before platform unique-index configuration.
+* Run live parallel two-device probes for lobby join/start/turn, Online result,
+  Daily assignment/reward, wheel/store spend, and Joker/Hint spend.
+* Verify deployed Base44 RLS/BOLA and completed-guest token behavior with
+  separate accounts. Static Health PASS is not release proof.
