@@ -26,9 +26,9 @@ Mechanical scan from this pass:
 | Item | Current count / finding |
 | --- | --- |
 | Audited source/doc/script files in requested folders | 416 |
-| Base44 entity schemas | 35 |
-| Base44 function entry files | 52 |
-| Base44 function manifests in repo | 22 |
+| Base44 entity schemas | 40 |
+| Base44 function entry files | 50; all pass `npm run check:base44-functions` |
+| Base44 function manifests in repo | 29 |
 | Files touching `base44.` / SDK calls in source, backend, scripts, or Health | 151 |
 | Existing DB gateway start | `src/lib/dbGateway/*`, plus many direct Base44 calls remain |
 | Health coverage | Broad static and some executable cases; live two-account and device proof remain manual |
@@ -37,13 +37,13 @@ Mechanical scan from this pass:
 
 | Area | Current entry points | Data source | State owner | Separation | Deterministic critical state | Direct Base44 spread | Security risks | Performance risks | Health coverage | Recommended action |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Solo | `src/pages/SoloChallenge.jsx`, `src/pages/Game.jsx`, `src/components/game/SoloLevelResult.jsx`, `SoloSuccessPopup.jsx` | `getQuestions`, `User.solo_progress`, guest payload, local engine helpers | Mostly `Game.jsx` hooks/state | Partial MVVM: helpers exist, page still owns much flow state | Phase 1 reducer exists in `src/lib/soloAttemptReducer.js`; runtime effects still live in `Game.jsx` | Yes: `auth.me`, progress writes, question fetch gateway | Raw question bank exposure is controlled by `getQuestions`; guest token proof must stay tight | `Game.jsx` is large; drag/drop must avoid heavy work | Strong static/executable coverage for Solo rules, reducer, question exposure, records | Integrate reducer behind a Solo ViewModel in later small handoffs |
-| Online | `LobbyRoom.jsx`, `WaitingRoomPanel.jsx`, `useWaitingRoomSync`, `useLobbySync`, `Game.jsx` | `Lobby`, `GameInvite`, `OnlineMatchResult`, `findLobbyByCode`, `startLobbyGame`, `updateLobbyGameState` | Client reducer/hook projection over backend authority | `lobbyGateway` owns every mutation command; UI consumes public snapshots | Phase 1 reducer plus backend expected revision/fail-closed lock; one canonical start deck/result receipt | No direct client Lobby/result/profile-score/leaderboard mutation remains | Linked and token-proven guest actor proof, participant/host checks, max four, terminal result verification, sanitized DTO | Subscription plus polling can scale poorly without backoff and unified owner | Source-connected authority/privacy/guest/revision/idempotency cases plus reducer simulation | Keep live parallel two-device join/start/result proof as release gate; no P1 extraction in Hamle 2 |
+| Solo | `src/pages/SoloChallenge.jsx`, `src/pages/Game.jsx`, `src/components/game/SoloLevelResult.jsx`, `SoloSuccessPopup.jsx` | `getQuestions`, player `solo_progress`, local engine helpers | `useSoloAttemptViewModel` over `soloAttemptReducer`; page owns rendering and external effects | Phase 1 runtime handoff completed without route or scoring changes | Reducer owns evaluated moves, mistakes, remaining moves, terminal state, persistence status, and joker summary | Persistence is isolated in `features/solo/services/soloAttemptEffects.js`; question fetch remains gateway-owned | Raw question bank exposure is controlled by `getQuestions`; guest token proof stays backend-verified | `Game.jsx` remains large; further extraction must be incremental | Executable reducer plus runtime-connected ViewModel/effect/placement Health | Continue small render/effect extractions only after device proof |
+| Online | `LobbyRoom.jsx`, `WaitingRoomPanel.jsx`, `useWaitingRoomSync`, `useLobbySync`, `Game.jsx` | `Lobby`, `GameInvite`, `OnlineMatchResult`, backend lobby functions | Client reducer/hook projection over backend authority | `lobbyGateway` owns commands and scoped snapshots; waiting-room DTO omits deck/question/player-card payload | Phase 1 reducer plus expected revision/fail-closed lock; one canonical start deck/result receipt | No direct client Lobby/result/profile-score/leaderboard mutation remains | Linked and token-proven guest actor proof, participant/host checks, max four, sanitized DTO | One shared non-overlapping adaptive poller per hook replaces duplicate fixed intervals; live scale proof remains manual | Executable poller/reducer plus source-connected authority/privacy/recovery Health | Keep live parallel multi-device join/start/result proof as release gate |
 | Notifications | `useNotificationCenter`, `useHeaderNotifications`, `HeaderNotificationBell`, `GameInviteNotifier`, `IncomingInvitesPanel` | Backend social snapshot/invite functions plus push APIs | Shared external store in `useNotificationCenter` | Reducer is lifecycle owner; effects remain in hook/API | Transient empty/error fetches and `INVITE_OPENED` preserve actionable rows; confirmed terminal events close | Direct entity reads replaced on active social/invite paths | Username-safe labels; raw errors/private IDs stripped | Multiple subscriptions/focus refreshes need bounded cadence as usage grows | Executable nonterminal-open, transient preservation, terminal close, and safe-error cases | Keep reducer/store; live failed accept/decline proof remains manual |
-| Social presence / player selection | `usePresenceHeartbeat`, `useFriendPresence`, Online player picker rows | `PlayerPresence`, `updatePlayerPresence`, `getOnlinePlayerSelection` player/social snapshot, `createGameInvitesForTargets`, accepted `FriendRequest` rows | App heartbeat hook plus backend-owned snapshot | Focused service/helper boundary; UI consumes derived privacy-safe rows | Presence freshness is 75s TTL-based and best-effort; offline fallback is safe | Backend functions hide direct presence/friend reads and invite target resolution | Linked/guest proof; accepted-friend scope; username/safe avatar/status plus opaque target ref only | Visible UI polling is bounded and preserves prior rows through transient failures | Focused privacy/guest/presence/invite Health | Keep presence best-effort; add live multi-account selection/invite proof before release claims |
-| Profile / Settings / Account linking | `ProfilePage`, `SettingsPage`, `AuthContext`, guest/account helpers | Base44 auth `User`, `GuestProfile`, `linkGuestAccount`, `updateProfileSettings` | Auth context plus page-local state | Partial ViewModel; service helpers exist | Link flow guarded by backend token proof/idempotency | Yes | Account linking and deletion require two-account/manual privacy proof | Profile calls can repeat on mount/focus; acceptable at current scale | Strong onboarding/profile/account Health | Move more page auth/profile logic behind profile service boundary |
-| Leaderboard | `LeaderboardPage`, `src/lib/leaderboard.js`, `getSoloLeaderboard` | `SoloLeaderboardEntry`, bounded server repair from `User`, guest proof | Page state plus leaderboard helpers | Service boundary exists | Public rank confidence/scope explicit | Some direct projection writes remain | Public response must never expose email/owner_key/raw guest id | Top-window list bounded; projection repair can grow cost | Strong public payload/privacy Health | Keep API compact; add DB/index proof later |
-| Economy / Daily / Jokers | Market, Daily Wheel, Daily Calendar, joker/hint helpers/functions | Ledgers, current inventories, canonical `UserDailyQuestProgress` | Feature hooks over backend functions | Mixed; service helpers exist | Fail-closed locks/reservations, canonical distinct Daily keys, source provenance; DB unique proof absent | No trusted client reward/progress amount | Client cannot set rewards/cost/identity/progress; training consumables excluded | Retry/double-tap paths still need live parallel proof | Source-connected canonical/provenance/idempotency Health; platform proof manual | Configure platform uniqueness after fresh zero-duplicate report; keep Hamle 3 refactor separate |
+| Social presence / player selection | `usePresenceHeartbeat`, `useFriendPresence`, Online player picker rows | `PlayerPresence`, `updatePlayerPresence`, `getOnlinePlayerSelection`, `createGameInvitesForTargets` | App heartbeat hook plus backend-owned snapshot | Focused boundary; one bounded User profile batch hydrates safe public rows | Presence freshness is 75s TTL-based and best-effort; offline fallback is safe | Backend hides direct presence/friend reads and recipient resolution | Linked/guest proof; username/safe avatar/status plus opaque target ref only | One bounded public-profile scan replaces per-friend profile reads; live scale/index proof remains manual | Batched-read/privacy/guest/presence/invite Health | Keep presence best-effort and prove multi-account selection/invite live |
+| Profile / Settings / Account linking | `ProfilePage`, `SettingsPage`, `ProfileEditPage`, `AuthContext`, `useCurrentPlayerProfile` | Base44 auth `User`, `GuestProfile`, linking/settings functions | AuthContext is canonical identity owner; shared ViewModel maps linked/guest player | Profile and Leaderboard no longer duplicate auth/profile hydration | Link and guest inventory flows use token proof/idempotency | Direct Base44 auth duplication removed from Profile | Account linking/deletion still require two-account/manual privacy proof | Shared mapping removes repeated profile bootstrap; inventory cache remains scoped | Canonical actor, navigation, privacy, and guest inventory Health | Reuse the ViewModel in more read-only profile consumers when safe |
+| Leaderboard | `LeaderboardPage`, `src/lib/leaderboard.js`, `getSoloLeaderboard` | Materialized `SoloLeaderboardEntry`, bounded backend maintenance fallback, guest proof | Page state plus leaderboard helper | Hot page path is read-only and projection/cache-first | Public rank confidence/scope explicit | Projection writes occur on score/progress mutation, not Leaderboard page read | Public response never exposes email/owner_key/raw guest id | Top-window reads are bounded; DB index proof remains manual | Read-purity plus public payload/privacy Health | Keep repairs in backend/admin/background paths and add DB/index proof later |
+| Economy / Daily / Jokers | Market, Daily Wheel, Daily Calendar, joker/hint helpers/functions | Ledgers, current inventories, canonical `UserDailyQuestProgress` | Feature hooks over backend functions | Shared Joker helper supports linked and token-proven guest actors; Daily status policy is explicit | Fail-closed locks/reservations, canonical distinct Daily keys, source provenance; DB unique proof absent | No trusted client reward/progress amount | Guest actor keys stay internal; client cannot set reward/cost/progress; training consumables excluded | Daily summary writes only when values change; one guarded assignment repair remains; live parallel proof still needed | Source-connected canonical/provenance/idempotency/guest UX Health | Configure platform uniqueness after zero-duplicate proof; move remaining status repair to events only in a later migration |
 | Questions / Categories | `useOfflineQuestions`, `soloQuestionEngine`, `getQuestions`, `getCategoryMetadata`, category preferences | Backend functions and Category/Question entities | Hooks plus engine helpers | Good model/service split in engine; UI still coordinates fetch state | Deck builder deterministic after prebuilt deck | Raw direct reads mostly admin/Health; gameplay uses function | Full question bank exposure remains P0 risk | Per-category fetch is bounded; cache invalidation guarded | Strong question exposure/category Health | Keep all gameplay behind `getQuestions`; avoid client fallback |
 | Admin / Health | `AdminPage`, `SimulationPanel`, `src/components/game/health/*` | Static raw source imports, docs mirrors, admin functions | Health runner/report builder | Health panel already split | Health report deterministic; manual gates preserved | Health reads raw source only | Admin access remains backend AdminUser-bound | Health can be heavy; batching/yielding exists | Extensive | Add architecture-audit docs guard; do not treat Health PASS as release proof |
 | Shared components | Layout, buttons, cards, top bars | Props and shared helpers | Component-local | Mostly View-only | N/A | Low | Public identity display must remain sanitized | Asset/image size and animations affect mobile | Mobile visual Health and docs | Keep reusable components presentational |
@@ -57,21 +57,22 @@ Mechanical scan from this pass:
 1. Direct Base44 access remains spread through pages, hooks, shared libs, and
    scripts. This is acceptable for the current production path but blocks a
    clean MVVM/service boundary.
-2. `Game.jsx` still owns too much Solo gameplay orchestration. Pure helpers
-   exist, and Phase 1 adds `src/lib/soloAttemptReducer.js`, but current
-   runtime side effects have not yet been moved behind a Solo ViewModel.
-3. Online lobby state is still split across `LobbyRoom`, `useWaitingRoomSync`,
-   `useLobbySync`, route state, and backend functions, but Phase 1 now adds
-   `src/lib/onlineLobbyReducer.js` and wires waiting-room subscription/poll
-   events into it.
+2. `Game.jsx` remains large, but evaluated-move/terminal attempt state now runs
+   through `useSoloAttemptViewModel` and `soloAttemptReducer`; persistence is
+   isolated in `soloAttemptEffects`. Rendering, timer presentation, inventory,
+   Daily events, analytics, and record requests still need later small handoffs.
+3. Online lobby state still spans route bootstrap, hooks, reducer, and backend
+   authority. Waiting/game snapshot scopes now partition roster data from the
+   active deck, and both lobby hooks use a shared adaptive polling fallback.
 4. Notifications are closest to the desired shape: shared store plus selectors
    and view model. Phase 1 now adds `src/lib/notificationReducer.js` as the
    lifecycle owner for fetch, subscription, terminal, dismiss, accept, reject,
    expiry, and invalidation events.
 5. Data model uniqueness, indexes, and live RLS/BOLA behavior cannot be proven
    from repo source alone. They remain manual/platform proof gates.
-6. Health contains many static contract checks. This is useful for drift, but
-   real Online/realtime/push/security proof still needs simulation/live probes.
+6. Health contains many static contract checks. Hamle 3 retargets the touched
+   paths and adds an executable adaptive-poller probe, but Online/realtime/
+   push/security and mobile performance still need live/device proof.
 
 ## Safe Fixes In This Pass
 
@@ -123,6 +124,31 @@ Mechanical scan from this pass:
 - Corrected invite navigation Health expectations from the older
   `lobby: updatedLobby` token to the current `verifiedLobby` / `joinedLobby`
   contract.
+- Integrated `soloAttemptReducer` into production through
+  `src/features/solo/viewModel/useSoloAttemptViewModel.js`, extracted pure
+  runtime mapping/config in `features/solo/model`, and moved persistence behind
+  `features/solo/services/soloAttemptEffects.js`. Scoring, level types,
+  training-consumable rules, routes, and visible behavior remain unchanged.
+- Added waiting-room/game snapshot scopes and one reusable adaptive poller.
+  Waiting-room responses stop before active deck/question payload, and fixed
+  interval/focus/visibility loop ownership was consolidated.
+- Replaced Online player-selection per-friend profile reads with one bounded
+  server-side profile batch. The client response remains username/avatar/
+  presence plus opaque target references only.
+- Reduced Daily status write-on-read work to one guarded idempotent assignment
+  repair, same-day receipt reconciliation, and summary projection writes only
+  when values change. The remaining repair is explicit and is not an event-log
+  migration.
+- Removed Leaderboard page repair/publish/backfill calls from its hot read path;
+  it now reads cached/materialized projection snapshots only.
+- Added `useCurrentPlayerProfile` as the shared linked/guest mapping used by
+  Profile and Leaderboard. Completed guests now see and spend real backend-owned
+  Joker/Hint balances; Store purchase remains explicitly login-gated.
+- Reduced typecheck diagnostics from 1,260 to 370 by resolving Vite raw-module
+  imports and the one untyped confetti package without changing runtime aliases.
+  Remaining component-prop/inference errors are tracked for later cleanup.
+- Added the runtime-connected `Architecture P1 Health Suite` and retargeted
+  stale reducer, lobby polling, Leaderboard read, and guest inventory checks.
 - No broad runtime refactor was attempted.
 - No Base44 migration work was started.
 

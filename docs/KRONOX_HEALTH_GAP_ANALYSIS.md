@@ -69,6 +69,16 @@ fallback polling/refetch.
   Leaderboard checks require projection-first paint followed by sanitized
   backend friend enrichment; Online result checks prove reserve-before-score
   ordering and structured retry-safe audit failure in updateLobbyGameState.
+- Hamle 3 adds the runtime-connected Architecture P1 suite. It executes the
+  adaptive poller overlap/backoff contract and guards production Solo reducer/
+  ViewModel ownership, waiting/game DTO partition, one bounded social profile
+  batch, guarded Daily projection writes, Leaderboard read purity, canonical
+  linked/guest profile mapping, token-proven guest inventory visibility, Home/
+  BottomNav geometry, and typecheck module-resolution progress.
+- Retargeted old Joker, Online recovery, and Leaderboard cases away from exact
+  call formatting and retired local counters. Replacement checks fail if fixed
+  polling intervals, read-time Leaderboard publish/backfill, client-owned guest
+  inventory keys, or direct inventory mutation paths return.
 - Added focused friend/presence coverage so fake-online friend pickers, email
   display fallbacks, unscoped presence reads, non-current-user presence writes,
   stale heartbeat timing, missing guest token proof, transient-fetch clearing,
@@ -163,7 +173,7 @@ fallback polling/refetch.
 | --- | --- | --- |
 | 4-player Online lobby join/start | Source-connected backend lock/revision/cap/one-deck checks plus executable reducer phase simulation | Live parallel multi-client Base44 probe remains manual |
 | Host start shared state | Static source markers for deck/current question/status/revision | Backend runtime probe against deployed `startLobbyGame` |
-| Non-host recovery | Static sanitized poll/focus/visibility refetch markers plus reducer recovery simulation | Browser automation with delayed/missed refresh and reconnect timing |
+| Non-host recovery | Executable non-overlap/backoff poller probe plus scoped sanitized refresh/reducer recovery checks | Browser automation with delayed/missed refresh and reconnect timing |
 | Invite accept verified lobby | Static `verifiedLobby`/`joinedLobby` contract | Deployed function freshness marker or Base44 test-function proof |
 | Notification no-flicker | Executable merge/reducer tests plus static ViewModel guards | Timed UI harness with transient empty fetch injection |
 | Friend/player online/offline presence | Static backend contract and UI-helper checks for `PlayerPresence`, runtime heartbeat session, 75s TTL, token-proven guest presence, accepted-friend lookup, online non-friend selection, offline fallback, previous-row preservation, opaque target refs, and username-only labels | Multi-account live proof: user B appears online after heartbeat, user C appears as an online non-friend, and stale/offline rows fall out correctly |
@@ -178,6 +188,8 @@ fallback polling/refetch.
 | App startup / Home first render | Static startup fast-path checks for direct Home shell import, cached GuestProfile repeat launch, post-paint AuthContext maintenance, deferred presence/invite/category modules, idle Market/Liderlik warm-up, and delayed Daily Wheel/Daily Calendar status refresh | Manual Android/WebView proof for cold/repeat app launch, splash duration, dark-loader duration, first Home paint, and deployed Base44 latency |
 | Daily Calendar / Streak Diamond-only | Executable canonical distinct-key fixture plus source-connected assignment/provenance/claim guards | Two-device assignment/claim race and platform unique-index proof |
 | Leaderboard username-only | Static public payload checks | RLS/BOLA live probe |
+| Guest Joker/Hint inventory | Runtime-connected token-proof/cache/UI checks; no fake balance or public actor key | Guest device spend/reload/account-link parity and cross-account RLS probe |
+| Typecheck progress | Vite raw imports, scoped vendor declaration, and touched P1 modules are checked; diagnostics reduced from 1,260 to 370 | Continue component-prop/inference cleanup until `npm run typecheck` can block release |
 | Online category isolation | Static start/Game/Health mirror checks | Live lobby start with Solo preferences set differently |
 | No raw Question.list gameplay fallback | Static source checks | Deployed `getQuestions` marker proof |
 | Economy idempotency | Static guard checks plus function-level operation lock/recheck coverage | Platform unique/index proof or transactional replacement |

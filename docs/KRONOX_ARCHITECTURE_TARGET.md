@@ -86,8 +86,10 @@ Parity plan:
 ### Solo Gameplay Completion / Records
 
 Current:
-- `Game.jsx` owns attempt lifecycle, timers, placement, persistence, result
-  routing, and record popup handoff.
+- `useSoloAttemptViewModel` owns reducer-backed evaluated moves, remaining
+  moves, terminal attempt state, persistence status, and joker-use summary.
+- `Game.jsx` still coordinates timers, placement UI, inventory/Daily/analytics
+  effects, result routing, and record popup handoff.
 - Pure helpers exist for scoring, deck building, question runtime, and record
   context.
 
@@ -99,13 +101,16 @@ Target:
   record context request.
 - View renders `SoloLevelResult` from reducer state only.
 
-Phase 1 foundation:
+Phase 1 runtime integration:
 - `src/lib/soloAttemptReducer.js` defines the pure, effect-free Solo attempt
   state contract for current HAMLE rules, persistence status, joker usage
   summary, and backend record-context eligibility.
-- `Game.jsx` still owns the active runtime side effects in Phase 1. Later
-  integration should route one handoff at a time through a ViewModel before
-  changing render behavior.
+- `src/features/solo/model/soloRuntimeModel.js` maps level configuration,
+  placement feedback, elapsed time, and result inputs without effects.
+- `src/features/solo/viewModel/useSoloAttemptViewModel.js` is the production
+  attempt-state owner, while `features/solo/services/soloAttemptEffects.js`
+  owns persistence calls. Network, inventory, Daily, analytics, sound, and
+  record-context effects remain outside the reducer.
 
 Parity plan:
 - Keep current scoring and HAMLE thresholds unchanged.
@@ -120,6 +125,10 @@ Current:
 - Recent fixes added merge/retry joins, accepted-invite reconciliation,
   idempotent start, and sanitized snapshot recovery through polling plus
   focus/visibility refresh.
+- Waiting-room requests use a roster/config projection; active participants
+  use a separate game projection for current question/deck state.
+- `useWaitingRoomSync` and `useLobbySync` share a visibility-aware,
+  non-overlapping adaptive poller instead of owning duplicate fixed intervals.
 
 Target:
 - `onlineLobbyReducer` owns phases: `idle`, `creating`, `waiting`,
@@ -136,8 +145,9 @@ Phase 1 foundation:
 - `src/lib/onlineLobbyReducer.js` defines the pure, effect-free lobby phase
   state contract for create/join/invite/start/recovery/expired transitions.
 - `useWaitingRoomSync` and `useLobbySync` feed authoritative sanitized snapshot
-  events into the reducer. Polling plus focus/visibility refresh replaces
-  direct Lobby entity subscription, while route payloads remain bootstrap-only.
+  events into the reducer. `createAdaptivePoller` centralizes fallback cadence,
+  focus/reconnect/visibility triggers, overlap prevention, and bounded backoff;
+  route payloads remain bootstrap-only.
 - Started state is client-visible only after the backend-owned shared game
   state is present.
 
@@ -146,6 +156,24 @@ Parity plan:
 - Add simulation-level Health for 4-player join/start/recovery before any
   broad restructuring.
 - Keep two-account live proof manual.
+
+### Profile / Inventory / Projection Reads
+
+Current Phase 1 boundary:
+- `useCurrentPlayerProfile` maps AuthContext into one linked/guest player,
+  guest proof payload, admin state, refresh, and logout surface. Profile and
+  Leaderboard consume this mapping instead of performing their own auth/profile
+  bootstrap.
+- Profile shows real current Joker and Hint balances for completed guests.
+  Guest reads/spends use backend token verification and internal
+  `guest:<g_owner_key>` economy keys; responses never return that key or token.
+- Store Diamond purchases remain deliberately login-gated with explicit copy;
+  no guest purchase or fake balance was added.
+- Leaderboard page reads cached/materialized projection snapshots only. Score
+  mutation paths publish projections; page reads do not repair or backfill.
+- Daily status retains one guarded missing-row repair because assignment events
+  are not yet fully append-only. Receipt reconciliation is same-player/day and
+  summary projection writes are skipped when values are unchanged.
 
 ### Friend/Game Invite Notifications
 

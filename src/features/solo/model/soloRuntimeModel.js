@@ -14,6 +14,7 @@ function positiveInt(value, fallback = 1) {
   return Number.isFinite(number) && number > 0 ? Math.floor(number) : fallback;
 }
 
+/** @param {{ levelNumber?: number, maxMoves?: number }} [soloLevel] */
 export function buildSoloRuntimeConfig(soloLevel = {}) {
   const levelNumber = positiveInt(soloLevel?.levelNumber, 1);
   const canonicalMaxMoves = getSoloMaxEvaluatedMovesForLevel(levelNumber);
@@ -41,6 +42,10 @@ export function buildSoloRuntimeConfig(soloLevel = {}) {
   });
 }
 
+/**
+ * @param {{ result?: string, cardId?: string | number, questionId?: string | number }} feedback
+ * @param {{ protectedByJoker?: boolean }} [options]
+ */
 export function mapSoloPlacementFeedback(feedback, { protectedByJoker = false } = {}) {
   const result = String(feedback?.result || '');
   if (result !== 'correct' && result !== 'wrong') return null;
@@ -52,6 +57,17 @@ export function mapSoloPlacementFeedback(feedback, { protectedByJoker = false } 
   };
 }
 
+/**
+ * @param {{
+ *   cardsCompleted?: number,
+ *   cardTarget?: number,
+ *   elapsedSeconds?: number,
+ *   maxMoves?: number,
+ *   mistakeCount?: number,
+ *   usedMoveCount?: number,
+ *   failReason?: string | null,
+ * }} [options]
+ */
 export function buildSoloRuntimeResult({
   cardsCompleted,
   cardTarget,
@@ -89,6 +105,15 @@ export function buildSoloRuntimeResult({
   };
 }
 
+/**
+ * @param {{
+ *   enabled?: boolean,
+ *   rawElapsedSeconds?: number,
+ *   frozen?: boolean,
+ *   frozenAtSeconds?: number,
+ *   offsets?: number[],
+ * }} [options]
+ */
 export function calculateSoloEffectiveElapsedSeconds({
   enabled,
   rawElapsedSeconds,

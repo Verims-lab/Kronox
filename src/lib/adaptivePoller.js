@@ -9,6 +9,17 @@ function clampDelay(value, fallback) {
   return Number.isFinite(number) && number >= 0 ? Math.floor(number) : fallback;
 }
 
+/**
+ * @param {{
+ *   task?: (source: string) => unknown | Promise<unknown>,
+ *   minDelayMs?: number,
+ *   maxDelayMs?: number,
+ *   backoffFactor?: number,
+ *   onError?: (error: unknown, source: string, failureCount: number) => void,
+ *   windowObject?: any,
+ *   documentObject?: any,
+ * }} [options]
+ */
 export function createAdaptivePoller({
   task,
   minDelayMs = ADAPTIVE_POLLER_DEFAULTS.minDelayMs,

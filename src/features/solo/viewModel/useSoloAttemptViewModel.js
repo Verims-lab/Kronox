@@ -9,10 +9,16 @@ import {
   mapSoloPlacementFeedback,
 } from '../model/soloRuntimeModel';
 
+/** @param {any} state @param {any} action */
+function reduceSoloAttemptState(state, action) {
+  return soloAttemptReducer(state, action);
+}
+
+/** @param {{ enabled?: boolean, soloLevel?: { levelNumber?: number, maxMoves?: number } }} [options] */
 export function useSoloAttemptViewModel({ enabled, soloLevel } = {}) {
   const config = useMemo(() => buildSoloRuntimeConfig(soloLevel), [soloLevel]);
   const [state, dispatch] = useReducer(
-    soloAttemptReducer,
+    reduceSoloAttemptState,
     config,
     createSoloAttemptInitialState,
   );
@@ -22,6 +28,7 @@ export function useSoloAttemptViewModel({ enabled, soloLevel } = {}) {
     stateRef.current = state;
   }, [state]);
 
+  /** @param {any} action */
   const dispatchRuntimeAction = useCallback((action) => {
     stateRef.current = soloAttemptReducer(stateRef.current, action);
     dispatch(action);

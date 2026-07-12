@@ -50,6 +50,11 @@ and exports must use username-safe or anonymized labels.
   fallback path and never returns full User rows.
 - Guest account linking has a ledger-like `AccountLinkTransaction`.
 - Daily Quest and Daily Wheel are separate from Kronox Puan.
+- Daily Calendar status reads now expose an explicit repair policy: one
+  idempotent missing-row assignment repair, same-player/same-day wheel receipt
+  reconciliation, a 420-row history bound, no redundant second repair, and
+  summary projection writes only when values change. This reduces write-on-read
+  without pretending assignment is already a fully append-only event stream.
 - Unified Kronox Puan is the player-facing score source: Solo contributes the
   Solo best-score component and Online contributes `User.online_progress.score`.
 - Online match scoring is flat and unified: winner `+15` Kronox Puan, loser
@@ -76,6 +81,10 @@ and exports must use username-safe or anonymized labels.
   `GameInvite`, but it is still a lifecycle row, not an append-only reporting
   event stream.
 - Notification shown/dismissed behavior is mostly UI state, not reporting data.
+- Daily assignment still needs a guarded write on first read when canonical
+  rows are missing. Replacing that repair with scheduled/event-driven
+  projection is deferred until a backend event/scheduler migration can be
+  proved against existing guest and linked histories.
 - DB unique/index proof is not present in repo for several idempotency keys.
 - DB/index proof for `SoloLeaderboardEntry.total_kronox_score` and
   `owner_key` remains manual/platform-level; the repo uses bounded sorted

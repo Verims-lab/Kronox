@@ -172,7 +172,9 @@ export const EXTRA_TESTS = [
     'Backend score applies once per actor and lobby',
     () => {
       const missing = missingTokens(updateLobbyGameStateSource, [
-        'online_match_result:${rowId(lobby)}:${actor.actorKeyHash}',
+        'function buildOnlineMatchResultIdempotencyKey',
+        'return `online_match_result:${lobbyId}:${actorKeyHash}`',
+        'buildOnlineMatchResultIdempotencyKey(rowId(lobby), actor.actorKeyHash)',
         "resultEntity.filter({ idempotency_key: idempotencyKey }",
         'canonicalApplied',
         'reservationAlreadyWritten',

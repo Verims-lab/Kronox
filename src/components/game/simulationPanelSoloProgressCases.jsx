@@ -29,6 +29,8 @@ import gamePageSource from '../../pages/Game.jsx?raw';
 import soloChallengeSource from '../../pages/SoloChallenge.jsx?raw';
 import soloLevelsLibSource from '../../lib/soloLevels.js?raw';
 import soloAttemptReducerSource from '../../lib/soloAttemptReducer.js?raw';
+import soloAttemptViewModelSource from '../../features/solo/viewModel/useSoloAttemptViewModel.js?raw';
+import soloRuntimeModelSource from '../../features/solo/model/soloRuntimeModel.js?raw';
 import soloProgressHelpersSource from '../../lib/soloProgressHelpers.js?raw';
 import soloRankingSource from '../../lib/soloRanking.js?raw';
 import soloLevelRecordSource from '../../lib/soloLevelRecord.js?raw';
@@ -777,19 +779,22 @@ export const EXTRA_TESTS = [
   makeCase('solo_progress_health', 'solo_move_based_runtime_contract',
     'Solo v3 uses remaining moves: only evaluated placements decrement, popups show HAMLE, Online stays separate',
     () => {
+      const runtimeSource = `${gamePageSource}\n${soloAttemptViewModelSource}\n${soloRuntimeModelSource}\n${soloAttemptReducerSource}`;
       const required = [
-        ...missingTokens(gamePageSource, [
-          'const [usedMoveCount, setUsedMoveCount] = useState(0)',
+        ...missingTokens(runtimeSource, [
+          'useSoloAttemptViewModel',
+          'usedMoveCount: state.usedMoves',
           'remainingMoveCount',
           "feedback.result === 'wrong'",
           "feedback.result === 'correct'",
-          'setUsedMoveCount((prev) => Math.min(soloMaxMoves, prev + 1))',
-          'if (mistakeShieldActive)',
+          'evaluateSoloPlacement(feedback, {',
+          'protectedByJoker,',
+          "countsAsMove: !(result === 'wrong' && protectedByJoker)",
+          'type: SOLO_ATTEMPT_ACTIONS.MOVE_EVALUATED',
           'setMistakeShieldActive(false)',
           "setJokerMessage('')",
           "setJokerError('')",
-          'return;',
-          "failReason: attempt.failReason || 'moves'",
+          'failReason: attempt.failReason || failReason',
           'remainingMoves={isSoloLevelMode ? remainingMoveCount : undefined}',
           'maxMoves={isSoloLevelMode ? soloMaxMoves : undefined}',
         ]),
@@ -806,14 +811,15 @@ export const EXTRA_TESTS = [
         'Kart Değiştir aktif:',
         'Kronokalkan aktif:',
       ].filter((token) => `${gamePageSource}\n${soloJokerBarSource}`.includes(token));
-      const dragHandlerConsumesMoves = /handleGameplayCard(?:Drag|Touch)[\s\S]{0,900}setUsedMoveCount/.test(gamePageSource);
-      if (required.length || dragHandlerConsumesMoves || forbiddenVisibleJokerOverlays.length) {
+      const retiredLocalCounters = forbiddenTokensFound(gamePageSource, ['const [usedMoveCount', 'setUsedMoveCount(', 'setMistakeCount(']);
+      const dragHandlerConsumesMoves = /handleGameplayCard(?:Drag|Touch)[\s\S]{0,900}(?:evaluateSoloPlacement|MOVE_EVALUATED)/.test(gamePageSource);
+      if (required.length || retiredLocalCounters.length || dragHandlerConsumesMoves || forbiddenVisibleJokerOverlays.length) {
         return fail('Solo move-based runtime contract drifted.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
           expected: 'used moves increment only from evaluated feedback; Kronokalkan preserves a protected wrong move without visible status overlay; HAMLE result stats; no drag/touch decrement; Online gated by isSoloLevelMode',
-          actual: { required, dragHandlerConsumesMoves, forbiddenVisibleJokerOverlays },
+          actual: { required, retiredLocalCounters, dragHandlerConsumesMoves, forbiddenVisibleJokerOverlays },
         });
       }
       return pass('Solo v3 remaining-move accounting is wired to evaluated feedback, Kronokalkan preserves the protected wrong move silently, and result popups use HAMLE.', {
@@ -1272,8 +1278,9 @@ export const EXTRA_TESTS = [
       // Seviye still comes from the shared Solo source; Elmas comes from the
       // canonical persisted Diamond balance helper.
       const required = missingTokens(profilePageSource, [
-        'ensureSoloProgressBackfill',
+        'useCurrentPlayerProfile',
         'readSoloProgress',
+        'readSoloProgress(player)',
         'getKronoxVisibleScore',
         'getCurrentPlayableLevel',
         'visibleKronoxPuan',

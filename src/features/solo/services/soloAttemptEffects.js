@@ -10,12 +10,20 @@ import {
   SOLO_RULES_VERSION,
 } from '@/lib/soloProgressHelpers';
 
+/**
+ * @param {{
+ *   levelNumber: number,
+ *   result: Record<string, any>,
+ *   cardTarget: number,
+ *   onPersistedCompletion?: () => unknown | Promise<unknown>,
+ * }} options
+ */
 export async function persistSoloLevelAttempt({
   levelNumber,
   result,
   cardTarget,
   onPersistedCompletion,
-} = {}) {
+}) {
   const player = await base44.auth.me().catch(() => null);
   const current = readSoloProgress(player);
   const previousEntry = current?.levels?.[String(levelNumber)] || null;

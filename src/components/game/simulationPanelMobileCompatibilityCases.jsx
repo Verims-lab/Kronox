@@ -116,11 +116,11 @@ export const EXTRA_TESTS = [
         "import PullToRefresh from '@/components/mobile/PullToRefresh'",
         '<PullToRefresh',
         'onRefresh={loadLeaderboard}',
-        'publishSoloLeaderboardEntry',
         'loadSoloLeaderboardSnapshot',
       ]);
-      if (missing.length) return fail('LeaderboardPage does not wire PullToRefresh to the leaderboard refresh path.', { verification: 'STATIC_CONTRACT', missing });
-      return pass('LeaderboardPage pull-to-refresh calls loadLeaderboard and keeps rank/current-user refresh real.', { verification: 'STATIC_CONTRACT' });
+      const forbidden = forbiddenTokens(leaderboardPageSource, ['publishSoloLeaderboardEntry(', 'ensureSoloProgressBackfill(']);
+      if (missing.length || forbidden.length) return fail('LeaderboardPage refresh no longer uses its pure materialized read path.', { verification: 'STATIC_CONTRACT', actual: { missing, forbidden } });
+      return pass('LeaderboardPage pull-to-refresh calls the materialized snapshot reader without publishing or backfilling on read.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('admin_visibility', 'Admin Visibility Suite',
