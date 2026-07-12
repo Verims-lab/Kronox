@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 // merkezi Liderlik markası olarak çizilir.
 import StandardTopBar from '@/components/layout/StandardTopBar';
 import { createParentRouteState } from '@/lib/NavigationStackContext';
-import { useAuth } from '@/lib/AuthContext';
+import { useCurrentPlayerProfile } from '@/features/profile/viewModel/useCurrentPlayerProfile';
 import { getSoloLevelCount, readSoloProgress } from '@/lib/soloLevels';
 import { summarizeSoloProgress } from '@/lib/soloProgressHelpers';
 import { getKronoxVisibleScore } from '@/lib/kronoxScore';
@@ -95,12 +95,11 @@ export default function LeaderboardPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const {
-    user: authUser,
+    linkedUser: user,
     guestProfile,
     authChecked,
     adminStatus,
-  } = useAuth();
-  const user = authUser?.email ? authUser : null;
+  } = useCurrentPlayerProfile();
   const [leaderboard, setLeaderboard] = useState({
     loading: false,
     refreshing: false,

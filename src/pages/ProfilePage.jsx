@@ -2,16 +2,14 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Users, Trophy, Sparkles, Gem, Settings, ChevronRight, LogOut, UserRound, LogIn, Shield, RefreshCw, Snowflake, ShieldAlert, X, Gift, Hammer } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
-import { isAdminUser, withAdminStatus } from '@/lib/admin';
 import StandardTopBar from '@/components/layout/StandardTopBar';
 // Codex111/Codex146 — Profile Seviye reads the SAME shared Solo progress
 // helper the Solo Level Path uses. Visible Puan reads the shared Kronox
 // score helper so persisted Online score deltas are visible after matches.
 // A stale `currentLevel` can no longer make Profile drift from Solo; Seviye
 // remains real Solo progress while Puan is the persisted visible Kronox score.
-import { ensureSoloProgressBackfill, readSoloProgress, getSoloLevelCount } from '@/lib/soloLevels';
+import { readSoloProgress, getSoloLevelCount } from '@/lib/soloLevels';
 // Codex114 — Profile Seviye tile MUST share the same source of truth Solo
 // uses. Importing getCurrentPlayableLevel on its own line keeps that
 // contract self-evident from the import surface and matches the Health
@@ -19,15 +17,14 @@ import { ensureSoloProgressBackfill, readSoloProgress, getSoloLevelCount } from 
 import { getCurrentPlayableLevel } from '@/lib/soloProgressHelpers';
 import { getLeaderboardDiamondValue, getSafeLeaderboardName } from '@/lib/leaderboard';
 import { getKronoxVisibleScore } from '@/lib/kronoxScore';
-import { ensureGuestProfile, getCachedGuestProfile, prepareGuestAccountLink } from '@/lib/guestProfile';
-import { hydrateAuthenticatedUserProfile } from '@/lib/userProfileHydration';
+import { prepareGuestAccountLink } from '@/lib/guestProfile';
 import {
   JOKER_DEFINITIONS,
   emptyJokerBalances,
   ensureStarterJokers,
   getUserJokerBalances,
 } from '@/lib/jokerInventory';
-import { getUserHintBalance, normalizeHintQuantity } from '@/lib/hintInventory';
+import { ensureUserHintInventory, getUserHintBalance, normalizeHintQuantity } from '@/lib/hintInventory';
 // Phase 3 — Codex123 UI consolidation. Profile + Leaderboard now share
 // one StatTile to keep Puan/Seviye/Elmas visually aligned across both
 // surfaces. The shared component is presentational only — the data
@@ -48,6 +45,7 @@ import KronoxStatTile from '@/components/ui/KronoxStatTile';
 import AuthProviderButtons from '@/components/auth/AuthProviderButtons';
 import KronoxAvatar from '@/components/profile/KronoxAvatar';
 import { getProfileParentRouteState } from '@/lib/NavigationStackContext';
+import { useCurrentPlayerProfile } from '@/features/profile/viewModel/useCurrentPlayerProfile';
 
 const FIRST_LOGIN_REWARD_AMOUNT = 80;
 
@@ -72,9 +70,15 @@ export default function ProfilePage() {
   const location = useLocation();
   const accountLinkRef = useRef(null);
   const accountLinkIntentHandledRef = useRef('');
-  const [user, setUser] = useState(null);
-  const [guestProfile, setGuestProfile] = useState(() => getCachedGuestProfile());
-  const [loading, setLoading] = useState(true);
+  const {
+    linkedUser: user,
+    guestProfile,
+    player,
+    guestCredentials,
+    loading,
+    isAdmin,
+    logout,
+  } = useCurrentPlayerProfile();
   const [jokerState, setJokerState] = useState({
     loading: false,
     error: '',
@@ -90,50 +94,8 @@ export default function ProfilePage() {
 
   useEffect(() => {
     let alive = true;
-    base44.auth.me()
-      .then(async (u) => {
-        if (!alive) return;
-        if (!u) {
-          setUser(null);
-          ensureGuestProfile()
-            .then((profile) => { if (alive) setGuestProfile(profile || getCachedGuestProfile()); })
-            .catch(() => { if (alive) setGuestProfile(getCachedGuestProfile()); });
-          setLoading(false);
-          return;
-        }
-        const hydratedUser = await hydrateAuthenticatedUserProfile(base44, u);
-        if (!alive) return;
-        setGuestProfile(null);
-        setUser(hydratedUser);
-        setLoading(false);
-
-        Promise.resolve()
-          .then(() => withAdminStatus(hydratedUser))
-          .then((adminCheckedUser) => hydrateAuthenticatedUserProfile(base44, adminCheckedUser))
-          .then(async (adminCheckedUser) => {
-            const normalizedProgress = await ensureSoloProgressBackfill(adminCheckedUser);
-            if (!alive) return;
-            setUser((current) => {
-              const currentEmail = String(current?.email || current?.user_email || '').trim().toLowerCase();
-              const loadedEmail = String(hydratedUser?.email || hydratedUser?.user_email || '').trim().toLowerCase();
-              if (!currentEmail || currentEmail !== loadedEmail) return current;
-              return { ...adminCheckedUser, solo_progress: normalizedProgress };
-            });
-          })
-          .catch(() => {});
-      })
-      .catch(() => {
-        if (!alive) return;
-        setUser(null);
-        setLoading(false);
-      });
-    return () => { alive = false; };
-  }, []);
-
-  useEffect(() => {
-    let alive = true;
     const email = String(user?.email || user?.user_email || '').trim().toLowerCase();
-    if (!email) {
+    if (!email && !guestCredentials) {
       setJokerState({ loading: false, error: '', balances: emptyJokerBalances() });
       setHintState({ loading: false, error: '', balance: null });
       return () => { alive = false; };
@@ -141,7 +103,11 @@ export default function ProfilePage() {
 
     setJokerState((prev) => ({ ...prev, loading: true, error: '' }));
     setHintState((prev) => ({ ...prev, loading: true, error: '' }));
-    getUserJokerBalances(user, { ensureStarter: false, forceRefresh: jokerReloadKey > 0 })
+    getUserJokerBalances(user, {
+      guestCredentials,
+      ensureStarter: false,
+      forceRefresh: jokerReloadKey > 0,
+    })
       .then((result) => {
         if (!alive) return;
         const fastBalances = result?.balances || emptyJokerBalances();
@@ -151,7 +117,7 @@ export default function ProfilePage() {
           balances: fastBalances,
         });
 
-        if (result?.meta?.selfHealNeeded !== true) return;
+        if (!email || result?.meta?.selfHealNeeded !== true) return;
 
         ensureStarterJokers(user, { forceEnsure: true, forceRefresh: jokerReloadKey > 0 })
           .then((healed) => {
@@ -180,7 +146,10 @@ export default function ProfilePage() {
         });
       });
 
-    getUserHintBalance(user, { forceRefresh: jokerReloadKey > 0 })
+    const hintRequest = email
+      ? getUserHintBalance(user, { forceRefresh: jokerReloadKey > 0 })
+      : ensureUserHintInventory({ guestCredentials });
+    hintRequest
       .then((result) => {
         if (!alive) return;
         setHintState({
@@ -199,14 +168,12 @@ export default function ProfilePage() {
       });
 
     return () => { alive = false; };
-  }, [user, jokerReloadKey]);
+  }, [guestCredentials, jokerReloadKey, user]);
 
   const retryJokerPocket = useCallback(() => {
     sounds.tap();
     setJokerReloadKey((value) => value + 1);
   }, []);
-
-  const isAdmin = isAdminUser(user);
 
   const goSettings = () => { sounds.tap(); navigate('/settings', { state: getProfileParentRouteState() }); };
   const goProfileEdit = () => { sounds.tap(); navigate('/profile/edit', { state: getProfileParentRouteState() }); };
@@ -215,11 +182,11 @@ export default function ProfilePage() {
     sounds.tap();
     setLoginSheetOpen(true);
   };
-  const handleLogout = () => { sounds.tap(); base44.auth.logout('/'); };
+  const handleLogout = () => { sounds.tap(); logout(); };
   const prepareAccountLinkForProvider = useCallback(({ provider }) => prepareGuestAccountLink({
     provider,
-    soloProgress: readSoloProgress(null),
-  }), []);
+    soloProgress: readSoloProgress(player),
+  }), [player]);
   const shouldOpenAccountLink = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return params.get('open') === 'account-link' || location.state?.openAccountLink === true;
@@ -241,7 +208,7 @@ export default function ProfilePage() {
   // Codex111/Codex146 — Profile stats use shared sources. Level stays
   // identical to Solo's CTA; Puan uses visible Kronox score so Online
   // win/loss changes do not disappear from Profile after persistence.
-  const soloProgress = useMemo(() => readSoloProgress(user), [user]);
+  const soloProgress = useMemo(() => readSoloProgress(player), [player]);
   const profileLevel = useMemo(
     () => getCurrentPlayableLevel(soloProgress, getSoloLevelCount()),
     [soloProgress],
@@ -260,8 +227,8 @@ export default function ProfilePage() {
   // per product decision). getKronoxVisibleScore reads the Solo summary
   // internally, so Solo progress remains a source, but Online score is no
   // longer invisible.
-  const diamondValue = getProfileDiamondValue(user);
-  const visibleKronoxPuan = getKronoxVisibleScore(user, { soloProgress });
+  const diamondValue = getProfileDiamondValue(player);
+  const visibleKronoxPuan = getKronoxVisibleScore(player, { soloProgress });
   const stats = [
     { id: 'puan',  label: 'Puan',  value: visibleKronoxPuan, icon: Trophy,   tint: 'gold' },
     { id: 'level', label: 'Seviye', value: profileLevel, icon: Sparkles, tint: 'portal' },
@@ -319,7 +286,7 @@ export default function ProfilePage() {
           <JokerPocketSection
             authLoading={loading}
             loading={jokerState.loading}
-            user={user}
+            playerAvailable={Boolean(player)}
             balances={jokerState.balances}
             hintBalance={hintState.balance}
             hintLoading={hintState.loading}
@@ -403,7 +370,7 @@ const PROFILE_INVENTORY_ITEMS = Object.freeze([
 
 /* ---------------- Internal components ---------------- */
 
-function JokerPocketSection({ authLoading, loading, user, balances, hintBalance, hintLoading, hintError, error, onRetry }) {
+function JokerPocketSection({ authLoading, loading, playerAvailable, balances, hintBalance, hintLoading, hintError, error, onRetry }) {
   if (authLoading || loading || hintLoading) {
     return (
       <div className="grid grid-cols-4 gap-1.5">
@@ -418,7 +385,7 @@ function JokerPocketSection({ authLoading, loading, user, balances, hintBalance,
     );
   }
 
-  if (!user) {
+  if (!playerAvailable) {
     return (
       <div
         className="rounded-2xl px-4 py-3 font-inter text-[12px] font-semibold text-blue-100/75"
@@ -427,7 +394,7 @@ function JokerPocketSection({ authLoading, loading, user, balances, hintBalance,
           boxShadow: 'inset 0 0 0 1px rgba(120,170,255,0.22)',
         }}
       >
-        Giriş yaptığında başlangıç jokerlerin burada görünür.
+        Oyuncu profilin hazır olduğunda envanterin burada görünür.
       </div>
     );
   }

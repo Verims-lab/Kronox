@@ -597,14 +597,18 @@ export default function Game() {
       setJokerInventoryLoading(true);
       return () => { active = false; };
     }
-    if (!currentUser?.email) {
+    if (!currentUser?.email && !guestRecordPayload) {
       setJokerBalances(emptyJokerBalances());
       setJokerInventoryLoading(false);
+      setJokerError('Joker için profilini tamamlamalısın.');
       return () => { active = false; };
     }
 
     setJokerInventoryLoading(true);
-    getUserJokerBalances(currentUser, { ensureStarter: true })
+    getUserJokerBalances(currentUser, {
+      ensureStarter: true,
+      guestCredentials: guestRecordPayload,
+    })
       .then((result) => {
         if (!active) return;
         setJokerBalances(normalizeJokerBalances(result?.balances || result?.items));
@@ -619,7 +623,7 @@ export default function Game() {
         if (active) setJokerInventoryLoading(false);
       });
     return () => { active = false; };
-  }, [isSoloLevelMode, currentUserLoaded, currentUser?.email]);
+  }, [isSoloLevelMode, currentUserLoaded, currentUser?.email, guestRecordPayload]);
 
   useEffect(() => {
     let active = true;
@@ -2166,8 +2170,8 @@ export default function Game() {
       setJokerError('Joker türü geçersiz.');
       return false;
     }
-    if (!currentUser?.email) {
-      setJokerError('Joker kullanmak için giriş yapmalısın.');
+    if (!currentUser?.email && !guestRecordPayload) {
+      setJokerError('Joker kullanmak için profilini tamamlamalısın.');
       return false;
     }
     if (jokerInventoryLoading) {
@@ -2182,7 +2186,7 @@ export default function Game() {
     if (jokerSpendPendingRef.current) return false;
 
     const idempotencyKey = buildSoloJokerUseIdempotencyKey(
-      currentUser.email,
+      currentUser?.email || guestRecordPayload?.guest_id,
       soloAttemptId,
       decisionKey,
       jokerType,
@@ -2204,6 +2208,7 @@ export default function Game() {
     setJokerSpendPendingType(jokerType);
     try {
       const response = await spendUserJoker(currentUser, {
+        guestCredentials: guestRecordPayload,
         jokerType: inventoryType,
         idempotencyKey,
         relatedEntityType: 'solo_question',
@@ -2224,6 +2229,7 @@ export default function Game() {
       }
       setSoloJokerBalancesFromSpendResponse(response);
       recordDailyQuestProgress({
+        ...(guestDailyQuestPayload || {}),
         eventType: 'joker_used',
         mode: 'joker',
         amount: 1,
@@ -2243,6 +2249,7 @@ export default function Game() {
       });
       if (inventoryType === 'time_freeze') {
         recordDailyQuestProgress({
+          ...(guestDailyQuestPayload || {}),
           eventType: 'time_freeze_joker_used',
           mode: 'joker',
           amount: 1,
@@ -2272,6 +2279,8 @@ export default function Game() {
     }
   }, [
     currentUser,
+    guestDailyQuestPayload,
+    guestRecordPayload,
     jokerBalances,
     jokerInventoryLoading,
     soloAttemptId,
