@@ -65,6 +65,11 @@ const visualAssetReadinessSource = visualAssetMirrorSource;
 import soloProgressHelpersSource from '../../lib/soloProgressHelpers.js?raw';
 import soloLevelsSource from '../../lib/soloLevels.js?raw';
 import getQuestionsSource from '../../../base44/functions/getQuestions/entry.ts?raw';
+import startLobbyGameSource from '../../../base44/functions/startLobbyGame/entry.ts?raw';
+import updateLobbyGameStateSource from '../../../base44/functions/updateLobbyGameState/entry.ts?raw';
+import getOnlinePlayerSelectionSource from '../../../base44/functions/getOnlinePlayerSelection/entry.ts?raw';
+import applyOnlineResultSource from '../../lib/applyOnlineResult.js?raw';
+import base44CompileGateSource from '../../../scripts/checkBase44FunctionsCompile.mjs?raw';
 
 const STATUS = {
   PASS: 'PASS',
@@ -599,21 +604,32 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('backend_security_current_controls_registered',
-    'Backend security Health covers question access, startLobbyGame auth, secrets, and deletion',
+    'Backend security Health covers question access, actor proof, DTO privacy, scoring authority, deployability, secrets, and deletion',
     () => {
       const combined = [
         securityDocsSource,
         securityCleanupCasesSource,
         backendSecurityCasesSource,
         accountDeletionCasesSource,
+        getQuestionsSource,
+        startLobbyGameSource,
+        updateLobbyGameStateSource,
+        getOnlinePlayerSelectionSource,
+        applyOnlineResultSource,
+        base44CompileGateSource,
       ].map(text).join('\n');
       const missing = missingTokens(combined, [
         'getQuestions',
-        'requires auth',
+        'guest_gameplay_runtime',
         'startLobbyGame',
-        'requires authenticated',
-        'no legacy guest',
-        'no client identity override',
+        'verifyGuestProfile',
+        'resolveActor',
+        'actorMatchesPlayer',
+        'publicLobby',
+        "publicReferences: 'random_opaque_refs'",
+        'clientProfileScoreWrites: false',
+        'clientLeaderboardWrites: false',
+        'MAX_BASE44_FUNCTIONS = 50',
         'VAPID',
         'admin',
         'account deletion',
@@ -631,7 +647,7 @@ export const EXTRA_TESTS = [
           missing,
         });
       }
-      return pass('Security Health keeps auth/authz, service-role, secret, question access, and account deletion risks visible.', {
+      return pass('Security Health checks active linked/guest actor proof, DTO boundaries, backend scoring, deployability, secrets, and deletion controls.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

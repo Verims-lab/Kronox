@@ -521,14 +521,21 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('diamond_ledger_differentiates_daily_and_market_sources',
-    'DiamondTransaction differentiates Daily Wheel grants and Market spends',
+    'DiamondTransaction differentiates all active grant and spend sources',
     () => {
-      const missing = missingTokens(`${diamondTransactionEntitySource}\n${diamondEconomySource}\n${economyRulesSource}`, [
+      const combined = `${diamondTransactionEntitySource}\n${diamondEconomySource}\n${economyRulesSource}\n${claimLoginBonusesSource}\n${claimDailyWheelRewardSource}\n${claimDailyQuestRewardSource}\n${purchaseJokerWithDiamondsSource}`;
+      const missing = missingTokens(combined, [
         '"starter_bonus"',
+        '"first_login_reward"',
         '"daily_login"',
         '"daily_wheel"',
+        '"daily_calendar_streak_reward"',
         '"market_purchase"',
-        'earn for granted Diamonds, spend for Mağaza purchases/costs',
+        '"admin_adjustment"',
+        '"earn"',
+        '"spend"',
+        'direction: \'earn\'',
+        'direction: \'spend\'',
         'Daily Wheel V2 can be a Diamond source',
         'Mağaza purchase is a Diamond sink',
       ]);
@@ -538,7 +545,7 @@ export const EXTRA_TESTS = [
           missing,
         });
       }
-      return pass('Diamond ledger source/direction contracts distinguish starter/daily/wheel grants from Mağaza market_purchase spends.', { verification: 'STATIC_CONTRACT' });
+      return pass('Diamond ledger source/direction contracts distinguish login, wheel, calendar, admin, and Mağaza activity.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('market_partial_failure_reconciliation_is_documented',

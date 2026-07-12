@@ -1244,7 +1244,7 @@ Checklist:
   * `DailyWheelSpin.idempotency_key`
   * `DailyWheelSpin.user_email + spin_date`
   * `OnlineMatchResult.idempotency_key`
-  * `OnlineMatchResult.lobby_id + player_email`
+  * `OnlineMatchResult.lobby_id + actor_key_hash`
   * `PushSubscription.user_email + endpoint`
   * `SoloLeaderboardEntry.owner_key`
   * `Category.category_id`
@@ -1404,6 +1404,17 @@ Automated/source-connected gates:
   accept/decline preserves rows and safe Turkish errors; confirmed terminal
   state removes/closes them.
 * BottomNav still exposes only `Ana Sayfa`, `Liderlik`, and `Profil`.
+* Lobby route snapshots are bootstrap-only; sanitized backend polling plus
+  focus/visibility refresh wins over stale route state. Host start re-fetches
+  the authoritative sanitized Lobby after start.
+* FriendRequest/GameInvite direct entity reads are admin-only. Social snapshots
+  scope private service-role queries to the resolved actor and expose only
+  opaque public refs and username-safe DTO fields.
+* Liderlik renders the projection/cache response first and performs accepted
+  friend badge/avatar enrichment through a second sanitized backend snapshot,
+  never client-visible email or private per-row User reads.
+* Online result audit reservation failure is structured and retryable, and no
+  profile/leaderboard score write occurs before the reservation succeeds.
 
 Manual release gates that source cannot prove:
 

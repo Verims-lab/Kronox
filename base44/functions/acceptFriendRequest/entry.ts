@@ -2,7 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 // Verims Comment
 // Codex080 — Normalized friendship model.
 //
-// Root cause of every previous failure: Friendship.create RLS pins
+// Root cause of every previous failure: the legacy Friendship row create rule pins
 // `data.user_email === {{user.email}}`. This rule is enforced even under
 // `asServiceRole` on this app, so creating the sender-owned mirror row
 // always returned 403 "Permission denied for create operation on Friendship".
@@ -95,8 +95,11 @@ Deno.serve(async (req) => {
 
     const callerIsRecipient = toEmail === myEmail;
     const callerIsSender = fromEmail === myEmail;
-    if ((action === 'accept' || action === 'reject') && !callerIsRecipient) {
-      return json({ ok: false, error: 'Only the receiver can update this request' }, 403);
+    if (action === 'accept' && !callerIsRecipient) {
+      return json({ ok: false, code: 'friend_request_receiver_only', error: 'Only the receiver can accept this request' }, 403);
+    }
+    if (action === 'reject' && !callerIsRecipient) {
+      return json({ ok: false, code: 'friend_request_receiver_only', error: 'Only the receiver can reject this request' }, 403);
     }
     if (action === 'cancel' && !callerIsSender) {
       return json({ ok: false, error: 'Only the sender can cancel this request' }, 403);
@@ -162,8 +165,11 @@ Deno.serve(async (req) => {
       requestRef: fr.public_ref || requestRef,
       alreadyFriends: fr.status === 'accepted',
     });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown acceptFriendRequest error';
-    return json({ ok: false, error: message }, 500);
+  } catch (_error) {
+    return json({
+      ok: false,
+      code: 'friend_request_action_failed',
+      error: 'Arkadaşlık isteği işlenemedi. Lütfen tekrar dene.',
+    }, 500);
   }
 });

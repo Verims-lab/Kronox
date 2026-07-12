@@ -37,6 +37,8 @@ import {
 import { calculateSoloTimeBonus } from '@/lib/soloProgressHelpers';
 import onlineRankingSource from '../../lib/onlineRanking.js?raw';
 import applyOnlineResultSource from '../../lib/applyOnlineResult.js?raw';
+import lobbyGatewaySource from '../../lib/dbGateway/lobbyGateway.js?raw';
+import updateLobbyGameStateSource from '../../../base44/functions/updateLobbyGameState/entry.ts?raw';
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL' };
 const ACTION_TYPES = { CODE_FIX: 'CODE_FIX', DOC_FIX: 'DOC_FIX' };
@@ -255,52 +257,67 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 7. Authority model is documented (Option A) */
+  /* 7. Authority model is backend-owned */
   makeCase('online_score_authority_model_documented',
-    'lib/applyOnlineResult.js documents Option A (each client updates only its own score)',
+    'Online result authority is backend-owned and the client is invoke-only',
     () => {
-      const src = safeStr(applyOnlineResultSource);
+      const src = `${safeStr(applyOnlineResultSource)}\n${safeStr(lobbyGatewaySource)}\n${safeStr(updateLobbyGameStateSource)}`;
       const required = [
-        'base44.auth.updateMe',
+        'commitOnlineMatchResult',
+        "action: 'commit_result'",
+        'commitOnlineResult',
+        'winner_actor_key_hash',
+        'clientProfileScoreWrites: false',
+        'clientLeaderboardWrites: false',
         'lastMatchId',
       ];
       const missing = required.filter((t) => !src.includes(t));
-      if (missing.length) {
+      const forbidden = ['base44.auth.updateMe(', 'OnlineMatchResult.create(', 'publishSoloLeaderboardEntry(']
+        .filter((token) => safeStr(applyOnlineResultSource).includes(token));
+      if (missing.length || forbidden.length) {
         return fail('Authority model wiring missing in applyOnlineResult.js.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
           missing,
+          forbidden,
         });
       }
-      return pass('Option A authority model is documented and wired through updateMe + lastMatchId.',
+      return pass('Client delegates to updateLobbyGameState commit_result; backend derives and persists the actor result.',
         { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION' });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
   /* 8. Persistence failure leaves the function retry-safe */
   makeCase('online_score_persistence_failure_retry_safe',
-    'applyOnlineMatchToCurrentUser returns structured failure and does not mark match applied when persist fails',
+    'Backend reservation and client wrapper return structured retry-safe failure without applying score',
     () => {
-      const src = safeStr(applyOnlineResultSource);
+      const client = safeStr(applyOnlineResultSource);
+      const backend = safeStr(updateLobbyGameStateSource);
+      const src = `${client}\n${backend}`;
       const required = [
-        // structured return shape
         "ok: false",
-        "retryable: true",
-        "where: 'persist'",
-        "where: 'auth'",
-        // idempotency marker is only attached when persist succeeds
-        "lastMatchId: String(lobbyId)",
-        // happy-path success shape
+        'retryable:',
+        "where: 'backend_commit'",
+        "code: 'online_result_audit_reservation_failed'",
+        'retryable: true',
+        "where: 'audit'",
+        'scoreApplied: false',
+        'resultEntity.create',
+        'actor.profileEntity.update',
         "ok: true",
       ];
       const missing = required.filter((t) => !src.includes(t));
-      if (missing.length) {
+      const reservationIndex = backend.indexOf('resultReservation = await resultEntity.create');
+      const profileWriteIndex = backend.indexOf('await actor.profileEntity.update');
+      if (missing.length || reservationIndex < 0 || profileWriteIndex < 0 || reservationIndex > profileWriteIndex) {
         return fail('Structured retry-safe failure handling not implemented.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
           missing,
+          reservationIndex,
+          profileWriteIndex,
         });
       }
       // Defensive — applyOnlineMatchResult itself never throws on valid math,
@@ -314,17 +331,16 @@ export const EXTRA_TESTS = [
 
   /* 9. First apply is never blocked by idempotency */
   makeCase('online_score_idempotency_does_not_block_first_apply',
-    'First time a lobbyId is presented, the score is applied; only second presentation short-circuits',
+    'First backend commit reserves and applies; repeated actor/lobby commits return the canonical result',
     () => {
-      // Pure-math sanity: lastMatchId comparison is the only short-circuit.
-      // Empty progress + a lobby id must NOT short-circuit; that is enforced
-      // in the source file by the `current.lastMatchId && String(...) === ...`
-      // guard. Mirror that token here so a regression that removes the guard
-      // fails this case.
-      const src = safeStr(applyOnlineResultSource);
+      const src = safeStr(updateLobbyGameStateSource);
       const required = [
-        'current.lastMatchId && String(current.lastMatchId) === String(lobbyId)',
-        "reason: 'already_applied'",
+        'buildOnlineMatchResultIdempotencyKey',
+        'idempotency_key: idempotencyKey',
+        "status: 'reserved'",
+        "String(row?.status || '') === 'applied'",
+        'publicResult(appliedExisting, true)',
+        'publicResult(finalRow',
       ];
       const missing = required.filter((t) => !src.includes(t));
       if (missing.length) {
@@ -341,7 +357,7 @@ export const EXTRA_TESTS = [
         assertEq(ONLINE_LOSS_POINTS, -6, 'ONLINE_LOSS_POINTS'),
       ].filter(Boolean);
       if (checks.length) return checks[0];
-      return pass('Idempotency check fires only on a repeat lobbyId presentation.',
+      return pass('First commit creates the reservation and repeat commits return the canonical applied result.',
         { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION' });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),

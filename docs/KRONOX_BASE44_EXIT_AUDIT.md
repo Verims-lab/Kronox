@@ -82,7 +82,7 @@ Current inventory from source scan:
 | Guest bootstrap | `ensureGuestProfile` calls `createGuestProfile`; raw guest token stored client-side, hash server-side | Data + auth/session migration needed |
 | Profile/account linking | `linkGuestAccount`, `updateProfileSettings`, Base44 user row merge | Data + auth/session migration needed |
 | Solo signed-in progress | `base44.auth.updateMe({ solo_progress })` | Data migration needed |
-| Online result | `OnlineMatchResult` entity plus `base44.auth.updateMe` | Data migration needed |
+| Online result | Backend-owned `updateLobbyGameState:commit_result`, `OnlineMatchResult`, and materialized User/GuestProfile/leaderboard projections | Data migration needed |
 | Friends/invites | Direct `FriendRequest`, `GameInvite`, `User` entity reads/writes plus functions | Backend adapter + data migration needed |
 | Lobby/realtime | Direct `Lobby` entity get/filter/create/update/delete and `subscribe` | High-risk/blocker |
 | Questions | Gameplay should call `getQuestions`; admin/diagnostics read `Question` server-side | High-risk/blocker |

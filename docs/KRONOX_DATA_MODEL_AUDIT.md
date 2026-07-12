@@ -443,9 +443,13 @@ Recommendation:
 ### Online score
 
 Current source of truth:
-- `User.online_progress`, written by `applyOnlineMatchToCurrentUser`.
-- Pure score math in `onlineRanking.js`.
-- Current UI update is local user only.
+- Terminal `Lobby` winner/participant state, committed through
+  `updateLobbyGameState` action `commit_result`.
+- `OnlineMatchResult` durable receipt keyed by lobby plus backend-resolved
+  linked/guest actor.
+- Materialized `User` / `GuestProfile.online_progress` and
+  `kronox_puan_total`, followed by `SoloLeaderboardEntry` publication.
+- `applyOnlineMatchToCurrentUser` is an invoke-only client wrapper.
 
 Fields:
 - `score`
@@ -457,14 +461,15 @@ Fields:
 - `lastMatchAt`
 
 Risks:
-- P1: idempotency uses only `lastMatchId`. It prevents immediate duplicate apply for the most recent match, but not re-application of an older match after another match has been processed.
 - P1: `User.jsonc` still mentions `draws` and `lastUpdatedAt`; current code writes `lastMatchAt` and no draw counter.
-- P2: No immutable match result/audit row.
-- P2: Score write is client-side `updateMe`, not server validated against actual Lobby result.
+- Platform physical uniqueness for `OnlineMatchResult.idempotency_key` and
+  `lobby_id + actor_key_hash` is not repo-proven; code-level receipt/lock
+  reconciliation remains the active protection.
 
 Recommendation:
 - Immediate/short term: align `User.online_progress` schema with actual writer.
-- Medium term: create `OnlineMatchResult` with one row per player/lobby result and use it as durable idempotency/audit.
+- Before release: run linked/guest two-account and partial-write retry probes,
+  then verify platform uniqueness configuration if available.
 
 ### Profile stats
 
@@ -955,17 +960,20 @@ Deferred:
 Completed:
 
 - Added `OnlineMatchResult` schema.
-- `applyOnlineMatchToCurrentUser` checks an existing
-  `OnlineMatchResult(player_email, lobby_id)` before applying score.
-- The existing `lastMatchId` guard remains as recent-match compatibility.
-- After `User.online_progress` is persisted, an `OnlineMatchResult` audit row
-  is best-effort created with before/after score and delta fields.
+- `updateLobbyGameState:commit_result` verifies terminal Lobby winner and actor
+  membership, then reserves `OnlineMatchResult(lobby_id, actor_key_hash)` before
+  profile score publication.
+- Repeated commits return the canonical applied receipt; a profile-before-final
+  partial write reconciles from receipt `score_after` plus `lastMatchId`.
+- Audit reservation failure is structured/retryable and applies no score.
+- Client code cannot create result rows or write profile/leaderboard score.
 
 Known limitation:
 
 - Base44 unique-constraint support is not verified from this repo. Runtime
-  uses a pre-check, but a database-level uniqueness guarantee would be
-  stronger if supported.
+  uses a fail-closed lock, durable reservation, canonical re-read, and duplicate
+  monitor, but a database-level uniqueness guarantee would be stronger if
+  supported.
 
 ### Phase 5 — Retention / Cleanup / RLS Hardening
 

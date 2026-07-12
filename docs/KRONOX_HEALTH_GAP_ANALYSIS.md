@@ -32,7 +32,7 @@ fallback polling/refetch.
 | Online start | Confirms source has merge/retry/start/recovery markers | Does not simulate four live accounts or Base44 realtime delivery |
 | Invite accept | Confirms `verifiedLobby`/`joinedLobby` contract | Does not prove deployed function freshness |
 | Notifications | Executable merge helpers cover stale empty fetches | Does not prove push delivery or service worker behavior on real devices |
-| Online presence / player selection | Confirms PlayerPresence owner binding, GuestProfile token proof for guest heartbeat and player selection, 75s TTL/25s heartbeat/12s visible refresh, accepted-friend lookup, backend-owned player selection, username-only labels, opaque `u_`/`g_` target refs, non-routable guest row safety, safe retry copy, and offline fallback | Does not prove deployed function freshness, two-device heartbeat timing, or live non-friend invite delivery |
+| Online presence / player selection | Confirms PlayerPresence owner binding, GuestProfile token proof for guest heartbeat and player selection, 75s TTL/25s heartbeat/12s visible refresh, accepted-friend lookup, backend-owned player selection, username-only labels, random opaque `social_*` target refs, non-routable guest row safety, safe retry copy, and offline fallback | Does not prove deployed function freshness, two-device heartbeat timing, or live non-friend invite delivery |
 | Solo records | Confirms backend context and copy | Does not prove production data has multi-user records |
 | Economy | Confirms idempotency guards, Daily Wheel V2 no-Puan weighted reward rules, Daily Calendar / Streak Diamond-only rules, and function-level economy lock/recheck guards | Does not prove DB uniqueness or two-device race safety |
 | Leaderboard privacy | Confirms sanitized public payload shape | Does not prove live RLS prevents direct entity reads |
@@ -62,6 +62,13 @@ fallback polling/refetch.
   DTO sanitization; Daily checks execute canonical distinct-key selection and
   verify backend-source provenance rather than row-count/query-before-create
   strings. The deployment suite gates 50 functions and exact SDK 0.8.34.
+- Pre-Hamle 3 stabilization retargets the remaining historical direct-entity,
+  email-hydration, and client-score assertions to active backend owners. Lobby
+  freshness checks require sanitized poll/focus/visibility refresh; friend and
+  invite checks require backend actor scope plus admin-only direct entity RLS;
+  Leaderboard checks require projection-first paint followed by sanitized
+  backend friend enrichment; Online result checks prove reserve-before-score
+  ordering and structured retry-safe audit failure in updateLobbyGameState.
 - Added focused friend/presence coverage so fake-online friend pickers, email
   display fallbacks, unscoped presence reads, non-current-user presence writes,
   stale heartbeat timing, missing guest token proof, transient-fetch clearing,
@@ -156,7 +163,7 @@ fallback polling/refetch.
 | --- | --- | --- |
 | 4-player Online lobby join/start | Source-connected backend lock/revision/cap/one-deck checks plus executable reducer phase simulation | Live parallel multi-client Base44 probe remains manual |
 | Host start shared state | Static source markers for deck/current question/status/revision | Backend runtime probe against deployed `startLobbyGame` |
-| Non-host recovery | Static subscription + poll/refetch markers plus reducer recovery simulation | Browser automation with delayed/missed subscription event |
+| Non-host recovery | Static sanitized poll/focus/visibility refetch markers plus reducer recovery simulation | Browser automation with delayed/missed refresh and reconnect timing |
 | Invite accept verified lobby | Static `verifiedLobby`/`joinedLobby` contract | Deployed function freshness marker or Base44 test-function proof |
 | Notification no-flicker | Executable merge/reducer tests plus static ViewModel guards | Timed UI harness with transient empty fetch injection |
 | Friend/player online/offline presence | Static backend contract and UI-helper checks for `PlayerPresence`, runtime heartbeat session, 75s TTL, token-proven guest presence, accepted-friend lookup, online non-friend selection, offline fallback, previous-row preservation, opaque target refs, and username-only labels | Multi-account live proof: user B appears online after heartbeat, user C appears as an online non-friend, and stale/offline rows fall out correctly |

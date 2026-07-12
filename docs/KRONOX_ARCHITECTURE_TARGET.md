@@ -118,7 +118,8 @@ Current:
 - Lobby state is split across route state, `LobbyRoom`, `useWaitingRoomSync`,
   `useLobbySync`, `WaitingRoomPanel`, and Base44 functions.
 - Recent fixes added merge/retry joins, accepted-invite reconciliation,
-  idempotent start, and missed-realtime refetch/polling.
+  idempotent start, and sanitized snapshot recovery through polling plus
+  focus/visibility refresh.
 
 Target:
 - `onlineLobbyReducer` owns phases: `idle`, `creating`, `waiting`,
@@ -126,16 +127,17 @@ Target:
   `error`.
 - Service commands: `createLobby`, `joinByCode`, `acceptInvite`,
   `startLobbyGame`, `refreshLobby`, `recoverStartedLobby`.
-- Gateway wraps Base44 entity/function/subscription calls.
+- Gateway wraps backend-owned Base44 function calls and sanitized snapshots;
+  direct Lobby entity reads/subscriptions are not a public client contract.
 - Backend remains the source of truth for roster, shared deck, current question,
   host authorization, and state revision.
 
 Phase 1 foundation:
 - `src/lib/onlineLobbyReducer.js` defines the pure, effect-free lobby phase
   state contract for create/join/invite/start/recovery/expired transitions.
-- `useWaitingRoomSync` feeds authoritative subscription and polling events into
-  the reducer while existing fetch/subscription side effects and route payloads
-  stay unchanged.
+- `useWaitingRoomSync` and `useLobbySync` feed authoritative sanitized snapshot
+  events into the reducer. Polling plus focus/visibility refresh replaces
+  direct Lobby entity subscription, while route payloads remain bootstrap-only.
 - Started state is client-visible only after the backend-owned shared game
   state is present.
 

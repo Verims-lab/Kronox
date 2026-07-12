@@ -7,6 +7,7 @@
 import gameSource from '../../pages/Game.jsx?raw';
 import categoryFiltersSource from '../../lib/categoryFilters.js?raw';
 import applyOnlineResultSource from '../../lib/applyOnlineResult.js?raw';
+import updateLobbyGameStateSource from '../../../base44/functions/updateLobbyGameState/entry.ts?raw';
 import diamondEconomySource from '../../lib/diamondEconomy.js?raw';
 import rankingSectionSource from '../leaderboard/KronoxRankingSection.jsx?raw';
 import claimLoginBonusesSource from '../../../base44/functions/claimLoginBonuses/entry.ts?raw';
@@ -145,30 +146,28 @@ export const EXTRA_TESTS = [
   makeCase('online_score_audit_reserved_before_visible_score',
     'Online score creates durable audit/idempotency row before visible score write',
     () => {
-      const src = safeStr(applyOnlineResultSource);
-      const fnStart = src.indexOf('export async function applyOnlineMatchToCurrentUser');
-      const applySource = fnStart >= 0 ? src.slice(fnStart) : src;
-      const auditIndex = applySource.indexOf('const onlineMatchResult = await createOnlineMatchResult');
-      // Codex170 — apply path persists the single prepared unified payload
-      // via `await base44.auth.updateMe(payload)`; the durable
-      // OnlineMatchResult reservation must come BEFORE that visible write.
-      const updateIndex = applySource.indexOf('await base44.auth.updateMe(payload)');
-      const missing = missingTokens(applyOnlineResultSource, [
-        'OnlineMatchResult audit reservation failed; score not applied',
+      const client = safeStr(applyOnlineResultSource);
+      const backend = safeStr(updateLobbyGameStateSource);
+      const auditIndex = backend.indexOf('resultReservation = await resultEntity.create');
+      const updateIndex = backend.indexOf('await actor.profileEntity.update');
+      const missing = missingTokens(`${client}\n${backend}`, [
+        'commitOnlineMatchResult',
         'buildOnlineMatchResultIdempotencyKey',
         'idempotency_key',
         'where: \'audit\'',
         'reconciled_from_audit',
         'kronox_puan_total',
+        "code: 'online_result_audit_reservation_failed'",
+        'scoreApplied: false',
       ]);
       if (missing.length || auditIndex < 0 || updateIndex < 0 || auditIndex > updateIndex) {
         return fail('Online score can still write visible score before durable idempotency reservation.', {
           verification: 'STATIC_CONTRACT',
-          file: 'src/lib/applyOnlineResult.js',
+          file: 'applyOnlineResult + updateLobbyGameState',
           actual: { missing, auditIndex, updateIndex },
         });
       }
-      return pass('Online score reserves OnlineMatchResult before updateMe and keeps reconciliation path.', { verification: 'STATIC_CONTRACT' });
+      return pass('Backend reserves OnlineMatchResult before profile score write and keeps a retry-safe reconciliation path.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('diamond_ledger_guard_recovery_exists',

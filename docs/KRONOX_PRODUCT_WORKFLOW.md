@@ -373,7 +373,9 @@ Current Online flow:
 7. `startLobbyGame` reconciles accepted invitees, then builds one shared
    authoritative deck/current question for the final participant list.
 8. All participants enter the same `/game?online=1&lobbyId=...` session from
-   realtime status updates or the waiting-room poll fallback.
+   backend-sanitized waiting-room polling plus immediate focus/visibility
+   refreshes. Route state is bootstrap-only and never replaces fresher Lobby
+   state.
 9. Game reads/refetches the persisted shared Online deck if route state or a
    missed realtime event arrives before the full payload is visible.
 

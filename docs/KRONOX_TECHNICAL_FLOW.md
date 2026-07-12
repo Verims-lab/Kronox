@@ -435,9 +435,10 @@ Primary flow:
   `current_question_id`, `players`, `started_at`, and `state_revision` in one
   authoritative start write; repeated starts return the existing started lobby
   once that payload exists
-* waiting-room clients transition through realtime subscription or fallback
-  polling, and Game can refetch the current Lobby if a route snapshot is
-  partial
+* waiting-room clients transition through backend-sanitized polling plus
+  focus/visibility refreshes, and Game can refetch the current Lobby if a route
+  snapshot is partial; direct client Lobby subscriptions/reads are not the
+  authority path
 
 Online deck contract:
 

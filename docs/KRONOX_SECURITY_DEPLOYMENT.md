@@ -657,11 +657,19 @@ Required release probes:
 * wrong user cannot see/mutate another user’s FriendRequest
 * normal client cannot directly create DailyWheelSpin, GameInvite, or
   FriendRequest rows; backend service/admin functions own these creates
+* direct `FriendRequest` and `GameInvite` entity read/update/delete remains
+  admin-only; `getOnlinePlayerSelection` scopes service-role reads to the
+  resolved sender/recipient actor and returns only opaque refs, username-safe
+  labels, lifecycle state, and sanitized avatar metadata
 * non-player cannot mutate Lobby game state
 * user cannot update another user’s PushSubscription
 * user cannot read or update another user's `UserCategoryPreference` rows
 * normal user cannot fetch raw question-bank metadata
 * non-admin cannot call admin-only functions
+
+Health source checks must follow the active actor-proof functions. They must
+not demand pre-Hamle-2 client email filters, direct entity subscriptions, or
+client-owned Online score writes as evidence of authorization.
 
 Static source checks are not enough.
 

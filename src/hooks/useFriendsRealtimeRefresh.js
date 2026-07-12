@@ -8,16 +8,15 @@
 //   not see B under Arkadaşlarım.
 //
 // Strategy (in priority order):
-//   1) FriendRequest entity subscription. If Base44 delivers it, every
-//      relevant change (create/update/delete on a row where A is sender
-//      or recipient) fires refresh() within ~1s.
-//   2) visibilitychange + window focus. When A returns to the tab/page
+//   1) visibilitychange + window focus. When A returns to the tab/page
 //      (which is the most common case on mobile PWAs), refresh() runs once.
-//   3) Light interval polling as a final fallback (20s) ONLY while the page
+//   2) Light interval polling as a final fallback (20s) ONLY while the page
 //      is visible. This is safe, modest, and stops as soon as the page is
 //      hidden or unmounted.
 //
-// All three triggers route through the SAME `refresh(myEmail)` callback,
+// Direct FriendRequest subscriptions are intentionally not used: entity reads
+// are backend-only and the client receives a sanitized social snapshot.
+// Both triggers route through the SAME `refresh(myEmail)` callback,
 // so authoritative server state is always the source of truth — no fake
 // local mutations, no Friendship.create reintroduced.
 

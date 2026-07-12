@@ -362,7 +362,9 @@ export const EXTRA_TESTS = [
         'onRefetchLobby',
         'getLobbySnapshot',
         'pollIntervalId',
-        "applyLobbyData(freshLobby, 'poll')",
+        'refreshLiveLobby',
+        'applyLobbyData(freshLobby, source)',
+        'visibility-refresh',
       ]);
       if (m.length) {
         return fail('Game bootstrap recovery may not fetch the current started lobby after a missed event.', {

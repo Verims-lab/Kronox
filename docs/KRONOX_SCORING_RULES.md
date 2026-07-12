@@ -506,6 +506,10 @@ A durable per-actor/lobby reservation must exist before the visible score write.
 If a prior attempt wrote the profile but did not finalize the receipt, the
 backend reconciles the reserved row from `online_progress.lastMatchId` and the
 recorded `score_after`; conflicting partial state fails closed.
+If reservation creation fails, the backend returns
+`online_result_audit_reservation_failed` with `where = audit`, marks the result
+retryable, and explicitly reports that no score was applied. The profile and
+leaderboard writes must remain after the reservation in source order.
 The current idempotency key shape is:
 
 ```text
@@ -559,6 +563,9 @@ SoloLeaderboardEntry.total_kronox_score
 Rules:
 
 * `User.kronox_puan_total` should match `getKronoxVisibleScore(user)`.
+* `User.kronox_puan_total` / `GuestProfile.kronox_puan_total` is the primary
+  visible read when present. Solo + Online derivation is compatibility fallback
+  only for older rows that do not yet have the materialized field.
 * `SoloLeaderboardEntry` is the current internal leaderboard projection source;
   despite the historical name, `total_kronox_score` is unified Kronox Puan.
   Public leaderboard rows come from `getSoloLeaderboard` with sanitized
@@ -571,6 +578,9 @@ Rules:
 * The current player's public row, fixed `Senin Sıran` card, and fallback
   own-score state are normalized through the same visible Kronox Puan value.
 * Leaderboard should not expose unnecessary private user fields.
+* Liderlik first paint may skip friend badges, then request a second
+  backend-sanitized compact snapshot for accepted-friend badges/avatars. It
+  must not hydrate friends through client-visible emails or private User reads.
 * Elmas must not be derived from Kronox Puan.
 
 ---
