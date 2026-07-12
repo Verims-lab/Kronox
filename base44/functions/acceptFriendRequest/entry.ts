@@ -94,8 +94,12 @@ Deno.serve(async (req) => {
     const rowId = String(fr?.id || fr?._id || '').trim();
 
     const callerIsRecipient = toEmail === myEmail;
+    const callerIsNotRecipient = toEmail !== myEmail;
     const callerIsSender = fromEmail === myEmail;
-    if ((action === 'accept' || action === 'reject') && !callerIsRecipient) {
+    if (action === 'accept' && !callerIsRecipient) {
+      return json({ ok: false, code: 'friend_request_receiver_only', error: 'Only the receiver can accept this request' }, 403);
+    }
+    if (action === 'reject' && callerIsNotRecipient) {
       return json({ ok: false, code: 'friend_request_receiver_only', error: 'Only the receiver can update this request' }, 403);
     }
     if (action === 'cancel' && !callerIsSender) {

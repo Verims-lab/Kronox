@@ -1,5 +1,15 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex590 — Fix Health FAIL KRONOX-MRHQNT85 final blockers:
+//   - WaitingRoomPanel renders the real invite-centric section title
+//     "Davet edilen arkadaşların" while keeping lobby code as "Yedek kod".
+//   - acceptFriendRequest has an explicit accept-only receiver guard returning
+//     403 "Only the receiver can accept this request"; reject remains
+//     receiver-only with the existing update message.
+//   - No invite/lobby logic, Online scoring, BottomNav, or public identity
+//     payload shape changed.
+//   - package-lock root @base44/sdk spec is exact 0.8.34 again after main sync.
+//
 // Codex589 — Fix Health FAIL KRONOX-MRHQ7K50 (post-Hamle 3):
 //   - acceptFriendRequest now guards accept/reject with a single
 //     receiver-only check (403 "Only the receiver can update this request").
@@ -116,7 +126,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex589';
+const BUILD_MARKER = 'Codex590';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
