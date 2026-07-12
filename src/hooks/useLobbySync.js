@@ -8,6 +8,7 @@ import { addGameLog } from '@/components/game/GameDebugLog';
 import { debugLog, debugWarn } from '@/lib/debugLog';
 import { normalizeLobbyState, summarizeLobbyShape } from '@/lib/lobbyState';
 import { getLobbySnapshot } from '@/lib/dbGateway/lobbyGateway';
+import { createAdaptivePoller } from '@/lib/adaptivePoller';
 
 const summarizePlayers = (players = []) =>
   players.map(p => ({
@@ -70,9 +71,7 @@ export function useLobbySync({
     if (!lobbyId && !lobbyCode) return;
 
     let cancelled = false;
-    let pollIntervalId = null;
-    let focusHandler = null;
-    let visibilityHandler = null;
+    let livePoller = null;
     let activeLobbyId = lobbyId || null;
 
     const initPlayers = initialPlayersRef.current;
@@ -219,6 +218,7 @@ export function useLobbySync({
         if (hasChanged) applyLobbyData(freshLobby, source);
       } catch (err) {
         debugWarn(`[useLobbySync] ${source} refresh failed:`, err.message);
+        throw err;
       }
     };
 
@@ -262,19 +262,21 @@ export function useLobbySync({
       if (cancelled || !activeLobbyId) return;
 
       // Direct Lobby subscriptions are intentionally unavailable because
-      // client entity reads are private after Hamle 2. Polling plus immediate
-      // focus/visibility refreshes provide the live sanitized snapshot path.
-      pollIntervalId = window.setInterval(() => {
-        void refreshLiveLobby('poll');
-      }, 1800);
-      focusHandler = () => { void refreshLiveLobby('window-focus'); };
-      visibilityHandler = () => {
-        if (document.visibilityState === 'visible') {
-          void refreshLiveLobby('visibility-refresh');
-        }
-      };
-      window.addEventListener('focus', focusHandler);
-      document.addEventListener('visibilitychange', visibilityHandler);
+      // client entity reads are private after Hamle 2. One visibility-aware,
+      // non-overlapping fallback poll owns refresh/focus/online recovery.
+      livePoller = createAdaptivePoller({
+        task: refreshLiveLobby,
+        minDelayMs: 1800,
+        maxDelayMs: 12000,
+        onError: (error, source, failureCount) => {
+          debugWarn('[useLobbySync] adaptive poll deferred:', {
+            source,
+            failureCount,
+            error: error?.message || String(error),
+          });
+        },
+      });
+      livePoller.start();
     };
 
     startSync();
@@ -282,9 +284,7 @@ export function useLobbySync({
     return () => {
       cancelled = true;
       if (unsubRef.current) unsubRef.current();
-      if (pollIntervalId) window.clearInterval(pollIntervalId);
-      if (focusHandler) window.removeEventListener('focus', focusHandler);
-      if (visibilityHandler) document.removeEventListener('visibilitychange', visibilityHandler);
+      livePoller?.stop();
     };
   }, [lobbyId, lobbyCode, setLobbyData, setWinner, setError, onLobbyResolved]);
 

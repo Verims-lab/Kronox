@@ -494,7 +494,7 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('leaderboard_health', 'leaderboard_current_user_score_published',
-    'Current user Kronox Puan is mirrored into the leaderboard-safe source',
+    'Score writes publish materialized Kronox Puan while Liderlik reads stay pure',
     () => {
       const required = missingTokens(`${leaderboardLibSource}\n${soloLevelsSource}\n${leaderboardPageSource}`, [
         'publishSoloLeaderboardEntry',
@@ -504,20 +504,24 @@ export const EXTRA_TESTS = [
         'online_score',
         'current_level',
         'await publishSoloLeaderboardEntry(user, normalized)',
-        'publishSoloLeaderboardEntry(user, currentProgress).catch',
+        'loadSoloLeaderboardSnapshot',
       ]);
-      if (required.length) {
-        return fail('Current-user Kronox Puan is not clearly published to the leaderboard-safe source.', {
+      const readTimeWrites = forbiddenTokensFound(leaderboardPageSource, [
+        'publishSoloLeaderboardEntry(',
+        'ensureSoloProgressBackfill(',
+        'syncGuestProfileProgress(',
+      ]);
+      if (required.length || readTimeWrites.length) {
+        return fail('Materialized score publishing or pure Liderlik reads drifted.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'write/backfill/load paths mirror current user Kronox Puan to SoloLeaderboardEntry',
-          actual: { required },
+          expected: 'Solo write paths publish the projection; LeaderboardPage only loads the materialized snapshot',
+          actual: { required, forbidden: readTimeWrites },
         });
       }
-      return pass('Current-user score is mirrored on Solo progress write/backfill and refreshed on Liderlik load.', {
+      return pass('Solo progress writes publish the projection and Liderlik performs no repair, backfill, or publish mutation on read.', {
         verification: 'STATIC_CONTRACT',
-        classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
       });
     }),
@@ -630,7 +634,7 @@ export const EXTRA_TESTS = [
         'getCompletedGuestCredentialsPayload',
         'getGuestLeaderboardOwnerKey',
         'buildGuestSoloLeaderboardPayload',
-        'syncGuestProfileProgress',
+        'useCurrentPlayerProfile',
         'completedGuestProfile',
         'leaderboardPlayer',
         'leaderboard_id',
@@ -659,7 +663,7 @@ export const EXTRA_TESTS = [
           actual: { required, forbidden },
         });
       }
-      return pass('Completed guests can load/publish Liderlik rows with internal g_ owner keys while UI/public payloads stay username-only.', {
+      return pass('Completed guests can load materialized Liderlik rows with token proof while UI/public payloads stay username-only.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,

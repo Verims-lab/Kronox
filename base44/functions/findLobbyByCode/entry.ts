@@ -211,22 +211,28 @@ function mergePlayers(players: any[] = [], additions: any[] = []) {
   return merged;
 }
 
-function publicPlayer(player: any, actor: any, hostActorKey: string) {
-  return {
+function publicPlayer(player: any, actor: any, hostActorKey: string, { includeCards = true } = {}) {
+  const output: Record<string, unknown> = {
     participant_ref: String(player?.participant_ref || ''),
     username: safeUsername(player?.name, player?.participant_ref),
     name: safeUsername(player?.name, player?.participant_ref),
     ...publicAvatar(player),
     ready: Boolean(player?.ready),
-    cards: Array.isArray(player?.cards) ? player.cards : [],
     is_self: actorMatchesPlayer(actor, player),
     is_host: Boolean(hostActorKey && hostActorKey === String(player?.actor_key_hash || '')),
   };
+  if (includeCards) output.cards = Array.isArray(player?.cards) ? player.cards : [];
+  return output;
 }
 
-function publicLobby(lobby: any, actor: any, { summaryOnly = false } = {}) {
+function normalizeSnapshotScope(value: unknown) {
+  return String(value || '').trim().toLowerCase() === 'waiting_room' ? 'waiting_room' : 'game';
+}
+
+function publicLobby(lobby: any, actor: any, { summaryOnly = false, snapshotScope = 'game' } = {}) {
   const players = Array.isArray(lobby?.players) ? lobby.players : [];
   const hostActorKey = String(lobby?.host_actor_key_hash || players[0]?.actor_key_hash || '');
+  const scope = normalizeSnapshotScope(snapshotScope);
   const base = {
     id: String(lobby?.public_ref || ''),
     code: String(lobby?.code || ''),
@@ -240,15 +246,22 @@ function publicLobby(lobby: any, actor: any, { summaryOnly = false } = {}) {
     expires_at: lobby?.expires_at || null,
   };
   if (summaryOnly) return base;
-  return {
+  const rosterProjection = {
     ...base,
-    players: players.map((player) => publicPlayer(player, actor, hostActorKey)),
+    snapshot_scope: scope,
+    players: players.map((player) => publicPlayer(player, actor, hostActorKey, { includeCards: scope === 'game' })),
     category: lobby?.category || 'karisik',
     selected_category_ids: Array.isArray(lobby?.selected_category_ids) ? lobby.selected_category_ids : [],
     year_start: Number(lobby?.year_start) || 1900,
     year_end: Number(lobby?.year_end) || new Date().getUTCFullYear(),
     turn_duration: Number(lobby?.turn_duration) || 60,
     win_card_count: Number(lobby?.win_card_count) || 10,
+    started_at: lobby?.started_at || null,
+    completed_at: lobby?.completed_at || null,
+  };
+  if (scope === 'waiting_room') return rosterProjection;
+  return {
+    ...rosterProjection,
     current_player_index: Number(lobby?.current_player_index) || 0,
     current_question_id: lobby?.current_question_id || null,
     used_question_ids: Array.isArray(lobby?.used_question_ids) ? lobby.used_question_ids : [],
@@ -256,8 +269,6 @@ function publicLobby(lobby: any, actor: any, { summaryOnly = false } = {}) {
     online_deck_meta: lobby?.online_deck_meta || null,
     winner: lobby?.winner ? safeUsername(lobby.winner, lobby?.winner_participant_ref) : null,
     winner_participant_ref: lobby?.winner_participant_ref || null,
-    started_at: lobby?.started_at || null,
-    completed_at: lobby?.completed_at || null,
   };
 }
 
@@ -434,7 +445,7 @@ Deno.serve(async (req) => {
           last_activity_at: createdAt.toISOString(),
           expires_at: new Date(createdAt.getTime() + LOBBY_STALE_AFTER_MS).toISOString(),
         });
-        return json({ ok: true, created: true, lobby: publicLobby(lobby, actor) });
+        return json({ ok: true, created: true, lobby: publicLobby(lobby, actor, { snapshotScope: 'waiting_room' }) });
       } finally {
         await releaseLobbyLock(base44, lockResult.lock);
       }
@@ -448,7 +459,7 @@ Deno.serve(async (req) => {
         (actorIsHost(actor, candidate) || (candidate?.players || []).some((player: any) => actorMatchesPlayer(actor, player)))
       ));
       const withRef = lobby ? await ensureLobbyPublicRef(base44, lobby) : null;
-      return json({ ok: true, lobby: withRef ? publicLobby(withRef, actor) : null });
+      return json({ ok: true, lobby: withRef ? publicLobby(withRef, actor, { snapshotScope: 'waiting_room' }) : null });
     }
 
     const lobby = await resolveLobby(base44, body?.lobbyId || body?.lobby_id, code);
@@ -457,7 +468,11 @@ Deno.serve(async (req) => {
 
     if (action === 'get') {
       if (!isMember) return json({ ok: false, code: 'not_lobby_participant', error: 'Bu lobiye erişim iznin yok.' }, 403);
-      return json({ ok: true, found: true, lobby: publicLobby(lobby, actor) });
+      return json({
+        ok: true,
+        found: true,
+        lobby: publicLobby(lobby, actor, { snapshotScope: normalizeSnapshotScope(body?.snapshot_scope) }),
+      });
     }
 
     if (action === 'join') {
@@ -472,7 +487,14 @@ Deno.serve(async (req) => {
           const message = joined.code === 'lobby_full' ? 'Lobi dolu.' : 'Lobi katılımı tamamlanamadı. Lütfen tekrar dene.';
           return json({ ok: false, found: true, joinable: joined.code !== 'lobby_not_joinable', joined: false, code: joined.code, error: message }, 409);
         }
-        return json({ ok: true, found: true, joinable: true, joined: true, alreadyJoined: joined.alreadyJoined, lobby: publicLobby(joined.lobby, actor) });
+        return json({
+          ok: true,
+          found: true,
+          joinable: true,
+          joined: true,
+          alreadyJoined: joined.alreadyJoined,
+          lobby: publicLobby(joined.lobby, actor, { snapshotScope: 'waiting_room' }),
+        });
       } finally {
         await releaseLobbyLock(base44, lockResult.lock);
       }

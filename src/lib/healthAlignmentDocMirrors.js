@@ -75,15 +75,15 @@ Status: Active technical flow contract.
 - SubCategory/UserSubCategoryPreference are future/legacy data and not current Profile Info preference UI.
 - Solo runtime uses getQuestions bounded projections and buildSoloAttemptDeck; raw Question.list gameplay fallback and full-bank exposure are forbidden.
 - PlayerQuestionExposure is private per-player anti-repeat memory; PlayerQuestionDailyExposure is daily anonymous exposure summary; actual reports source history from QuestionAttemptEvent.
-- UserJokerInventory is the current joker balance source and JokerTransaction is the ledger. purchaseJokerWithDiamonds writes DiamondTransaction plus JokerTransaction under EconomyOperationLock.
+- UserJokerInventory is the current joker balance source and JokerTransaction is the ledger. Linked players use normalized-email internal keys; completed guests use token-proven internal guest:<g_owner_key> keys with sanitized responses. purchaseJokerWithDiamonds remains authenticated and writes DiamondTransaction plus grant ledgers under EconomyOperationLock.
 - claimDailyWheelReward writes DailyWheelSpin, DiamondTransaction for Diamond portions, JokerTransaction/UserJokerInventory for approved joker portions, and backend-owned UserDailyQuestProgress completion for active daily_calendar:* Çark çevir rows using function-level same-day/idempotency guards plus EconomyOperationLock; no atomic/upsert guarantee is repo-proven. adminResetDailyWheelState is an AdminUser-gated Admin Ekranı support tool that accepts Kronox User ID, resets only today's Daily Wheel test guards/auto-popup marker/blocking same-day wheel idempotency rows, archives DailyWheelSpin/DiamondTransaction/JokerTransaction idempotency keys to preserve completed reward rows, grants no rewards, reverses no Diamonds/Jokers, and does not affect Daily Calendar / Streak, Kronox Puan, or leaderboard.
 - startLobbyGame owns the one canonical Online shared deck. Authenticated and token-proven completed guest actors are verified backend-side; Online does not read Solo preference weighting or guest Solo projection.
 - Lobby create/join/leave/start/turn/result mutations are function-owned, use expected monotonic state_revision plus fail-closed EconomyOperationLock guards, enforce max four participants, and return idempotent canonical public snapshots. updateLobbyGameState commit_result derives the terminal result and fixed +15/-6 delta server-side, reserves/reconciles OnlineMatchResult, and publishes User/GuestProfile plus leaderboard score once. applyOnlineResult is a thin function caller and has no direct entity writes.
-- Lobby route payloads are bootstrap-only. useLobbySync applies sanitized getLobbySnapshot polling plus focus/visibility refresh through latestLobbyRef/applyLobbyData, rejects stale revisions/status regression, and never requires direct client Lobby entity subscription.
+- Lobby route payloads are bootstrap-only. Waiting-room snapshots contain roster/config only; participant game snapshots add active deck/question state. useLobbySync and useWaitingRoomSync use one non-overlapping visibility-aware adaptive poller with bounded backoff plus focus/reconnect refresh, reject stale revision/status regression, and never require direct client Lobby entity subscription.
 - Public Online/social DTOs use opaque public_ref/participant_ref/target_ref plus username, sanitized avatar/status, and required public game state only. Email, display_name, provider ID, owner_key, raw guest_id/token, actor_key_hash, auth/internal row IDs, internal player keys, transaction IDs, and private storage metadata are forbidden in client responses.
 - FriendRequest and GameInvite direct entity read/update/delete is admin-only. getOnlinePlayerSelection privately scopes service-role rows to the resolved linked/guest actor and returns opaque request/invite refs plus username-safe lifecycle/avatar data.
 - Notification INVITE_OPENED and toast dismissal are nonterminal. Pending rows survive transient empty/error fetches and failed accept/decline; only confirmed terminal backend state closes them. Recoverable Friends/player-selection/invite errors use safe Turkish copy and never raw backend/Axios messages.
-- Daily assignment repair uses an actor/server-day EconomyOperationLock and canonical distinct expected quest keys. Daily progress ignores client amount and requires same-actor/day persisted source proof. Duplicate assignment rows cannot complete a day/reward, and level 1-6 training Joker/Hint actions cannot satisfy Daily tasks.
+- Daily assignment repair runs once per status request under an actor/server-day EconomyOperationLock and canonical distinct expected keys. Wheel reconciliation requires a same-player/day receipt, history is bounded, and summary projection writes occur only when values change. Daily progress ignores client amount; duplicate rows cannot complete a day/reward; level 1-6 training Joker/Hint actions cannot satisfy Daily tasks.
 - sendQuestionAnalyticsReportEmail is admin-only, email-body-only, exactly nine sections, with anonymized User0001-style per-player coverage where used.
 - Public assets must not contain secrets, tokens, question bank, answer years, internal IDs, raw guest IDs/tokens, provider IDs, or private user data.
 - Public avatar projection may include only sanitized avatar_type, avatar_icon_id, avatar_color_id, and https avatar_url visual metadata; it must not expose email, provider IDs, owner_key, raw guest IDs, internal player keys, auth IDs, or raw storage metadata.
@@ -104,17 +104,17 @@ hooks/components, backend functions, entities/data model, and release/mobile
 constraints. Safe fixes are small, localized, validated, and avoid broad
 runtime rewrites.
 
-Phase 1 adds src/lib/soloAttemptReducer.js as a pure Solo attempt lifecycle
-reducer for HAMLE rules, persistence status, joker usage summary, and
-success-only backend record-context eligibility. Game.jsx still owns active
-runtime side effects until later ViewModel handoffs. The DB reporting plan now
-defines the privacy-safe SoloLevelAttemptEvent contract without broad runtime
-analytics writes.
+Phase 1 integrates src/lib/soloAttemptReducer.js through
+src/features/solo/viewModel/useSoloAttemptViewModel.js. The reducer owns
+evaluated moves, terminal attempt state, persistence status, and joker usage;
+src/features/solo/services/soloAttemptEffects.js owns persistence. Inventory,
+Daily, analytics, sound, and record requests remain external effects. The DB
+reporting plan defines SoloLevelAttemptEvent without broad runtime writes.
 
-Phase 1 also adds src/lib/onlineLobbyReducer.js and
+Phase 1 also uses src/lib/onlineLobbyReducer.js and
 src/lib/notificationReducer.js as pure MVI foundations. useWaitingRoomSync
-and useLobbySync feed authoritative sanitized snapshot poll/focus/visibility events into the Online reducer
-without changing route payloads. useNotificationCenter remains the shared
+and useLobbySync feed scoped authoritative snapshots through one adaptive
+polling/recovery owner without changing route payloads. useNotificationCenter remains the shared
 ViewModel/store and delegates notification fetch/subscription/terminal
 lifecycle transitions to the notification reducer.
 
@@ -174,15 +174,18 @@ Daily Calendar / Streak is Diamond-only, while Daily Wheel V2 supports weighted 
 approved Solo jokers, and Gift Box rewards. Loading/cached status is allowed while post-paint refresh
 completes. Low-end Android/WebView startup timing remains a manual proof gate.
 
-Solo Phase 1 starts at src/lib/soloAttemptReducer.js: the reducer is pure,
-effect-free, uses current HAMLE scoring constants, tracks persistence and
-record-context status, and leaves analytics, daily quest, Base44 persistence,
-and record-context requests outside the reducer.
+Solo Phase 1 runs through src/lib/soloAttemptReducer.js plus
+src/features/solo/viewModel/useSoloAttemptViewModel.js. The reducer is pure,
+uses current HAMLE scoring constants, and tracks persistence/record status;
+the effect adapter owns persistence while analytics, Daily, inventory, sound,
+and record requests stay outside the reducer.
 
 Online Phase 1 starts at src/lib/onlineLobbyReducer.js: the reducer is pure,
 effect-free, owns idle/creating/waiting/joining/joined/starting/started/
 recovering/expired/error phases, gates started state on backend-owned shared
-game state, and leaves Base44 calls/subscriptions outside the reducer.
+game state, and leaves Base44 calls/subscriptions outside the reducer. Waiting
+snapshots exclude game payload; one adaptive poller owns fallback cadence,
+overlap prevention, bounded backoff, focus, reconnect, and visibility refresh.
 
 Notification Phase 1 starts at src/lib/notificationReducer.js: the reducer is
 pure, effect-free, preserves valid pending rows through transient empty fetches,

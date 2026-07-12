@@ -12,6 +12,8 @@ import soloHintRevealPopupSource from './SoloHintRevealPopup.jsx?raw';
 import soloTimerSource from './SoloLevelTimer.jsx?raw';
 import jokerInventorySource from '../../lib/jokerInventory.js?raw';
 import hintInventorySource from '../../lib/hintInventory.js?raw';
+import soloAttemptViewModelSource from '../../features/solo/viewModel/useSoloAttemptViewModel.js?raw';
+import soloRuntimeModelSource from '../../features/solo/model/soloRuntimeModel.js?raw';
 import spendUserJokerSource from '../../../base44/functions/spendUserJoker/entry.ts?raw';
 import consumeUserHintSource from '../../../base44/functions/consumeUserHint/entry.ts?raw';
 import marketPageSource from '../../pages/MarketPage.jsx?raw';
@@ -272,11 +274,13 @@ export const EXTRA_TESTS = [
     'Solo joker buttons read UserJokerInventory balances',
     () => {
       const missing = missingTokens(`${gameSource}\n${gameLayoutSource}\n${soloJokerBarSource}\n${jokerInventorySource}`, [
-        'getUserJokerBalances(currentUser, { ensureStarter: true })',
+        'getUserJokerBalances(currentUser, {',
+        'ensureStarter: true',
+        'guestCredentials: guestRecordPayload',
         'setJokerBalances(normalizeJokerBalances',
         'balances={soloJokers?.balances || null}',
         'balances?.[inventoryType]',
-        "base44.functions.invoke('ensureUserJokerInventory'",
+        "'ensureUserJokerInventory'",
       ]);
       if (missing.length) return fail('Solo joker UI is not clearly reading persistent user balances.', {
         verification: 'STATIC_CONTRACT',
@@ -430,22 +434,25 @@ export const EXTRA_TESTS = [
   makeCase('kronokalkan_next_wrong_not_counted',
     'Kronokalkan absorbs the next wrong placement without consuming a move',
     () => {
-      const missing = missingTokens(gameSource, [
+      const combined = `${gameSource}\n${soloAttemptViewModelSource}\n${soloRuntimeModelSource}`;
+      const missing = missingTokens(combined, [
         "feedback.result === 'wrong'",
-        'if (mistakeShieldActive)',
+        'const protectedByJoker',
+        'evaluateSoloPlacement(feedback, {',
+        'protectedByJoker,',
         'setMistakeShieldActive(false)',
         "setJokerMessage('')",
         "setJokerError('')",
-        'return;',
-        'setUsedMoveCount((prev) => Math.min(soloMaxMoves, prev + 1))',
-        'setMistakeCount((prev) => prev + 1)',
+        "countsAsMove: !(result === 'wrong' && protectedByJoker)",
+        'type: SOLO_ATTEMPT_ACTIONS.MOVE_EVALUATED',
       ]);
-      if (missing.length) return fail('Kronokalkan no longer protects the wrong-feedback move decrement.', {
+      const retiredCounters = forbiddenTokens(gameSource, ['setUsedMoveCount(', 'setMistakeCount(']);
+      if (missing.length || retiredCounters.length) return fail('Kronokalkan no longer protects the reducer-owned move count.', {
         verification: 'STATIC_CONTRACT',
-        file: 'pages/Game.jsx',
-        missing,
+        files: ['src/pages/Game.jsx', 'src/features/solo/model/soloRuntimeModel.js', 'src/features/solo/viewModel/useSoloAttemptViewModel.js'],
+        actual: { missing, forbidden: retiredCounters },
       });
-      return pass('Wrong feedback consumes Kronokalkan before the move counter decrements.', { verification: 'STATIC_CONTRACT' });
+      return pass('Shielded wrong feedback dispatches countsAsMove=false to the reducer and clears the active shield.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('kronokalkan_active_visual_state',
@@ -607,7 +614,8 @@ export const EXTRA_TESTS = [
         'source: SOLO_SOURCE',
         'idempotency_key: idempotencyKey',
         'balance_after: balanceAfter',
-        'created_by: email',
+        'created_by: player.createdBy',
+        'playerType: player.playerType',
       ]);
       if (missing.length) return fail('Solo joker spend ledger contract is incomplete.', {
         verification: 'STATIC_CONTRACT',
@@ -661,7 +669,7 @@ export const EXTRA_TESTS = [
         'options.ensureStarter !== false',
         'readOwnInventoryRows',
         "invalidatedBy: 'solo_spend'",
-        'setCachedJokerBalances(email, result.balances',
+        'setCachedJokerBalances(actorCacheKey, result.balances',
       ]);
       if (missing.length) return fail('Profile/helper path does not clearly reread latest inventory rows.', {
         verification: 'STATIC_CONTRACT',
@@ -676,7 +684,8 @@ export const EXTRA_TESTS = [
     () => {
       const missing = missingTokens(`${marketPageSource}\n${gameSource}\n${soloJokerBarSource}\n${jokerInventorySource}`, [
         'setBalances(normalizeJokerBalances(result.balances))',
-        'getUserJokerBalances(currentUser, { ensureStarter: true })',
+        'getUserJokerBalances(currentUser, {',
+        'ensureStarter: true',
         'balances={soloJokers?.balances || null}',
         'const balance = normalizeJokerQuantity(balances?.[inventoryType])',
         'UserJokerInventory',

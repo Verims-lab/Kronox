@@ -8,7 +8,7 @@ import { getGameInviteExpiresAt, isGameInviteExpired } from '@/lib/inviteApi';
  * Small, read-only countdown chip for a pending GameInvite.
  *
  * Pure UI: it READS getGameInviteExpiresAt() / isGameInviteExpired() from
- * @/lib/inviteApi (Codex contract). It does NOT mutate invite state — the
+ * the invite API helper (Codex contract). It does NOT mutate invite state — the
  * actual server-side expiration is owned by the parent accept/reject flow
  * (see IncomingInvitesPanel). This component never imports or invokes any
  * accept/reject helper, and never updates GameInvite rows.

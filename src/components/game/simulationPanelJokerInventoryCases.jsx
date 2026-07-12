@@ -216,7 +216,10 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(profilePageSource, [
         'authLoading={loading}',
         'loading={jokerState.loading}',
-        'getUserJokerBalances(user, { ensureStarter: false, forceRefresh: jokerReloadKey > 0 })',
+        'getUserJokerBalances(user, {',
+        'guestCredentials,',
+        'ensureStarter: false',
+        'forceRefresh: jokerReloadKey > 0',
         'ensureStarterJokers(user, { forceEnsure: true, forceRefresh: jokerReloadKey > 0 })',
         'Joker Çantası şu anda yüklenemedi.',
         'setJokerReloadKey',
@@ -241,7 +244,7 @@ export const EXTRA_TESTS = [
         'completeKnownInventoryRows(rows)',
         'ensureSkipped: true',
         'queryPath: \'UserJokerInventory.fast_read\'',
-        "base44.functions.invoke('ensureUserJokerInventory'",
+        "'ensureUserJokerInventory'",
       ]);
       if (missing.length) return fail('Joker balance helper can still run heavy starter/self-heal before reading current balances.', {
         verification: 'STATIC_CONTRACT',
@@ -346,9 +349,13 @@ export const EXTRA_TESTS = [
         'cacheKeyUserScoped',
         'clearJokerInventoryCache',
         'setCachedJokerBalances',
-        'getUserJokerBalances(user, { ensureStarter: false, forceRefresh: jokerReloadKey > 0 })',
+        'getUserJokerBalances(user, {',
+        'guestCredentials,',
+        'ensureStarter: false',
+        'forceRefresh: jokerReloadKey > 0',
         'ensureStarterJokers(user, { forceEnsure: true, forceRefresh: jokerReloadKey > 0 })',
-        'getUserJokerBalances(currentUser, { ensureStarter: true })',
+        'getUserJokerBalances(currentUser, {',
+        'ensureStarter: true',
       ]);
       if (missing.length) return fail('Joker inventory loads are not clearly shared, cached, and user-scoped.', {
         verification: 'STATIC_CONTRACT',
@@ -384,10 +391,10 @@ export const EXTRA_TESTS = [
     () => {
       const missing = missingTokens(`${jokerInventorySource}\n${marketSource}\n${authContextSource}`, [
         'setCachedJokerBalances(email, normalized.balances',
-        'setCachedJokerBalances(email, result.balances',
+        'setCachedJokerBalances(actorCacheKey, result.balances',
         "invalidatedBy: 'market_purchase'",
         "invalidatedBy: 'solo_spend'",
-        'invalidateJokerInventoryCache(email)',
+        'invalidateJokerInventoryCache(actorCacheKey)',
         'clearJokerInventoryCache();',
       ]);
       if (missing.length) return fail('Market/Solo mutations or logout do not clearly invalidate/update cached joker balances.', {
@@ -421,20 +428,25 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('starter_grant_requires_authenticated_user',
-    'Starter grant function rejects unauthenticated users',
+    'Starter grant requires linked auth or a verified completed guest proof',
     () => {
       const missing = missingTokens(ensureUserJokerInventorySource, [
-        'base44.auth.me()',
+        'base44.auth.me().catch',
+        'normalizeGuestId(body?.guest_id)',
+        'normalizeGuestToken(body?.guest_token)',
+        'hashGuestToken(guestId, guestToken)',
+        'expectedHash !== providedHash',
+        'guest_profile_incomplete',
         'unauthenticated',
         '401',
-        'Joker Çantası için giriş yapmalısın.',
+        'rawGuestTokenServerStored: false',
       ]);
-      if (missing.length) return fail('Starter grant callable no longer fails closed for unauthenticated users.', {
+      if (missing.length) return fail('Starter grant can no longer prove linked or guest inventory ownership safely.', {
         verification: 'STATIC_CONTRACT',
         file: 'base44/functions/ensureUserJokerInventory/entry.ts',
         missing,
       });
-      return pass('Starter grant callable requires authenticated user context.', { verification: 'STATIC_CONTRACT' });
+      return pass('Starter grant accepts linked auth or token-proven completed guests and rejects missing/invalid proof.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('inventory_balance_cannot_go_negative',
@@ -530,6 +542,8 @@ export const EXTRA_TESTS = [
     () => {
       const missing = missingTokens(`${profilePageSource}\n${hintInventorySource}\n${userHintInventoryEntitySource}\n${hintTransactionEntitySource}`, [
         'getUserHintBalance',
+        'ensureUserHintInventory({ guestCredentials })',
+        'const hintRequest = email',
         'readOwnHintInventoryRows',
         'UserHintInventory.fast_read',
         'currentBalanceSource: \'UserHintInventory.quantity\'',
@@ -541,7 +555,6 @@ export const EXTRA_TESTS = [
         'normalizeHintQuantity(result?.hintBalance)',
       ]);
       const forbidden = forbiddenTokens(profilePageSource, [
-        'ensureUserHintInventory(',
         'consumeUserHint(',
         'UserHintInventory.create',
         'UserHintInventory.update',
@@ -554,7 +567,7 @@ export const EXTRA_TESTS = [
         verification: 'STATIC_CONTRACT',
         actual: { missing, forbidden },
       });
-      return pass('Profile Hint count reads UserHintInventory.quantity through a display-only helper and does not call starter/consume/mutation paths.', { verification: 'STATIC_CONTRACT' });
+      return pass('Profile uses the direct read-only path for linked players and the token-proven backend inventory projection for guests; no direct consume/entity mutation exists.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('profile_hint_remains_separate_from_joker_inventory',
@@ -746,7 +759,10 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(`${marketPageSource}\n${profilePageSource}\n${soloJokerBarSource}\n${gameSource}`, [
         'setBalances(normalizeJokerBalances(result.balances))',
         'Joker Çantası',
-        'getUserJokerBalances(user, { ensureStarter: false, forceRefresh: jokerReloadKey > 0 })',
+        'getUserJokerBalances(user, {',
+        'guestCredentials,',
+        'ensureStarter: false',
+        'forceRefresh: jokerReloadKey > 0',
         'ensureStarterJokers(user, { forceEnsure: true, forceRefresh: jokerReloadKey > 0 })',
         'Number(balances?.[item.type]) || 0',
         'balances={soloJokers?.balances || null}',
@@ -763,7 +779,9 @@ export const EXTRA_TESTS = [
     'Solo joker behavior uses user-owned inventory in Phase 2',
     () => {
       const missing = missingTokens(`${soloJokerBarSource}\n${gameSource}\n${jokerInventorySource}`, [
-        'getUserJokerBalances(currentUser, { ensureStarter: true })',
+        'getUserJokerBalances(currentUser, {',
+        'ensureStarter: true',
+        'guestCredentials: guestRecordPayload',
         'spendSoloJokerForCurrentCard',
         'spendUserJoker(currentUser',
         'soloJokerUsedByDecisionKeyRef',
@@ -801,20 +819,23 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('auth_lazily_initializes_existing_users',
-    'Existing authenticated users are lazily initialized on app/profile load',
+    'Existing linked users and completed guests are lazily initialized through canonical profile paths',
     () => {
       const missing = missingTokens(`${authContextSource}\n${profilePageSource}`, [
         'ensureStarterJokers(currentUser)',
         'jokerEnsureKeyRef',
-        'getUserJokerBalances(user, { ensureStarter: false, forceRefresh: jokerReloadKey > 0 })',
+        'getUserJokerBalances(user, {',
+        'guestCredentials,',
+        'ensureStarter: false',
+        'forceRefresh: jokerReloadKey > 0',
         'ensureStarterJokers(user, { forceEnsure: true, forceRefresh: jokerReloadKey > 0 })',
       ]);
-      if (missing.length) return fail('Existing users are not lazily initialized through auth/profile paths.', {
+      if (missing.length) return fail('Existing player inventory is not lazily initialized through auth/profile paths.', {
         verification: 'STATIC_CONTRACT',
         files: ['src/lib/AuthContext.jsx', 'src/pages/ProfilePage.jsx'],
         missing,
       });
-      return pass('Auth startup and Profile load both use idempotent starter initialization for existing users.', { verification: 'STATIC_CONTRACT' });
+      return pass('Auth startup preserves linked fast initialization and Profile resolves guest credentials through the shared inventory helper.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('ensure_function_is_registered',
@@ -823,7 +844,7 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(`${ensureUserJokerInventoryManifestSource}\n${jokerInventorySource}`, [
         '"name": "ensureUserJokerInventory"',
         '"entry": "entry.ts"',
-        "base44.functions.invoke('ensureUserJokerInventory'",
+        "'ensureUserJokerInventory'",
       ]);
       if (missing.length) return fail('ensureUserJokerInventory is not registered/invoked clearly.', {
         verification: 'STATIC_CONTRACT',
@@ -879,7 +900,8 @@ export const EXTRA_TESTS = [
         'idempotency_key: idempotencyKey',
         'balance_before: quantityBefore',
         'balance_after: balanceAfter',
-        'created_by: email',
+        'created_by: player.createdBy',
+        'playerType: player.playerType',
       ]);
       if (missing.length) return fail('Solo joker spend ledger write contract is incomplete.', {
         verification: 'STATIC_CONTRACT',
@@ -931,7 +953,7 @@ export const EXTRA_TESTS = [
         'normalizeOptionalJokerQuantity(balanceAfter)',
         'setSoloJokerBalancesFromSpendResponse',
         'setJokerBalances((previousBalances) => mergeJokerSpendMutationBalances',
-        "setCachedJokerBalances(email, result.balances",
+        'setCachedJokerBalances(actorCacheKey, result.balances',
       ]);
       if (missing.length) return fail('Solo joker spend can still show stale counts from duplicate inventory rows or partial balance payloads.', {
         verification: 'STATIC_CONTRACT',

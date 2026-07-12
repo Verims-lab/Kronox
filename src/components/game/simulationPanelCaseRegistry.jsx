@@ -242,6 +242,9 @@ import * as dbIndexReadinessCases from './simulationPanelDbIndexReadinessCases';
 // cleanup: query-before-create, reserve-first DailyWheelSpin, economy locks,
 // ledger idempotency, canonical-record returns, read-time dedupe fallback.
 import * as logicalUniqueGuardCases from './simulationPanelLogicalUniqueGuardCases';
+// Hamle 3 P1 - runtime-connected architecture, projection, privacy,
+// mobile geometry, and typecheck-progress evidence.
+import * as architectureP1Cases from './simulationPanelArchitectureP1Cases';
 
 const MODULES = [
   soloProgressCases,
@@ -303,6 +306,7 @@ const MODULES = [
   startupStatusCacheCases,
   dbIndexReadinessCases,
   logicalUniqueGuardCases,
+  architectureP1Cases,
 ];
 
 function flatten(key) {

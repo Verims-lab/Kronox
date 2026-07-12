@@ -357,6 +357,30 @@ function cacheKeyFor(userOrEmail) {
     : (userOrEmail?.email || userOrEmail?.user_email));
 }
 
+function resolveJokerClientActor(user, options = {}) {
+  const email = normalizeJokerEmail(user?.email || user?.user_email);
+  if (email) return { cacheKey: email, email, guestCredentials: null, playerType: 'linked' };
+
+  const credentials = options?.guestCredentials && typeof options.guestCredentials === 'object'
+    ? options.guestCredentials
+    : null;
+  const guestId = String(credentials?.guest_id || '').trim();
+  const guestToken = String(credentials?.guest_token || '').trim();
+  if (!guestId || !guestToken) {
+    return { cacheKey: '', email: '', guestCredentials: null, playerType: 'unknown' };
+  }
+  return {
+    cacheKey: `guest:${guestId}`,
+    email: '',
+    guestCredentials: {
+      player_type: 'guest',
+      guest_id: guestId,
+      guest_token: guestToken,
+    },
+    playerType: 'guest',
+  };
+}
+
 function getCachedJokerInventory(email) {
   const key = cacheKeyFor(email);
   if (!key) return null;
@@ -452,12 +476,13 @@ function inventoryRowsResult(email, rows, meta = {}) {
 }
 
 export async function ensureStarterJokers(user, options = {}) {
-  const email = normalizeJokerEmail(user?.email || user?.user_email);
-  if (!email) {
+  const actor = resolveJokerClientActor(user, options);
+  const actorCacheKey = actor.cacheKey;
+  if (!actorCacheKey) {
     return {
       ok: false,
       initialized: false,
-      reason: 'missing_user_email',
+      reason: 'missing_player_credentials',
       balances: emptyJokerBalances(),
       items: [],
     };
@@ -465,7 +490,7 @@ export async function ensureStarterJokers(user, options = {}) {
 
   const startedAt = nowMs();
   if (!options.forceRefresh) {
-    const cached = getCachedJokerInventory(email);
+    const cached = getCachedJokerInventory(actorCacheKey);
     if (cached?.meta?.completeInventory) {
       return cloneInventoryResult(cached, {
         ...cached.meta,
@@ -475,7 +500,7 @@ export async function ensureStarterJokers(user, options = {}) {
     }
   }
 
-  const inflightKey = `ensure:${email}`;
+  const inflightKey = `ensure:${actorCacheKey}`;
   if (!options.forceRefresh && jokerBalanceInflight.has(inflightKey)) {
     const shared = await jokerBalanceInflight.get(inflightKey);
     return cloneInventoryResult(shared, {
@@ -486,24 +511,30 @@ export async function ensureStarterJokers(user, options = {}) {
   }
 
   const promise = (async () => {
-    const rows = await readOwnInventoryRows(email);
+    const rows = actor.playerType === 'linked'
+      ? await readOwnInventoryRows(actor.email)
+      : [];
     const missingTypes = missingKnownJokerTypes(rows);
     if (!options.forceEnsure && completeKnownInventoryRows(rows)) {
-      const result = inventoryRowsResult(email, rows, {
+      const result = inventoryRowsResult(actorCacheKey, rows, {
         durationMs: elapsedMs(startedAt),
         ensureSkipped: true,
         selfHealNeeded: false,
       });
-      setCachedJokerInventory(email, result);
+      setCachedJokerInventory(actorCacheKey, result);
       return result;
     }
 
-    const response = await base44.functions.invoke('ensureUserJokerInventory', {});
+    const response = await base44.functions.invoke(
+      'ensureUserJokerInventory',
+      actor.guestCredentials || {},
+    );
     const body = unwrapFunctionResponse(response);
     if (body?.ok === false) {
-      const error = new Error(body?.error || body?.code || 'joker_inventory_init_failed');
-      error.body = body;
-      throw error;
+      throw Object.assign(
+        new Error(body?.error || body?.code || 'joker_inventory_init_failed'),
+        { body },
+      );
     }
     const result = {
       ok: true,
@@ -523,7 +554,7 @@ export async function ensureStarterJokers(user, options = {}) {
         durationMs: elapsedMs(startedAt),
       },
     };
-    setCachedJokerInventory(email, result);
+    setCachedJokerInventory(actorCacheKey, result);
     return result;
   })();
 
@@ -536,20 +567,29 @@ export async function ensureStarterJokers(user, options = {}) {
 }
 
 export async function getUserJokerBalances(user, options = {}) {
-  const email = normalizeJokerEmail(user?.email || user?.user_email);
+  const actor = resolveJokerClientActor(user, options);
+  const actorCacheKey = actor.cacheKey;
   const startedAt = nowMs();
-  if (!email) {
-    return { ok: false, reason: 'missing_user_email', balances: emptyJokerBalances(), items: [] };
+  if (!actorCacheKey) {
+    return { ok: false, reason: 'missing_player_credentials', balances: emptyJokerBalances(), items: [] };
   }
 
   if (!options.forceRefresh) {
-    const cached = getCachedJokerInventory(email);
+    const cached = getCachedJokerInventory(actorCacheKey);
     if (cached) {
       return cloneInventoryResult(cached, {
         ...cached.meta,
         durationMs: elapsedMs(startedAt),
       });
     }
+  }
+
+  if (actor.playerType === 'guest') {
+    return ensureStarterJokers(user, {
+      ...options,
+      forceEnsure: true,
+      guestCredentials: actor.guestCredentials,
+    });
   }
 
   if (options.ensureStarter !== false) {
@@ -575,7 +615,7 @@ export async function getUserJokerBalances(user, options = {}) {
             durationMs: elapsedMs(startedAt),
           },
         };
-        setCachedJokerInventory(email, result);
+        setCachedJokerInventory(actorCacheKey, result);
         return result;
       }
       throw error;
@@ -583,11 +623,11 @@ export async function getUserJokerBalances(user, options = {}) {
   }
 
   const rows = await readOwnInventoryRows(user);
-  const result = inventoryRowsResult(email, rows, {
+  const result = inventoryRowsResult(actorCacheKey, rows, {
     durationMs: elapsedMs(startedAt),
     selfHealSkipped: true,
   });
-  setCachedJokerInventory(email, result);
+  setCachedJokerInventory(actorCacheKey, result);
   return result;
 }
 
@@ -601,10 +641,11 @@ export function buildSoloJokerUseIdempotencyKey(userEmail, attemptId, questionKe
 }
 
 export async function spendUserJoker(user, options = {}) {
-  const email = normalizeJokerEmail(user?.email || user?.user_email);
+  const actor = resolveJokerClientActor(user, options);
+  const actorCacheKey = actor.cacheKey;
   const jokerType = soloUiJokerTypeToInventoryType(options.jokerType) || options.jokerType;
-  if (!email) {
-    return { ok: false, code: 'missing_user_email', error: 'Joker kullanmak için giriş yapmalısın.', balances: emptyJokerBalances() };
+  if (!actorCacheKey) {
+    return { ok: false, code: 'missing_player_credentials', error: 'Joker kullanmak için oyuncu profilini tamamlamalısın.', balances: emptyJokerBalances() };
   }
   if (!isKnownJokerType(jokerType)) {
     return { ok: false, code: 'invalid_joker_type', error: 'Joker türü geçersiz.', balances: emptyJokerBalances() };
@@ -613,6 +654,7 @@ export async function spendUserJoker(user, options = {}) {
   let response;
   try {
     response = await base44.functions.invoke('spendUserJoker', {
+      ...(actor.guestCredentials || {}),
       mode: 'solo',
       jokerType,
       idempotencyKey: options.idempotencyKey,
@@ -622,10 +664,10 @@ export async function spendUserJoker(user, options = {}) {
     });
   } catch (error) {
     const body = unwrapInvokeError(error);
-    const cachedBalances = getCachedJokerInventory(email)?.balances;
+    const cachedBalances = getCachedJokerInventory(actorCacheKey)?.balances;
     const balancePayloadTypes = jokerSpendBalancePayloadTypes(body, jokerType);
     const balanceAfter = body?.balanceAfter ?? body?.balance_after ?? body?.inventory?.quantity;
-    invalidateJokerInventoryCache(email);
+    invalidateJokerInventoryCache(actorCacheKey);
     return {
       ok: false,
       code: body?.code || 'joker_spend_request_failed',
@@ -637,7 +679,7 @@ export async function spendUserJoker(user, options = {}) {
     };
   }
   const body = unwrapFunctionResponse(response);
-  const cachedBalances = getCachedJokerInventory(email)?.balances;
+  const cachedBalances = getCachedJokerInventory(actorCacheKey)?.balances;
   const balancePayloadTypes = jokerSpendBalancePayloadTypes(body, jokerType);
   const balanceAfter = body?.balanceAfter ?? body?.balance_after ?? body?.inventory?.quantity;
   const result = {
@@ -651,15 +693,15 @@ export async function spendUserJoker(user, options = {}) {
   };
   if (result.ok) {
     if (cachedBalances || balancePayloadTypes.length === JOKER_DEFINITIONS.length) {
-      setCachedJokerBalances(email, result.balances, {
+      setCachedJokerBalances(actorCacheKey, result.balances, {
         queryPath: 'spendUserJoker.mutation_result',
         invalidatedBy: 'solo_spend',
       });
     } else {
-      invalidateJokerInventoryCache(email);
+      invalidateJokerInventoryCache(actorCacheKey);
     }
   } else {
-    invalidateJokerInventoryCache(email);
+    invalidateJokerInventoryCache(actorCacheKey);
   }
   return result;
 }

@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex588 - Hamle 3 P1 architecture and Health hardening:
+//   - Solo runtime now uses the attempt reducer/ViewModel/effect boundary.
+//   - Lobby fallback polling is adaptive and scoped waiting/game DTOs reduce
+//     payload; social profile hydration is batched; Leaderboard reads are pure.
+//   - Auth/Profile mapping is shared and completed guests see token-proven
+//     Joker/Hint inventory; typecheck noise falls from 1,260 to 370 errors.
+//   - Architecture/DB/mobile docs and runtime-connected Health are aligned.
+//
 // Codex587 — Pre-Hamle 3 Health stabilization:
 //   • Live Lobby polling/focus refresh wins over route snapshots; host start
 //     and waiting-room invite UX use current sanitized backend contracts.
@@ -88,7 +96,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex587';
+const BUILD_MARKER = 'Codex588';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

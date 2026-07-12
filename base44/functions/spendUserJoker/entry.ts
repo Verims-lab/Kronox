@@ -3,6 +3,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 const JOKER_TYPES = ['mistake_shield', 'card_swap', 'time_freeze'] as const;
 const SOLO_USE_REASON = 'solo_use';
 const SOLO_SOURCE = 'solo';
+const GUEST_ID_PREFIX = 'guest_';
 const ECONOMY_LOCK_TTL_MS = 8_000;
 const ECONOMY_LOCK_SETTLE_MS = 80;
 const JOKER_NON_NEGATIVE_BALANCE_CONTRACT = Object.freeze({
@@ -15,6 +16,58 @@ function json(payload: unknown, status = 200) {
 
 function normalizeEmail(value: unknown) {
   return String(value || '').trim().toLowerCase();
+}
+
+function safeCredentialText(value: unknown, maxLength = 180) {
+  const text = String(value || '').trim();
+  if (!text || text.length > maxLength) return '';
+  return /^[A-Za-z0-9_-]+$/.test(text) ? text : '';
+}
+
+function normalizeGuestId(value: unknown) {
+  const text = safeCredentialText(value, 80);
+  return text.startsWith(GUEST_ID_PREFIX) ? text : '';
+}
+
+function normalizeGuestToken(value: unknown) {
+  return safeCredentialText(value, 220);
+}
+
+function ownerKeyFromText(prefix: string, rawValue: unknown) {
+  const value = String(rawValue || '').trim().toLowerCase();
+  if (!value) return '';
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `${prefix}_${(hash >>> 0).toString(36)}`;
+}
+
+function guestPlayerKey(guestId: string) {
+  const ownerKey = ownerKeyFromText('g', guestId);
+  return ownerKey ? `guest:${ownerKey}` : '';
+}
+
+function bytesToBase64Url(bytes: Uint8Array) {
+  let binary = '';
+  bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+async function hashGuestToken(guestId: string, guestToken: string) {
+  const data = new TextEncoder().encode(`kronox_guest_v1:${guestId}:${guestToken}`);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return bytesToBase64Url(new Uint8Array(digest));
+}
+
+function isGuestProfileComplete(row: any) {
+  const status = String(row?.onboarding_status || '').trim();
+  if (status === 'onboarding_complete' || status === 'completed') return true;
+  const profileCompleted = String(row?.profile_setup_status || '').trim() === 'completed' || Boolean(row?.profile_setup_completed_at);
+  const categoryCompleted = String(row?.category_setup_status || '').trim() === 'completed' ||
+    Boolean(row?.category_setup_completed_at || row?.onboarding_completed_at);
+  return Boolean(profileCompleted && categoryCompleted);
 }
 
 function normalizeQuantity(value: unknown) {
@@ -67,6 +120,40 @@ function entityStore(base44: any, entityName: string) {
   const serviceEntity = base44?.asServiceRole?.entities ? base44.asServiceRole.entities[entityName] : null;
   const authEntity = base44?.entities ? base44.entities[entityName] : null;
   return serviceEntity || authEntity;
+}
+
+async function resolveJokerPlayer(base44: any, body: any) {
+  const user = await base44.auth.me().catch(() => null);
+  const email = normalizeEmail(user?.email || user?.user_email);
+  if (email) {
+    return { ok: true, actorKey: email, playerType: 'linked', createdBy: email, response: null };
+  }
+
+  const guestId = normalizeGuestId(body?.guest_id);
+  const guestToken = normalizeGuestToken(body?.guest_token);
+  if (!guestId || !guestToken) {
+    return { ok: false, response: json({ ok: false, code: 'unauthenticated', error: 'Joker kullanmak için oyuncu profilini tamamlamalısın.' }, 401) };
+  }
+  const guestEntity = entityStore(base44, 'GuestProfile');
+  const rows = guestEntity?.filter
+    ? await guestEntity.filter({ guest_id: guestId }, '-created_at', 5).catch(() => [])
+    : [];
+  const guest = Array.isArray(rows) && rows.length ? rows[0] : null;
+  const expectedHash = String(guest?.guest_token_hash || '');
+  const providedHash = await hashGuestToken(guestId, guestToken);
+  if (!guest || !expectedHash || expectedHash !== providedHash) {
+    return { ok: false, response: json({ ok: false, code: 'invalid_guest_token', error: 'Misafir oturumu doğrulanamadı.' }, 401) };
+  }
+  if (String(guest?.status || '') === 'linked' || !isGuestProfileComplete(guest)) {
+    return { ok: false, response: json({ ok: false, code: 'guest_profile_incomplete', error: 'Joker kullanmak için oyuncu profilini tamamlamalısın.' }, 403) };
+  }
+  return {
+    ok: true,
+    actorKey: guestPlayerKey(guestId),
+    playerType: 'guest',
+    createdBy: 'system:guest_joker_inventory',
+    response: null,
+  };
 }
 
 function economyOperationLockEntity(base44: any) {
@@ -315,24 +402,10 @@ Deno.serve(async (req: Request) => {
     }
 
     const base44 = createClientFromRequest(req);
-    let user: any = null;
-    try {
-      user = await base44.auth.me();
-    } catch {
-      return json({ ok: false, code: 'unauthenticated', error: 'Joker kullanmak için giriş yapmalısın.' }, 401);
-    }
-
-    const email = normalizeEmail(user?.email);
-    if (!email) {
-      return json({ ok: false, code: 'unauthenticated', error: 'Joker kullanmak için giriş yapmalısın.' }, 401);
-    }
-
-    let body: any = {};
-    try {
-      body = await req.json();
-    } catch {
-      body = {};
-    }
+    const body = await req.json().catch(() => ({}));
+    const player = await resolveJokerPlayer(base44, body);
+    if (!player.ok) return player.response;
+    const email = String(player.actorKey || '');
 
     const jokerType = normalizeJokerType(body?.jokerType || body?.joker_type);
     if (!jokerType) {
@@ -462,10 +535,11 @@ Deno.serve(async (req: Request) => {
         balance_before: quantityBefore,
         balance_after: balanceAfter,
         created_at: timestamp,
-        created_by: email,
+        created_by: player.createdBy,
         metadata: {
           ...safeMetadata(body?.metadata),
           phase: 'joker_inventory_phase_2',
+          playerType: player.playerType,
         },
       });
     } catch (error) {
@@ -503,12 +577,15 @@ Deno.serve(async (req: Request) => {
       quantityDelta: -1,
       reason: SOLO_USE_REASON,
       source: SOLO_SOURCE,
+      playerType: player.playerType,
       balanceBefore: quantityBefore,
       balanceAfter,
       inventory: publicInventoryRow(finalInventory),
       ...(await readBalancePayload(base44, email)),
       duplicateRowsRepaired,
       appliedAt: timestamp,
+      privateActorKeyReturned: false,
+      rawGuestTokenServerStored: false,
     });
     });
   } catch (error) {

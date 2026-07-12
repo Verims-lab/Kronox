@@ -11,6 +11,7 @@ import useLobbySyncSource from '../../hooks/useLobbySync.js?raw';
 import useWaitingRoomSyncSource from '../../hooks/useWaitingRoomSync.js?raw';
 import onlineGameNavigationSource from '../../lib/onlineGameNavigation.js?raw';
 import onlineLobbyReducerSource from '../../lib/onlineLobbyReducer.js?raw';
+import adaptivePollerSource from '../../lib/adaptivePoller.js?raw';
 import healthMirrorSource from '../../lib/healthAlignmentDocMirrors.js?raw';
 import {
   createOnlineLobbyInitialState,
@@ -333,48 +334,58 @@ export const EXTRA_TESTS = [
   makeCase('all_participants_have_subscription_and_poll_transition',
     'Non-host participants transition through backend snapshot polling and recovery',
     () => {
-      const src = `${safeStr(useWaitingRoomSyncSource)}\n${safeStr(onlineGameNavigationSource)}\n${safeStr(lobbyGatewaySource)}`;
+      const src = `${safeStr(useWaitingRoomSyncSource)}\n${safeStr(onlineGameNavigationSource)}\n${safeStr(lobbyGatewaySource)}\n${safeStr(adaptivePollerSource)}`;
       const m = missing(src, [
         'getLobbySnapshot',
-        'start_fallback_poll',
-        "status === 'starting' || status === 'in_game'",
+        'createAdaptivePoller',
+        "LOBBY_SNAPSHOT_SCOPES.WAITING_ROOM",
+        "source === 'poll' && targetDocument?.visibilityState === 'hidden'",
+        'if (!active || inFlight) return false',
+        "fresh.status === 'starting' || fresh.status === 'in_game'",
         'navigateToOnlineGameRoute',
         '/game?',
       ]);
-      if (m.length) {
+      const oldLoops = forbidden(useWaitingRoomSyncSource, [
+        'window.setInterval',
+        'startFallbackPoll',
+      ]);
+      if (m.length || oldLoops.length) {
         return fail('A participant that misses realtime may remain in the lobby.', {
           verification: 'STATIC_CONTRACT',
           actionType: ACTION_TYPES.CODE_FIX,
           file: 'useWaitingRoomSync + onlineGameNavigation',
-          missing: m,
+          actual: { missing: m, forbidden: oldLoops },
         });
       }
-      return pass('Waiting room uses privacy-safe backend snapshots plus fallback polling to enter the same Online game route.',
+      return pass('Waiting room uses one non-overlapping, visibility-aware snapshot poller plus the shared Online route transition.',
         { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('missed_realtime_event_can_refetch_started_lobby',
     'Game bootstrap retry refetches the lobby even after a partial lobby snapshot',
     () => {
-      const src = `${safeStr(onlineGameBootstrapFallbackSource)}\n${safeStr(gameSource)}\n${safeStr(useLobbySyncSource)}`;
+      const src = `${safeStr(onlineGameBootstrapFallbackSource)}\n${safeStr(gameSource)}\n${safeStr(useLobbySyncSource)}\n${safeStr(adaptivePollerSource)}\n${safeStr(lobbyGatewaySource)}`;
       const m = missing(src, [
         'if (canRetryLobby)',
         'onRefetchLobby',
         'getLobbySnapshot',
-        'pollIntervalId',
+        'createAdaptivePoller',
+        'scope = LOBBY_SNAPSHOT_SCOPES.GAME',
         'refreshLiveLobby',
         'applyLobbyData(freshLobby, source)',
         'visibility-refresh',
+        'network-online',
       ]);
-      if (m.length) {
+      const oldLoops = forbidden(useLobbySyncSource, ['window.setInterval', 'pollIntervalId']);
+      if (m.length || oldLoops.length) {
         return fail('Game bootstrap recovery may not fetch the current started lobby after a missed event.', {
           verification: 'STATIC_CONTRACT',
           actionType: ACTION_TYPES.CODE_FIX,
           file: 'OnlineGameBootstrapFallback + Game + useLobbySync',
-          missing: m,
+          actual: { missing: m, forbidden: oldLoops },
         });
       }
-      return pass('Online bootstrap can refetch current lobby state even when it already has a partial snapshot.',
+      return pass('Online bootstrap can refetch current game-scoped state through the shared adaptive recovery owner.',
         { verification: 'STATIC_CONTRACT' });
     }),
 

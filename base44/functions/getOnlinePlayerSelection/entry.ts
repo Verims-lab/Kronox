@@ -3,6 +3,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 const PRESENCE_ONLINE_TTL_MS = 75 * 1000;
 const MAX_SELECTION_ROWS = 200;
 const PRESENCE_SCAN_LIMIT = 600;
+const PUBLIC_PROFILE_SCAN_LIMIT = 1200;
 const KRONOX_ID_PATTERN = /^KX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
 const AVATAR_TYPE_VALUES = new Set(['icon', 'photo']);
 const AVATAR_ICON_IDS = new Set([
@@ -224,11 +225,21 @@ function buildPublicRow({
   };
 }
 
-async function getUserPublicProfile(base44: any, email: string) {
-  const normalized = normalizeEmail(email);
-  if (!normalized) return null;
-  const rows = await base44.asServiceRole.entities.User.filter({ email: normalized }, '-updated_date', 1).catch(() => []);
-  return rows?.[0] || null;
+async function loadPublicProfilesByEmail(base44: any, emails: unknown[] = []) {
+  const wanted = new Set(emails.map(normalizeEmail).filter(Boolean));
+  const profiles = new Map<string, any>();
+  if (!wanted.size) return profiles;
+
+  const rows = await base44.asServiceRole.entities.User
+    .list('-updated_date', PUBLIC_PROFILE_SCAN_LIMIT)
+    .catch(() => []);
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const email = normalizeEmail(row?.email || row?.user_email);
+    if (!email || !wanted.has(email) || profiles.has(email)) continue;
+    profiles.set(email, row);
+    if (profiles.size >= wanted.size) break;
+  }
+  return profiles;
 }
 
 async function findCurrentUserRow(base44: any, user: any, email: string) {
@@ -396,21 +407,18 @@ async function buildSocialSnapshot(base44: any, actor: any, nowMs: number) {
     base44.asServiceRole.entities.PlayerPresence.filter({ status: 'online' }, '-last_seen_at', PRESENCE_SCAN_LIMIT).catch(() => []),
   ]);
 
-  const profileCache = new Map<string, any>();
-  const getProfile = async (email: unknown) => {
-    const normalized = normalizeEmail(email);
-    if (!normalized) return null;
-    if (!profileCache.has(normalized)) {
-      profileCache.set(normalized, await getUserPublicProfile(base44, normalized));
-    }
-    return profileCache.get(normalized) || null;
-  };
+  const profileEmails = [
+    ...(incomingFriendRows || []).map((row: any) => row?.from_email),
+    ...(outgoingFriendRows || []).map((row: any) => row?.to_email),
+  ];
+  const profileByEmail = await loadPublicProfilesByEmail(base44, profileEmails);
+  const getProfile = (email: unknown) => profileByEmail.get(normalizeEmail(email)) || null;
   const { freshOnline } = latestPresenceByOwner(presenceRows || [], nowMs);
 
   const publicFriendRequest = async (row: any, direction: 'incoming' | 'outgoing') => {
     const publicRef = await ensurePublicRef(base44.asServiceRole.entities.FriendRequest, row, 'friendreq');
     const otherEmail = direction === 'incoming' ? row?.from_email : row?.to_email;
-    const profile = await getProfile(otherEmail);
+    const profile = getProfile(otherEmail);
     const username = safePublicUsername(
       direction === 'incoming'
         ? (profile?.username || profile?.public_username || row?.from_username || row?.from_name)
@@ -439,7 +447,7 @@ async function buildSocialSnapshot(base44: any, actor: any, nowMs: number) {
   ];
   const friendByRef = new Map<string, any>();
   for (const pair of acceptedPairs) {
-    const profile = await getProfile(pair.email);
+    const profile = getProfile(pair.email);
     if (!profile) continue;
     const targetRef = await ensureSocialRef(base44.asServiceRole.entities.User, profile);
     if (!targetRef || friendByRef.has(targetRef)) continue;
@@ -554,6 +562,11 @@ Deno.serve(async (req) => {
       Math.max(limit, PRESENCE_SCAN_LIMIT),
     ).catch(() => []);
     const { freshOnline } = latestPresenceByOwner(onlinePresenceRows || [], nowMs);
+    const publicProfileEmails = [
+      ...friends.map((friend) => friend.email),
+      ...Array.from(freshOnline.values()).map((presence) => presence?.user_email || presence?.backend_recipient_email),
+    ];
+    const publicProfilesByEmail = await loadPublicProfilesByEmail(base44, publicProfileEmails);
 
     const rows: any[] = [];
     const seenTargetRefs = new Set<string>();
@@ -564,20 +577,12 @@ Deno.serve(async (req) => {
     };
 
     for (const friend of friends) {
-      const friendProfile = await getUserPublicProfile(base44, friend.email);
+      const friendProfile = publicProfilesByEmail.get(normalizeEmail(friend.email)) || null;
       if (!friendProfile) continue;
       const targetRef = await ensureSocialRef(base44.asServiceRole.entities.User, friendProfile);
       if (!targetRef || targetRef === mySelectionRef) continue;
       friendRefs.add(targetRef);
-      let latest = freshOnline.get(targetRef) || null;
-      if (!latest) {
-        const friendPresence = await base44.asServiceRole.entities.PlayerPresence.filter(
-          { selection_ref: targetRef },
-          '-last_seen_at',
-          10,
-        ).catch(() => []);
-        latest = (friendPresence || [])[0] || null;
-      }
+      const latest = freshOnline.get(targetRef) || null;
       const online = isOnlinePresence(latest, nowMs);
       addRow(buildPublicRow({
         targetRef,
@@ -594,7 +599,7 @@ Deno.serve(async (req) => {
       if (!targetRef || targetRef === mySelectionRef || friendRefs.has(targetRef)) continue;
       const targetEmail = normalizeEmail(presence?.user_email || presence?.backend_recipient_email);
       if (targetEmail && targetEmail === myEmail) continue;
-      const targetProfile = targetEmail ? await getUserPublicProfile(base44, targetEmail) : null;
+      const targetProfile = targetEmail ? (publicProfilesByEmail.get(targetEmail) || null) : null;
       const inviteEnabled = Boolean(targetEmail);
       addRow(buildPublicRow({
         targetRef,

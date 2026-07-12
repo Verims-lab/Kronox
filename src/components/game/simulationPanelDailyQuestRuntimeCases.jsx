@@ -573,7 +573,7 @@ export const EXTRA_TESTS = [
         'Daily Calendar / Streak',
         'Home GÜNLÜK shortcut',
         '9-day rotating task template cycle',
-        '3 deterministic expected task keys',
+        'exactly 3 deterministic',
         'Daily header shows only GÜNLÜK',
         'Calendar legend shows only Tamamlandı and Bugün',
         'task cards show title-only rows',

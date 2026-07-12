@@ -28,6 +28,10 @@ checks that source code and static Health cannot honestly prove alone.
   subpages, Friends, Settings, Admin, Market, Daily, and similar main-tab
   subpages use a top-left back arrow with explicit parent/root fallback; the
   top-right remains reserved for notifications/actions.
+* Home is bounded by `100dvh`, safe-area insets, and the known BottomNav height.
+  Its content column may scroll vertically inside those bounds at 320px-class
+  heights, but must keep both primary CTAs reachable above the three-tab nav
+  and must never introduce horizontal overflow.
 * Reduced motion keeps functional feedback without relying on long animations.
 * Loading/error/retry states must be local to the affected section when possible
   so one slow data source does not blank an entire screen.
