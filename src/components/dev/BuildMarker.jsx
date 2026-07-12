@@ -1,5 +1,25 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex589 — Fix Health FAIL KRONOX-MRHQ7K50 (post-Hamle 3):
+//   - acceptFriendRequest now guards accept/reject with a single
+//     receiver-only check (403 "Only the receiver can update this request").
+//   - Waiting room copy is invite-centric ("Daveti kabul eden arkadaşların
+//     buraya katılır."), keeping "Yedek kod" and "Oyuncular (" as backup UX.
+//   - @base44/sdk is exact-pinned to 0.8.34 in package.json (no caret),
+//     matching critical Base44 function Deno imports.
+//   - Question analytics "does not change gameplay rules" Health contract
+//     now follows calculateSoloAttemptResult through its real Hamle 3
+//     location (soloRuntimeModel/soloAttemptEffects), not a stale Game.jsx-only
+//     expectation.
+//   - Added Health suites offline_solo, waiting_room_start, and
+//     route_bootstrap, proving (from real current source): Daily Quest
+//     solo_level_complete only fires after a passed+persisted Solo attempt;
+//     Online waiting-room start uses backend snapshot + adaptive fallback
+//     poll (not route state alone); and live Lobby data outranks stale route
+//     snapshots via visibility/focus/poll refresh.
+//   - No scoring, Online flow, Daily task cycle, Store prices, or BottomNav
+//     changed.
+//
 // Codex588 - Hamle 3 P1 architecture and Health hardening:
 //   - Solo runtime now uses the attempt reducer/ViewModel/effect boundary.
 //   - Lobby fallback polling is adaptive and scoped waiting/game DTOs reduce
@@ -96,7 +116,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex588';
+const BUILD_MARKER = 'Codex589';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

@@ -245,6 +245,10 @@ import * as logicalUniqueGuardCases from './simulationPanelLogicalUniqueGuardCas
 // Hamle 3 P1 - runtime-connected architecture, projection, privacy,
 // mobile geometry, and typecheck-progress evidence.
 import * as architectureP1Cases from './simulationPanelArchitectureP1Cases';
+// Codex589 — Hamle 3 runtime alignment: Solo Daily completion gating,
+// Online waiting-room/lobby fallback poll + live-lobby priority contracts
+// retargeted to the real post-refactor helpers.
+import * as hamle3RuntimeAlignmentCases from './simulationPanelHamle3RuntimeAlignmentCases';
 
 const MODULES = [
   soloProgressCases,
@@ -307,6 +311,7 @@ const MODULES = [
   dbIndexReadinessCases,
   logicalUniqueGuardCases,
   architectureP1Cases,
+  hamle3RuntimeAlignmentCases,
 ];
 
 function flatten(key) {
