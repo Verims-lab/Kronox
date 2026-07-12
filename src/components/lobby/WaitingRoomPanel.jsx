@@ -223,10 +223,11 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
           </button>
         </div>
 
-        {/* Lobby code — demoted to a small fallback affordance. Invitations are
-            now the primary join path, but the code is still useful for guests
-            and as a manual fallback (Açık Lobiye Gir). */}
+        {/* Invitations are the primary join path; the lobby code is the fallback. */}
         <div className="text-center">
+          <p className="mb-2 font-inter text-[11px] uppercase tracking-widest text-blue-100/70 font-semibold">
+            Davet edilen arkadaşların
+          </p>
           <button
             onClick={onCopyCode}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 mx-auto min-h-[36px] justify-center"
