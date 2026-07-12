@@ -8,7 +8,6 @@
  */
 import React, { useEffect, useCallback, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { base44 } from '@/api/base44Client';
 import { AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Loader2, WifiOff } from 'lucide-react';
@@ -40,18 +39,18 @@ import GameRenderErrorBoundary from '@/components/game/GameRenderErrorBoundary';
 import { useAuth } from '@/lib/AuthContext';
 import { GuidedTutorialPopup, GuidedSoloTutorialOverlay } from '@/components/game/GuidedTutorialOverlays';
 import { buildOnlineScorePopupState } from '@/lib/onlineScorePopup';
-import { applyLevelAttempt, getSoloCardsRequiredForLevel, getSoloAttemptDeckSizeForLevel, getSoloMaxMovesForLevel, getSoloTimelineWinCardCountForLevel, getSoloLevelCount, isSoloSpecialLevel, SOLO_LEVEL_TIME_SECONDS, SOLO_MAX_MOVES, readSoloProgress, writeSoloProgress } from '@/lib/soloLevels';
+import { getSoloCardsRequiredForLevel, getSoloAttemptDeckSizeForLevel, getSoloMaxMovesForLevel, getSoloTimelineWinCardCountForLevel, getSoloLevelCount, isSoloSpecialLevel, SOLO_LEVEL_TIME_SECONDS } from '@/lib/soloLevels';
 import {
-  calculateSoloAttemptResult,
-  getBestSoloLevelResult,
   SOLO_CARD_SWAP_BUFFER_CARDS,
   SOLO_MISTAKE_SHIELD_BUFFER_CARDS,
   SOLO_RULES_VERSION,
-  getSoloLevelType,
-  getSoloPlayableCardCountForLevel,
-  getSoloReferenceCardCountForLevel,
-  isSoloOnboardingLevel,
 } from '@/lib/soloProgressHelpers';
+import { useSoloAttemptViewModel } from '@/features/solo/viewModel/useSoloAttemptViewModel';
+import {
+  buildSoloRuntimeResult,
+  calculateSoloEffectiveElapsedSeconds,
+} from '@/features/solo/model/soloRuntimeModel';
+import { persistSoloLevelAttempt } from '@/features/solo/services/soloAttemptEffects';
 // Codex166/Codex180 — Solo Question Selection Engine. Builds a controlled
 // attempt deck (unique question ids + unique answer/years) once per Solo
 // attempt. Gameplay consumes the deck sequentially — no mid-attempt
@@ -312,40 +311,32 @@ export default function Game() {
     document.body.classList.add(GAMEPLAY_DRAG_LOCK_CLASS);
   }, []);
 
-  // Codex106 — Solo Level attempt state. All gated by `isSoloLevelMode`,
-  // so other modes (online, legacy solo) are unaffected.
-  //
-  //   usedMoveCount       — incremented only after a valid timeline placement
-  //                         is evaluated (feedback correct/wrong). Dragging,
-  //                         invalid drops, tutorial hints, and joker activation
-  //                         never consume moves.
-  //   mistakeCount        — legacy analytics/progress metadata for wrong
-  //                         placements; no longer drives stars or visible limits.
-  //   soloLevelResult     — { passed, stars, usedMoves, remainingMoves,
-  //                           mistakes, timeSeconds,
-  //                           cardsCompleted, failReason } when the attempt
-  //                         ends. Triggers the SoloLevelResult overlay.
-  //   soloResultPersistedRef — guard so we only call writeSoloProgress once
-  //                         per attempt even if effects re-run.
-  const soloMaxMoves = useMemo(() => {
-    const canonicalMaxMoves = getSoloMaxMovesForLevel(soloLevel?.levelNumber);
-    if (isSoloOnboardingLevel(soloLevel?.levelNumber)) {
-      return Math.max(1, canonicalMaxMoves);
-    }
-    const configuredMaxMoves = Number(soloLevel?.maxMoves);
-    const safeConfiguredMaxMoves = Number.isFinite(configuredMaxMoves) && configuredMaxMoves > 0
-      ? Math.floor(configuredMaxMoves)
-      : 0;
-    return Math.max(1, canonicalMaxMoves, safeConfiguredMaxMoves || SOLO_MAX_MOVES);
-  }, [soloLevel?.levelNumber, soloLevel?.maxMoves]);
-  const soloLevelType = isSoloLevelMode ? getSoloLevelType(soloLevel?.levelNumber) : null;
-  const isSoloOnboardingMode = Boolean(isSoloLevelMode && isSoloOnboardingLevel(soloLevel?.levelNumber));
-  const soloReferenceCardCount = isSoloLevelMode ? getSoloReferenceCardCountForLevel(soloLevel?.levelNumber) : 0;
-  const soloPlayableCardTarget = isSoloLevelMode ? getSoloPlayableCardCountForLevel(soloLevel?.levelNumber) : 0;
-  const isSoloTrainingConsumables = Boolean(isSoloOnboardingMode && !isGuidedSoloTutorial);
-  const [usedMoveCount, setUsedMoveCount] = useState(0);
-  const remainingMoveCount = Math.max(0, soloMaxMoves - usedMoveCount);
-  const [mistakeCount, setMistakeCount] = useState(0);
+  // Reducer-backed attempt state owns deterministic counters and lifecycle.
+  // Network, persistence, inventory, Daily events, sound, and navigation stay
+  // outside the reducer in this page or the feature effect adapter.
+  const {
+    config: soloRuntimeConfig,
+    usedMoveCount,
+    mistakeCount,
+    remainingMoveCount,
+    evaluatePlacement: evaluateSoloPlacement,
+    recordJokerUse: recordSoloJokerUse,
+    markSucceeded: markSoloAttemptSucceeded,
+    markFailed: markSoloAttemptFailed,
+    markPersistRequested: markSoloPersistRequested,
+    markPersistSucceeded: markSoloPersistSucceeded,
+    markPersistFailed: markSoloPersistFailed,
+    getCurrentState: getCurrentSoloAttemptState,
+    resetAttempt: resetSoloAttempt,
+  } = useSoloAttemptViewModel({ enabled: isSoloLevelMode, soloLevel });
+  const soloMaxMoves = soloRuntimeConfig.maxMoves;
+  const soloLevelType = isSoloLevelMode ? soloRuntimeConfig.levelType : null;
+  const isSoloOnboardingMode = Boolean(isSoloLevelMode && soloRuntimeConfig.onboarding);
+  const soloReferenceCardCount = isSoloLevelMode ? soloRuntimeConfig.referenceCardCount : 0;
+  const soloPlayableCardTarget = isSoloLevelMode ? soloRuntimeConfig.playableCardTarget : 0;
+  const isSoloTrainingConsumables = Boolean(
+    isSoloLevelMode && soloRuntimeConfig.trainingConsumables && !isGuidedSoloTutorial
+  );
   const lastCountedFeedbackRef = useRef(null);
   const [soloLevelResult, setSoloLevelResult] = useState(null);
   const soloResultPersistedRef = useRef(false);
@@ -877,11 +868,22 @@ export default function Game() {
   const activeHintPauseOffset = hintPopupTimerOpen && Number.isFinite(Number(hintPauseElapsedAtStartRef.current))
     ? Math.max(0, Number(overallSeconds || 0) - Number(hintPauseElapsedAtStartRef.current))
     : 0;
-  const soloEffectiveElapsedSeconds = isSoloLevelMode
-    ? Math.max(0, isSoloTimerFrozen
-      ? (timerFreezeElapsedAtStartRef.current ?? overallSeconds)
-      : overallSeconds - frozenElapsedOffset - guidedTutorialPauseOffset - soloLevelStartTutorialPauseOffset - hintPauseOffset - activeFreezeOffset - activeGuidedTutorialPauseOffset - activeSoloLevelStartTutorialPauseOffset - activeHintPauseOffset)
-    : overallSeconds;
+  const soloEffectiveElapsedSeconds = calculateSoloEffectiveElapsedSeconds({
+    enabled: isSoloLevelMode,
+    rawElapsedSeconds: overallSeconds,
+    frozen: isSoloTimerFrozen,
+    frozenAtSeconds: timerFreezeElapsedAtStartRef.current,
+    offsets: [
+      frozenElapsedOffset,
+      guidedTutorialPauseOffset,
+      soloLevelStartTutorialPauseOffset,
+      hintPauseOffset,
+      activeFreezeOffset,
+      activeGuidedTutorialPauseOffset,
+      activeSoloLevelStartTutorialPauseOffset,
+      activeHintPauseOffset,
+    ],
+  });
   const soloEffectiveElapsedSecondsRef = useRef(0);
 
   useEffect(() => {
@@ -2136,7 +2138,12 @@ export default function Game() {
     soloJokerUsedByDecisionKeyRef.current.set(decisionKey, jokerType);
     jokerUsedRef.current = true;
     setUsedJokerType(jokerType);
-  }, []);
+    recordSoloJokerUse(jokerType, {
+      source: isGuidedSoloTutorial ? 'guided_tutorial' : (isSoloTrainingConsumables ? 'training' : 'solo'),
+      guided: isGuidedSoloTutorial,
+      tutorial: isSoloTrainingConsumables,
+    });
+  }, [isGuidedSoloTutorial, isSoloTrainingConsumables, recordSoloJokerUse]);
 
   const startSoloTimerFreeze = useCallback(() => {
     const start = Date.now();
@@ -2685,23 +2692,25 @@ export default function Game() {
     if (!feedback) { lastCountedFeedbackRef.current = null; return; }
     if (feedback === lastCountedFeedbackRef.current) return;
     lastCountedFeedbackRef.current = feedback;
+    const protectedByJoker = feedback.result === 'wrong' && mistakeShieldActive;
+    evaluateSoloPlacement(feedback, {
+      protectedByJoker,
+      elapsedSeconds: soloEffectiveElapsedSecondsRef.current,
+    });
     if (feedback.result === 'wrong') {
       setSoloCorrectStreak(0);
-      if (mistakeShieldActive) {
+      if (protectedByJoker) {
         setMistakeShieldActive(false);
         setJokerMessage('');
         setJokerError('');
         return;
       }
-      setUsedMoveCount((prev) => Math.min(soloMaxMoves, prev + 1));
-      setMistakeCount((prev) => prev + 1);
       return;
     }
     if (feedback.result === 'correct') {
-      setUsedMoveCount((prev) => Math.min(soloMaxMoves, prev + 1));
       setSoloCorrectStreak((prev) => prev + 1);
     }
-  }, [feedback, isSoloLevelMode, mistakeShieldActive, soloMaxMoves]);
+  }, [evaluateSoloPlacement, feedback, isSoloLevelMode, mistakeShieldActive]);
 
   // Codex106 — finalize result when the attempt ends.
   //
@@ -2718,44 +2727,34 @@ export default function Game() {
     if (!isSoloLevelMode || soloLevelResult) return;
     const totalTime = soloLevel?.totalTimeSeconds ?? SOLO_LEVEL_TIME_SECONDS;
     const cardTarget = winCardCount || soloCardsRequired || 7;
-    const remainingMoves = Math.max(0, soloMaxMoves - usedMoveCount);
+    const attemptState = getCurrentSoloAttemptState();
+    const currentUsedMoves = attemptState.usedMoves;
+    const currentMistakes = Math.max(0, attemptState.usedMoves - attemptState.correctPlacementCount);
 
     // PASS path — winner was set by the win condition inside doPlacement.
     if (winner) {
       const elapsed = getSoloResultElapsedSeconds(winner.durationSeconds);
-      const attempt = calculateSoloAttemptResult({
-        mistakes: mistakeCount,
-        usedMoves: usedMoveCount,
-        remainingMoves,
+      const result = buildSoloRuntimeResult({
+        mistakeCount: currentMistakes,
+        usedMoveCount: currentUsedMoves,
         maxMoves: soloMaxMoves,
-        completedCards: cardTarget,
-        elapsedSeconds: elapsed,
-        requiredCards: cardTarget,
-      });
-      // The win condition already enforces the card target via winCardCount.
-      setSoloLevelResult({
-        passed: attempt.passed,
-        stars: attempt.stars,
-        mistakes: attempt.mistakes,
-        usedMoves: attempt.usedMoves,
-        remainingMoves: attempt.remainingMoves,
-        maxMoves: attempt.maxMoves,
-        timeSeconds: elapsed,
-        baseScore: attempt.baseScore,
-        timeBonus: attempt.timeBonus,
-        levelScore: attempt.levelScore,
         cardsCompleted: cardTarget,
+        elapsedSeconds: elapsed,
         cardTarget,
-        failReason: attempt.failReason,
-        soloRulesVersion: SOLO_RULES_VERSION,
       });
+      markSoloAttemptSucceeded({
+        usedMoves: result.usedMoves,
+        elapsedSeconds: result.timeSeconds,
+        correctPlacementCount: attemptState.correctPlacementCount,
+      });
+      setSoloLevelResult(result);
       if (isSoloOnboardingMode) {
         recordSoloOnboardingAnalyticsEvent(SOLO_ONBOARDING_ANALYTICS_EVENTS.COMPLETE, {
           level_number: soloLevel?.levelNumber ?? null,
           level_type: soloLevelType,
-          used_moves: attempt.usedMoves,
+          used_moves: result.usedMoves,
           elapsed_seconds: elapsed,
-          stars: attempt.stars,
+          stars: result.stars,
           training_consumable_used: Boolean(soloTrainingConsumableUsedRef.current),
         });
       }
@@ -2763,40 +2762,31 @@ export default function Game() {
     }
 
     // FAIL — no remaining evaluated placement moves and target not reached.
-    if (usedMoveCount >= soloMaxMoves && cardsCompletedSolo < cardTarget) {
+    if (currentUsedMoves >= soloMaxMoves && cardsCompletedSolo < cardTarget) {
       const elapsed = getSoloResultElapsedSeconds(overallSecondsRef.current);
-      const attempt = calculateSoloAttemptResult({
-        mistakes: mistakeCount,
-        usedMoves: usedMoveCount,
-        remainingMoves,
+      const result = buildSoloRuntimeResult({
+        mistakeCount: currentMistakes,
+        usedMoveCount: currentUsedMoves,
         maxMoves: soloMaxMoves,
-        completedCards: cardsCompletedSolo,
+        cardsCompleted: cardsCompletedSolo,
         elapsedSeconds: elapsed,
-        requiredCards: cardTarget,
+        cardTarget,
+        failReason: 'moves',
       });
       setGameStarted(false);
-      setSoloLevelResult({
-        passed: attempt.passed,
-        stars: attempt.stars,
-        mistakes: attempt.mistakes,
-        usedMoves: attempt.usedMoves,
-        remainingMoves: attempt.remainingMoves,
-        maxMoves: attempt.maxMoves,
-        timeSeconds: elapsed,
-        baseScore: attempt.baseScore,
-        timeBonus: attempt.timeBonus,
-        levelScore: attempt.levelScore,
-        cardsCompleted: cardsCompletedSolo,
-        cardTarget,
-        failReason: attempt.failReason || 'moves',
-        soloRulesVersion: SOLO_RULES_VERSION,
+      markSoloAttemptFailed({
+        usedMoves: result.usedMoves,
+        elapsedSeconds: result.timeSeconds,
+        correctPlacementCount: attemptState.correctPlacementCount,
+        failReason: result.failReason,
       });
+      setSoloLevelResult(result);
       if (isSoloOnboardingMode) {
         recordSoloOnboardingAnalyticsEvent(SOLO_ONBOARDING_ANALYTICS_EVENTS.FAIL, {
           level_number: soloLevel?.levelNumber ?? null,
           level_type: soloLevelType,
-          fail_reason: attempt.failReason || 'moves',
-          used_moves: attempt.usedMoves,
+          fail_reason: result.failReason,
+          used_moves: result.usedMoves,
           elapsed_seconds: elapsed,
           cards_completed: cardsCompletedSolo,
         });
@@ -2806,38 +2796,29 @@ export default function Game() {
 
     // FAIL — total timer expired without a winner.
     if (gameStarted && soloEffectiveElapsedSeconds >= totalTime) {
-      const attempt = calculateSoloAttemptResult({
-        mistakes: mistakeCount,
-        usedMoves: usedMoveCount,
-        remainingMoves,
+      const result = buildSoloRuntimeResult({
+        mistakeCount: currentMistakes,
+        usedMoveCount: currentUsedMoves,
         maxMoves: soloMaxMoves,
-        completedCards: cardsCompletedSolo,
+        cardsCompleted: cardsCompletedSolo,
         elapsedSeconds: totalTime,
-        requiredCards: cardTarget,
+        cardTarget,
+        failReason: 'timeout',
       });
       setGameStarted(false);
-      setSoloLevelResult({
-        passed: attempt.passed,
-        stars: attempt.stars,
-        mistakes: attempt.mistakes,
-        usedMoves: attempt.usedMoves,
-        remainingMoves: attempt.remainingMoves,
-        maxMoves: attempt.maxMoves,
-        timeSeconds: totalTime,
-        baseScore: attempt.baseScore,
-        timeBonus: attempt.timeBonus,
-        levelScore: attempt.levelScore,
-        cardsCompleted: cardsCompletedSolo,
-        cardTarget,
-        failReason: attempt.failReason || 'timeout',
-        soloRulesVersion: SOLO_RULES_VERSION,
+      markSoloAttemptFailed({
+        usedMoves: result.usedMoves,
+        elapsedSeconds: result.timeSeconds,
+        correctPlacementCount: attemptState.correctPlacementCount,
+        failReason: result.failReason,
       });
+      setSoloLevelResult(result);
       if (isSoloOnboardingMode) {
         recordSoloOnboardingAnalyticsEvent(SOLO_ONBOARDING_ANALYTICS_EVENTS.FAIL, {
           level_number: soloLevel?.levelNumber ?? null,
           level_type: soloLevelType,
-          fail_reason: attempt.failReason || 'timeout',
-          used_moves: attempt.usedMoves,
+          fail_reason: result.failReason,
+          used_moves: result.usedMoves,
           elapsed_seconds: totalTime,
           cards_completed: cardsCompletedSolo,
         });
@@ -2850,7 +2831,6 @@ export default function Game() {
     soloLevel,
     soloLevelType,
     winner,
-    mistakeCount,
     usedMoveCount,
     soloMaxMoves,
     getSoloResultElapsedSeconds,
@@ -2860,8 +2840,9 @@ export default function Game() {
     soloCardsRequired,
     winCardCount,
     setGameStarted,
-    recordDailyQuestSoloEvent,
-    soloAttemptId,
+    getCurrentSoloAttemptState,
+    markSoloAttemptFailed,
+    markSoloAttemptSucceeded,
   ]);
 
   // Persist the level attempt once when the result first lands.
@@ -2869,58 +2850,16 @@ export default function Game() {
     if (!isSoloLevelMode || !soloLevelResult || soloResultPersistedRef.current) return;
     soloResultPersistedRef.current = true;
     const levelNumber = soloLevel?.levelNumber ?? 1;
+    markSoloPersistRequested();
     (async () => {
       try {
-        const me = await base44.auth.me().catch(() => null);
-        const current = readSoloProgress(me);
-        const previousEntry = current?.levels?.[String(levelNumber)] || null;
-        const attempt = calculateSoloAttemptResult({
-          mistakes: soloLevelResult.mistakes,
-          usedMoves: soloLevelResult.usedMoves,
-          remainingMoves: soloLevelResult.remainingMoves,
-          maxMoves: soloLevelResult.maxMoves,
-          completedCards: soloLevelResult.cardsCompleted,
-          elapsedSeconds: soloLevelResult.timeSeconds,
-          requiredCards: soloLevelResult.cardTarget ?? soloCardsRequired ?? 7,
-        });
-        const bestPreview = getBestSoloLevelResult(previousEntry, {
-          ...attempt,
-          soloRulesVersion: soloLevelResult.soloRulesVersion || SOLO_RULES_VERSION,
-          stars: soloLevelResult.stars,
-          passed: soloLevelResult.passed,
-          usedMoves: soloLevelResult.usedMoves,
-          remainingMoves: soloLevelResult.remainingMoves,
-          maxMoves: soloLevelResult.maxMoves,
-          baseScore: soloLevelResult.baseScore,
-          timeBonus: soloLevelResult.timeBonus,
-          levelScore: soloLevelResult.levelScore,
-        });
-        setSoloLevelResult((prev) => prev ? {
-          ...prev,
-          scoreDelta: bestPreview.scoreDelta,
-          didImproveScore: bestPreview.didImprove,
-          bestScoreAfter: bestPreview.updatedBestLevelResult.bestScore,
-        } : prev);
-        const next = applyLevelAttempt(current, {
+        const persistedResult = await persistSoloLevelAttempt({
           levelNumber,
-          stars: soloLevelResult.stars,
-          mistakes: soloLevelResult.mistakes,
-          usedMoves: soloLevelResult.usedMoves,
-          remainingMoves: soloLevelResult.remainingMoves,
-          maxMoves: soloLevelResult.maxMoves,
-          timeSeconds: soloLevelResult.timeSeconds,
-          cardsCompleted: soloLevelResult.cardsCompleted,
+          result: soloLevelResult,
           cardTarget: soloLevelResult.cardTarget ?? soloCardsRequired ?? 7,
-          passed: soloLevelResult.passed,
-          baseScore: soloLevelResult.baseScore,
-          timeBonus: soloLevelResult.timeBonus,
-          levelScore: soloLevelResult.levelScore,
-          soloRulesVersion: soloLevelResult.soloRulesVersion || SOLO_RULES_VERSION,
-        });
-        const persisted = await writeSoloProgress(me, next);
-        if (persisted && soloLevelResult.passed) {
-          const completionEventId = `${soloAttemptId || 'solo_attempt'}:solo_level_complete:${levelNumber}`;
-          if (soloDailyQuestCompletionRecordedRef.current !== completionEventId) {
+          onPersistedCompletion: () => {
+            const completionEventId = `${soloAttemptId || 'solo_attempt'}:solo_level_complete:${levelNumber}`;
+            if (soloDailyQuestCompletionRecordedRef.current === completionEventId) return;
             soloDailyQuestCompletionRecordedRef.current = completionEventId;
             recordDailyQuestSoloEvent('solo_level_complete', completionEventId, {
               questType: 'solo_level_complete',
@@ -2930,20 +2869,38 @@ export default function Game() {
               cardsCompleted: soloLevelResult.cardsCompleted,
               elapsedSeconds: soloLevelResult.timeSeconds,
             });
-          }
-        }
+          },
+        });
+        setSoloLevelResult((prev) => prev ? {
+          ...prev,
+          scoreDelta: persistedResult.scoreDelta,
+          didImproveScore: persistedResult.didImproveScore,
+          bestScoreAfter: persistedResult.bestScoreAfter,
+        } : prev);
+        if (persistedResult.persisted) markSoloPersistSucceeded();
+        else markSoloPersistFailed('persist_returned_false');
       } catch (e) {
+        markSoloPersistFailed(e?.message || 'persist_failed');
         debugLog('[Game] solo progress persist failed:', e?.message || e);
       }
     })();
-  }, [isSoloLevelMode, recordDailyQuestSoloEvent, soloAttemptId, soloLevelResult, soloLevel, soloCardsRequired]);
+  }, [
+    isSoloLevelMode,
+    markSoloPersistFailed,
+    markSoloPersistRequested,
+    markSoloPersistSucceeded,
+    recordDailyQuestSoloEvent,
+    soloAttemptId,
+    soloCardsRequired,
+    soloLevel,
+    soloLevelResult,
+  ]);
 
   const handleSoloRetry = useCallback(() => {
     if (!soloLevel) return;
     // Reset all attempt-local state and re-enter the same level.
     setSoloLevelResult(null);
-    setUsedMoveCount(0);
-    setMistakeCount(0);
+    resetSoloAttempt();
     setSoloCorrectStreak(0);
     lastCountedFeedbackRef.current = null;
     soloResultPersistedRef.current = false;
@@ -2977,7 +2934,7 @@ export default function Game() {
         soloReturnTo,
       },
     });
-  }, [isOnboardingTutorialFlow, soloLevel, soloReturnTo, resetGame, resetSoloJokers, navigate, routeYearStart, routeYearEnd]);
+  }, [isOnboardingTutorialFlow, soloLevel, soloReturnTo, resetGame, resetSoloAttempt, resetSoloJokers, navigate, routeYearStart, routeYearEnd]);
 
   // Codex106-23 — Jump straight into the next level after a passed attempt.
   // We rebuild the route state from the next level number, reusing the same
@@ -3007,8 +2964,7 @@ export default function Game() {
     const nextCardCount = getSoloCardsRequiredForLevel(nextLevelNumber);
     const nextMaxMoves = getSoloMaxMovesForLevel(nextLevelNumber);
     setSoloLevelResult(null);
-    setUsedMoveCount(0);
-    setMistakeCount(0);
+    resetSoloAttempt();
     setSoloCorrectStreak(0);
     lastCountedFeedbackRef.current = null;
     soloResultPersistedRef.current = false;
@@ -3039,7 +2995,7 @@ export default function Game() {
         soloReturnTo,
       },
     });
-  }, [isOnboardingTutorialFlow, soloLevel, soloReturnTo, resetGame, resetSoloJokers, navigate, routeYearStart, routeYearEnd]);
+  }, [isOnboardingTutorialFlow, soloLevel, soloReturnTo, resetGame, resetSoloAttempt, resetSoloJokers, navigate, routeYearStart, routeYearEnd]);
 
   const handleSoloGameplayBack = useCallback(() => {
     if (!isSoloLevelMode) return;
