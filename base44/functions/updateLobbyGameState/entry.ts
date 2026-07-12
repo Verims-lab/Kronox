@@ -303,6 +303,10 @@ function readSoloScore(profile: any, previousOnlineScore: number) {
   return Math.max(0, safeNumber(profile?.kronox_puan_total, 0) - previousOnlineScore);
 }
 
+function buildOnlineMatchResultIdempotencyKey(lobbyId: string, actorKeyHash: string) {
+  return `online_match_result:${lobbyId}:${actorKeyHash}`;
+}
+
 async function publishLeaderboardProjection(base44: any, actor: any, onlineProgress: any, totalScore: number, soloScore: number) {
   const entity = base44.asServiceRole.entities.SoloLeaderboardEntry;
   const rows = await entity.filter({ owner_key: actor.actorKeyHash }, '-updated_at', 5).catch(() => []);
@@ -359,7 +363,7 @@ async function commitOnlineResult(base44: any, lobby: any, actor: any, body: any
     return json({ ok: false, code: 'match_not_finished', error: 'Maç sonucu henüz doğrulanmadı.' }, 409);
   }
   const result: 'win' | 'loss' = String(lobby.winner_actor_key_hash) === actor.actorKeyHash ? 'win' : 'loss';
-  const idempotencyKey = `online_match_result:${rowId(lobby)}:${actor.actorKeyHash}`;
+  const idempotencyKey = buildOnlineMatchResultIdempotencyKey(rowId(lobby), actor.actorKeyHash);
   const resultEntity = base44.asServiceRole.entities.OnlineMatchResult;
   const existingRows = await resultEntity.filter({ idempotency_key: idempotencyKey }, 'created_at', 10).catch(() => []);
   const appliedExisting = (existingRows || []).find((row: any) => String(row?.status || '') === 'applied');
@@ -403,6 +407,7 @@ async function commitOnlineResult(base44: any, lobby: any, actor: any, body: any
         metadata: {
           ...(reservation?.metadata && typeof reservation.metadata === 'object' ? reservation.metadata : {}),
           reconciledAfterPartialWrite: true,
+          reconciled_from_audit: true,
         },
       });
       return json({
@@ -420,27 +425,38 @@ async function commitOnlineResult(base44: any, lobby: any, actor: any, body: any
     const timestamp = new Date().toISOString();
     let resultReservation = reservation;
     if (!resultReservation) {
-      resultReservation = await resultEntity.create({
-        idempotency_key: idempotencyKey,
-        actor_key_hash: actor.actorKeyHash,
-        player_type: actor.playerType,
-        lobby_ref: lobby.public_ref || '',
-        lobby_id: rowId(lobby),
-        player_email: actor.email,
-        player_kronox_user_id: actor.kronoxUserId,
-        result,
-        delta: applied.delta,
-        effective_delta: applied.effectiveDelta,
-        score_before: applied.previousScore,
-        score_after: applied.nextScore,
-        elapsed_seconds: Math.max(0, Math.trunc(safeNumber(body?.durationSeconds || body?.duration_seconds, 0))),
-        checkpoint_before: applied.checkpointBefore,
-        checkpoint_after: applied.checkpointAfter,
-        status: 'reserved',
-        created_at: timestamp,
-        source: String(body?.source || 'online_game').slice(0, 80),
-        metadata: { backendAuthoritative: true, scoreRule: 'winner_15_loser_minus_6' },
-      });
+      try {
+        resultReservation = await resultEntity.create({
+          idempotency_key: idempotencyKey,
+          actor_key_hash: actor.actorKeyHash,
+          player_type: actor.playerType,
+          lobby_ref: lobby.public_ref || '',
+          lobby_id: rowId(lobby),
+          player_email: actor.email,
+          player_kronox_user_id: actor.kronoxUserId,
+          result,
+          delta: applied.delta,
+          effective_delta: applied.effectiveDelta,
+          score_before: applied.previousScore,
+          score_after: applied.nextScore,
+          elapsed_seconds: Math.max(0, Math.trunc(safeNumber(body?.durationSeconds || body?.duration_seconds, 0))),
+          checkpoint_before: applied.checkpointBefore,
+          checkpoint_after: applied.checkpointAfter,
+          status: 'reserved',
+          created_at: timestamp,
+          source: String(body?.source || 'online_game').slice(0, 80),
+          metadata: { backendAuthoritative: true, scoreRule: 'winner_15_loser_minus_6' },
+        });
+      } catch (_reservationError) {
+        return json({
+          ok: false,
+          code: 'online_result_audit_reservation_failed',
+          error: 'Maç puanı kaydedilemedi; puan uygulanmadı.',
+          retryable: true,
+          where: 'audit',
+          scoreApplied: false,
+        }, 503);
+      }
     }
     await actor.profileEntity.update(rowId(actor.profile), {
       online_progress: progress,

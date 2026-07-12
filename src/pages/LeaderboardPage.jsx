@@ -19,6 +19,7 @@ import {
   getLeaderboardDiamondValue,
   getLeaderboardOwnerKey,
   getPublicLeaderboardId,
+  LEADERBOARD_ENRICHED_SNAPSHOT_OPTIONS,
   LEADERBOARD_FAST_SNAPSHOT_OPTIONS,
   LEADERBOARD_FETCH_LIMIT,
   LEADERBOARD_TOP_LIMIT,
@@ -312,6 +313,25 @@ export default function LeaderboardPage() {
       setCachedSoloLeaderboardSnapshot(cacheKey, snapshot);
       if (!applySnapshot(snapshot)) return;
       publishOwnLeaderboardProjectionInBackground(user, currentProgress);
+
+      // Keep first paint on the projection-only fast path. Accepted-friend
+      // badges and friend avatars arrive in a second sanitized backend
+      // snapshot; the page never reads private User/FriendRequest rows.
+      if (user?.email) {
+        try {
+          const enrichedSnapshot = await loadSoloLeaderboardSnapshot({
+            limit: LEADERBOARD_FETCH_LIMIT,
+            topLimit: LEADERBOARD_TOP_LIMIT,
+            payload: guestPayload || {},
+            ...LEADERBOARD_ENRICHED_SNAPSHOT_OPTIONS,
+          });
+          if (leaderboardRequestSeqRef.current !== requestId) return;
+          setCachedSoloLeaderboardSnapshot(cacheKey, enrichedSnapshot);
+          applySnapshot(enrichedSnapshot);
+        } catch (enrichmentError) {
+          console.warn('[leaderboard] sanitized friend enrichment unavailable', enrichmentError?.message || 'unknown');
+        }
+      }
 
     } catch (err) {
       const ownScoreRow = toSoloLeaderboardEntry(currentPayload, new Set(), currentOwnerKey);

@@ -68,17 +68,23 @@ Old completed Solo results are not retroactively recalculated. New Solo
 attempts use soloRulesVersion: 3.
 
 ## Online scoring
-Online results are recorded per-user in OnlineMatchResult for durable
-idempotency (one row per lobby_id + player_email). Each client persists ONLY
-its own user via User.online_progress. Online score stays separate from Solo
-total score.
+Online results are committed by updateLobbyGameState action commit_result.
+The backend verifies the terminal Lobby winner and participant actor, then
+records one OnlineMatchResult per lobby_id + actor_key_hash. The client is an
+invoke-only wrapper and cannot write OnlineMatchResult, User/GuestProfile
+score, or leaderboard projection rows.
 Online winner scoring is exactly +15 Kronox Puan, loser scoring is exactly -6
 Kronox Puan before checkpoint protection, and Online has no speed bonus.
 Elapsed seconds may be shown or stored for audit/diagnostics, but they do not
 change the Online score delta.
+The backend reserves the durable result receipt before visible score writes.
+Reservation failure returns online_result_audit_reservation_failed with
+where=audit, retryable=true, scoreApplied=false. A partial profile write is
+reconciled from the reserved audit row and online_progress.lastMatchId.
 
 ## Source of truth
 - Solo: User.solo_progress
-- Online: User.online_progress + OnlineMatchResult
-- Unified visible Kronox Puan: Solo best-score total plus Online score.
+- Online: backend-owned User/GuestProfile.online_progress + OnlineMatchResult
+- Unified visible Kronox Puan: materialized User/GuestProfile.kronox_puan_total
+  first, with Solo best-score + Online score only as legacy-row fallback.
 `;

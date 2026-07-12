@@ -378,7 +378,7 @@ export const TESTS = [
   sourceHas('waiting_room_start', 'rejoin_roster_guard_source', 'rejoin is serialized and preserves the newest authoritative snapshot', 'findLobbyByCode/useWaitingRoomSync', `${SRC.FindLobbyByCode}\n${SRC.UseWaitingRoomSync}`, ['appendActorWithRetry', 'acquireLobbyLock', 'setAuthoritativeLobby', 'isFreshLobbySnapshot']),
 
   sourceHas('route_bootstrap', 'route_state_bootstrap_only', 'route state is treated as bootstrap only', 'useLobbySync', SRC.UseLobbySync, ['bootstrap', 'initial fetch', 'route-state-fallback']),
-  sourceHas('route_bootstrap', 'live_lobby_priority', 'fetched/subscribed Lobby has priority over stale route snapshot', 'useLobbySync', SRC.UseLobbySync, ['latestLobbyRef', 'applyLobbyData', 'subscription:']),
+  sourceHas('route_bootstrap', 'live_lobby_priority', 'fresh backend Lobby has priority over stale route snapshot', 'useLobbySync', SRC.UseLobbySync, ['latestLobbyRef', 'applyLobbyData', 'refreshLiveLobby', 'getLobbySnapshot', 'visibilitychange', 'window-focus', 'poll']),
   sourceHas('route_bootstrap', 'failed_fetch_no_blind_restore', 'failed fetch does not blindly restore older route state as authoritative', 'useLobbySync', SRC.UseLobbySync, ['fetch failed', 'latestLobbyRef.current', 'route-state-fallback']),
   sourceHas('route_bootstrap', 'local_projection_replaced', 'local projection can be replaced by fresher Lobby data', 'useLobbySync', SRC.UseLobbySync, ['setLobbyData', 'normalizeLobbyState', 'poll']),
   sourceHas('route_bootstrap', 'stale_lobby_warning_reported', 'stale lobbyData warning is reported if detected', 'useLobbySync/debugLog', `${SRC.UseLobbySync}\n${SRC.DebugLog}`, ['debugWarn', 'preserving latest lobby', 'bootstrap-only']),

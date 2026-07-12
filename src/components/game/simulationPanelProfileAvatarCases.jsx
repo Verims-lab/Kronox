@@ -298,15 +298,17 @@ export const EXTRA_TESTS = [
   makeCase('avatar_leaderboard_hydrates_current_and_friend_avatars',
     'Leaderboard hydration preserves current-player and accepted-friend custom avatars',
     () => {
-      const combined = `${leaderboardSource}\n${leaderboardPageSource}`;
+      const combined = `${leaderboardSource}\n${leaderboardPageSource}\n${getSoloLeaderboardSource}`;
       const requiredMissing = missing(combined, [
         'getPublicLeaderboardId',
-        'getFriendLeaderboardAvatarMap',
         'mergeLeaderboardAvatarFields',
-        'friendAvatarByLeaderboardId',
         'withAvatarParity',
         'currentPayload',
-        'loadFriends(normalizedUserEmail)',
+        'LEADERBOARD_ENRICHED_SNAPSHOT_OPTIONS',
+        'const enrichedSnapshot = await loadSoloLeaderboardSnapshot',
+        'loadAcceptedFriendOwnerKeys',
+        'pickPublicAvatarFields',
+        'publicFriendsOutsideTop',
       ]);
       const forbidden = present(leaderboardPageSource, [
         'base44.entities.User.list',
@@ -316,12 +318,12 @@ export const EXTRA_TESTS = [
       if (requiredMissing.length || forbidden.length) {
         return fail('Leaderboard hydration can still lose custom avatars or add private per-row profile fetches.', {
           verification: 'STATIC_CONTRACT',
-          expected: 'Leaderboard overlays safe avatars from currentPayload and deferred accepted-friend rows while staying off private User reads in the page',
+          expected: 'Leaderboard overlays currentPayload and consumes backend-sanitized accepted-friend avatar rows without private per-row client reads',
           actual: { missing: requiredMissing, forbidden },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Leaderboard hydration uses safe current/friend avatar overlays without private per-row User reads.', {
+      return pass('Leaderboard hydration uses the current avatar overlay plus sanitized backend friend avatars without private per-row User reads.', {
         verification: 'STATIC_CONTRACT', actionType: ACTION_TYPES.CODE_FIX,
       });
     }),

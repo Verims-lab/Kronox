@@ -89,6 +89,7 @@ import {
   sendFriendRequestEmailFnSource,
   sendGameInvitePushFnSource,
   createGameInvitesForTargetsFnSource,
+  getOnlinePlayerSelectionFnSource,
   kronoxServiceWorkerSource,
 } from './simulationPanelContractStrings.jsx';
 
@@ -1279,24 +1280,21 @@ export const EXTRA_TESTS = [
   //     recipient via to_email===me). Auto-repairs old "accepted-without-
   //     friendship" rows.
   sourceHas('historical_kronox_regression', 'accept_friend_request_no_raw_500',
-    'Friend-request accept flips FriendRequest to accepted under normalized model (Codex080 fix)',
-    'functions/acceptFriendRequest.js + lib/friendsApi.js',
-    `${acceptFriendRequestFnSource}\n${friendsApiSource}`,
+    'Friend-request accept is receiver-only, idempotent, and refreshes both accepted directions through the sanitized snapshot',
+    'acceptFriendRequest + friendsApi + getOnlinePlayerSelection',
+    `${acceptFriendRequestFnSource}\n${friendsApiSource}\n${getOnlinePlayerSelectionFnSource}`,
     [
-      // function-side: receiver-only gate
+      'callerIsRecipient',
       'Only the receiver can accept this request',
-      // function-side: idempotent status flip
       "status: 'accepted'",
-      // function-side: invalid-request guard
       'Invalid friend request',
-      // client-side: defensive id extraction (Codex079 fix retained)
       "typeof requestOrId === 'string'",
+      'requestOrId?.request_ref',
       'requestOrId?.id',
-      // client-side: friendly Turkish error mapping never leaks raw 500
       'Arkadaşlık isteği kabul edilemedi. Lütfen tekrar dene.',
-      // client-side: normalized friend list reads both sides of accepted FRs
       'incomingAccepted',
       'outgoingAccepted',
+      'loadFriendsPageSnapshot',
     ],
     { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
   // Codex077: assert the build marker has actually been bumped beyond
@@ -1396,7 +1394,7 @@ export const EXTRA_TESTS = [
     [
       // 1. Host re-fetches live lobby after start
       'liveStartedLobby',
-      'base44.entities.Lobby.get(startLobby.id)',
+      'getLobbySnapshot({ lobbyId: startLobby.id })',
       // 2. useLobbySync retries with backoff so the host doesn't black-screen
       //    if the first fetch races the post-start write
       'resolveInitialLobbyWithRetry',
@@ -1439,16 +1437,18 @@ export const EXTRA_TESTS = [
   // never linger as a "pending sent" row), and loadFriends still reads
   // both sides of accepted (Codex080 normalized-model invariant preserved).
   sourceHas('historical_kronox_regression', 'friends_page_realtime_refresh_wired',
-    'FriendsPage uses subscription + visibility/focus + polling so sender updates when recipient accepts (Codex088); strict pending filter + both-sides loadFriends preserved',
-    'pages/FriendsPage.jsx + hooks/useFriendsRealtimeRefresh.js + lib/friendsApi.js',
-    `${friendsPageSource}\n${friendsRealtimeRefreshSource}\n${friendsApiSource}`,
+    'FriendsPage uses sanitized snapshot refresh on visibility/focus plus polling so sender updates after recipient accept',
+    'FriendsPage + useFriendsRealtimeRefresh + friendsApi + getOnlinePlayerSelection',
+    `${friendsPageSource}\n${friendsRealtimeRefreshSource}\n${friendsApiSource}\n${getOnlinePlayerSelectionFnSource}`,
     [
       'useFriendsRealtimeRefresh',
-      'FriendRequest.subscribe',
       'visibilitychange',
-      "{ from_email: me, status: 'pending' }",
+      "window.addEventListener('focus'",
+      'POLL_INTERVAL_MS',
+      'loadFriendsPageSnapshot',
       'incomingAccepted',
       'outgoingAccepted',
+      "effectiveLifecycleStatus(row, nowMs) === 'pending'",
     ],
     { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
   // Codex080: accept function no longer attempts Friendship.create — that was
@@ -1458,9 +1458,10 @@ export const EXTRA_TESTS = [
     'functions/acceptFriendRequest.js',
     acceptFriendRequestFnSource,
     [
-      'Friendship.create',
-      'ensureFriendshipPair',
-      'createFriendship(base44',
+      '.entities.Friendship.create(',
+      '.Friendship.create(',
+      'ensureFriendshipPair(',
+      'createFriendship(base44,',
     ],
     { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
   notAutomatableCase('historical_kronox_regression', 'accept_friend_request_two_account_runtime',
@@ -1468,10 +1469,10 @@ export const EXTRA_TESTS = [
     'Codex080 normalized model verified by live backend probe: acceptFriendRequest returned 200 ok:true after the fix (previously 403 on Friendship.create). FriendRequest.status confirmed flipped to accepted in the database. The reciprocal-visibility outcome (does A see B in list AND does B see A in list?) was verified by manually walking loadFriends against the real accepted FriendRequest rows — both sides project correctly. Live two-tab UI execution from two authenticated sessions is still required for full release sign-off because the simulator cannot perform real-user navigation.',
     { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, recentlyFixed: true, verificationLabels: ['NOT_AUTOMATABLE', 'TWO_ACCOUNT_REQUIRED'] }),
   sourceHas('historical_kronox_regression', 'incoming_invites_pending_recipient_scope',
-    'Incoming game invites are scoped to pending + recipient',
-    'inviteApi.js',
-    inviteApiSource,
-    ['to_email: me', "status: 'pending'"],
+    'Incoming game invites are backend-scoped to the current recipient and client-filtered to pending',
+    'inviteApi + getOnlinePlayerSelection',
+    `${inviteApiSource}\n${getOnlinePlayerSelectionFnSource}`,
+    ['filter({ to_email: myEmail }', "effectiveLifecycleStatus(row, nowMs) === 'pending'", 'recipient_is_self: true', 'filterActiveIncomingGameInvites'],
     { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, runtimeProofRequired: true }),
   staticInfoCase('historical_kronox_regression', 'workflow_status_not_release_readiness',
     'Codex/local workflow status is not part of product release readiness',
@@ -1581,13 +1582,28 @@ export const EXTRA_TESTS = [
   /* ============================================================
    *  SOCIAL / RLS / TWO-ACCOUNT RISK SUITE
    * ============================================================ */
-  entityHasShape('social_rls_two_account_risk', 'friend_request_sender_receiver_read_static',
-    'FriendRequest can be read only by sender/receiver by static RLS contract',
-    'base44/entities/FriendRequest.jsonc',
-    friendRequestEntityRawSource,
-    ['from_email', 'to_email', 'status'],
-    ['data.from_email', 'data.to_email', '{{user.email}}'],
-    { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, runtimeProofRequired: true }),
+  makeCase('social_rls_two_account_risk', 'friend_request_sender_receiver_read_static',
+    'FriendRequest direct reads are admin-only and the backend snapshot scopes sender/receiver rows', () => {
+      const parsed = parseEntityContract(friendRequestEntityRawSource, 'FriendRequest');
+      const rls = parsed.entity?.rls || {};
+      const adminOnly = ['read', 'update', 'delete'].every((operation) => rls?.[operation]?.user_condition?.role === 'admin');
+      const missing = missingTokens(getOnlinePlayerSelectionFnSource, [
+        'FriendRequest.filter({ to_email: myEmail }',
+        'FriendRequest.filter({ from_email: myEmail }',
+        'publicFriendRequest',
+        'request_ref: publicRef',
+      ]);
+      if (parsed.error || !adminOnly || missing.length) {
+        return fail('FriendRequest backend-only ownership contract drifted.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'FriendRequest.jsonc + getOnlinePlayerSelection',
+          actual: { parseError: parsed.error, adminOnly, missing },
+        });
+      }
+      return pass('Direct FriendRequest access is admin-only; the backend scopes both actor directions and returns opaque request refs.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }, { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, runtimeProofRequired: true }),
   entityHasShape('social_rls_two_account_risk', 'friendship_owner_friend_read_static',
     'Friendship can be read only by owner/friend by static RLS contract',
     'entities/Friendship.json',
@@ -1595,18 +1611,34 @@ export const EXTRA_TESTS = [
     ['user_email', 'friend_email'],
     ['data.user_email', '{{user.email}}'],
     { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, runtimeProofRequired: true }),
-  entityHasShape('social_rls_two_account_risk', 'game_invite_sender_recipient_read_static',
-    'GameInvite can be read only by sender/recipient by static RLS contract',
-    'entities/GameInvite.json',
-    gameInviteEntitySource,
-    ['from_email', 'to_email', 'status'],
-    ['data.from_email', 'data.to_email', '{{user.email}}'],
-    { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, runtimeProofRequired: true }),
+  makeCase('social_rls_two_account_risk', 'game_invite_sender_recipient_read_static',
+    'GameInvite direct reads are admin-only and backend snapshots scope recipient/host rows', () => {
+      const parsed = parseEntityContract(gameInviteEntitySource, 'GameInvite');
+      const rls = parsed.entity?.rls || {};
+      const adminOnly = ['read', 'update', 'delete'].every((operation) => rls?.[operation]?.user_condition?.role === 'admin');
+      const missing = missingTokens(getOnlinePlayerSelectionFnSource, [
+        'GameInvite.filter({ to_email: myEmail }',
+        'GameInvite.filter({ from_email: myEmail }',
+        'from_actor_key_hash: actorKeyHash',
+        'invite_ref: inviteRef',
+        'recipient_is_self: direction === \'incoming\'',
+      ]);
+      if (parsed.error || !adminOnly || missing.length) {
+        return fail('GameInvite backend-only ownership contract drifted.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'GameInvite.jsonc + getOnlinePlayerSelection',
+          actual: { parseError: parsed.error, adminOnly, missing },
+        });
+      }
+      return pass('Direct GameInvite access is admin-only; backend actor scope covers linked recipients and linked/guest hosts.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }, { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, runtimeProofRequired: true }),
   sourceHas('social_rls_two_account_risk', 'accept_friend_receiver_only',
     'acceptFriendRequest is receiver-only',
     'functions/acceptFriendRequest.js',
     acceptFriendRequestFnSource,
-    ['toEmail !== myEmail', 'Only the receiver can accept this request'],
+    ['callerIsRecipient', "action === 'accept' && !callerIsRecipient", 'Only the receiver can accept this request'],
     { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, runtimeProofRequired: true }),
   sourceHas('social_rls_two_account_risk', 'accept_game_invite_recipient_only',
     'acceptGameInvite is recipient-only',

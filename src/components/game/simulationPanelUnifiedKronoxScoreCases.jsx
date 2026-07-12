@@ -17,10 +17,9 @@ import screenHeaderSource from '../layout/ScreenHeader.jsx?raw';
 import { SCORING_RULES_DOC as scoringRulesSource } from '@/lib/scoringRulesDoc';
 import leaderboardLibSource from '../../lib/leaderboard.js?raw';
 import kronoxScoreSource from '../../lib/kronoxScore.js?raw';
-// Codex169 — Read the backend leaderboard projection contract from the
-// src-resident mirror (the real functions/ file is outside src/, so a
-// `?raw` import returns empty here and false-fails the token scan).
-import { GET_SOLO_LEADERBOARD_SOURCE as leaderboardFunctionSource } from '@/lib/healthMirrors/getSoloLeaderboardMirror';
+import { getKronoxVisibleScore as readVisibleKronoxScore } from '../../lib/kronoxScore';
+import leaderboardFunctionSource from '../../../base44/functions/getSoloLeaderboard/entry.ts?raw';
+import updateLobbyGameStateSource from '../../../base44/functions/updateLobbyGameState/entry.ts?raw';
 import applyOnlineResultSource from '../../lib/applyOnlineResult.js?raw';
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL' };
@@ -259,20 +258,27 @@ export const EXTRA_TESTS = [
         'getMaterializedKronoxScore',
         'user?.kronox_puan_total',
         'kronoxPuan = kronox_puan_total',
-        'materialized === null ? derived : Math.max(materialized, derived)',
+        'materialized === null ? derived : materialized',
         'total_kronox_score',
-        'User.list(\'-kronox_puan_total\', limit)',
-        'projectionEntity.list(\'-total_kronox_score\', limit)',
-        'kronox_puan_total: buildSoloLeaderboardPayload',
+        "projectionEntity.list('-total_kronox_score', limit)",
+        ".list('-kronox_puan_total', limit)",
+        'loadCurrentProjectionRow',
+        'filter({ owner_key: currentOwnerKey }',
       ]);
-      if (missing.length) {
+      const materializedSample = readVisibleKronoxScore({
+        kronox_puan_total: 7,
+        online_progress: { score: 25 },
+        solo_progress: { levels: { 1: { bestStars: 3, bestScore: 20 } } },
+      }, { totalLevels: 20 });
+      if (missing.length || materializedSample !== 7) {
         return fail('Visible score reads can drift back to derived-only progress/history reconstruction instead of the materialized current score.', {
-          verification: 'STATIC_CONTRACT',
+          verification: 'STATIC_CONTRACT+EXECUTABLE',
           missing,
+          materializedSample,
         });
       }
       return pass('Visible Puan prefers User.kronox_puan_total and leaderboard reads sorted projection rows; ledgers/history remain audit/idempotency paths.', {
-        verification: 'STATIC_CONTRACT',
+        verification: 'STATIC_CONTRACT+EXECUTABLE',
       });
     }),
 
@@ -351,10 +357,13 @@ export const EXTRA_TESTS = [
   makeCase('leaderboard_publish_runs_after_online_score_change',
     'Online score persistence refreshes leaderboard-safe row',
     () => {
-      const missing = missingTokens(applyOnlineResultSource, [
-        'publishLeaderboardAfterOnlineScore',
-        'publishSoloLeaderboardEntry',
-        'refreshedUser || { ...me, online_progress: payload.online_progress }',
+      const missing = missingTokens(`${applyOnlineResultSource}\n${updateLobbyGameStateSource}`, [
+        'commitOnlineMatchResult',
+        'publishLeaderboardProjection',
+        'await actor.profileEntity.update',
+        'await publishLeaderboardProjection',
+        'kronox_puan_total: totalScore',
+        'total_kronox_score: totalScore',
       ]);
       if (missing.length) {
         return fail('Online score changes may not refresh the leaderboard-safe row.', {
@@ -362,6 +371,6 @@ export const EXTRA_TESTS = [
           missing,
         });
       }
-      return pass('Online score persistence best-effort publishes the refreshed leaderboard-safe row.', { verification: 'STATIC_CONTRACT' });
+      return pass('Backend Online score persistence updates the actor projection and publishes the leaderboard-safe row.', { verification: 'STATIC_CONTRACT' });
     }),
 ];

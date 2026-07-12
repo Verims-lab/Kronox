@@ -11,6 +11,9 @@ import analyticsGatewaySource from '../../lib/dbGateway/analyticsGateway.js?raw'
 import cleanupGatewaySource from '../../lib/dbGateway/cleanupGateway.js?raw';
 import leaderboardGatewaySource from '../../lib/dbGateway/leaderboardGateway.js?raw';
 import dailyQuestGatewaySource from '../../lib/dbGateway/dailyQuestGateway.js?raw';
+import dailyQuestDefinitionEntitySource from '../../../base44/entities/DailyQuestDefinition.jsonc?raw';
+import getDailyQuestStatusSource from '../../../base44/functions/getDailyQuestStatus/entry.ts?raw';
+import cleanupLegacyDailyQuestsSource from '../../../base44/functions/cleanupLegacyDailyQuests/entry.ts?raw';
 import { DB_ARCHITECTURE_IMPLEMENTATION_MIRROR } from '@/lib/dbArchitectureMirrors';
 
 const STATUS = {
@@ -123,14 +126,15 @@ export const EXTRA_TESTS = [
   makeCase('daily_quest_definition_entity_registered',
     'DailyQuestDefinition legacy entity is registered while Daily Calendar runtime is code-owned',
     () => {
-      const combined = `${dailyQuestGatewaySource}\n${DB_ARCHITECTURE_IMPLEMENTATION_MIRROR}`;
+      const combined = `${dailyQuestDefinitionEntitySource}\n${dailyQuestGatewaySource}\n${getDailyQuestStatusSource}\n${cleanupLegacyDailyQuestsSource}\n${DB_ARCHITECTURE_IMPLEMENTATION_MIRROR}`;
       const missing = missingTokens(combined, [
         'DailyQuestDefinition',
         'legacy/admin-only',
         'Daily Calendar / Streak',
         'runtime ignores definition rows',
         'daily_calendar:*',
-        '3 tasks per server day',
+        'DAILY_CALENDAR_TASKS_PER_DAY = 3',
+        'ensure-three-tasks',
         'daily_calendar_streak_reward',
         '200 Diamonds',
         'does not grant Kronox Puan',
@@ -308,10 +312,12 @@ export const EXTRA_TESTS = [
     'Idempotency unique-key/platform limitation is documented honestly',
     () => {
       const missing = missingTokens(DB_ARCHITECTURE_IMPLEMENTATION_MIRROR, [
+        'Base44 repo JSONC entity schemas cannot declare indexes/unique constraints',
+        'function-level guard + EconomyOperationLock + duplicate dry-run monitoring',
         'DiamondTransaction.idempotency_key unique',
         'DailyQuestDefinition.quest_key unique',
         'UserDailyQuestProgress.idempotency_key unique',
-        'user_email + quest_date + quest_key unique',
+        'actor + quest_date + quest_key',
         'DailyWheelSpin.idempotency_key unique',
         'UserJokerInventory user_email + joker_type unique',
         'JokerTransaction.idempotency_key unique',
@@ -320,8 +326,9 @@ export const EXTRA_TESTS = [
         'GameInvite to_email + status + expires_at',
         'Question state + main_category_id',
         'OnlineMatchResult.idempotency_key unique',
-        'lobby_id + player_email unique',
+        'lobby_id + actor_key_hash unique',
         'QuestionAttemptEvent.event_id unique',
+        'platform unique indexes remain manual release gates',
         'Runtime uniqueness proof remains manual/NOT_AUTOMATABLE',
       ]);
       if (missing.length) {

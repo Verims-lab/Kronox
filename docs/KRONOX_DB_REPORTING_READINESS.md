@@ -55,9 +55,11 @@ and exports must use username-safe or anonymized labels.
 - Online match scoring is flat and unified: winner `+15` Kronox Puan, loser
   `-6` Kronox Puan with checkpoint protection, and no Online speed bonus.
 - Online result writes use the current `OnlineMatchResult` per-user/lobby
-  idempotency row plus `User.online_progress` / `kronox_puan_total`
-  projection update pattern. Elapsed seconds are audit/display only and do not
-  change the Online score delta.
+  actor idempotency row plus backend-owned `User`/`GuestProfile.online_progress`
+  and `kronox_puan_total` projection updates. The durable receipt is reserved
+  before visible score writes, partial writes reconcile from that receipt, and
+  the client cannot write result/profile/leaderboard rows. Elapsed seconds are
+  audit/display only and do not change the Online score delta.
 - Visible score reads prefer the materialized `kronox_puan_total` projection
   when present, with derived Solo+Online computation only as a compatibility
   fallback for older rows.

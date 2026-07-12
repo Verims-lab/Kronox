@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex587 — Pre-Hamle 3 Health stabilization:
+//   • Live Lobby polling/focus refresh wins over route snapshots; host start
+//     and waiting-room invite UX use current sanitized backend contracts.
+//   • Friend/invite RLS, Leaderboard enrichment/avatar, Online result audit,
+//     Diamond/Daily/DB, and backend-security Health scan active source owners.
+//   • Backend-authoritative Online scoring and guest/public DTO boundaries are
+//     preserved; no Hamle 3 P1 refactor is included.
+//
 // Codex586 — Hamle 2 P0 authority, integrity, and deployability pass:
 //   • Online Lobby/result mutations are backend-owned for linked and
 //     token-proven guest actors, lock/revision guarded, and privacy-sanitized.
@@ -80,7 +88,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex586';
+const BUILD_MARKER = 'Codex587';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

@@ -62,14 +62,14 @@ export function getSoloProgressScore(user, options = {}) {
  *
  * When older rows are missing that materialized projection, the helper
  * derives a backward-compatible value from the same Online + Solo composition
- * (solo_progress.totalSoloScore + online_progress.score). If both a
- * materialized and a derived value exist, the higher non-negative value wins
- * so a stale local progress object cannot down-display a persisted score.
+ * (solo_progress.totalSoloScore + online_progress.score). Once a materialized
+ * projection exists it is authoritative; local derived state cannot override
+ * it while backend persistence/reconciliation is still in flight.
  */
 export function getKronoxVisibleScore(user, options = {}) {
   const materialized = getMaterializedKronoxScore(user);
   const derived = getSoloProgressScore(user, options) + getOnlineProgressScore(user);
-  return materialized === null ? derived : Math.max(materialized, derived);
+  return materialized === null ? derived : materialized;
 }
 
 export function getUnifiedKronoxPuan(user, options = {}) {

@@ -79,7 +79,9 @@ Status: Active technical flow contract.
 - claimDailyWheelReward writes DailyWheelSpin, DiamondTransaction for Diamond portions, JokerTransaction/UserJokerInventory for approved joker portions, and backend-owned UserDailyQuestProgress completion for active daily_calendar:* Çark çevir rows using function-level same-day/idempotency guards plus EconomyOperationLock; no atomic/upsert guarantee is repo-proven. adminResetDailyWheelState is an AdminUser-gated Admin Ekranı support tool that accepts Kronox User ID, resets only today's Daily Wheel test guards/auto-popup marker/blocking same-day wheel idempotency rows, archives DailyWheelSpin/DiamondTransaction/JokerTransaction idempotency keys to preserve completed reward rows, grants no rewards, reverses no Diamonds/Jokers, and does not affect Daily Calendar / Streak, Kronox Puan, or leaderboard.
 - startLobbyGame owns the one canonical Online shared deck. Authenticated and token-proven completed guest actors are verified backend-side; Online does not read Solo preference weighting or guest Solo projection.
 - Lobby create/join/leave/start/turn/result mutations are function-owned, use expected monotonic state_revision plus fail-closed EconomyOperationLock guards, enforce max four participants, and return idempotent canonical public snapshots. updateLobbyGameState commit_result derives the terminal result and fixed +15/-6 delta server-side, reserves/reconciles OnlineMatchResult, and publishes User/GuestProfile plus leaderboard score once. applyOnlineResult is a thin function caller and has no direct entity writes.
+- Lobby route payloads are bootstrap-only. useLobbySync applies sanitized getLobbySnapshot polling plus focus/visibility refresh through latestLobbyRef/applyLobbyData, rejects stale revisions/status regression, and never requires direct client Lobby entity subscription.
 - Public Online/social DTOs use opaque public_ref/participant_ref/target_ref plus username, sanitized avatar/status, and required public game state only. Email, display_name, provider ID, owner_key, raw guest_id/token, actor_key_hash, auth/internal row IDs, internal player keys, transaction IDs, and private storage metadata are forbidden in client responses.
+- FriendRequest and GameInvite direct entity read/update/delete is admin-only. getOnlinePlayerSelection privately scopes service-role rows to the resolved linked/guest actor and returns opaque request/invite refs plus username-safe lifecycle/avatar data.
 - Notification INVITE_OPENED and toast dismissal are nonterminal. Pending rows survive transient empty/error fetches and failed accept/decline; only confirmed terminal backend state closes them. Recoverable Friends/player-selection/invite errors use safe Turkish copy and never raw backend/Axios messages.
 - Daily assignment repair uses an actor/server-day EconomyOperationLock and canonical distinct expected quest keys. Daily progress ignores client amount and requires same-actor/day persisted source proof. Duplicate assignment rows cannot complete a day/reward, and level 1-6 training Joker/Hint actions cannot satisfy Daily tasks.
 - sendQuestionAnalyticsReportEmail is admin-only, email-body-only, exactly nine sections, with anonymized User0001-style per-player coverage where used.
@@ -111,7 +113,7 @@ analytics writes.
 
 Phase 1 also adds src/lib/onlineLobbyReducer.js and
 src/lib/notificationReducer.js as pure MVI foundations. useWaitingRoomSync
-feeds authoritative lobby subscription/poll events into the Online reducer
+and useLobbySync feed authoritative sanitized snapshot poll/focus/visibility events into the Online reducer
 without changing route payloads. useNotificationCenter remains the shared
 ViewModel/store and delegates notification fetch/subscription/terminal
 lifecycle transitions to the notification reducer.
@@ -366,8 +368,10 @@ through DiamondTransaction.source first_login_reward.
 Leaderboard reads use the materialized SoloLeaderboardEntry.total_kronox_score
 projection first. The fast player-facing Liderlik path may skip bounded
 User.kronox_puan_total repair and friend enrichment so top rows can render from
-projection/cache; repair remains a bounded server-side maintenance or fallback
-path and never returns full User rows.
+projection/cache; a second compact backend snapshot may add accepted-friend
+badges/avatars after first paint without exposing email or private User rows.
+Repair remains a bounded server-side maintenance or fallback path and never
+returns full User rows.
 The approved Liderlik UI no longer renders top Puan/Seviye/Elmas stat cards,
 the old unified-score helper sentence, or the removed friends empty area. It
 keeps the centered trophy + LİDERLİK heading, scrollable ranking rows, shared
@@ -735,7 +739,7 @@ Status: Active product contract.
 - Solo question selection reads current-user active valid Category preferences before attempt start when signed in. Game.jsx explicitly calls getValidActiveSelectedCategoryIds(preferences, activeCategories) in the Solo-only path. Authenticated users with no saved preferences or empty preferences use all active categories for Solo; missing authentication uses the explicit capped guest Solo projection and must not expose raw questions. Category preference save validation remains separate from gameplay start. Insufficient preferences also use all active categories for Solo. Saved preferences target 70% selected categories / 30% full eligible pool only when at least 3 active valid preferences exist; this is soft weighting with fallback. The selected-category 70% lane uses selected user categories with difficulty 1 and 2 eligible; the global 30% lane first uses all active categories with difficulty 1, then selected-category shortage or global difficulty-1 shortage fills from the broader active global pool before clean failure.
 - getQuestions derives active playable category IDs from active Category rows; stale hardcoded seed-category ID subsets must not exclude newer active categories from runtime projection.
 - getQuestions/category helpers accept active status aliases a, active, and aktif, and category_id normalization accepts any positive live DB id so categories added after the original seed set can enter the Solo candidate pool.
-- Online question selection, getQuestions, and analytics do not read preferences for question selection. Online start uses startLobbyGame to reconcile accepted invite participants, then persist a bounded shared online_question_deck/current_question_id on Lobby, selected 100% from active lobby-selected categories with difficulty 1/2 only; missing/invalid selected categories or Category read failures must not fall back to legacy category names, Lobby.category, or old seeded arrays; Game reads/refetches that persisted deck instead of the Solo getQuestions buffer, and waiting-room clients can transition from realtime or polling if a subscription event is missed.
+- Online question selection, getQuestions, and analytics do not read preferences for question selection. Online start uses startLobbyGame to reconcile accepted invite participants, then persist a bounded shared online_question_deck/current_question_id on Lobby, selected 100% from active lobby-selected categories with difficulty 1/2 only; missing/invalid selected categories or Category read failures must not fall back to legacy category names, Lobby.category, or old seeded arrays; Game reads/refetches that persisted deck instead of the Solo getQuestions buffer, and waiting-room clients recover through sanitized polling plus focus/visibility refresh when route state is partial or stale.
 - two-account preference RLS proof remains manual/NOT_AUTOMATABLE.
 - old UserSubCategoryPreference rows are retained but not used by the current Profile Info preference UI.
 `;

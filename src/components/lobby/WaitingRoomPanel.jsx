@@ -248,7 +248,7 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
             {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-amber-200/80" />}
           </button>
           <p className="mt-2 font-inter text-[11px] text-blue-100/45">
-            Daveti kabul eden arkadaşların buraya katılır.
+            Davet edilen arkadaşların kabul ettikçe buraya katılır.
           </p>
         </div>
 

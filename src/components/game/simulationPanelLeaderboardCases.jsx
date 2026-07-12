@@ -14,12 +14,10 @@ import kronoxScoreSource from '../../lib/kronoxScore.js?raw';
 import navigationStackSource from '../../lib/NavigationStackContext.jsx?raw';
 import soloLevelsSource from '../../lib/soloLevels.js?raw';
 import { normalizeLeaderboardRank } from '@/lib/leaderboard';
-// Codex169 — The backend function (functions/) and entity schema
-// (entities/) live OUTSIDE src/, so `?raw` (and the old GitHub-mirror
-// `base44/...` paths) return empty here → false FAILs. Read the real
-// contract from src-resident mirrors kept in sync with the deployed files.
-import { SOLO_LEADERBOARD_ENTITY_SOURCE as soloLeaderboardEntitySource } from '@/lib/healthMirrors/soloLeaderboardEntityMirror';
-import { GET_SOLO_LEADERBOARD_SOURCE as getSoloLeaderboardFunctionSource } from '@/lib/healthMirrors/getSoloLeaderboardMirror';
+// Active backend/schema raw sources are the Health evidence. Hand-maintained
+// mirrors cannot prove the deployed implementation contract.
+import soloLeaderboardEntitySource from '../../../base44/entities/SoloLeaderboardEntry.jsonc?raw';
+import getSoloLeaderboardFunctionSource from '../../../base44/functions/getSoloLeaderboard/entry.ts?raw';
 // Codex119 — Section UI moved into a focused component; some state
 // strings now live there instead of the page.
 import kronoxRankingSectionSource from '../leaderboard/KronoxRankingSection.jsx?raw';
@@ -324,8 +322,10 @@ export const EXTRA_TESTS = [
         '"total_solo_score"',
         '"online_score"',
         '"current_level"',
-        'direct entity reads are admin-only',
-        'public getSoloLeaderboard strips owner_key/display_name',
+        '"read": {',
+        '"role": "admin"',
+        'function toPublicLeaderboardRow',
+        'leaderboard_id: leaderboardId',
         'base44.entities.SoloLeaderboardEntry',
         "base44.functions.invoke('getSoloLeaderboard'",
         'solo_leaderboard_entry_projection',
@@ -582,8 +582,8 @@ export const EXTRA_TESTS = [
       const required = missingTokens(getSoloLeaderboardFunctionSource, [
         'entities?.SoloLeaderboardEntry',
         'projectionEntity.list(\'-total_kronox_score\', limit)',
-        "User.list('-kronox_puan_total', limit)",
-        'server-side User.list',
+        ".list('-kronox_puan_total', limit)",
+        'shouldRunUserRepair',
         'broadUserRowsReturned: false',
         'serverSideUserRepairUsed',
         'publicLeaderboardId',
@@ -635,9 +635,10 @@ export const EXTRA_TESTS = [
         'leaderboardPlayer',
         'leaderboard_id',
         'username',
-        'Completed guests can pass guest_id + guest_token',
-        'raw guest id',
-        'owner_key, player_key',
+        'normalizeGuestId(body?.guest_id)',
+        'normalizeGuestToken(body?.guest_token)',
+        'hashGuestToken',
+        'function toPublicLeaderboardRow',
         'guest_token',
         'display_name',
       ]);
@@ -679,7 +680,8 @@ export const EXTRA_TESTS = [
         'scoreSourceMismatches',
         'sourceScoreRepairMode',
         'non_destructive_positive_user_rows_only',
-        'computed solo_progress',
+        'toLeaderboardRow(row, 0)',
+        'summarizeSoloProgress',
         'repairSoloLeaderboardProjection',
         'positiveDecoratedRows',
         'zeroDecoratedRows',
@@ -730,7 +732,9 @@ export const EXTRA_TESTS = [
         'topRows: publicTopRows',
         'currentUserRow: publicCurrentUserRow',
         'getFriendLeaderboardKeys',
-        'loadFriends',
+        'loadAcceptedFriendOwnerKeys',
+        'toPublicLeaderboardRows',
+        'pickPublicAvatarFields',
       ]);
       const forbidden = [];
       if (required.length || forbidden.length) {
@@ -738,7 +742,7 @@ export const EXTRA_TESTS = [
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'getSoloLeaderboard compact payload includes sanitized top/current/friend/rank metadata; page may still use accepted loadFriends rows for local fallback badges',
+          expected: 'getSoloLeaderboard compact payload includes sanitized top/current/friend/rank/avatar metadata with no client email hydration',
           actual: { required, forbidden },
         });
       }
@@ -756,8 +760,10 @@ export const EXTRA_TESTS = [
       const required = missingTokens(combined, [
         'LEADERBOARD_CACHE_STALE_MS',
         'LEADERBOARD_FAST_SNAPSHOT_OPTIONS',
+        'LEADERBOARD_ENRICHED_SNAPSHOT_OPTIONS',
         "repairMode: 'skip'",
         'includeFriendBadges: false',
+        'includeFriendBadges: true',
         'getCachedSoloLeaderboardSnapshot',
         'setCachedSoloLeaderboardSnapshot',
         "import('./LeaderboardPage')",
@@ -765,12 +771,13 @@ export const EXTRA_TESTS = [
         'repairSkipped',
         'broadUserListUsed: shouldRunUserRepair',
         'const userRows = shouldRunUserRepair',
-        'loadFriends(normalizedUserEmail)',
+        'const enrichedSnapshot = await loadSoloLeaderboardSnapshot',
+        'applySnapshot(enrichedSnapshot)',
       ]);
       const deferredFriends = ordered(
         leaderboardPageSource,
         'if (!applySnapshot(snapshot)) return',
-        'loadFriends(normalizedUserEmail)',
+        'const enrichedSnapshot = await loadSoloLeaderboardSnapshot',
       );
       const forbidden = forbiddenTokensFound(leaderboardPageSource, [
         'const [snapshot, acceptedFriends] = await Promise.all',
@@ -780,7 +787,7 @@ export const EXTRA_TESTS = [
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'Home idle-warms Liderlik, page uses cached projection rows, getSoloLeaderboard fast mode skips User repair/friend badges, and loadFriends runs after first render',
+          expected: 'Home idle-warms Liderlik, first response skips repair/friend badges, then a sanitized backend enrichment runs after rows apply',
           actual: { required, deferredFriends, forbidden },
         });
       }
@@ -796,8 +803,9 @@ export const EXTRA_TESTS = [
     () => {
       const combined = `${soloLeaderboardEntitySource}\n${getSoloLeaderboardFunctionSource}`;
       const required = missingTokens(combined, [
-        'direct entity reads are admin-only',
-        'public getSoloLeaderboard strips owner_key/display_name',
+        '"read": {',
+        '"role": "admin"',
+        'function toPublicLeaderboardRow',
         'leaderboard_id',
         'username',
         'total_kronox_score',
@@ -957,18 +965,17 @@ export const EXTRA_TESTS = [
   makeCase('leaderboard_health', 'leaderboard_friend_markers_safe',
     'Friend rows are marked server-side from real accepted friends without returning owner keys',
     () => {
-      // Codex119 — friend marker strings/badges live in the section
-      // component; data wiring (loadFriends, friendEmailSet, isFriend)
-      // stays on the page + lib. Combine all three sources.
+      // Friend identity matching is backend-only. The page receives only
+      // sanitized isFriend/leaderboard/avatar metadata.
       const combined = `${leaderboardPageSource}\n${leaderboardLibSource}\n${kronoxRankingSectionSource}\n${getSoloLeaderboardFunctionSource}`;
       const required = missingTokens(combined, [
-        'loadFriends',
-        'friend.friend_email',
-        'getFriendLeaderboardKeys',
         'loadAcceptedFriendOwnerKeys',
+        "status: 'accepted'",
+        'friendOwnerKeySet',
         'publicFriendsOutsideTop',
         'leaderboard_id',
         'isFriend',
+        'pickPublicAvatarFields',
         'Arkadaş',
       ]);
       const forbidden = forbiddenTokensFound(`${leaderboardPageSource}\n${kronoxRankingSectionSource}\n${getSoloLeaderboardFunctionSource}`, [
@@ -1028,14 +1035,15 @@ export const EXTRA_TESTS = [
     () => {
       // Codex119 — row rendering now lives in the section component;
       // include it in both the required- and forbidden-token surfaces.
-      const combined = `${soloLeaderboardEntitySource}\n${leaderboardPageSource}\n${leaderboardLibSource}\n${kronoxRankingSectionSource}`;
+      const combined = `${soloLeaderboardEntitySource}\n${leaderboardPageSource}\n${leaderboardLibSource}\n${kronoxRankingSectionSource}\n${getSoloLeaderboardFunctionSource}`;
       const required = missingTokens(combined, [
         'getSafeLeaderboardName',
         'isSafePublicUsername',
         'username',
         'leaderboard_id',
         'displayName',
-        'direct entity reads are admin-only',
+        '"role": "admin"',
+        'function toPublicLeaderboardRow',
       ]);
       const entityForbidden = forbiddenTokensFound(soloLeaderboardEntitySource, [
         '"user_email"',

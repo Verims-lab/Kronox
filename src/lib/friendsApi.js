@@ -216,7 +216,7 @@ export async function acceptIncomingRequest(requestOrId) {
   const requestId =
     typeof requestOrId === 'string'
       ? requestOrId.trim()
-      : String(requestOrId?.id || '').trim();
+      : String(requestOrId?.request_ref || requestOrId?.id || '').trim();
   if (!requestId) throw new Error('Geçersiz istek.');
 
   let res;

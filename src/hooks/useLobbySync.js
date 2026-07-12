@@ -71,6 +71,8 @@ export function useLobbySync({
 
     let cancelled = false;
     let pollIntervalId = null;
+    let focusHandler = null;
+    let visibilityHandler = null;
     let activeLobbyId = lobbyId || null;
 
     const initPlayers = initialPlayersRef.current;
@@ -184,6 +186,42 @@ export function useLobbySync({
       return null;
     };
 
+    const refreshLiveLobby = async (source) => {
+      if (cancelled || !activeLobbyId) return;
+      try {
+        const response = await getLobbySnapshot({ lobbyId: activeLobbyId });
+        const fresh = response?.data?.lobby;
+        if (!fresh) return;
+
+        const previous = latestLobbyRef.current;
+        const freshLobby = normalizeLobbyState(fresh, previous || {});
+        const hasChanged =
+          !previous ||
+          previous.state_revision !== freshLobby.state_revision ||
+          previous.current_player_index !== freshLobby.current_player_index ||
+          previous.current_question_id !== freshLobby.current_question_id ||
+          previous.status !== freshLobby.status ||
+          JSON.stringify(previous.used_question_ids || []) !== JSON.stringify(freshLobby.used_question_ids || []) ||
+          JSON.stringify(summarizePlayers(previous.players || [])) !== JSON.stringify(summarizePlayers(freshLobby.players || []));
+
+        debugLog('[useLobbySync] live snapshot check:', {
+          source,
+          lobbyId: freshLobby.id,
+          hasChanged,
+          status: freshLobby.status,
+          state_revision: freshLobby.state_revision ?? 0,
+          current_player_index: freshLobby.current_player_index ?? null,
+          current_question_id: freshLobby.current_question_id || null,
+          used_question_count: freshLobby.used_question_ids?.length || 0,
+          players: summarizePlayers(freshLobby.players || []),
+        });
+
+        if (hasChanged) applyLobbyData(freshLobby, source);
+      } catch (err) {
+        debugWarn(`[useLobbySync] ${source} refresh failed:`, err.message);
+      }
+    };
+
     const startSync = async () => {
       try {
         // İlk yükleme — always fetch fresh DB state to get correct current_player_index.
@@ -223,41 +261,20 @@ export function useLobbySync({
 
       if (cancelled || !activeLobbyId) return;
 
-      pollIntervalId = window.setInterval(async () => {
-        try {
-          const response = await getLobbySnapshot({ lobbyId: activeLobbyId });
-          const fresh = response?.data?.lobby;
-          if (!fresh) return;
-
-          const previous = latestLobbyRef.current;
-          const freshLobby = normalizeLobbyState(fresh, previous || {});
-          const hasChanged =
-            !previous ||
-            previous.state_revision !== freshLobby.state_revision ||
-            previous.current_player_index !== freshLobby.current_player_index ||
-            previous.current_question_id !== freshLobby.current_question_id ||
-            previous.status !== freshLobby.status ||
-            JSON.stringify(previous.used_question_ids || []) !== JSON.stringify(freshLobby.used_question_ids || []) ||
-            JSON.stringify(summarizePlayers(previous.players || [])) !== JSON.stringify(summarizePlayers(freshLobby.players || []));
-
-          debugLog('[useLobbySync] poll check:', {
-            lobbyId: freshLobby.id,
-            hasChanged,
-            status: freshLobby.status,
-            state_revision: freshLobby.state_revision ?? 0,
-            current_player_index: freshLobby.current_player_index ?? null,
-            current_question_id: freshLobby.current_question_id || null,
-            used_question_count: freshLobby.used_question_ids?.length || 0,
-            players: summarizePlayers(freshLobby.players || []),
-          });
-
-          if (hasChanged) {
-            applyLobbyData(freshLobby, 'poll');
-          }
-        } catch (err) {
-          debugWarn('[useLobbySync] poll failed:', err.message);
-        }
+      // Direct Lobby subscriptions are intentionally unavailable because
+      // client entity reads are private after Hamle 2. Polling plus immediate
+      // focus/visibility refreshes provide the live sanitized snapshot path.
+      pollIntervalId = window.setInterval(() => {
+        void refreshLiveLobby('poll');
       }, 1800);
+      focusHandler = () => { void refreshLiveLobby('window-focus'); };
+      visibilityHandler = () => {
+        if (document.visibilityState === 'visible') {
+          void refreshLiveLobby('visibility-refresh');
+        }
+      };
+      window.addEventListener('focus', focusHandler);
+      document.addEventListener('visibilitychange', visibilityHandler);
     };
 
     startSync();
@@ -266,6 +283,8 @@ export function useLobbySync({
       cancelled = true;
       if (unsubRef.current) unsubRef.current();
       if (pollIntervalId) window.clearInterval(pollIntervalId);
+      if (focusHandler) window.removeEventListener('focus', focusHandler);
+      if (visibilityHandler) document.removeEventListener('visibilitychange', visibilityHandler);
     };
   }, [lobbyId, lobbyCode, setLobbyData, setWinner, setError, onLobbyResolved]);
 
