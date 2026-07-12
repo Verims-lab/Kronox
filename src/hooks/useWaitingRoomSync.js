@@ -8,7 +8,12 @@ import {
   onlineLobbyReducer,
   ONLINE_LOBBY_ACTIONS,
 } from '@/lib/onlineLobbyReducer';
-import { getLobbySnapshot, joinLobbyByCode } from '@/lib/dbGateway/lobbyGateway';
+import {
+  getLobbySnapshot,
+  joinLobbyByCode,
+  LOBBY_SNAPSHOT_SCOPES,
+} from '@/lib/dbGateway/lobbyGateway';
+import { createAdaptivePoller } from '@/lib/adaptivePoller';
 
 const STATUS_RANK = {
   waiting: 1,
@@ -97,7 +102,10 @@ export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, 
 
   const refreshLobby = useCallback(async () => {
     if (!lobby?.id) return;
-    const response = await getLobbySnapshot({ lobbyId: lobby.id });
+    const response = await getLobbySnapshot({
+      lobbyId: lobby.id,
+      scope: LOBBY_SNAPSHOT_SCOPES.WAITING_ROOM,
+    });
     const fresh = response?.data?.lobby;
     if (fresh) applyLobbySnapshot(fresh, 'pull_to_refresh');
   }, [applyLobbySnapshot, lobby?.id]);
@@ -154,43 +162,89 @@ export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, 
   }, [lobby?.id, lobby?.status, navigate]);
 
   useEffect(() => {
-    if (!lobby?.id || lobby.status !== 'waiting') return undefined;
+    if (!lobby?.id) return undefined;
+    const activeLobbyId = lobby.id;
 
-    const intervalId = window.setInterval(async () => {
-      if (hasNavigatedToGameRef.current) return;
+    const poller = createAdaptivePoller({
+      minDelayMs: 2200,
+      maxDelayMs: 12000,
+      task: async (source) => {
+        if (hasNavigatedToGameRef.current) return;
+        if (!isHost) {
+          dispatchLobbyPhase({
+            type: ONLINE_LOBBY_ACTIONS.RECOVERY_REQUESTED,
+            source: 'waiting_room_snapshot',
+          });
+        }
 
-      try {
-        const response = await getLobbySnapshot({ lobbyId: lobby.id });
+        const response = await getLobbySnapshot({
+          lobbyId: activeLobbyId,
+          scope: LOBBY_SNAPSHOT_SCOPES.WAITING_ROOM,
+        });
         const fresh = response?.data?.lobby;
         if (!fresh) return;
 
-        const currentPlayers = lobby.players || [];
+        const current = latestLobbyRef.current || lobby;
+        const currentPlayers = current?.players || [];
         const freshPlayers = fresh.players || [];
         const rosterChanged =
           currentPlayers.length !== freshPlayers.length ||
           JSON.stringify(summarizePlayers(currentPlayers)) !== JSON.stringify(summarizePlayers(freshPlayers));
+        const statusChanged = fresh.status !== current?.status;
+        const revisionChanged = readLobbyRevision(fresh) !== readLobbyRevision(current);
+        const shouldNavigate = fresh.status === 'starting' || fresh.status === 'in_game';
 
-        debugLog('[WaitingRoom] roster poll:', {
-          lobbyId: lobby.id,
+        debugLog('[WaitingRoom] consolidated snapshot poll:', {
+          source,
+          lobbyId: activeLobbyId,
           rosterChanged,
+          statusChanged,
+          revisionChanged,
+          shouldNavigate,
           localPlayersCount: currentPlayers.length,
           fetchedPlayersCount: freshPlayers.length,
-          fetchedPlayerNames: freshPlayers.map(p => p?.name),
         });
 
-        if (rosterChanged) {
-          applyLobbySnapshot(fresh, 'roster_poll');
+        const applied = (rosterChanged || statusChanged || revisionChanged)
+          ? applyLobbySnapshot(fresh, 'waiting_room_snapshot')
+          : true;
+        if (!isHost && shouldNavigate && applied) {
+          dispatchLobbyPhase({
+            type: ONLINE_LOBBY_ACTIONS.RECOVERY_SUCCEEDED,
+            lobby: fresh,
+            source: 'waiting_room_snapshot',
+          });
+          navigateToOnlineGame(fresh, source);
         }
-      } catch (err) {
-        debugWarn('[WaitingRoom] roster poll failed:', {
-          lobbyId: lobby.id,
-          error: err.message,
+      },
+      onError: (err, source, failureCount) => {
+        const current = latestLobbyRef.current || lobby;
+        debugWarn('[WaitingRoom] snapshot poll failed:', {
+          source,
+          failureCount,
+          lobbyId: activeLobbyId,
+          error: err?.message || String(err),
         });
-      }
-    }, 3000);
-
-    return () => window.clearInterval(intervalId);
-  }, [applyLobbySnapshot, lobby?.id, lobby?.players, lobby.status]);
+        setStartDebug((previous) => ({
+          ...previous,
+          subscribedLobbyId: activeLobbyId,
+          localLobbyStatus: current?.status || null,
+          lastEventAt: new Date().toISOString(),
+          source,
+          error: err?.message || String(err),
+        }));
+        if (!isHost) {
+          dispatchLobbyPhase({
+            type: ONLINE_LOBBY_ACTIONS.RECOVERY_FAILED,
+            error: err?.message || String(err),
+            source: 'waiting_room_snapshot',
+          });
+        }
+      },
+    });
+    poller.start();
+    return () => poller.stop();
+  }, [applyLobbySnapshot, isHost, lobby?.id, navigateToOnlineGame]);
 
   useEffect(() => {
     const currentName = playerName?.trim();
@@ -236,84 +290,6 @@ export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, 
       rejoinAttemptRef.current = false;
     });
   }, [applyLobbySnapshot, lobby?.id, lobby?.status, lobby?.players, lobby?.code, playerName]);
-
-  useEffect(() => {
-    if (!lobby?.id || isHost) return undefined;
-
-    const pollStartedAt = new Date().toISOString();
-    debugLog('[WaitingRoom] start fallback polling registered:', {
-      lobbyId: lobby.id,
-      timestamp: pollStartedAt,
-      playerName: playerNameRef.current,
-      currentActorResolved: Boolean(userRef.current),
-    });
-
-    const intervalId = window.setInterval(async () => {
-      if (hasNavigatedToGameRef.current) return;
-
-      try {
-        dispatchLobbyPhase({
-          type: ONLINE_LOBBY_ACTIONS.RECOVERY_REQUESTED,
-          source: 'start_fallback_poll',
-        });
-        const response = await getLobbySnapshot({ lobbyId: lobby.id });
-        const fresh = response?.data?.lobby;
-        const status = fresh?.status;
-        const shouldNavigate = status === 'starting' || status === 'in_game';
-        const pollDebug = {
-          subscribedLobbyId: lobby.id,
-          localLobbyStatus: fresh?.status || lobby.status || null,
-          lastEventAt: new Date().toISOString(),
-          lastEventStatus: status || null,
-          lastEventLobbyId: fresh?.id || null,
-          shouldNavigateToGame: shouldNavigate,
-          navigateCalled: false,
-          currentPathname: window.location.pathname,
-          currentActorResolved: Boolean(userRef.current),
-          currentPlayerName: playerNameRef.current || null,
-          source: 'poll',
-          error: null,
-        };
-
-        debugLog('[WaitingRoom] start fallback poll:', pollDebug);
-        setStartDebug(pollDebug);
-
-        const applied = fresh ? applyLobbySnapshot(fresh, 'start_fallback_poll') : false;
-        if (shouldNavigate && (applied || fresh?.status === 'starting' || fresh?.status === 'in_game')) {
-          dispatchLobbyPhase({
-            type: ONLINE_LOBBY_ACTIONS.RECOVERY_SUCCEEDED,
-            lobby: fresh,
-            source: 'start_fallback_poll',
-          });
-          navigateToOnlineGame(fresh, 'poll');
-        }
-      } catch (err) {
-        const pollErrorDebug = {
-          subscribedLobbyId: lobby.id,
-          localLobbyStatus: lobby.status || null,
-          lastEventAt: new Date().toISOString(),
-          lastEventStatus: null,
-          lastEventLobbyId: null,
-          shouldNavigateToGame: false,
-          navigateCalled: false,
-          currentPathname: window.location.pathname,
-          currentActorResolved: Boolean(userRef.current),
-          currentPlayerName: playerNameRef.current || null,
-          source: 'poll',
-          error: err.message,
-        };
-        debugLog('[WaitingRoom] start fallback poll error:', pollErrorDebug);
-        setStartDebug(pollErrorDebug);
-        dispatchLobbyPhase({
-          type: ONLINE_LOBBY_ACTIONS.RECOVERY_FAILED,
-          error: err.message,
-          source: 'start_fallback_poll',
-        });
-      }
-    }, 2500);
-
-    return () => window.clearInterval(intervalId);
-  }, [applyLobbySnapshot, isHost, lobby?.id, lobby?.status, navigateToOnlineGame]);
 
   return {
     startDebug,

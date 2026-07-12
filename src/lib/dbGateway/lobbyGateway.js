@@ -4,6 +4,11 @@ import { getStoredGuestCredentials } from '@/lib/guestProfile';
 
 export { isLobbyStale, LOBBY_STALE_AFTER_MS };
 
+export const LOBBY_SNAPSHOT_SCOPES = Object.freeze({
+  WAITING_ROOM: 'waiting_room',
+  GAME: 'game',
+});
+
 function withActorProof(payload = {}) {
   const guest = getStoredGuestCredentials();
   return {
@@ -32,8 +37,8 @@ export async function joinLobbyByCode(code, playerName) {
   return invokeLobbyMutation('join', { code, playerName });
 }
 
-export async function getLobbySnapshot({ lobbyId, code } = {}) {
-  return invokeLobbyMutation('get', { lobbyId, code });
+export async function getLobbySnapshot({ lobbyId, code, scope = LOBBY_SNAPSHOT_SCOPES.GAME } = {}) {
+  return invokeLobbyMutation('get', { lobbyId, code, snapshot_scope: scope });
 }
 
 export async function findActiveLobby() {
@@ -63,6 +68,8 @@ export const lobbyGatewayContract = Object.freeze({
   authority: 'backend-owned Lobby functions',
   actorProof: 'authenticated user or token-proven GuestProfile',
   publicSnapshot: 'personalized privacy-safe lobby DTO',
+  waitingRoomSnapshot: 'roster/config only; no player cards, question ids, used ids, or deck payload',
+  gameSnapshot: 'participant-only active match projection',
   startFunction: 'startLobbyGame',
   resultFunction: 'updateLobbyGameState:commit_result',
   requiresAuthenticatedHost: false,

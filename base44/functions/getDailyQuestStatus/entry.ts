@@ -11,6 +11,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const GUEST_ID_PREFIX = 'guest_';
 const ASSIGNMENT_LOCK_TTL_MS = 8_000;
 const ASSIGNMENT_LOCK_SETTLE_MS = 80;
+const DAILY_PROGRESS_HISTORY_ROW_LIMIT = 420;
 
 const TASK_TYPES = {
   DAILY_WHEEL_CLAIM: 'daily_wheel_claim',
@@ -603,7 +604,7 @@ function isDayCompleted(rows: any[] = [], dateKey: string, player: any) {
     && canonicalRows.every((row) => publicTask(row).completed);
 }
 
-async function readPlayerCalendarRows(base44: any, player: any, limit = 420) {
+async function readPlayerCalendarRows(base44: any, player: any, limit = DAILY_PROGRESS_HISTORY_ROW_LIMIT) {
   const entity = progressEntity(base44, player);
   if (!entity?.filter) return [];
   const rows = await entity.filter({ user_email: player.playerKey }, '-quest_date', limit).catch(() => []);
@@ -660,6 +661,10 @@ function computeCurrentStreak(groupedRows: Map<string, any[]>, serverDate: strin
 async function updatePlayerCalendarSummary(base44: any, player: any, patch: Record<string, unknown>) {
   const entity = playerEntity(base44, player);
   if (!entity?.update || !player?.rowId) return null;
+  const hasChanged = Object.entries(patch).some(([key, value]) => (
+    String(player?.row?.[key] ?? '') !== String(value ?? '')
+  ));
+  if (!hasChanged) return { skipped: true, reason: 'projection_unchanged' };
   return entity.update(player.rowId, patch).catch(() => null);
 }
 
@@ -696,7 +701,7 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    await reconcileDailyWheelTaskFromClaim(base44, player, todayRows, serverDate);
+    const wheelReconciliation = await reconcileDailyWheelTaskFromClaim(base44, player, todayRows, serverDate);
 
     const allRows = await readPlayerCalendarRows(base44, player);
     const groupedRows = groupRowsByDate(allRows);
@@ -720,7 +725,10 @@ Deno.serve(async (req: Request) => {
       daily_quest_next_available_at: nextUtcMidnightIso(serverDate),
     });
 
-    const refreshedTodayRows = await ensureTodayTasks(base44, player, serverDate);
+    const refreshedTodayRows = canonicalRowsForTasks(
+      groupedRows.get(serverDate) || [],
+      resolveTaskTemplates(serverDate, player).slice(0, DAILY_CALENDAR_TASKS_PER_DAY),
+    );
     return json({
       ok: true,
       runtimeVersion: DAILY_CALENDAR_RUNTIME_VERSION,
@@ -744,6 +752,14 @@ Deno.serve(async (req: Request) => {
       },
       calendarDays: buildMonthGrid(monthKey, serverDate, groupedRows, player),
       templateCycleLength: DAILY_CALENDAR_TEMPLATE_CYCLE_LENGTH,
+      progressHistoryRowLimit: DAILY_PROGRESS_HISTORY_ROW_LIMIT,
+      statusReadWritePolicy: {
+        assignmentRepair: 'guarded_idempotent_missing_today_rows_only',
+        receiptReconciliation: 'guarded_same_player_same_day_daily_wheel_claim_only',
+        wheelReceiptReconciled: wheelReconciliation.reconciled === true,
+        summaryProjectionWrite: 'only_when_value_changes',
+        redundantSecondAssignmentRepair: false,
+      },
       hintTasksUse: TASK_TYPES.HINT_USED,
       legacyCleanupDryRun: {
         available: true,

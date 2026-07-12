@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import StandardTopBar from '@/components/layout/StandardTopBar';
 import { createParentRouteState } from '@/lib/NavigationStackContext';
 import { useAuth } from '@/lib/AuthContext';
-import { ensureSoloProgressBackfill, getSoloLevelCount, readSoloProgress } from '@/lib/soloLevels';
+import { getSoloLevelCount, readSoloProgress } from '@/lib/soloLevels';
 import { summarizeSoloProgress } from '@/lib/soloProgressHelpers';
 import { getKronoxVisibleScore } from '@/lib/kronoxScore';
 import {
@@ -27,7 +27,6 @@ import {
   loadSoloLeaderboardSnapshot,
   mergeLeaderboardAvatarFields,
   normalizeLeaderboardRank,
-  publishSoloLeaderboardEntry,
   rankSoloLeaderboardEntries,
   selectLeaderboardSections,
   setCachedSoloLeaderboardSnapshot,
@@ -36,25 +35,12 @@ import {
 import {
   getCompletedGuestCredentialsPayload,
   isGuestOnboardingComplete,
-  syncGuestProfileProgress,
 } from '@/lib/guestProfile';
 import { sendFriendRequest } from '@/lib/friendsApi';
 import { useToast } from '@/components/ui/use-toast';
-import { isAdminUser, withAdminStatus } from '@/lib/admin';
+import { isAdminUser } from '@/lib/admin';
 import KronoxRankingSection from '@/components/leaderboard/KronoxRankingSection';
 import PullToRefresh from '@/components/mobile/PullToRefresh';
-
-function publishOwnLeaderboardProjectionInBackground(user, currentProgress) {
-  if (!user?.email) {
-    syncGuestProfileProgress({ soloProgress: currentProgress }).catch((error) => {
-      console.warn('[leaderboard] guest projection sync failed', error?.message || 'unknown');
-    });
-    return;
-  }
-  publishSoloLeaderboardEntry(user, currentProgress).catch((error) => {
-    console.warn('[leaderboard] background projection publish failed', error?.message || 'unknown');
-  });
-}
 
 function hydrateLeaderboardRow(publicRow, friendKeys, currentOwnerKey) {
   const entry = toSoloLeaderboardEntry(publicRow, friendKeys, currentOwnerKey);
@@ -108,10 +94,13 @@ function withCurrentTotalKronoxScore(row, totalKronoxScore) {
 export default function LeaderboardPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user: authUser, guestProfile, authChecked: contextAuthChecked } = useAuth();
-  const [user, setUser] = useState(null);
-  const [localGuestProfile, setLocalGuestProfile] = useState(guestProfile || null);
-  const [authChecked, setAuthChecked] = useState(false);
+  const {
+    user: authUser,
+    guestProfile,
+    authChecked,
+    adminStatus,
+  } = useAuth();
+  const user = authUser?.email ? authUser : null;
   const [leaderboard, setLeaderboard] = useState({
     loading: false,
     refreshing: false,
@@ -133,47 +122,20 @@ export default function LeaderboardPage() {
   const friendInvitePendingTargetsRef = useRef(new Set());
   const leaderboardRequestSeqRef = useRef(0);
 
-  useEffect(() => {
-    let cancelled = false;
-    if (!contextAuthChecked) {
-      setAuthChecked(false);
-      return () => { cancelled = true; };
-    }
-    if (!authUser?.email) {
-      setUser(null);
-      setAuthChecked(true);
-      return () => { cancelled = true; };
-    }
-    setUser(authUser || null);
-    setAuthChecked(true);
-    Promise.resolve()
-      .then(() => withAdminStatus(authUser))
-      .then(async (adminCheckedUser) => {
-        const normalizedProgress = await ensureSoloProgressBackfill(adminCheckedUser);
-        if (!cancelled) setUser({ ...adminCheckedUser, solo_progress: normalizedProgress });
-      })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, [authUser, contextAuthChecked]);
-
-  useEffect(() => {
-    setLocalGuestProfile(guestProfile || null);
-  }, [guestProfile]);
-
   const loadLeaderboard = useCallback(async () => {
-    const completedGuestProfile = !user && isGuestOnboardingComplete(localGuestProfile || guestProfile)
-      ? (localGuestProfile || guestProfile)
+    const completedGuestProfile = !user && isGuestOnboardingComplete(guestProfile)
+      ? guestProfile
       : null;
     if (!user?.email && !completedGuestProfile) return;
 
     // Codex150 — own-score fallback and ranking rows use visible Kronox
     // Puan. Solo and Online storage remain separate, but the row score
     // shown and sorted here must match Profile/Header Puan.
-    const currentProgress = readSoloProgress(user);
+    const leaderboardPlayer = user || completedGuestProfile;
+    const currentProgress = readSoloProgress(leaderboardPlayer);
     const currentOwnerKey = user?.email
       ? getLeaderboardOwnerKey(user.email)
       : getGuestLeaderboardOwnerKey(completedGuestProfile?.guest_id);
-    const leaderboardPlayer = user || completedGuestProfile;
     const totalKronoxScore = getKronoxVisibleScore(leaderboardPlayer, { soloProgress: currentProgress });
     const currentPayload = {
       ...(user?.email
@@ -312,7 +274,6 @@ export default function LeaderboardPage() {
       });
       setCachedSoloLeaderboardSnapshot(cacheKey, snapshot);
       if (!applySnapshot(snapshot)) return;
-      publishOwnLeaderboardProjectionInBackground(user, currentProgress);
 
       // Keep first paint on the projection-only fast path. Accepted-friend
       // badges and friend avatars arrive in a second sanitized backend
@@ -362,32 +323,32 @@ export default function LeaderboardPage() {
         };
       });
     }
-  }, [guestProfile, localGuestProfile, user]);
+  }, [guestProfile, user]);
 
   useEffect(() => {
-    const completedGuestProfile = !user && isGuestOnboardingComplete(localGuestProfile || guestProfile)
-      ? (localGuestProfile || guestProfile)
+    const completedGuestProfile = !user && isGuestOnboardingComplete(guestProfile)
+      ? guestProfile
       : null;
     if (authChecked && (user?.email || completedGuestProfile)) {
       loadLeaderboard();
     }
-  }, [authChecked, guestProfile, loadLeaderboard, localGuestProfile, user]);
+  }, [authChecked, guestProfile, loadLeaderboard, user]);
 
-  const progress = readSoloProgress(user);
+  const completedGuestProfile = !user && isGuestOnboardingComplete(guestProfile)
+    ? guestProfile
+    : null;
+  const leaderboardPlayer = user || completedGuestProfile;
+  const progress = readSoloProgress(leaderboardPlayer);
   const summary = summarizeSoloProgress(progress, getSoloLevelCount());
   // Codex148 — Explicit Solo component score contract. Public ranking rows
   // show unified Kronox Puan; Solo summary remains separate for progression
   // and technical Health contracts.
   const soloLeaderboardScore = summary.totalSoloScore;
-  const completedGuestProfile = !user && isGuestOnboardingComplete(localGuestProfile || guestProfile)
-    ? (localGuestProfile || guestProfile)
-    : null;
   let diamondValue = getLeaderboardDiamondValue(user);
   if (!user && completedGuestProfile) {
     diamondValue = getLeaderboardDiamondValue(completedGuestProfile);
   }
-  const isAdmin = isAdminUser(user);
-  const leaderboardPlayer = user || completedGuestProfile;
+  const isAdmin = adminStatus?.allowed === true || isAdminUser(user);
   const openCurrentUserProfileSettings = useCallback(() => {
     navigate('/profile/edit', {
       state: {
