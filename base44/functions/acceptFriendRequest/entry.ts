@@ -95,11 +95,8 @@ Deno.serve(async (req) => {
 
     const callerIsRecipient = toEmail === myEmail;
     const callerIsSender = fromEmail === myEmail;
-    if (action === 'accept' && !callerIsRecipient) {
-      return json({ ok: false, code: 'friend_request_receiver_only', error: 'Only the receiver can accept this request' }, 403);
-    }
-    if (action === 'reject' && !callerIsRecipient) {
-      return json({ ok: false, code: 'friend_request_receiver_only', error: 'Only the receiver can reject this request' }, 403);
+    if ((action === 'accept' || action === 'reject') && !callerIsRecipient) {
+      return json({ ok: false, code: 'friend_request_receiver_only', error: 'Only the receiver can update this request' }, 403);
     }
     if (action === 'cancel' && !callerIsSender) {
       return json({ ok: false, error: 'Only the sender can cancel this request' }, 403);

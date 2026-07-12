@@ -7,6 +7,8 @@
 import gamePageSource from '../../pages/Game.jsx?raw';
 import useGameActionsSource from '../../hooks/useGameActions.js?raw';
 import analyticsGatewaySource from '../../lib/dbGateway/analyticsGateway.js?raw';
+import soloRuntimeModelSource from '../../features/solo/model/soloRuntimeModel.js?raw';
+import soloAttemptEffectsSource from '../../features/solo/services/soloAttemptEffects.js?raw';
 import questionAnalyticsContractsSource from '../../lib/questionAnalyticsContracts.js?raw';
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
 import adminPageSource from '../../pages/AdminPage.jsx?raw';
@@ -956,7 +958,13 @@ export const EXTRA_TESTS = [
   makeCase('analytics_does_not_change_gameplay_rules',
     'Question analytics does not change Solo deck/scoring/joker rules',
     () => {
-      const combined = `${gamePageSource}\n${useGameActionsSource}\n${analyticsGatewaySource}`;
+      // Codex589 — Hamle 3 extracted Solo pass/fail math into
+      // features/solo/model/soloRuntimeModel.js (buildSoloRuntimeResult) and
+      // features/solo/services/soloAttemptEffects.js (persistSoloLevelAttempt),
+      // both of which call the real calculateSoloAttemptResult helper. Game.jsx
+      // no longer inlines that literal call, so the contract now follows the
+      // real current source instead of a stale Game.jsx-only expectation.
+      const combined = `${gamePageSource}\n${useGameActionsSource}\n${analyticsGatewaySource}\n${soloRuntimeModelSource}\n${soloAttemptEffectsSource}`;
       const missing = missingTokens(combined, [
         'orderedQuestionPicker',
         'buildSoloAttemptDeck',
@@ -975,7 +983,7 @@ export const EXTRA_TESTS = [
           actual: { missing, forbidden },
         });
       }
-      return pass('Analytics remains a side-effect only; deck rules, scoring, and jokers stay owned by existing gameplay helpers.', {
+      return pass('Analytics remains a side-effect only; deck rules and pass/fail scoring stay owned by soloRuntimeModel/soloAttemptEffects, and jokers stay owned by existing gameplay helpers.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
