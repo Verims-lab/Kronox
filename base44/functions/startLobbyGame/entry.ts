@@ -296,11 +296,15 @@ const CATEGORY_METADATA_POLICY = Object.freeze({
   loadFailureBehavior: 'retryable_error_or_empty_state',
 });
 
+// Codex591 — Online Kapışma redesign: category selection was removed from
+// the client. Online games always draw randomly from ALL active categories;
+// selected_category_ids is no longer read from the client or the lobby row.
 const ONLINE_GAME_POLICY = Object.freeze({
   categorySourceOfTruth: CATEGORY_METADATA_POLICY.sourceOfTruth,
   selectedCategoryIdsField: 'selected_category_ids',
-  selectedCategoriesOnly: true,
-  selectedCategoryCoverage: '100_percent_selected_active_categories',
+  selectedCategoriesOnly: false,
+  allCategoriesRandom: true,
+  selectedCategoryCoverage: 'all_active_categories_random',
   allowedDifficulties: [1, 2],
   difficultyRule: 'difficulty_1_or_2_only',
   soloPreferenceWeightingApplied: false,
@@ -434,9 +438,12 @@ const dedupeQuestions = (rows: any[] = []) => {
 
 const getQueryMainCategoryIdsForSettings = (settings: any, activeMainCategoryIds: Set<number>) => {
   const hasSelectedCategoryIds = Array.isArray(settings?.selected_category_ids) && settings.selected_category_ids.length > 0;
-  if (!hasSelectedCategoryIds) return [];
-  const selected = resolveMainCategoryIdsFromSelectedIds(settings.selected_category_ids, activeMainCategoryIds);
-  return selected ? Array.from(selected) : [];
+  if (hasSelectedCategoryIds) {
+    const selected = resolveMainCategoryIdsFromSelectedIds(settings.selected_category_ids, activeMainCategoryIds);
+    return selected ? Array.from(selected) : [];
+  }
+  // Codex591 — Online has no category selection anymore: query every active category.
+  return Array.from(activeMainCategoryIds);
 };
 
 const loadActiveQuestionCandidates = async (base44: any, categoryIds: number[]) => {
@@ -461,12 +468,10 @@ const normalizeSettings = (lobby: any, incoming: any = {}) => {
   const turnDuration = Math.max(10, Math.trunc(readNumber(incoming.turn_duration, lobby.turn_duration ?? 60)));
   const winCardCount = Math.max(1, Math.trunc(readNumber(incoming.win_card_count, lobby.win_card_count ?? 10)));
 
-  // Online category selection is authoritative and must come from the current
-  // lobby-selected Category.category_id values. Missing/invalid selected ids
-  // clean-fail; no stale hardcoded category fallback is allowed.
-  const selectedCategoryIds = Array.isArray(incoming.selected_category_ids)
-    ? incoming.selected_category_ids
-    : (Array.isArray(lobby.selected_category_ids) ? lobby.selected_category_ids : []);
+  // Codex591 — Online no longer supports category selection. Any incoming or
+  // persisted selected_category_ids (from old lobbies) is intentionally
+  // ignored; Online always draws from every active category.
+  const selectedCategoryIds: number[] = [];
 
   return {
     category,
@@ -495,22 +500,20 @@ const filterQuestionsForLobbySettings = (questions: any[] = [], settings: any = 
       return mid !== null && activeMainCategoryIds.has(mid);
     });
 
-  // Codex168 — Strict selected-category path. If the host selected
-  // categories, the game may only use those active categories. We no
-  // longer fall back to all categories when content tagging is missing.
+  // Codex591 — Online has no category selection anymore: questions are
+  // random from ALL active categories. A legacy lobby row with a stale
+  // selected_category_ids value is never read (normalizeSettings always
+  // clears it), so this branch is effectively unreachable in the current
+  // flow but is kept for defense-in-depth against old persisted rows.
   const hasSelectedCategoryIds = Array.isArray(settings.selected_category_ids) && settings.selected_category_ids.length > 0;
-  const mainIdsAllowed = resolveMainCategoryIdsFromSelectedIds(settings.selected_category_ids, activeMainCategoryIds);
-  if (hasSelectedCategoryIds) {
-    if (!mainIdsAllowed || mainIdsAllowed.size === 0) return [];
-    const byMainId = baseFiltered.filter(q => {
-      const mid = Number(q?.main_category_id);
-      return Number.isFinite(mid) && mainIdsAllowed.has(mid);
-    });
-    if (byMainId.length > 0) return byMainId;
-    return [];
-  }
-
-  return [];
+  const mainIdsAllowed = hasSelectedCategoryIds
+    ? resolveMainCategoryIdsFromSelectedIds(settings.selected_category_ids, activeMainCategoryIds)
+    : activeMainCategoryIds;
+  if (!mainIdsAllowed || mainIdsAllowed.size === 0) return [];
+  return baseFiltered.filter(q => {
+    const mid = Number(q?.main_category_id);
+    return Number.isFinite(mid) && mainIdsAllowed.has(mid);
+  });
 };
 
 const seededRandom = (seed: string) => {
@@ -626,6 +629,7 @@ const buildInitialState = ({ players, questions, settings, activeMainCategoryIds
       neededOpeningQuestionCount: neededCount,
       maxDeckQuestionCount: ONLINE_SHARED_DECK_MAX_QUESTIONS,
       selectedCategoriesOnly: ONLINE_GAME_POLICY.selectedCategoriesOnly,
+      allCategoriesRandom: ONLINE_GAME_POLICY.allCategoriesRandom,
       soloPreferenceWeightingApplied: ONLINE_GAME_POLICY.soloPreferenceWeightingApplied,
       guestSoloPathUsed: ONLINE_GAME_POLICY.guestSoloPathUsed,
       difficultyRule: ONLINE_GAME_POLICY.difficultyRule,

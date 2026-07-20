@@ -1,13 +1,10 @@
 /* global Deno */
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.34";
+import { jsonResponse as json, normalizeEmail, hashGuestToken } from "../../shared/onlineActorCrypto.ts";
 
 const VALID_MODES = new Set(["solo", "tutorial", "online"]);
 const VALID_ROLES = new Set(["anchor", "playable", "replacement", "tutorial", "unknown"]);
 const MAX_EVENT_KEYS_PER_ROW = 60;
-
-function json(payload: unknown, status = 200) {
-  return Response.json(payload, { status });
-}
 
 async function readBody(req: Request) {
   try {
@@ -15,10 +12,6 @@ async function readBody(req: Request) {
   } catch {
     return {};
   }
-}
-
-function normalizeEmail(value: unknown) {
-  return String(value || "").trim().toLowerCase();
 }
 
 function normalizeMode(value: unknown) {
@@ -59,24 +52,6 @@ function fnvOwnerKey(prefix: "u" | "g", value: unknown) {
     hash = Math.imul(hash, 16777619);
   }
   return `${prefix}_${(hash >>> 0).toString(36)}`;
-}
-
-function bytesToBase64Url(bytes: Uint8Array) {
-  let binary = "";
-  bytes.forEach((byte) => {
-    binary += String.fromCharCode(byte);
-  });
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-}
-
-async function sha256Base64Url(input: string) {
-  const data = new TextEncoder().encode(input);
-  const digest = await crypto.subtle.digest("SHA-256", data);
-  return bytesToBase64Url(new Uint8Array(digest));
-}
-
-async function hashGuestToken(guestId: string, guestToken: string) {
-  return sha256Base64Url(`kronox_guest_v1:${guestId}:${guestToken}`);
 }
 
 function serviceEntity(base44: any, name: string) {

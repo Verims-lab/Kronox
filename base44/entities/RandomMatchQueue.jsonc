@@ -1,0 +1,113 @@
+{
+  "name": "RandomMatchQueue",
+  "type": "object",
+  "description": "Codex591 \u2014 Online Kap\u0131\u015fma random matchmaking queue. One row per active queue attempt for a linked or guest actor. Backend-owned (randomMatchmaking function); public responses only ever return the opaque queue_ref and a matched lobby's public_ref/code, never actor_key_hash or any other actor's identity.",
+  "properties": {
+    "queue_ref": {
+      "type": "string",
+      "description": "Opaque client-facing queue reference returned to the owning actor. Never derived from actor_key_hash."
+    },
+    "actor_key_hash": {
+      "type": "string",
+      "description": "Private backend owner key for the linked or guest actor holding this queue row. Never returned to clients."
+    },
+    "player_type": {
+      "type": "string",
+      "enum": [
+        "linked",
+        "guest"
+      ],
+      "description": "Actor type at queue time."
+    },
+    "kronox_user_id": {
+      "type": "string",
+      "description": "Immutable Kronox ID of the queued actor when available. Admin/audit only; never returned publicly."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "waiting",
+        "matched",
+        "cancelled",
+        "expired"
+      ],
+      "default": "waiting",
+      "description": "Queue lifecycle. waiting = searching for an opponent; matched = paired into a Lobby; cancelled = actor cancelled; expired = 30s search window elapsed with no match."
+    },
+    "lobby_id": {
+      "type": "string",
+      "description": "Private internal Lobby row id once matched. Never returned to clients \u2014 only lobby_public_ref is."
+    },
+    "lobby_public_ref": {
+      "type": "string",
+      "description": "Public-safe Lobby.public_ref once matched. Safe to return to the owning actor so they can fetch the lobby snapshot."
+    },
+    "lobby_code": {
+      "type": "string",
+      "description": "Backup Lobby code once matched. Not the primary UX; kept for compatibility with existing lobby lookup paths."
+    },
+    "is_host": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether this queue row's actor is the designated host of the matched Lobby (the actor who performed the pairing) and is responsible for calling startLobbyGame."
+    },
+    "paired_actor_key_hash": {
+      "type": "string",
+      "description": "Private backend key of the paired opponent once matched. Never returned to clients."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when this queue attempt started."
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp for the 30-second random matchmaking search window."
+    },
+    "matched_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when this row was paired into a Lobby."
+    },
+    "cancelled_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when the actor cancelled this queue attempt."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional free-text description for this random matchmaking queue row (up to 1000 characters)."
+    }
+  },
+  "required": [
+    "queue_ref",
+    "actor_key_hash",
+    "player_type",
+    "status",
+    "created_at"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
