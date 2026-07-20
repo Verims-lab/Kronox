@@ -130,7 +130,7 @@ export default function LobbyRoom() {
   // playerName is derived from the authenticated user (no manual input).
   // For backwards-compat (e.g. if called with no payload), we fall back to playerName state.
   const handleCreate = async (payload = {}) => {
-    const { maxPlayers, inviteTargets, invitedEmails, selectedCategories } = payload || {};
+    const { maxPlayers, inviteTargets, invitedEmails } = payload || {};
     const derivedName = currentUser
       ? deriveDisplayName(currentUser)
       : (currentGuestProfile?.username || playerName || 'Oyuncu').trim();
@@ -139,54 +139,57 @@ export default function LobbyRoom() {
     // because their display name may legitimately contain spaces/punctuation we don't control.
     if (!currentUser && !currentGuestProfile) {
       const err = validatePlayerName(derivedName);
-      if (err) return setNameError(err);
+      if (err) {
+        setNameError(err);
+        throw new Error(err);
+      }
     }
 
     setLoading(true);
     setError('');
-    // Logical unique guard: query-before-create via findLobbyByCode lookup-only
-    // mode so two lobbies never share the same live code.
-    const code = await generateUniqueLobbyCode();
-    const lobbyPayload = {
-      code,
-      playerName: derivedName,
-      maxPlayers,
-      selectedCategories,
-    };
-    const createResponse = await createLobby(lobbyPayload);
-    const newLobby = createResponse?.data?.lobby;
-    if (!createResponse?.data?.ok || !newLobby?.id) {
-      throw new Error(createResponse?.data?.error || 'Lobi oluşturulamadı.');
-    }
-    const targetCount = Array.isArray(inviteTargets) && inviteTargets.length
-      ? inviteTargets.length
-      : invitedEmails?.length || 0;
-    debugLog('[LobbyRoom] created lobby:', { lobbyRef: newLobby.id, code: newLobby.code, status: newLobby.status, maxPlayers, invitedCount: targetCount });
-
-    // Best-effort: create pending GameInvite rows for selected friends. A
-    // partial failure does not abort lobby creation — the host can re-invite
-    // later if any row failed. Errors surface via setError so the user knows.
-    if ((Array.isArray(inviteTargets) && inviteTargets.length) || (Array.isArray(invitedEmails) && invitedEmails.length)) {
-      try {
-        const summary = await createGameInvites({
-          host: currentActor,
-          lobby: newLobby,
-          toEmails: invitedEmails,
-          inviteTargets,
-          playerCount: maxPlayers,
-        });
-        debugLog('[LobbyRoom] invites created:', summary);
-        if (summary.failed?.length) {
-          setError(`${summary.failed.length} davet gönderilemedi. Lobi oluşturuldu, tekrar deneyebilirsin.`);
-        }
-      } catch (err) {
-        debugWarn('[LobbyRoom] invite creation failed:', err?.message || err);
-        setError('Davetler oluşturulamadı. Lobi yine de hazır.');
+    try {
+      // Logical unique guard: query-before-create via findLobbyByCode lookup-only
+      // mode so two lobbies never share the same live code.
+      const code = await generateUniqueLobbyCode();
+      // Codex591 — Online Kapışma no longer selects categories; startLobbyGame
+      // always draws from the full active question bank.
+      const lobbyPayload = { code, playerName: derivedName, maxPlayers };
+      const createResponse = await createLobby(lobbyPayload);
+      const newLobby = createResponse?.data?.lobby;
+      if (!createResponse?.data?.ok || !newLobby?.id) {
+        throw new Error(createResponse?.data?.error || 'Lobi oluşturulamadı.');
       }
-    }
+      const targetCount = Array.isArray(inviteTargets) && inviteTargets.length
+        ? inviteTargets.length
+        : invitedEmails?.length || 0;
+      debugLog('[LobbyRoom] created lobby:', { lobbyRef: newLobby.id, code: newLobby.code, status: newLobby.status, maxPlayers, invitedCount: targetCount });
 
-    setLobby(newLobby);
-    setLoading(false);
+      // Best-effort: create pending GameInvite rows for selected friends. A
+      // partial failure does not abort lobby creation — the host can re-invite
+      // later if any row failed. Errors surface via setError so the user knows.
+      if ((Array.isArray(inviteTargets) && inviteTargets.length) || (Array.isArray(invitedEmails) && invitedEmails.length)) {
+        try {
+          const summary = await createGameInvites({
+            host: currentActor,
+            lobby: newLobby,
+            toEmails: invitedEmails,
+            inviteTargets,
+            playerCount: maxPlayers,
+          });
+          debugLog('[LobbyRoom] invites created:', summary);
+          if (summary.failed?.length) {
+            setError(`${summary.failed.length} davet gönderilemedi. Lobi oluşturuldu, tekrar deneyebilirsin.`);
+          }
+        } catch (err) {
+          debugWarn('[LobbyRoom] invite creation failed:', err?.message || err);
+          setError('Davetler oluşturulamadı. Lobi yine de hazır.');
+        }
+      }
+
+      return newLobby;
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Recipients accepting an invite land here with the joined lobby in route
@@ -444,16 +447,14 @@ export default function LobbyRoom() {
       guestProfile={currentGuestProfile}
       loading={loading}
       error={error}
-      onStartChallenge={({ selectedCategories, inviteTargets }) => {
-        // Codex127 — Tek adımda lobi + davet. maxPlayers = host + invited.
+      onCreateInviteLobby={({ inviteTargets }) => {
+        // Codex591 — Online Kapışma: kategori seçimi yok, tek adımda lobi +
+        // davet. maxPlayers = host + davet edilen oyuncular.
         const selectedTargets = Array.isArray(inviteTargets) ? inviteTargets : [];
         const maxPlayers = Math.min(4, Math.max(2, selectedTargets.length + 1));
-        handleCreate({
-          maxPlayers,
-          inviteTargets: selectedTargets,
-          selectedCategories,
-        });
+        return handleCreate({ maxPlayers, inviteTargets: selectedTargets });
       }}
+      onEnterLobby={(freshLobby) => setLobby(freshLobby)}
       onBackHome={() => navigate('/')}
       onJoinOpenLobby={() => setMode('join')}
       onGoFriends={() => navigate('/friends')}
