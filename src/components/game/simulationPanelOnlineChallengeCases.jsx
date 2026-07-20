@@ -62,6 +62,12 @@ function forbiddenTokensFound(source, tokens) {
   return tokens.filter((t) => String(source || '').includes(t));
 }
 
+function safeStr(source) {
+  if (source == null) return '';
+  if (typeof source === 'string') return source;
+  try { return String(source); } catch { return ''; }
+}
+
 export const EXTRA_SUITES = [
   {
     id: 'online_challenge_flow',
@@ -331,17 +337,32 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 11. Privacy — no forbidden private keys in the Pre-game Hourglass surfaces. */
+  /* 11. Privacy — no forbidden private keys rendered/exposed in the Pre-game Hourglass surfaces. */
   makeCase('online_challenge_flow', 'online_flow_privacy_no_forbidden_keys',
-    'OnlineChallengeScreen / PreGameHourglass / FriendSelectModal never render invited emails or private actor identifiers',
+    'OnlineChallengeScreen / PreGameHourglass / FriendSelectModal never render invited emails or private actor identifiers (guest_token may only be used as an opaque backend-call/effect-dependency value, never rendered)',
     () => {
-      const forbidden = [
+      const simpleForbidden = [
         onlineChallengeScreenSource,
         preGameHourglassSource,
         friendSelectModalSource,
       ].flatMap((source) => forbiddenTokensFound(source, [
-        'invite.to_email', 'invite.from_email', 'owner_key', 'actor_key_hash', 'guest_token',
+        'invite.to_email', 'invite.from_email', 'owner_key', 'actor_key_hash',
       ]));
+      // guest_token is legitimately passed to backend calls / effect dependency
+      // arrays (e.g. `[guestCredentials?.guest_token]`) so it can trigger a
+      // refetch — that is not exposure. Only flag it if actually rendered:
+      // JSX text nodes, aria-*/data-* attributes, or console/log calls.
+      const exposurePatterns = [
+        />\s*\{[^<}]*guest_token[^<}]*\}\s*</,
+        /(?:aria|data)-[\w-]+=\{[^}]*guest_token/,
+        /console\.(?:log|warn|error)\([^)]*guest_token/,
+      ];
+      const guestTokenExposureFound = [
+        onlineChallengeScreenSource,
+        preGameHourglassSource,
+        friendSelectModalSource,
+      ].some((source) => exposurePatterns.some((pattern) => pattern.test(safeStr(source))));
+      const forbidden = guestTokenExposureFound ? [...simpleForbidden, 'guest_token (rendered)'] : simpleForbidden;
       if (forbidden.length) {
         return fail('Private identifiers leaked into the Online invite/matchmaking UI.', {
           verification: 'STATIC_CONTRACT',

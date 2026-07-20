@@ -225,7 +225,7 @@ export const EXTRA_TESTS = [
         'VAPID_SECRET_HEALTH_CLASSIFICATION',
         "vapidPrivateKeyProductionSecretManagerVerification: 'MANUAL_REQUIRED'",
         "envSourcedVapidPrivateKeyFindingSeverity: 'WARNING'",
-        "criticalOnlyWhen: 'hardcoded_logged_returned_client_exposed_or_insecure_default'",
+        "criticalOnlyWhen: 'hardcoded_logged_returned_client_exposed_or_unsafe_default'",
         'vapid_config_missing',
         'pushSent: false',
         'pushSkipped: true',

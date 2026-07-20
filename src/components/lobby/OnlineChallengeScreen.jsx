@@ -116,6 +116,13 @@ export default function OnlineChallengeScreen({
     if (random.phase !== 'matched') setScreen('select');
   };
 
+  // Codex593 — Named ctaDisabled state per CTA. Neither button is ever
+  // gated by social/friend/player-list load state — only by an in-flight
+  // lobby-create/invite action, so "Rastgele Eşleş" always stays available
+  // even if the manual invite player list failed to load.
+  const ctaDisabledInvite = loading || creating;
+  const ctaDisabledRandom = loading || creating;
+
   if (screen === 'invite-wait') {
     return (
       <PreGameHourglass
@@ -185,15 +192,17 @@ export default function OnlineChallengeScreen({
           <ModeButton
             icon={Users}
             label="Arkadaşını Davet Et"
+            ariaLabel="Arkadaşını Davet Et"
             hint="Seçtiğin oyuncuya 60 saniye davet."
-            disabled={loading || creating}
+            disabled={ctaDisabledInvite}
             onClick={() => { sounds.tap(); setFriendModalOpen(true); }}
           />
           <ModeButton
             icon={Shuffle}
             label="Rastgele Eşleş"
+            ariaLabel="Rastgele Eşleş"
             hint="30 saniyede rastgele bir rakip bul."
-            disabled={loading || creating}
+            disabled={ctaDisabledRandom}
             onClick={handleStartRandom}
           />
         </div>
@@ -291,12 +300,13 @@ function DecorStar() {
 
 /* ----------------------------- Mode button ---------------------------- */
 
-function ModeButton({ icon: Icon, label, hint, disabled, onClick }) {
+function ModeButton({ icon: Icon, label, ariaLabel, hint, disabled, onClick }) {
   return (
     <motion.button
       type="button"
       onClick={onClick}
       disabled={disabled}
+      aria-label={ariaLabel || label}
       whileTap={disabled ? undefined : { scale: 0.98 }}
       className="w-full flex items-center gap-4 rounded-2xl px-4 py-4 text-left disabled:opacity-55"
       style={{
