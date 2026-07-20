@@ -73,22 +73,30 @@ Deno.serve(async (req) => {
       return json({ ok: false, error: 'Unsupported friend request action' }, 400);
     }
 
+    // Security (CWE-639/IDOR): the owning email is resolved BEFORE the row
+    // fetch and passed into the query itself, so a row belonging to another
+    // user is never assigned to `fr` in the first place — the later
+    // action-specific checks below are defense-in-depth, not the only gate.
+    const myEmail = normalizeEmail(user.email);
     let fr = null;
     const publicRows = await base44.asServiceRole.entities.FriendRequest
-      .filter({ public_ref: requestRef }, '-updated_date', 2)
+      .filter({ public_ref: requestRef, $or: [{ from_email: myEmail }, { to_email: myEmail }] }, '-updated_date', 2)
       .catch(() => []);
     fr = publicRows?.[0] || null;
     if (!fr) {
       try {
-        fr = await base44.asServiceRole.entities.FriendRequest.get(requestRef);
+        const byId = await base44.asServiceRole.entities.FriendRequest.get(requestRef);
+        const byIdFrom = normalizeEmail(byId?.from_email);
+        const byIdTo = normalizeEmail(byId?.to_email);
+        // Legacy internal-id references are accepted only when the caller is
+        // actually the sender or recipient of that row.
+        if (byId && (byIdFrom === myEmail || byIdTo === myEmail)) fr = byId;
       } catch (_e) {
-        // Legacy internal references are accepted only after owner validation below.
+        // Legacy internal references are accepted only after owner validation above.
       }
     }
     if (!fr) return json({ ok: false, error: 'Friend request not found' }, 404);
 
-
-    const myEmail = normalizeEmail(user.email);
     const toEmail = normalizeEmail(fr.to_email);
     const fromEmail = normalizeEmail(fr.from_email);
     const rowId = String(fr?.id || fr?._id || '').trim();

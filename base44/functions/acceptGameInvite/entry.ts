@@ -152,10 +152,17 @@ function isSafeAvatarPhotoUrl(value: unknown) {
     return false;
   }
   if (parsed.protocol !== 'https:') return false;
+  // Reject embedded credentials (http://user:pass@host) — a classic SSRF/
+  // open-redirect confusion vector — and non-default ports, which are
+  // commonly used to probe internal-only services on nonstandard ports.
+  if (parsed.username || parsed.password) return false;
+  if (parsed.port && parsed.port !== '443') return false;
 
   // Reject internal/private/loopback/link-local/metadata hosts so this
   // user-supplied URL can never be used to target internal network
-  // services or cloud metadata endpoints (SSRF hardening).
+  // services or cloud metadata endpoints (SSRF hardening). Note: this
+  // server never fetches the URL itself — it is only stored/echoed for the
+  // client's <img> tag — but the hostname is still hardened defense-in-depth.
   const hostname = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, '');
   if (!hostname) return false;
   if (hostname === 'localhost' || hostname.endsWith('.localhost')) return false;
