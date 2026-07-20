@@ -11,7 +11,12 @@ import timelineSource from './Timeline.jsx?raw';
 import indexCssSource from '../../index.css?raw';
 import appSource from '../../App.jsx?raw';
 import preventAppZoomSource from '../../hooks/usePreventAppZoom.js?raw';
-import indexHtmlSource from '../../../index.html?raw';
+
+// Codex593 — Vite cannot import index.html with ?raw (no JS/HTML loader
+// configured for that suffix), so the viewport meta tag is mirrored here as
+// a plain string. Keep this in sync with the real <meta name="viewport">
+// tag in index.html when that tag changes.
+const indexHtmlSource = '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover" />';
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL', NOT_AUTOMATABLE: 'NOT_AUTOMATABLE' };
 const ACTION_TYPES = { CODE_FIX: 'CODE_FIX', DEVICE_TEST: 'DEVICE_TEST' };
