@@ -409,11 +409,10 @@ export default function LobbyRoom() {
     );
   }
 
-  // Codex127 — New online flow:
-  //   • mode === null  → OnlineChallengeScreen (kategori + oyuncu popup + CTA).
-  //     Tek bir CTA ile lobi oluşturma + davet gönderme yapılır. Eski ayrı
-  //     arkadaş seçim ekranı akıştan çıkarıldı (legacy panel dosyası kalır,
-  //     ama burada referans verilmez).
+  // Codex591 — New online flow (no category selection):
+  //   • mode === null  → OnlineChallengeScreen (Arkadaşını Davet Et / Rastgele
+  //     Eşleş / kodla katıl). Both entry points route through the Pre-game
+  //     Hourglass wait screen before landing in the real Lobby.
   //   • mode === 'join' → LobbyCreateJoinPanel ile kodla katıl ekranı.
   if (mode === 'join') {
     return (

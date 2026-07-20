@@ -1,14 +1,19 @@
-// Kronox Health Center — Online Challenge Screen flow contracts (Codex127).
+// Kronox Health Center — Online Challenge Screen flow contracts (Codex592).
 //
 // SCOPE
-//   Lock the new simplified Online Challenge flow in place:
-//     • Online ana ekran → kategori carousel + oyuncu popup + CTA
-//     • "Meydan Okumaya Başla" disabled until ≥1 player selected
-//     • Tapping CTA opens the lobby DIRECTLY (no extra friend-select page)
-//     • Email invite input REMOVED from this flow (popup uses opaque target refs)
-//     • BottomNav visible on the Online selection screen
-//     • Old separate friend-select page (CreateLobbyInvitePanel) no longer
-//       referenced from the active LobbyRoom flow.
+//   Lock the current simplified Online Challenge flow in place:
+//     • Online has NO category selection — questions draw randomly from all
+//       active categories (startLobbyGame / randomMatchmaking backend owns
+//       this; the Online screen must not render a category carousel).
+//     • Two entry points, both routed through the shared Pre-game Hourglass
+//       wait screen: "Arkadaşını Davet Et" (invite, 60s) and
+//       "Rastgele Eşleş" (random matchmaking queue, 30s).
+//     • Optional social/player-list load failure (loadSocialSnapshot /
+//       getOnlinePlayerSelection) must never render as a page-level alarm
+//       banner and must never disable Rastgele Eşleş.
+//     • Random matchmaking (useRandomMatchmaking) has zero dependency on
+//       friend/social/player-selection data.
+//     • Public player selection / invite data stays privacy-safe.
 //
 //   All checks are static-source contracts against the relevant files.
 //   None of them call live entities/SDK — they read raw module source via
@@ -20,10 +25,12 @@
 //   verification stays NOT_AUTOMATABLE elsewhere.
 
 import lobbyRoomSource from '../../pages/LobbyRoom.jsx?raw';
-import lobbyCreateJoinPanelSource from '../../components/lobby/LobbyCreateJoinPanel.jsx?raw';
 import onlineChallengeScreenSource from '../../components/lobby/OnlineChallengeScreen.jsx?raw';
 import friendSelectModalSource from '../../components/lobby/FriendSelectModal.jsx?raw';
-import onlineCategoryCarouselSource from '../../components/lobby/OnlineCategoryCarousel.jsx?raw';
+import incomingInvitesPanelSource from '../../components/invites/IncomingInvitesPanel.jsx?raw';
+import useRandomMatchmakingSource from '../../hooks/useRandomMatchmaking.js?raw';
+import randomMatchmakingApiSource from '../../lib/randomMatchmakingApi.js?raw';
+import preGameHourglassSource from '../../components/lobby/PreGameHourglass.jsx?raw';
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL' };
 const ACTION_TYPES = { CODE_FIX: 'CODE_FIX' };
@@ -65,114 +72,142 @@ export const EXTRA_SUITES = [
 ];
 
 export const EXTRA_TESTS = [
-  /* 1. Online ekran popup ile oyuncu seçer, ayrı sayfa AÇILMAZ. */
-  makeCase('online_challenge_flow', 'online_uses_popup_friend_selection',
-    'Online challenge screen uses a popup (FriendSelectModal) for player selection — no separate friend page route',
+  /* 1. Online ekranında kategori carousel YOK. */
+  makeCase('online_challenge_flow', 'online_screen_no_category_selection',
+    'OnlineChallengeScreen does not render category selection — Online draws random questions from all active categories',
     () => {
-      const required = missingTokens(onlineChallengeScreenSource, [
-        'FriendSelectModal',
-        'friendModalOpen',
-        'setFriendModalOpen',
+      const forbidden = forbiddenTokensFound(onlineChallengeScreenSource, [
+        'OnlineCategoryCarousel',
+        'selectedCategories',
+        'selected_category_ids',
       ]);
-      const lobbyMustImportNewScreen = missingTokens(lobbyRoomSource, [
-        'OnlineChallengeScreen',
-      ]);
-      if (required.length || lobbyMustImportNewScreen.length) {
-        return fail('Online screen is not wired to the popup-based player selection.', {
-          verification: 'STATIC_CONTRACT',
-          classification: 'REAL_PRODUCT_RISK',
-          file: 'OnlineChallengeScreen.jsx / LobbyRoom.jsx',
-          actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'FriendSelectModal usage + LobbyRoom routes through OnlineChallengeScreen',
-          actual: { required, lobbyMustImportNewScreen },
-        });
-      }
-      return pass('Online screen routes through popup player selection.',
-        { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION' });
-    },
-    { actionType: ACTION_TYPES.CODE_FIX }),
-
-  /* 2. Challenge butonu en az 1 oyuncu seçimine kadar disabled. */
-  makeCase('online_challenge_flow', 'challenge_cta_disabled_until_friend_selected',
-    '"Meydan Okumaya Başla" CTA is disabled until at least one player is selected',
-    () => {
-      const required = missingTokens(onlineChallengeScreenSource, [
-        'ctaDisabled',
-        'inviteTargets.length === 0',
-        'disabled={ctaDisabled}',
-      ]);
-      if (required.length) {
-        return fail('Challenge CTA disabled-state contract missing.', {
+      if (forbidden.length) {
+        return fail('Category selection UI/state leaked back into the Online screen.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'OnlineChallengeScreen.jsx',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'CTA disabled when inviteTargets.length === 0',
+          expected: 'no OnlineCategoryCarousel / selectedCategories / selected_category_ids tokens',
+          actual: { forbidden },
+        });
+      }
+      return pass('Online screen has no category selection UI/state.',
+        { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION' });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  /* 2. Online screen offers both Invite and Random entry points into the Pre-game Hourglass. */
+  makeCase('online_challenge_flow', 'online_offers_invite_and_random_modes',
+    'OnlineChallengeScreen offers "Arkadaşını Davet Et" (invite) and "Rastgele Eşleş" (random matchmaking), both routed through PreGameHourglass',
+    () => {
+      const required = missingTokens(onlineChallengeScreenSource, [
+        'Arkadaşını Davet Et',
+        'Rastgele Eşleş',
+        "import PreGameHourglass from '@/components/lobby/PreGameHourglass'",
+        "import useRandomMatchmaking from '@/hooks/useRandomMatchmaking'",
+        "'invite-wait'",
+        "'random-wait'",
+      ]);
+      if (required.length) {
+        return fail('Online screen is missing the invite/random dual-entry Pre-game Hourglass wiring.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'OnlineChallengeScreen.jsx',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'invite + random CTAs, PreGameHourglass + useRandomMatchmaking imports, invite-wait/random-wait screens',
           actual: { required },
         });
       }
-      return pass('CTA disable wiring is in place.',
+      return pass('Both Online entry points route through the Pre-game Hourglass.',
         { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION' });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 3. CTA bastığında DİREKT lobi açılır — ayrı arkadaş seçim ekranı YOK. */
-  makeCase('online_challenge_flow', 'challenge_opens_lobby_directly',
-    'Tapping the CTA invokes handleCreate directly with { inviteTargets, selectedCategories } — no extra screen',
+  /* 3. Random matchmaking hook has zero dependency on social/friend/player-selection data. */
+  makeCase('online_challenge_flow', 'random_matchmaking_independent_of_social_data',
+    'useRandomMatchmaking / randomMatchmakingApi do not import friend, social snapshot, or player-selection modules',
     () => {
-      const required = missingTokens(lobbyRoomSource, [
-        'onStartChallenge={({ selectedCategories, inviteTargets })',
-        'handleCreate({',
-        'inviteTargets',
-        'selectedCategories',
+      const forbiddenInHook = forbiddenTokensFound(useRandomMatchmakingSource, [
+        'onlinePlayerSelection',
+        'inviteApi',
+        'friendsApi',
+        'loadSocialSnapshot',
       ]);
-      // The old CreateLobbyInvitePanel must NOT appear in active LobbyRoom flow.
-      const forbidden = forbiddenTokensFound(lobbyRoomSource, [
-        'CreateLobbyInvitePanel',
-        "setMode('create')",
+      const forbiddenInApi = forbiddenTokensFound(randomMatchmakingApiSource, [
+        'onlinePlayerSelection',
+        'inviteApi',
+        'friendsApi',
+        'loadSocialSnapshot',
       ]);
-      if (required.length || forbidden.length) {
-        return fail('Lobby is not opened directly from the new challenge CTA.', {
+      // handleStartRandom must not gate on player-list/social state before calling random.start().
+      const randomStartGatedOnSocial = forbiddenTokensFound(onlineChallengeScreenSource, [
+        'handleStartRandom = () => {\n    if (players',
+        'handleStartRandom = () => {\n    if (!players',
+      ]);
+      if (forbiddenInHook.length || forbiddenInApi.length || randomStartGatedOnSocial.length) {
+        return fail('Random matchmaking has a dependency on social/friend/player-selection data.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
-          file: 'pages/LobbyRoom.jsx',
+          file: 'useRandomMatchmaking.js / randomMatchmakingApi.js / OnlineChallengeScreen.jsx',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'onStartChallenge → handleCreate; no CreateLobbyInvitePanel; no setMode("create")',
+          expected: 'no social/friend/player-selection imports; handleStartRandom never gated on player list',
+          actual: { forbiddenInHook, forbiddenInApi, randomStartGatedOnSocial },
+        });
+      }
+      return pass('Random matchmaking is fully independent of social/friend/player-selection data.',
+        { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION' });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  /* 4. Optional invite notification list failure must not render as a page-level alarm banner. */
+  makeCase('online_challenge_flow', 'incoming_invites_panel_load_failure_non_blocking',
+    'IncomingInvitesPanel only surfaces action-specific (accept/reject) errors — background list-fetch failure (center.error) is never shown as a blocking banner',
+    () => {
+      const required = missingTokens(incomingInvitesPanelSource, [
+        'const error = localError;',
+      ]);
+      const forbidden = forbiddenTokensFound(incomingInvitesPanelSource, [
+        'localError || center.error',
+      ]);
+      if (required.length || forbidden.length) {
+        return fail('Optional invite-list load failure can still surface as a page-level error banner.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'IncomingInvitesPanel.jsx',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'error state sourced only from localError (action-specific), not center.error (list fetch)',
           actual: { required, forbidden },
         });
       }
-      return pass('CTA opens the lobby in one step.',
+      return pass('Invite-list load failure stays silent/non-blocking; only action errors surface.',
         { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION' });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 4. Mail ile davet etme alanı YOK. */
-  makeCase('online_challenge_flow', 'no_email_invite_input_in_online_flow',
-    'Email invite text input is removed from the online challenge screen and the player modal',
+  /* 5. Manual invite/player-list failure shows a local calm recoverable state with retry, scoped to the modal. */
+  makeCase('online_challenge_flow', 'friend_modal_local_recoverable_error',
+    'FriendSelectModal shows a calm local "Oyuncular yüklenemedi." error with a Tekrar Dene retry, scoped to the modal only',
     () => {
-      // Look for typical email-input markers on the new flow surfaces.
-      const forbiddenOnScreen = forbiddenTokensFound(onlineChallengeScreenSource, [
-        'type="email"', 'inputMode="email"', 'placeholder="E-posta"', 'sendFriendRequest(',
+      const required = missingTokens(friendSelectModalSource, [
+        'Oyuncular yüklenemedi.',
+        'Tekrar Dene',
       ]);
-      const forbiddenInModal = forbiddenTokensFound(friendSelectModalSource, [
-        'type="email"', 'inputMode="email"', 'placeholder="E-posta"', 'sendFriendRequest(',
-      ]);
-      if (forbiddenOnScreen.length || forbiddenInModal.length) {
-        return fail('Email-invite UI must not exist in the online flow.', {
+      if (required.length) {
+        return fail('Friend/player selection modal is missing the local recoverable error contract.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
-          file: 'OnlineChallengeScreen.jsx / FriendSelectModal.jsx',
+          file: 'FriendSelectModal.jsx',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'no email input fields, no sendFriendRequest call',
-          actual: { forbiddenOnScreen, forbiddenInModal },
+          expected: '"Oyuncular yüklenemedi." + "Tekrar Dene" retry inside the modal',
+          actual: { required },
         });
       }
-      return pass('Email invite UI is removed from the online flow.',
+      return pass('Manual invite player-list failure is calm, local, and retryable.',
         { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION' });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 5. Popup max 3 seçim. */
+  /* 6. Friend modal caps selection at 3. */
   makeCase('online_challenge_flow', 'friend_modal_caps_at_three',
     'FriendSelectModal enforces a max selection cap of 3',
     () => {
@@ -195,35 +230,9 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 6. Kategori carousel multi-select. */
-  makeCase('online_challenge_flow', 'category_carousel_multi_select',
-    'OnlineCategoryCarousel supports multi-select via toggle (selectedIds + onToggle prop wiring)',
-    () => {
-      const required = missingTokens(onlineCategoryCarouselSource, [
-        'selectedIds',
-        'onToggle',
-        'isSelected = selectedIds.includes(cat.id)',
-      ]);
-      if (required.length) {
-        return fail('Category carousel is not wired for multi-select.', {
-          verification: 'STATIC_CONTRACT',
-          classification: 'REAL_PRODUCT_RISK',
-          file: 'OnlineCategoryCarousel.jsx',
-          actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'selectedIds + onToggle props consumed',
-          actual: { required },
-        });
-      }
-      return pass('Category carousel exposes multi-select wiring.',
-        { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION' });
-    },
-    { actionType: ACTION_TYPES.CODE_FIX }),
-
-  /* 7. Codex159 — Yeni Online ekran StandardTopBar kullanır (Home/Solo ile
-        aynı): back + diamond chip + bell. Avatar/score chip artık BURADA
-        gösterilmez (yeni hedef tasarım kararı). */
+  /* 7. Shared top bar (back + diamond + bell, no avatar). */
   makeCase('online_challenge_flow', 'online_uses_shared_top_bar',
-    'OnlineChallengeScreen uses the shared <StandardTopBar> (back + diamond + bell, no avatar) — Codex159 redesign',
+    'OnlineChallengeScreen uses the shared <StandardTopBar> (back + diamond + bell, no avatar)',
     () => {
       const required = missingTokens(onlineChallengeScreenSource, [
         "import StandardTopBar from '@/components/layout/StandardTopBar'",
@@ -231,19 +240,14 @@ export const EXTRA_TESTS = [
         'showBack',
         'getLeaderboardDiamondValue',
       ]);
-      // Avatar/score chip must NOT live on this screen anymore.
-      const forbidden = forbiddenTokensFound(onlineChallengeScreenSource, [
-        'headerStats={{',
-        "import ScreenHeader from '@/components/layout/ScreenHeader'",
-      ]);
-      if (required.length || forbidden.length) {
+      if (required.length) {
         return fail('StandardTopBar (back + diamond + bell) is not wired on Online screen.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'OnlineChallengeScreen.jsx',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'StandardTopBar import + back arrow + diamond chip (no ScreenHeader, no headerStats)',
-          actual: { required, forbidden },
+          expected: 'StandardTopBar import + back arrow + diamond chip',
+          actual: { required },
         });
       }
       return pass('StandardTopBar is used (back + diamond + bell, no avatar).',
@@ -251,33 +255,35 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 8. LobbyCreateJoinPanel artık sadece "join" modu — landing/create akışı yok. */
-  makeCase('online_challenge_flow', 'lobby_panel_only_handles_join',
-    'LobbyCreateJoinPanel only renders the "join via code" mode now; landing/create paths are removed',
+  /* 8. LobbyCreateJoinPanel only handles "join" mode. */
+  makeCase('online_challenge_flow', 'lobby_room_wires_new_online_flow',
+    'LobbyRoom wires OnlineChallengeScreen through onCreateInviteLobby / onEnterLobby (not the legacy onStartChallenge one-shot CTA)',
     () => {
-      const required = missingTokens(lobbyCreateJoinPanelSource, [
-        "if (mode !== 'join') return null",
+      const required = missingTokens(lobbyRoomSource, [
+        'onCreateInviteLobby={',
+        'onEnterLobby={',
+        'OnlineChallengeScreen',
       ]);
-      const forbidden = forbiddenTokensFound(lobbyCreateJoinPanelSource, [
-        'OnlineChallengeLanding',
+      const forbidden = forbiddenTokensFound(lobbyRoomSource, [
+        'onStartChallenge={',
         'CreateLobbyInvitePanel',
       ]);
       if (required.length || forbidden.length) {
-        return fail('LobbyCreateJoinPanel still contains the legacy create/landing flow.', {
+        return fail('LobbyRoom is not wired to the current Pre-game Hourglass Online flow.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
-          file: 'LobbyCreateJoinPanel.jsx',
+          file: 'pages/LobbyRoom.jsx',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'join-only render; no OnlineChallengeLanding/CreateLobbyInvitePanel references',
+          expected: 'onCreateInviteLobby + onEnterLobby wiring; no legacy onStartChallenge/CreateLobbyInvitePanel',
           actual: { required, forbidden },
         });
       }
-      return pass('LobbyCreateJoinPanel is reduced to join-only.',
+      return pass('LobbyRoom routes through the current invite/random Online flow.',
         { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION' });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 9. BottomNav görünürlük: Online selection ekranında VISIBLE, lobi açılınca HIDDEN. */
+  /* 9. BottomNav görünürlük kuralları korunuyor. */
   makeCase('online_challenge_flow', 'bottom_nav_visibility_rules_preserved',
     'BottomNav stays visible on the Online selection screen and is hidden once a lobby is active or an invite deep-link is pending',
     () => {
@@ -301,7 +307,7 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 10. Davet altyapısı korunuyor — handleCreate hâlâ createGameInvites çağırıyor. */
+  /* 10. Davet altyapısı korunuyor. */
   makeCase('online_challenge_flow', 'invite_infrastructure_preserved',
     'Lobby creation still triggers createGameInvites for selected invite targets — invite backend wiring is preserved',
     () => {
@@ -321,6 +327,32 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Invite creation pathway is preserved.',
+        { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION' });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  /* 11. Privacy — no forbidden private keys in the Pre-game Hourglass surfaces. */
+  makeCase('online_challenge_flow', 'online_flow_privacy_no_forbidden_keys',
+    'OnlineChallengeScreen / PreGameHourglass / FriendSelectModal never render invited emails or private actor identifiers',
+    () => {
+      const forbidden = [
+        onlineChallengeScreenSource,
+        preGameHourglassSource,
+        friendSelectModalSource,
+      ].flatMap((source) => forbiddenTokensFound(source, [
+        'invite.to_email', 'invite.from_email', 'owner_key', 'actor_key_hash', 'guest_token',
+      ]));
+      if (forbidden.length) {
+        return fail('Private identifiers leaked into the Online invite/matchmaking UI.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'OnlineChallengeScreen.jsx / PreGameHourglass.jsx / FriendSelectModal.jsx',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'no email/owner_key/actor_key_hash/guest_token tokens rendered in these surfaces',
+          actual: { forbidden },
+        });
+      }
+      return pass('No private identifiers are exposed by the Online invite/matchmaking UI.',
         { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION' });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),

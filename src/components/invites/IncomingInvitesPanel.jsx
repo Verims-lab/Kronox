@@ -35,7 +35,11 @@ export default function IncomingInvitesPanel({ user, variant = 'fantasy' }) {
   const [busyId, setBusyId] = useState(null);
   const invites = center.gameInvites;
   const loading = center.loading;
-  const error = localError || center.error || '';
+  // Codex592 — Only surface action-specific errors (accept/reject) here.
+  // center.error reflects an optional background invite-list fetch failure
+  // (loadSocialSnapshot); it must never appear as a page-level alarm banner
+  // on the Online screen, so it is intentionally NOT included below.
+  const error = localError;
 
   const handleAccept = async (invite) => {
     if (busyId) return;
