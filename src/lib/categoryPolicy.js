@@ -14,8 +14,9 @@ export const CATEGORY_METADATA_POLICY = Object.freeze({
 export const ONLINE_GAME_POLICY = Object.freeze({
   categorySourceOfTruth: 'Category',
   selectedCategoryIdsField: 'selected_category_ids',
-  selectedCategoriesOnly: true,
-  selectedCategoryCoverage: '100_percent_selected_active_categories',
+  selectedCategoriesOnly: false,
+  allCategoriesRandom: true,
+  selectedCategoryCoverage: 'all_active_categories_random',
   allowedDifficulties: Object.freeze([1, 2]),
   difficultyRule: 'difficulty_1_or_2_only',
   soloPreferenceWeightingApplied: false,

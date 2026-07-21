@@ -9,9 +9,8 @@
 //       duration chips, win-card count chips) is gone — host and non-host
 //       both. Non-host now sees a simple "Host oyunu başlatmasını bekliyor"
 //       waiting message.
-//     • Category selection happens on the Online screen and persists onto
-//       lobby.selected_category_ids at create time. startLobbyGame reads
-//       config from the persisted lobby; no client-supplied settings.
+//     • Online category selection is gone. startLobbyGame ignores legacy
+//       selected_category_ids and draws randomly from all active categories.
 //     • Host start path is unchanged in spirit: only the host can call
 //       startLobbyGame, and the lobby must have ≥ 2 players.
 //     • Users can leave the lobby route and return later — an
@@ -192,35 +191,53 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 5. Online-selected categories still flow into lobby at create time */
+  /* 5. Online category selection is gone from the active lobby flow. */
   makeCase('lobby_simplification', 'lobby_uses_online_selected_categories',
-    'LobbyRoom persists OnlineChallengeScreen selectedCategories onto lobby.selected_category_ids',
+    'LobbyRoom no longer depends on OnlineChallengeScreen selectedCategories; Online start is all-active-random',
     () => {
-      const src = `${safeStr(lobbyRoomSource)}\n${safeStr(findLobbyByCodeFnSource)}`;
+      const src = `${safeStr(onlineChallengeScreenSource)}\n${safeStr(lobbyRoomSource)}\n${safeStr(findLobbyByCodeFnSource)}\n${safeStr(startLobbyGameFnSource)}`;
       const required = [
-        'selectedCategories',
+        'Tüm kategorilerden rastgele sorular',
+        'onCreateInviteLobby',
+        'handleCreate({ maxPlayers, inviteTargets: selectedTargets })',
+        'const lobbyPayload = { code, playerName: derivedName, maxPlayers }',
+        'const selectedCategoryIds: number[] = []',
         'selected_category_ids',
-        'selectedCategories,',
-        'body?.selectedCategories || body?.selected_category_ids',
+        'selectedCategoriesOnly: false',
+        'allCategoriesRandom: true',
+        'return Array.from(activeMainCategoryIds)',
       ];
       const missing = required.filter((t) => !src.includes(t));
-      if (missing.length) {
-        return fail('Online-selected categories no longer reach the lobby.', {
+      const forbidden = [
+        'selectedCategories: [...selectedCategories]',
+        'setSelectedCategories',
+        'body?.selectedCategories || body?.selected_category_ids',
+        'selectedCategoriesOnly: true',
+      ].filter((t) => src.includes(t));
+      if (missing.length || forbidden.length) {
+        return fail('Online no-category lobby contract drifted.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
           missing,
+          forbidden,
         });
       }
       const online = safeStr(onlineChallengeScreenSource);
-      if (!online.includes('selectedCategories: [...selectedCategories]')) {
-        return fail('OnlineChallengeScreen no longer forwards selected categories.', {
+      const onlineForbidden = [
+        'loadActiveCategories({ limit: 1000 })',
+        'OnlineCategoryCarousel',
+        'categoryLoadError',
+      ].filter((t) => online.includes(t));
+      if (onlineForbidden.length) {
+        return fail('OnlineChallengeScreen still has removed category UI/fetch plumbing.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
+          onlineForbidden,
         });
       }
-      return pass('Online-selected categories flow into lobby.selected_category_ids.',
+      return pass('Lobby creation no longer depends on selectedCategories, and backend start owns all-active random category selection.',
         { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION' });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),

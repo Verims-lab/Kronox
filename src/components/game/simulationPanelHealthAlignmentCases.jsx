@@ -440,7 +440,7 @@ export const EXTRA_TESTS = [
         'Manual Required / NOT_AUTOMATABLE does not reduce automated score',
         'Last Run and copy/download actions use the newest completed report only',
         'Health Center report actions, case details, copy buttons',
-        'selected 100% from active lobby-selected categories',
+        'selected randomly from all active categories',
         'Online does not use Solo preferences',
         'difficulty 1/2 only',
       ]);

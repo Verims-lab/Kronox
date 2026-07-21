@@ -417,11 +417,10 @@ Deno.serve(async (req) => {
         }
         const createdAt = new Date();
         const maxPlayers = Math.max(2, Math.min(4, Number(body?.maxPlayers || body?.max_players) || 2));
-        const selectedCategoryIds = Array.isArray(body?.selectedCategories || body?.selected_category_ids)
-          ? [...new Set((body.selectedCategories || body.selected_category_ids)
-            .map((value: unknown) => Math.trunc(Number(value)))
-            .filter((value: number) => Number.isFinite(value) && value > 0))].slice(0, 20)
-          : [];
+        // Online no longer has category selection. Keep the legacy Lobby
+        // field empty for compatibility; startLobbyGame ignores it and draws
+        // randomly from all active categories.
+        const selectedCategoryIds: number[] = [];
         const publicRef = randomRef('lobby');
         const hostPlayer = internalPlayer(actor);
         const lobby = await base44.asServiceRole.entities.Lobby.create({

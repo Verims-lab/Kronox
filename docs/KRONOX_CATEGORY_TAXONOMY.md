@@ -126,18 +126,18 @@ p = passive
 
 Rules:
 
-* Online category UI shows active categories only from current metadata.
-* Online `selected_category_ids` stores live `Category.category_id` values.
+* Online has no category selection UI and does not render an Online category carousel.
+* Online UI does not send `selectedCategories` or `selected_category_ids`.
 * Solo question decks use active categories only.
-* Online start uses active selected categories only.
+* Online start uses all active categories randomly.
 * Online start is server-authoritative through `startLobbyGame`: it persists a
-  bounded shared `online_question_deck` on `Lobby`, chosen 100% from the
-  selected active categories and difficulty 1/2 questions only. Online must not
+  bounded shared `online_question_deck` on `Lobby`, chosen randomly from all
+  active categories and difficulty 1/2 questions only. Online must not
   hydrate questions from Solo user preferences, Solo 70/30 weighting, or guest
   Solo question mode.
-* Missing/invalid Online selected categories or failed Category metadata reads
-  must clean-fail with a retryable/user-safe error or empty state; runtime must
-  not substitute legacy category names or old seeded category IDs.
+* Failed Category reads must clean-fail with a retryable/user-safe error or
+  empty state; runtime must not substitute legacy category names, UI selected
+  IDs, or old seeded category IDs.
 * Passive category data is preserved but not used in playable decks.
 * Missing status may be treated as active only for backward-compatible seed/backfill.
 * Seeded rows should carry explicit `status: "a"`.
@@ -170,7 +170,7 @@ Category preferences are optional personalization, not a gameplay gate:
 * `Game.jsx` filters saved preferences through
   `getValidActiveSelectedCategoryIds(preferences, activeCategories)` before
   passing them to the Solo deck builder
-* Online category selection remains separate and unaffected
+* Online remains separate and unaffected by Solo category preferences
 * `/getQuestions` must derive its runtime active category whitelist from
   active `Category` rows, not from an obsolete hardcoded seed ID subset
 * runtime active-category checks accept the live status aliases currently seen

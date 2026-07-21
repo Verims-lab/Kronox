@@ -194,7 +194,7 @@ Online mode is unaffected and Daily Wheel V2 does not use Mağaza purchase seman
 export const startLobbyGameSource = `
   // Mirror of base44/functions/startLobbyGame/entry.ts — token contract.
   const CATEGORY_METADATA_POLICY = { sourceOfTruth: 'Category', legacyHardcodedCategoryFallbackAllowed: false };
-  const ONLINE_GAME_POLICY = { categorySourceOfTruth: 'Category', selectedCategoriesOnly: true, difficultyRule: 'difficulty_1_or_2_only' };
+  const ONLINE_GAME_POLICY = { categorySourceOfTruth: 'Category', selectedCategoriesOnly: false, allCategoriesRandom: true, difficultyRule: 'difficulty_1_or_2_only' };
   const user = await base44.auth.me();
   if (!user?.email) {
     return json({ error: 'Oturum gerekli.', code: 'unauthenticated' }, 401);
@@ -211,7 +211,7 @@ export const startLobbyGameSource = `
   const hasSelectedCategoryIds = Array.isArray(selectedCategoryIds) && selectedCategoryIds.length > 0;
   if (!hasSelectedCategoryIds) return [];
   // No all-category, legacy category-name, or stale hardcoded category fallback exists here.
-  const ONLINE_DECK_SELECTION_SOURCE = 'online_shared_selected_category_deck_v1';
+  const ONLINE_DECK_SELECTION_SOURCE = 'online_shared_all_active_random_deck_v1';
   const ONLINE_ALLOWED_DIFFICULTIES = new Set([1, 2]);
   const sharedDeck = activePool
     .filter((question) => ONLINE_ALLOWED_DIFFICULTIES.has(Number(question.difficulty)))
@@ -221,7 +221,8 @@ export const startLobbyGameSource = `
     online_question_deck: sharedDeck,
     online_deck_meta: {
       source: ONLINE_DECK_SELECTION_SOURCE,
-      selectedCategoriesOnly: true,
+      selectedCategoriesOnly: false,
+      allCategoriesRandom: true,
       soloPreferenceWeightingApplied: false,
       guestSoloPathUsed: false,
       difficultyRule: 'difficulty_1_or_2_only',

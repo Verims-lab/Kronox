@@ -424,8 +424,8 @@ Market:
 
 Primary flow:
 
-* `OnlineChallengeScreen` loads category metadata
-* host selected categories become `Lobby.selected_category_ids`
+* `OnlineChallengeScreen` does not load or render category selection metadata
+* Online UI does not send `selectedCategories` or `selected_category_ids`
 * invite/code join functions merge players by identity and retry after
   concurrent roster writes
 * `startLobbyGame` validates host/participants/settings server-side
@@ -442,7 +442,7 @@ Primary flow:
 
 Online deck contract:
 
-* selected categories = 100% of Online pool
+* all active categories = random Online pool
 * difficulty 1 and 2 only
 * one shared authoritative deck
 * no Solo preferences

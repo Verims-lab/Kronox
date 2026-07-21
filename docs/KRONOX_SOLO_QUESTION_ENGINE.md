@@ -209,8 +209,8 @@ a soft 70/30 weighting input when at least 3 active valid preferences exist.
 Online question selection is not affected.
 
 Online game start remains a separate path. `startLobbyGame` creates one
-authoritative bounded `online_question_deck` from the lobby's selected active
-categories only; all participants read that same persisted deck/order from the
+authoritative bounded `online_question_deck` randomly from all active
+categories; all participants read that same persisted deck/order from the
 Lobby row. Online does not call the Solo `getQuestions`/guest path, does not
 use user Category preferences or 70/30 weighting, and accepts only difficulty
 1 and difficulty 2 questions for the current Online phase. The game route must
@@ -220,8 +220,8 @@ readable shared Online deck.
 `Game.jsx` must explicitly resolve `getValidActiveSelectedCategoryIds(preferences,
 activeCategories)` in the Solo-only path so stale, passive, or invalid
 preference rows are filtered against active Categories before the deck builder
-receives any selected IDs. This helper is not used by Online category selection
-or by `/getQuestions`.
+receives any selected IDs. This helper is not used by Online start/deck
+selection or by `/getQuestions`.
 
 P2 adds a helper-only quality layer on top of these rules:
 - deck diagnostics include level number, level type, deck size, correct target, fail threshold, question IDs, answer years, first 5 years, minimum first-5 gap, visible-spacing conflict count, category/subcategory/theme/decade/difficulty distributions, fallback tier, balance score, and warnings

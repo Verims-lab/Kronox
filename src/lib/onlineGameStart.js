@@ -3,7 +3,7 @@ import { ONLINE_GAME_POLICY } from '@/lib/categoryPolicy';
 
 export const ONLINE_SHARED_DECK_MAX_QUESTIONS = 96;
 export const ONLINE_SHARED_DECK_MIN_QUESTIONS = 32;
-export const ONLINE_DECK_SELECTION_SOURCE = 'online_shared_selected_category_deck_v1';
+export const ONLINE_DECK_SELECTION_SOURCE = 'online_shared_all_active_random_deck_v1';
 const ONLINE_ALLOWED_DIFFICULTIES = new Set(ONLINE_GAME_POLICY.allowedDifficulties);
 
 const normalizeNumber = (value) => {
@@ -54,10 +54,10 @@ const isActiveQuestion = (question) => {
 };
 
 const getSelectedCategoryIds = (settings = {}) => {
-  const selectedIds = Array.isArray(settings.selected_category_ids)
-    ? settings.selected_category_ids
-    : [];
-  return new Set(selectedIds.map(normalizeNumber).filter(Number.isFinite));
+  void settings;
+  // Online has no category selection UI. The legacy selected_category_ids
+  // field is compatibility-only and ignored by current Online deck builds.
+  return new Set();
 };
 
 const toOnlineDeckQuestion = (question) => ({
@@ -86,10 +86,8 @@ export function filterQuestionsForLobbySettings(questions = [], settings = {}) {
     .filter(isOnlineDifficultyEligible)
     .filter(q => q.year >= settings.year_start && q.year <= settings.year_end)
     .filter(q => Number.isFinite(getQuestionCategoryId(q)));
-  if (selectedCategoryIds.size > 0) {
-    return baseFiltered.filter(q => selectedCategoryIds.has(getQuestionCategoryId(q)));
-  }
-  return baseFiltered.filter(q => settings.category === 'karisik' || q.category === settings.category);
+  void selectedCategoryIds;
+  return baseFiltered;
 }
 
 export function shuffleQuestions(questions = [], random = Math.random) {
@@ -132,6 +130,7 @@ export function buildInitialOnlineGameState({
     source: ONLINE_DECK_SELECTION_SOURCE,
     selectedCategoryIds: Array.from(getSelectedCategoryIds(settings)),
     selectedCategoriesOnly: ONLINE_GAME_POLICY.selectedCategoriesOnly,
+    allCategoriesRandom: ONLINE_GAME_POLICY.allCategoriesRandom,
     soloPreferenceWeightingApplied: ONLINE_GAME_POLICY.soloPreferenceWeightingApplied,
     guestSoloPathUsed: ONLINE_GAME_POLICY.guestSoloPathUsed,
     difficultyRule: ONLINE_GAME_POLICY.difficultyRule,

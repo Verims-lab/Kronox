@@ -152,7 +152,7 @@ back to global Solo selection and must not become an empty question pool or
 offline/no-cache error. Saved preferences only become a soft 70/30 weighting
 input when at least 3 active valid preferences exist. Online question selection
 is not affected by Solo preferences: startLobbyGame persists a bounded shared
-online_question_deck on Lobby from active lobby-selected categories only, uses
+online_question_deck on Lobby randomly from all active categories, uses
 difficulty 1/2 only, and Game reads that persisted deck instead of the Solo
 getQuestions buffer.
 Game.jsx explicitly resolves getValidActiveSelectedCategoryIds(preferences,
