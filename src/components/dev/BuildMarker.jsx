@@ -1,5 +1,16 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex592 — Fix Health FAIL KRONOX-MRUC9UZE:
+//   - Retarget stale Online category source/deck Health checks to the current
+//     no-selector contract: Category-row metadata source, all-active-random
+//     Online policy, and compatibility-only selected_category_ids.
+//   - Online shared deck Health now follows the real
+//     online_shared_all_active_random_deck_v1 metadata written by
+//     startLobbyGame and consumed through normalizeOnlineQuestionDeck while
+//     Solo question fetching stays disabled for Online.
+//   - Question data model docs now name all active Online-eligible Category
+//     rows instead of stale selected lobby categories.
+//
 // Codex591 — Fix Health FAIL KRONOX-MRT8YU8S after main sync:
 //   - Retarget stale Online category Health contracts to current no-selector
 //     Online flow: all active categories are used randomly, with no
@@ -136,7 +147,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex591';
+const BUILD_MARKER = 'Codex592';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
