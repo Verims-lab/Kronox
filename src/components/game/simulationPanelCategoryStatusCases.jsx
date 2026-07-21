@@ -24,9 +24,9 @@
 import getCategoryMetadataSource from '../../../base44/functions/getCategoryMetadata/entry.ts?raw';
 import getQuestionsSource from '../../../base44/functions/getQuestions/entry.ts?raw';
 import categoryFiltersSource from '../../lib/categoryFilters.js?raw';
-// Codex161 — Online carousel must open with the first (lowest categoryid)
-// card visible. We lock in the initial-scroll-left contract via static
-// analysis of the carousel source + Online screen's sort path.
+// Codex591 — Online no longer has category selection. Carousel source may
+// remain for legacy/unused code, but the Online screen must not fetch/sort
+// active categories for a UI category picker.
 import onlineCategoryCarouselSource from '../lobby/OnlineCategoryCarousel.jsx?raw';
 import onlineChallengeScreenSource from '../lobby/OnlineChallengeScreen.jsx?raw';
 import { categoryEntitySchema } from './simulationPanelContractStrings.jsx';
@@ -243,26 +243,30 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('online_categories_sorted_by_id_asc_on_fetch',
-    'Online screen sorts DB-fetched active categories by category_id ASC',
+    'Online screen does not fetch/sort active categories for a removed category picker',
     () => {
-      // Codex402 — The Online screen MUST sort active rows by category_id
-      // ASC right after the current `loadActiveCategories` DB fetch so the
-      // leftmost card is always the lowest current active category id.
-      const missing = missingTokens(onlineChallengeScreenSource, [
+      const online = safeStr(onlineChallengeScreenSource);
+      const required = missingTokens(online, [
+        'Tüm kategorilerden rastgele sorular',
+        'Arkadaşını Davet Et',
+        'Rastgele Eşleş',
+      ]);
+      const forbidden = [
         'loadActiveCategories({ limit: 1000 })',
         '.sort((a, b) => (Number(a.category_id) || 0) - (Number(b.category_id) || 0))',
         'setDbCategories(active)',
-      ]);
-      if (missing.length) {
-        return fail('Online screen no longer sorts active categories by category_id ASC.', {
+        'OnlineCategoryCarousel',
+        'categoryLoadError',
+      ].filter((token) => online.includes(token));
+      if (required.length || forbidden.length) {
+        return fail('Online screen drifted toward the removed category fetch/sort carousel.', {
           verification: 'STATIC_CONTRACT',
           file: 'components/lobby/OnlineChallengeScreen.jsx',
-          missing,
+          actual: { required, forbidden },
         });
       }
-      return pass('Active categories sorted by category_id ASC before the carousel renders.', {
-        verification: 'STATIC_CONTRACT',
-      });
+      return pass('Online screen does not fetch or sort categories for UI selection; no-category copy and entry points remain.',
+        { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('online_category_carousel_starts_at_left_on_mount',

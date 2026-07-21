@@ -551,10 +551,10 @@ Rules:
 * Online question selection is not affected by Solo preferences. Online start
   is server-authoritative through `startLobbyGame`, which persists a bounded
   shared `online_question_deck` on `Lobby`; all participants use that same deck,
-  selected 100% from active lobby-selected categories with difficulty 1 and 2
-  only. The selected category IDs are live `Category.category_id` values from
-  current metadata; missing/invalid selections must not fall back to legacy
-  `Lobby.category` strings or stale hardcoded category arrays.
+  selected randomly from all active categories with difficulty 1 and 2 only.
+  Online has no category selection UI; legacy selected category fields are
+  compatibility-only and must not fall back to legacy `Lobby.category` strings
+  or stale hardcoded category arrays.
 * The `SubCategory` entity and old `UserSubCategoryPreference` rows remain in
   place for future metadata/migration work, but current Profile Info preferences
   use main Category rows.
@@ -700,7 +700,7 @@ lobby_id
 event_type: created | invite_sent | accepted | started | state_update | finished | cancelled | expired | stuck_detected
 actor_email
 player_count
-selected_category_ids
+category_scope: all_active_random
 status
 failure_reason
 state_revision
@@ -981,7 +981,7 @@ Safety rules:
 | `Friendship` | Legacy candidate | Accepted `FriendRequest` appears to be the practical social source; `removeFriend` still cleans Friendship rows. | Mark legacy, stop new writes if any, migrate remaining references. | `rg` plus production row/usage check; verify friends UI works without it. |
 | `LobbyMessage` | Candidate after proof | Schema exists but active chat UI usage was not found in this audit pass. | Keep until runtime/product confirms no chat. | Search production deployed code, row count, and manual lobby chat proof. |
 | `GameRecord` | Keep but legacy | Not enough for current analytics and not source of Solo progress. | Replace stats/reporting reads with `QuestionAttemptEvent`/stats projections, then archive. | Test suite migrated; historical rows exported. |
-| `Lobby.category` | Legacy field | Current Online uses `selected_category_ids`; old lobbies may need fallback. | Keep as compatibility field until all old lobbies expire/archive. | No active old lobbies relying on legacy category. |
+| `Lobby.category` | Legacy field | Current Online ignores category fields and draws from all active categories; old lobbies may still carry values. | Keep as compatibility field until all old lobbies expire/archive. | No active old lobbies relying on legacy category. |
 | Client `dataRetention` broad helpers | Keep as admin/client report helpers | They are not real scheduled jobs. | Replace with backend scheduled jobs. | Jobs deployed and verified. |
 
 No deletion should happen in this task.

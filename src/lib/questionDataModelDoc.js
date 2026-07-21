@@ -102,7 +102,7 @@ or global difficulty-1 shortage fills from the broader active global pool before
 clean failure.
 Online question selection is not affected by Solo preferences. Online start is
 authoritative through startLobbyGame, which persists a bounded shared
-online_question_deck on Lobby from active lobby-selected categories only;
+online_question_deck on Lobby randomly from all active categories;
 difficulty 1/2 only; Game reads that persisted deck instead of the Solo
 getQuestions buffer.
 SubCategory still exists for future normalized question metadata, but Settings

@@ -794,14 +794,13 @@ After deployment, verify:
   preferences for question selection
 * Online game start uses the authenticated `startLobbyGame` path, not Solo
   `getQuestions`: the function persists a bounded shared `online_question_deck`
-  on the Lobby before clients enter gameplay. The deck is selected 100% from
-  the lobby's selected active categories, allows difficulty 1 and 2 only, and
-  participants must read the same persisted deck/current question. `updateLobbyGameState`
+  on the Lobby before clients enter gameplay. The deck is selected randomly
+  from all active categories, allows difficulty 1 and 2 only, and participants
+  must read the same persisted deck/current question. `updateLobbyGameState`
   must reject next-question IDs outside that shared deck when the deck exists.
-  Online selected categories are live `Category.category_id` values from
-  current metadata; missing/invalid selections or Category read failures must
-  not fall back to legacy category names, `Lobby.category`, or hardcoded seeded
-  category arrays.
+  Online has no category selection UI; legacy `selected_category_ids` fields
+  are compatibility-only/empty for current Online and must not fall back to
+  legacy category names, `Lobby.category`, or hardcoded seeded category arrays.
 * two-account preference RLS proof remains manual/NOT_AUTOMATABLE
 * old `UserSubCategoryPreference` rows are retained but not used by the
   current Profile Info preference UI

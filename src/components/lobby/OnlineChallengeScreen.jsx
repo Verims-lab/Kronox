@@ -276,7 +276,7 @@ function TitleBlock() {
         background: 'linear-gradient(90deg, transparent, rgba(250,204,21,0.55), transparent)',
       }} />
       <p className="mt-1.5 font-inter text-[12px] text-blue-100/75">
-        Tarihe meydan oku — rakip seç veya rastgele eşleş!
+        Tüm kategorilerden rastgele sorular
       </p>
     </motion.div>
   );

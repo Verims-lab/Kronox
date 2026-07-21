@@ -16,16 +16,15 @@
 //          join-only panel.
 //     4. historical_kronox_regression.category_current_rule_documented
 //        — expected category-selection tokens inside LobbyCreateJoinPanel.
-//          Codex127 moved category multi-select to OnlineChallengeScreen.
+//          Current Online has no category selector; this now guards the
+//          documented all-active-random Online rule.
 //     5. route_navigation_resilience.lobby_create_join_modes_static
 //        — expected `mode === 'create'` inside LobbyCreateJoinPanel; the
 //          create flow is now direct-from-Online-CTA, and the panel only
 //          renders the join-by-code path.
 //     6. online_category_taxonomy.lobby_panel_consumes_centralized_taxonomy
-//        — expected `CATEGORY_HITBOX_BY_ID` import inside
-//          LobbyCreateJoinPanel; the new carousel does not use image
-//          hitboxes, and the centralized taxonomy is imported by
-//          OnlineChallengeScreen + OnlineCategoryCarousel instead.
+//        — expected category metadata/carousel plumbing on the Online UI.
+//          Current Online must not fetch/sort/render categories for selection.
 //     7. friends_validation.clear_success_and_error_messages
 //        — Codex129 intentionally moved the success copy ownership from
 //          AddFriendForm to FriendsPage so the parent can show honest
@@ -58,7 +57,6 @@ import lobbyCreateJoinPanelSource from '../lobby/LobbyCreateJoinPanel.jsx?raw';
 import lobbyRoomSource from '../../pages/LobbyRoom.jsx?raw';
 import waitingRoomPanelSource from '../lobby/WaitingRoomPanel.jsx?raw';
 import onlineChallengeScreenSource from '../lobby/OnlineChallengeScreen.jsx?raw';
-import onlineCategoryCarouselSource from '../lobby/OnlineCategoryCarousel.jsx?raw';
 // Codex132 follow-up — new override sources for the three re-targeted cases.
 import mainMenuSource from '../../pages/MainMenu.jsx?raw';
 import {
@@ -158,6 +156,7 @@ export const OVERRIDDEN_CASE_KEYS = new Set([
   'historical_kronox_regression.category_current_rule_documented',
   'route_navigation_resilience.lobby_create_join_modes_static',
   'online_category_taxonomy.lobby_panel_consumes_centralized_taxonomy',
+  'online_category_taxonomy.online_screen_uses_current_metadata_and_retry',
   'friends_validation.clear_success_and_error_messages',
   'kronox_game_feel.error_states_network_flows',
   'online_lobby_setup.authenticated_user_identity_used',
@@ -1014,35 +1013,130 @@ export const EXTRA_TESTS = [
 
   makeCase(
     'online_category_taxonomy', 'Online Category Taxonomy Suite',
+    'online_screen_uses_current_metadata_and_retry',
+    'Online screen is no-category: no category fetch/carousel/error gate, with invite/random/join entry points',
+    () => {
+      const online = safeStr(onlineChallengeScreenSource);
+      const required = [
+        'Tüm kategorilerden rastgele sorular',
+        'Arkadaşını Davet Et',
+        'Rastgele Eşleş',
+        'veya kodla katıl',
+        'useRandomMatchmaking',
+        'ctaDisabledRandom = loading || creating',
+        'friendModalOpen',
+      ];
+      const forbidden = [
+        'loadActiveCategories({ limit: 1000 })',
+        'decorateOnlineCategory',
+        'categoryLoadError',
+        'setSelectedCategories([])',
+        'selectedCategories: [...selectedCategories]',
+        'OnlineCategoryCarousel',
+      ];
+      const missing = required.filter((token) => !online.includes(token));
+      const stillThere = forbidden.filter((token) => online.includes(token));
+      if (missing.length || stillThere.length) {
+        return fail('Online challenge screen drifted from the current no-category entry contract.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'OnlineChallengeScreen.jsx',
+          expected: required,
+          actual: { missing, stillThere },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Online challenge screen has no category metadata UI path and keeps invite/random/join entry points available.',
+        {
+          verification: 'STATIC_CONTRACT',
+          classification: 'STATIC_CHECK_LIMITATION',
+          file: 'OnlineChallengeScreen.jsx',
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true },
+  ),
+
+  makeCase(
+    'online_category_taxonomy', 'Online Category Taxonomy Suite',
     'selected_category_ids_forwarded_to_lobby',
-    'Selected Online categories survive challenge setup, lobby creation, and backend deck policy',
+    'Online UI no longer forwards selected categories; backend deck uses all active categories randomly',
     () => {
       const challenge = safeStr(onlineChallengeScreenSource);
       const room = safeStr(lobbyRoomSource);
       const createBackend = safeStr(findLobbyByCodeSource);
       const startBackend = safeStr(startLobbyGameSource);
-      const checks = {
-        challenge: ['selectedCategories: [...selectedCategories]'].every((token) => challenge.includes(token)),
-        room: ['selectedCategories', 'createLobby(lobbyPayload)'].every((token) => room.includes(token)),
-        createBackend: ['body?.selectedCategories || body?.selected_category_ids', 'selected_category_ids: selectedCategoryIds'].every((token) => createBackend.includes(token)),
-        startBackend: ['settings.selected_category_ids', 'selectedCategoriesOnly: true'].every((token) => startBackend.includes(token)),
+      const required = {
+        challenge: [
+          'Tüm kategorilerden rastgele sorular',
+          'Arkadaşını Davet Et',
+          'Rastgele Eşleş',
+          'veya kodla katıl',
+        ],
+        room: [
+          'const lobbyPayload = { code, playerName: derivedName, maxPlayers }',
+          'createLobby(lobbyPayload)',
+          'handleCreate({ maxPlayers, inviteTargets: selectedTargets })',
+        ],
+        createBackend: [
+          'const selectedCategoryIds: number[] = []',
+          'startLobbyGame ignores it and draws',
+        ],
+        startBackend: [
+          'selectedCategoriesOnly: false',
+          'allCategoriesRandom: true',
+          'all-active-random',
+          'return Array.from(activeMainCategoryIds)',
+        ],
       };
-      if (Object.values(checks).some((value) => !value)) {
-        return fail('Selected Online category propagation drifted.', {
+      const missing = {
+        challenge: required.challenge.filter((token) => !challenge.includes(token)),
+        room: required.room.filter((token) => !room.includes(token)),
+        createBackend: required.createBackend.filter((token) => !createBackend.includes(token)),
+        startBackend: required.startBackend.filter((token) => !startBackend.includes(token)),
+      };
+      const forbidden = {
+        challenge: [
+          'selectedCategories: [...selectedCategories]',
+          'setSelectedCategories',
+          'OnlineCategoryCarousel',
+          'loadActiveCategories({ limit: 1000 })',
+          'categoryLoadError',
+        ].filter((token) => challenge.includes(token)),
+        room: [
+          'selectedCategories,',
+          'selectedCategories }',
+          'selectedCategories: ',
+        ].filter((token) => room.includes(token)),
+        createBackend: [
+          'body?.selectedCategories || body?.selected_category_ids',
+          '.map((value: unknown) => Math.trunc(Number(value)))',
+        ].filter((token) => createBackend.includes(token)),
+        startBackend: [
+          'selectedCategoriesOnly: true',
+          'resolveMainCategoryIdsFromSelectedIds',
+          'insufficient_active_questions_for_selected_categories',
+        ].filter((token) => startBackend.includes(token)),
+      };
+      const hasMissing = Object.values(missing).some((items) => items.length);
+      const hasForbidden = Object.values(forbidden).some((items) => items.length);
+      if (hasMissing || hasForbidden) {
+        return fail('Current no-category Online propagation contract drifted.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'OnlineChallengeScreen.jsx + LobbyRoom.jsx + findLobbyByCode + startLobbyGame',
-          expected: 'selectedCategories -> selected_category_ids -> selected-only deck policy',
-          actual: checks,
+          expected: 'no Online selectedCategories UI flow; legacy selected_category_ids stays empty/ignored; backend deck is all-active-random',
+          actual: { missing, forbidden },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Selected categories flow into the authoritative lobby and constrain backend deck generation.', {
+      return pass('Online UI does not propagate selected categories, and backend Online deck generation is all-active-random.',
+        {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         file: 'OnlineChallengeScreen.jsx + LobbyRoom.jsx + findLobbyByCode + startLobbyGame',
         actionType: ACTION_TYPES.CODE_FIX,
-      });
+        });
     },
     { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true },
   ),
@@ -1214,13 +1308,48 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW, recentlyFixed: true },
   ),
-  sourceHasReplacement(
+  makeCase(
     'historical_kronox_regression', 'Historical Kronox Regression Suite',
     'category_current_rule_documented',
-    'Category multi-select default + toggle live on the Online challenge screen',
-    'components/lobby/OnlineChallengeScreen.jsx',
-    onlineChallengeScreenSource,
-    ['DEFAULT_CATEGORIES', 'selectedCategories', 'toggleCategory'],
+    'Online no-category / all-active-random category rule is documented and selector reintroduction is blocked',
+    () => {
+      const source = `${safeStr(onlineChallengeScreenSource)}\n${safeStr(startLobbyGameSource)}`;
+      const required = [
+        'Category selection is removed',
+        'Tüm kategorilerden rastgele sorular',
+        'every active category',
+        'selectedCategoriesOnly: false',
+        'allCategoriesRandom: true',
+      ];
+      const forbidden = [
+        'DEFAULT_CATEGORIES',
+        'selectedCategories: [...selectedCategories]',
+        'setSelectedCategories',
+        'toggleCategory',
+        'OnlineCategoryCarousel',
+        'loadActiveCategories({ limit: 1000 })',
+      ];
+      const missing = required.filter((token) => !source.includes(token));
+      const stillThere = forbidden.filter((token) => safeStr(onlineChallengeScreenSource).includes(token));
+      if (missing.length || stillThere.length) {
+        return fail('Online category rule documentation/runtime contract drifted.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'OnlineChallengeScreen.jsx + startLobbyGame',
+          expected: required,
+          actual: { missing, stillThere },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Online no-category/all-active-random rule is documented in source and old selector tokens are absent.',
+        {
+          verification: 'STATIC_CONTRACT',
+          classification: 'STATIC_CHECK_LIMITATION',
+          file: 'OnlineChallengeScreen.jsx + startLobbyGame',
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true },
   ),
 
   /* ------------------------------------------------------------------
@@ -1236,11 +1365,13 @@ export const EXTRA_TESTS = [
     `${safeStr(lobbyCreateJoinPanelSource)}\n${safeStr(lobbyRoomSource)}\n${safeStr(onlineChallengeScreenSource)}`,
     [
       // Direct lobby creation from the Online challenge CTA.
-      'onStartChallenge',
+      'onCreateInviteLobby',
       'handleCreate({',
       // Explicit join-by-code path still wired.
       "mode === 'join'",
       "setMode('join')",
+      'onJoinOpenLobby',
+      'veya kodla katıl',
       // Mode setter still used (back navigation, reset).
       'setMode',
     ],
@@ -1251,18 +1382,47 @@ export const EXTRA_TESTS = [
    *  Online challenge screen + carousel; static category lists are no
    *  longer a valid source of truth.
    * ------------------------------------------------------------------ */
-  sourceHasReplacement(
+  makeCase(
     'online_category_taxonomy', 'Online Category Taxonomy Suite',
     'lobby_panel_consumes_centralized_taxonomy',
-    'Online challenge screen loads current Category metadata and decorates it for the carousel',
-    'components/lobby/OnlineChallengeScreen.jsx + components/lobby/OnlineCategoryCarousel.jsx',
-    `${safeStr(onlineChallengeScreenSource)}\n${safeStr(onlineCategoryCarouselSource)}`,
-    [
-      'loadActiveCategories({ limit: 1000 })',
-      'decorateOnlineCategory',
-      'categoryLoadError',
-      'OnlineCategoryCarousel',
-    ],
+    'Online challenge screen does not consume taxonomy for UI; backend start uses live all-active Category source',
+    () => {
+      const online = safeStr(onlineChallengeScreenSource);
+      const startBackend = safeStr(startLobbyGameSource);
+      const required = [
+        'loadActiveMainCategoryIds',
+        'base44.asServiceRole.entities.Category.list',
+        'legacyHardcodedCategoryFallbackAllowed: false',
+        'allCategoriesRandom: true',
+        'return Array.from(activeMainCategoryIds)',
+      ];
+      const forbiddenUi = [
+        'loadActiveCategories({ limit: 1000 })',
+        'decorateOnlineCategory',
+        'categoryLoadError',
+        'OnlineCategoryCarousel',
+        'setDbCategories(active)',
+      ].filter((token) => online.includes(token));
+      const missing = required.filter((token) => !startBackend.includes(token));
+      if (missing.length || forbiddenUi.length) {
+        return fail('Online taxonomy contract drifted toward the removed UI carousel.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'OnlineChallengeScreen.jsx + startLobbyGame',
+          expected: required,
+          actual: { missing, forbiddenUi },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Online UI does not fetch/render taxonomy; backend start reads live active Category ids for all-active random decks.',
+        {
+          verification: 'STATIC_CONTRACT',
+          classification: 'STATIC_CHECK_LIMITATION',
+          file: 'OnlineChallengeScreen.jsx + startLobbyGame',
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true },
   ),
 
   /* ------------------------------------------------------------------

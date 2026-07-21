@@ -13,9 +13,9 @@ import { getLobbySnapshot, startLobbyGame } from '@/lib/dbGateway/lobbyGateway';
 
 // Codex131 — Lobby simplification:
 //   "Oyun Ayarları" host panel and the non-host settings summary were
-//   removed. Category selection happens on the Online screen (persisted as
-//   lobby.selected_category_ids at create time). All other game config
-//   (year window, turn duration, win card count) reuses the lobby's
+//   removed. Online category selection is also gone; startLobbyGame ignores
+//   legacy selected_category_ids and draws from all active categories. Other
+//   game config (year window, turn duration, win card count) reuses the lobby's
 //   existing values or backend defaults — there is no in-lobby edit UI.
 export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, isHost, canStart, onLeave, onCopyCode, copied, navigate }) {
   const {
@@ -73,9 +73,9 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
         return;
       }
 
-      // Codex131 — No `settings` payload. Backend startLobbyGame reads
-      // category / year window / turn / win-card from the persisted lobby
-      // (including the Online multi-select selected_category_ids).
+      // Codex131/Codex591 — No `settings` payload. Backend startLobbyGame
+      // reads year window / turn / win-card from the persisted lobby and
+      // ignores legacy selected_category_ids for all-active random Online.
       const response = await startLobbyGame(startLobby.id, startLobby.state_revision).catch((err) => {
         // Codex165 — Surface backend's safe error message instead of an
         // axios "status code 400" string. Base44 SDK throws on non-2xx;

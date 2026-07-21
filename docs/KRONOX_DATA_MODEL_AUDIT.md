@@ -606,7 +606,7 @@ Recommendation:
 | Notification preference | `User.game_invite_notifications_enabled`, schema missing | Persisted but schema drift | Document/add schema field |
 | Toast dismissed ids | memory refs | Correctly transient | Keep local only |
 | Active lobby return | derived from Lobby waiting membership | Correctly derived | Keep derived |
-| Selected online categories | `Lobby.selected_category_ids` | Persisted | Keep |
+| Legacy online category ids | `Lobby.selected_category_ids` | Compatibility-only; current Online ignores and writes empty values | Keep until old lobbies/entities are archived |
 | Invite recipients | `Lobby.invited_emails` and GameInvite rows | Persisted | Keep |
 | Game completion audit | Lobby mutable final state; GameRecord for old solo | Weak for online | Add immutable match result later |
 | Push delivery attempts | function return/log only | Not persisted | Add `NotificationEvent` only if operational debugging needs it |

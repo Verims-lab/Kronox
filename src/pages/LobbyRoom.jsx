@@ -125,7 +125,7 @@ export default function LobbyRoom() {
     }
   }, []);
 
-  // Create signature: { maxPlayers, inviteTargets, invitedEmails, selectedCategories }
+  // Create signature: { maxPlayers, inviteTargets, invitedEmails }
   // forwarded by the OnlineChallengeScreen CTA (single-step lobby + invites).
   // playerName is derived from the authenticated user (no manual input).
   // For backwards-compat (e.g. if called with no payload), we fall back to playerName state.

@@ -1,5 +1,15 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex591 — Fix Health FAIL KRONOX-MRT8YU8S after main sync:
+//   - Retarget stale Online category Health contracts to current no-selector
+//     Online flow: all active categories are used randomly, with no
+//     selectedCategories or UI selected_category_ids propagation.
+//   - startLobbyGame/findLobbyByCode ignore legacy selected category inputs
+//     for current Online; random matchmaking and invite/create/join entry
+//     points stay independent from category/social-list failure.
+//   - Restore exact @base44/sdk 0.8.34 package/lock contract after main sync.
+//   - Docs and mirrors now describe Online all-active-random deck ownership.
+//
 // Codex590 — Fix Health FAIL KRONOX-MRHQNT85 final blockers:
 //   - WaitingRoomPanel renders the real invite-centric section title
 //     "Davet edilen arkadaşların" while keeping lobby code as "Yedek kod".
@@ -126,7 +136,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex590';
+const BUILD_MARKER = 'Codex591';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

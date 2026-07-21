@@ -349,10 +349,10 @@ Checklist:
   or deleted categories, or old hardcoded fallback arrays.
 * If current category metadata cannot be loaded, onboarding shows a visible
   retry/error state instead of rendering stale fallback categories.
-* Online category selection stores live `Category.category_id` values from
-  current metadata. `startLobbyGame` must clean-fail for missing/invalid
-  selected categories or Category read failures instead of falling back to
-  legacy category names, `Lobby.category`, or old seeded category arrays.
+* Online has no category selection UI. `startLobbyGame` must draw randomly
+  from all active Online-eligible categories and clean-fail on Category read
+  failures instead of falling back to legacy category names, `Lobby.category`,
+  UI-selected category IDs, or old seeded category arrays.
 * `Eğitime Devam` appears only for true resumable `tutorial_in_progress`;
   tutorial-completed/profile-complete/category-pending guests must resume the
   later onboarding step instead.
@@ -364,7 +364,8 @@ Checklist:
   preferences are available.
   `Game.jsx` must explicitly call
   `getValidActiveSelectedCategoryIds(preferences, activeCategories)` in the
-  Solo-only wiring path; Online category selection remains separate.
+  Solo-only wiring path; Online has no category selection and does not use
+  Solo preference weighting.
 * Category preference save validation remains separate from gameplay start and
   must not block question loading.
 * Empty preferences must not produce an empty candidate pool or fake
@@ -379,8 +380,8 @@ Checklist:
   broader active global pool before the deck clean-fails.
 * Online question selection is not affected by Solo preferences or guest Solo.
   Online start must prove that `startLobbyGame` persisted a bounded shared
-  `online_question_deck`, selected 100% from lobby-selected active categories,
-  with difficulty 1 and 2 only, before participants enter gameplay.
+  `online_question_deck`, selected randomly from all active categories with
+  difficulty 1 and 2 only, before participants enter gameplay.
 * Settings no longer shows SubCategory preference options; old
   `UserSubCategoryPreference` rows are left untouched.
 * Two-account preference RLS proof remains manual/runtime proof.

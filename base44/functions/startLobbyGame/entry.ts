@@ -316,7 +316,7 @@ const QUESTION_FETCH_PER_CATEGORY_LIMIT = 250;
 const ONLINE_SHARED_DECK_MAX_QUESTIONS = 96;
 const ONLINE_SHARED_DECK_MIN_QUESTIONS = 32;
 const ONLINE_ALLOWED_DIFFICULTIES = new Set(ONLINE_GAME_POLICY.allowedDifficulties);
-const ONLINE_DECK_SELECTION_SOURCE = 'online_shared_selected_category_deck_v1';
+const ONLINE_DECK_SELECTION_SOURCE = 'online_shared_all_active_random_deck_v1';
 
 const normalizeMainCategoryId = (value: unknown): number | null => {
   const numeric = Number(value);
@@ -340,16 +340,6 @@ const normalizeDifficulty = (value: unknown): number | null => {
 const isOnlineDifficultyEligible = (question: any) => {
   const difficulty = normalizeDifficulty(question?.difficulty ?? question?.Difficulty);
   return ONLINE_ALLOWED_DIFFICULTIES.has(difficulty as number);
-};
-
-const resolveMainCategoryIdsFromSelectedIds = (selectedIds: any, activeMainCategoryIds?: Set<number>): Set<number> | null => {
-  if (!Array.isArray(selectedIds) || selectedIds.length === 0) return null;
-  const allowed = new Set<number>();
-  for (const id of selectedIds) {
-    const mapped = normalizeMainCategoryId(id);
-    if (mapped !== null && Number.isFinite(mapped) && (!activeMainCategoryIds || activeMainCategoryIds.has(mapped))) allowed.add(mapped);
-  }
-  return allowed.size > 0 ? allowed : null;
 };
 
 // Codex165 — Question runtime normalizer. Mirrors functions/getQuestions
@@ -436,12 +426,7 @@ const dedupeQuestions = (rows: any[] = []) => {
   return out;
 };
 
-const getQueryMainCategoryIdsForSettings = (settings: any, activeMainCategoryIds: Set<number>) => {
-  const hasSelectedCategoryIds = Array.isArray(settings?.selected_category_ids) && settings.selected_category_ids.length > 0;
-  if (hasSelectedCategoryIds) {
-    const selected = resolveMainCategoryIdsFromSelectedIds(settings.selected_category_ids, activeMainCategoryIds);
-    return selected ? Array.from(selected) : [];
-  }
+const getQueryMainCategoryIdsForSettings = (_settings: any, activeMainCategoryIds: Set<number>) => {
   // Codex591 — Online has no category selection anymore: query every active category.
   return Array.from(activeMainCategoryIds);
 };
@@ -501,19 +486,9 @@ const filterQuestionsForLobbySettings = (questions: any[] = [], settings: any = 
     });
 
   // Codex591 — Online has no category selection anymore: questions are
-  // random from ALL active categories. A legacy lobby row with a stale
-  // selected_category_ids value is never read (normalizeSettings always
-  // clears it), so this branch is effectively unreachable in the current
-  // flow but is kept for defense-in-depth against old persisted rows.
-  const hasSelectedCategoryIds = Array.isArray(settings.selected_category_ids) && settings.selected_category_ids.length > 0;
-  const mainIdsAllowed = hasSelectedCategoryIds
-    ? resolveMainCategoryIdsFromSelectedIds(settings.selected_category_ids, activeMainCategoryIds)
-    : activeMainCategoryIds;
-  if (!mainIdsAllowed || mainIdsAllowed.size === 0) return [];
-  return baseFiltered.filter(q => {
-    const mid = Number(q?.main_category_id);
-    return Number.isFinite(mid) && mainIdsAllowed.has(mid);
-  });
+  // random from ALL active categories. Legacy selected_category_ids values
+  // are compatibility-only and never narrow the Online deck.
+  return baseFiltered;
 };
 
 const seededRandom = (seed: string) => {
@@ -576,8 +551,8 @@ const buildInitialState = ({ players, questions, settings, activeMainCategoryIds
   if (filteredQuestions.length === 0) {
     return {
       ok: false,
-      message: 'Seçilen kategoriler için yeterli aktif soru bulunamadı.',
-      reason: 'insufficient_active_questions_for_selected_categories',
+      message: 'Tüm aktif kategoriler için yeterli aktif soru bulunamadı.',
+      reason: 'insufficient_active_online_questions',
       neededCount,
       availableCount: 0,
     };
@@ -786,11 +761,11 @@ Deno.serve(async (req) => {
       questions: questions || [],
       settings,
       activeMainCategoryIds,
-      seed: `${startLobby.public_ref || rowId(startLobby)}:${readRevision(startLobby.state_revision)}:${settings.selected_category_ids.join(',')}`,
+      seed: `${startLobby.public_ref || rowId(startLobby)}:${readRevision(startLobby.state_revision)}:all-active-random`,
     });
 
     if (!initialState.ok) {
-      const contentStatus = ['insufficient_active_questions_for_selected_categories', 'not_enough_questions']
+      const contentStatus = ['insufficient_active_online_questions', 'not_enough_questions']
         .includes(initialState.reason)
         ? 422
         : 400;

@@ -390,25 +390,32 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('online_start_stays_separate_from_solo_preferences',
-    'Online start uses lobby-selected categories only and never Solo preference weighting',
+    'Online start uses all active categories randomly and never Solo preference weighting',
     () => {
       const src = `${safeStr(startLobbyGameFnSource)}\n${safeStr(gameSource)}\n${safeStr(healthMirrorSource)}`;
       const m = missing(src, [
-        'selectedCategoriesOnly: true',
+        'selectedCategoriesOnly: false',
+        'allCategoriesRandom: true',
+        'all-active-random',
         'soloPreferenceWeightingApplied: false',
         'guestSoloPathUsed: false',
         'questionFetchEnabled = !isOnline',
         'Online question selection is not affected by Solo preferences',
       ]);
-      if (m.length) {
+      const stale = forbidden(src, [
+        'selectedCategoriesOnly: true',
+        'active lobby-selected categories',
+        'insufficient_active_questions_for_selected_categories',
+      ]);
+      if (m.length || stale.length) {
         return fail('Online start may have drifted back toward Solo question/preference setup.', {
           verification: 'STATIC_CONTRACT',
           actionType: ACTION_TYPES.CODE_FIX,
           file: 'startLobbyGame + Game + Health mirror',
-          missing: m,
+          actual: { missing: m, forbidden: stale },
         });
       }
-      return pass('Online start remains isolated from Solo category preferences and guest Solo projection.',
+      return pass('Online start remains isolated from Solo category preferences and draws all-active-random shared decks.',
         { verification: 'STATIC_CONTRACT' });
     }),
 

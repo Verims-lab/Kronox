@@ -288,7 +288,7 @@ export function recommendedActions(problemCases) {
   if (problemCases.some(item => item.suiteId === 'route_navigation_resilience')) actions.push('Run direct URL and back-navigation smoke tests for /settings, /profile, /friends, /lobby, /game, and /test-suite.');
   if (problemCases.some(item => item.suiteId === 'friend_request_email_deep_link')) actions.push('Verify FriendRequest email delivery with a real recipient inbox and confirm the /friends deep link survives login.');
   if (problemCases.some(item => item.suiteId === 'game_invite_push_notifications')) actions.push('Run push-notification proof on a subscribed device with VAPID configured; keep in-app invites working if push fails.');
-  if (problemCases.some(item => item.suiteId === 'online_category_taxonomy')) actions.push('Confirm Online category selection actually changes lobby/question filtering, not only the visual selected state.');
+  if (problemCases.some(item => item.suiteId === 'online_category_taxonomy')) actions.push('Confirm Online has no category selector/carousel and backend Online start uses all active categories randomly.');
   if (problemCases.some(item => item.suiteId === 'sre_release_health_signals')) actions.push('Use the report as release-risk intelligence only; production latency/error/saturation need deployed telemetry.');
   if (problemCases.some(item => item.status === STATUS.NOT_AUTOMATABLE)) actions.push('Treat non-automatable critical cases as release risk until covered by device/backend tests.');
   if (problemCases.some(item => item.suiteId === 'debug_hygiene' || item.suiteId === 'admin_visibility')) actions.push('Confirm debug/test surfaces and admin tooling are gated outside gameplay and Profile for normal users.');
