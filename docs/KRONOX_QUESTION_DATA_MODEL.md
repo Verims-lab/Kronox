@@ -365,13 +365,13 @@ Rules:
 * Online question selection is not affected by Solo preferences or guest
   question loading. `startLobbyGame` is the Online question authority: it
   reconciles accepted invite participants into the lobby roster, then builds a
-  bounded shared `online_question_deck` from selected active lobby categories
-  only, persists it with `current_question_id` on `Lobby`, and exposes only
-  deck-sized gameplay rows to participants. Online currently accepts difficulty
-  1 and difficulty 2 questions only and must not hydrate from the Solo
-  `getQuestions` buffer. Waiting-room clients may enter from realtime updates
-  or poll/refetch recovery, but every participant must read the same persisted
-  deck/current question.
+  bounded shared `online_question_deck` from all active Online-eligible
+  Category rows, persists it with `current_question_id` on `Lobby`, and exposes
+  only deck-sized gameplay rows to participants. Online currently accepts
+  difficulty 1 and difficulty 2 questions only and must not hydrate from the
+  Solo `getQuestions` buffer. Waiting-room clients may enter from realtime
+  updates or poll/refetch recovery, but every participant must read the same
+  persisted deck/current question.
 * `SubCategory` still exists for future normalized question metadata, but
   Profile Info preference selection currently uses main `Category`, not
   `SubCategory`.

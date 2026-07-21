@@ -57,11 +57,13 @@ import lobbyCreateJoinPanelSource from '../lobby/LobbyCreateJoinPanel.jsx?raw';
 import lobbyRoomSource from '../../pages/LobbyRoom.jsx?raw';
 import waitingRoomPanelSource from '../lobby/WaitingRoomPanel.jsx?raw';
 import onlineChallengeScreenSource from '../lobby/OnlineChallengeScreen.jsx?raw';
+import onlineCategoriesSource from '../../lib/onlineCategories.js?raw';
 // Codex132 follow-up — new override sources for the three re-targeted cases.
 import mainMenuSource from '../../pages/MainMenu.jsx?raw';
 import {
   createGameInvitesForTargetsFnSource,
   gameInviteEntitySource,
+  lobbyEntitySource,
   sendFriendRequestFnSource,
 } from './simulationPanelContractStrings.jsx';
 // Codex153 — Solo path mimarisi tamamen yeni yapıya geçti (bottom CTA
@@ -156,6 +158,7 @@ export const OVERRIDDEN_CASE_KEYS = new Set([
   'historical_kronox_regression.category_current_rule_documented',
   'route_navigation_resilience.lobby_create_join_modes_static',
   'online_category_taxonomy.lobby_panel_consumes_centralized_taxonomy',
+  'online_category_taxonomy.current_category_metadata_is_source_of_truth',
   'online_category_taxonomy.online_screen_uses_current_metadata_and_retry',
   'friends_validation.clear_success_and_error_messages',
   'kronox_game_feel.error_states_network_flows',
@@ -184,6 +187,7 @@ export const OVERRIDDEN_CASE_KEYS = new Set([
   'invite_contract_drift.reject_invite_marks_declined_safe',
   'invite_contract_drift.pending_list_filters_to_email_user',
   'online_category_taxonomy.selected_category_ids_forwarded_to_lobby',
+  'online_question_mode_health.online_authoritative_shared_deck_required',
   'online_question_mode_health.online_active_state_requires_readable_shared_deck',
   'lobby_code_ux.invite_centric_copy',
   'friend_request_email_deep_link.send_request_triggers_email_after_create',
@@ -1013,6 +1017,84 @@ export const EXTRA_TESTS = [
 
   makeCase(
     'online_category_taxonomy', 'Online Category Taxonomy Suite',
+    'current_category_metadata_is_source_of_truth',
+    'Online category policy uses current Category metadata, while Online gameplay has no selector',
+    () => {
+      const moduleSource = safeStr(onlineCategoriesSource);
+      const startBackend = safeStr(startLobbyGameSource);
+      const online = safeStr(onlineChallengeScreenSource);
+      const required = {
+        module: [
+          'ONLINE_CATEGORY_POLICY',
+          'metadataPolicy: CATEGORY_METADATA_POLICY',
+          'visualFallbackOnly: true',
+          'categoryListFallbackAllowed: false',
+          'resolveOnlineCategoryMetadataFromCategoryRows',
+          'isOnlineCategoryMetadataRowActive',
+        ],
+        startBackend: [
+          'loadActiveMainCategoryIds',
+          'base44.asServiceRole.entities.Category.list',
+          'filter(isActiveCategory)',
+          'normalizeMainCategoryId',
+          'activeMainCategoryIds.has(mid)',
+          'selectedCategoriesOnly: false',
+          'allCategoriesRandom: true',
+          'categorySourceOfTruth: ONLINE_GAME_POLICY.categorySourceOfTruth',
+          'legacyHardcodedCategoryFallbackAllowed: ONLINE_GAME_POLICY.legacyHardcodedCategoryFallbackAllowed',
+        ],
+      };
+      const missing = {
+        module: required.module.filter((token) => !moduleSource.includes(token)),
+        startBackend: required.startBackend.filter((token) => !startBackend.includes(token)),
+      };
+      const forbidden = {
+        module: [
+          'export const ONLINE_CATEGORIES',
+          'export const ONLINE_CATEGORY_IDS',
+          'DEFAULT_CATEGORIES',
+          'Chronicle',
+          'Flashback',
+          'Viral',
+        ].filter((token) => moduleSource.includes(token)),
+        onlineUi: [
+          'OnlineCategoryCarousel',
+          'loadActiveCategories({ limit: 1000 })',
+          'categoryLoadError',
+          'setSelectedCategories',
+          'selectedCategories: [...selectedCategories]',
+        ].filter((token) => online.includes(token)),
+        startBackend: [
+          'selectedCategoriesOnly: true',
+          'resolveMainCategoryIdsFromSelectedIds',
+          'insufficient_active_questions_for_selected_categories',
+          'LEGACY_ONLINE_TO_LEGACY_CATEGORY_MAP',
+        ].filter((token) => startBackend.includes(token)),
+      };
+      const hasMissing = Object.values(missing).some((items) => items.length);
+      const hasForbidden = Object.values(forbidden).some((items) => items.length);
+      if (hasMissing || hasForbidden) {
+        return fail('Online category source-of-truth contract drifted.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'onlineCategories.js + startLobbyGame + OnlineChallengeScreen.jsx',
+          expected: 'Category-row metadata helpers and backend all-active Category reads, with no Online selector UI.',
+          actual: { missing, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Online category metadata is Category-row derived, and Online gameplay still has no selector or selected-category UI flow.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        file: 'onlineCategories.js + startLobbyGame + OnlineChallengeScreen.jsx',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true },
+  ),
+
+  makeCase(
+    'online_category_taxonomy', 'Online Category Taxonomy Suite',
     'online_screen_uses_current_metadata_and_retry',
     'Online screen is no-category: no category fetch/carousel/error gate, with invite/random/join entry points',
     () => {
@@ -1137,6 +1219,56 @@ export const EXTRA_TESTS = [
         file: 'OnlineChallengeScreen.jsx + LobbyRoom.jsx + findLobbyByCode + startLobbyGame',
         actionType: ACTION_TYPES.CODE_FIX,
         });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true },
+  ),
+
+  makeCase(
+    'online_question_mode_health', 'Online Question Mode Health Suite',
+    'online_authoritative_shared_deck_required',
+    'Online uses a server-authored shared all-active deck, not per-player Solo buffers',
+    () => {
+      const source = `${safeStr(gameSource)}\n${safeStr(startLobbyGameSource)}\n${safeStr(lobbyEntitySource)}`;
+      const required = [
+        'online_question_deck',
+        'online_deck_meta',
+        'online_shared_all_active_random_deck_v1',
+        'normalizeOnlineQuestionDeck',
+        'questionFetchEnabled = !isOnline',
+        'const onlineQuestionDeck = useMemo',
+        'const onlineDeckReady = isOnline && onlineQuestionDeck.length > 0',
+        'online_question_deck: initialState.onlineQuestionDeck',
+        'online_deck_meta: initialState.onlineDeckMeta',
+        'current_question_id: initialState.firstQuestion.id',
+        'source: ONLINE_DECK_SELECTION_SOURCE',
+        'selectedCategoriesOnly: ONLINE_GAME_POLICY.selectedCategoriesOnly',
+        'allCategoriesRandom: ONLINE_GAME_POLICY.allCategoriesRandom',
+        'soloPreferenceWeightingApplied: ONLINE_GAME_POLICY.soloPreferenceWeightingApplied',
+        'guestSoloPathUsed: ONLINE_GAME_POLICY.guestSoloPathUsed',
+      ];
+      const missing = required.filter((token) => !source.includes(token));
+      const forbidden = [
+        'online_shared_selected_category_deck_v1',
+        'selectedCategoriesOnly: true',
+        'insufficient_active_questions_for_selected_categories',
+        'resolveMainCategoryIdsFromSelectedIds',
+      ].filter((token) => source.includes(token));
+      if (missing.length || forbidden.length) {
+        return fail('Online shared-deck contract drifted from server-authored all-active policy.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'Game.jsx + startLobbyGame + Lobby entity',
+          expected: required,
+          actual: { missing, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('startLobbyGame persists a bounded shared all-active Online deck, and Game consumes it while Solo fetching is disabled for Online.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        file: 'Game.jsx + startLobbyGame + Lobby entity',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
     },
     { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true },
   ),
