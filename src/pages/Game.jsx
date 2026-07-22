@@ -114,7 +114,7 @@ import {
   loadPlayerQuestionExposureStats,
   recordPlayerQuestionExposure,
 } from '@/lib/dbGateway/playerQuestionExposureGateway';
-import { recordDailyQuestProgress } from '@/lib/dbGateway/dailyQuestGateway';
+import { recordDailyQuestSourceEvent } from '@/lib/dailyQuestEvents';
 import {
   QUESTION_ANALYTICS_EVENT_TYPES,
   QUESTION_ANALYTICS_SOURCES,
@@ -1394,7 +1394,7 @@ export default function Game() {
 
   const recordDailyQuestSoloEvent = useCallback((eventType, eventId, metadata = {}) => {
     if (!isSoloLevelMode || (!currentUser?.email && !guestDailyQuestPayload)) return;
-    recordDailyQuestProgress({
+    return recordDailyQuestSourceEvent({
       ...(guestDailyQuestPayload || {}),
       eventType,
       mode: 'solo',
@@ -1487,6 +1487,7 @@ export default function Game() {
         recordDailyQuestSoloEvent('consecutive_correct_4', streakEventId, {
           questType: 'consecutive_correct_4',
           attemptId: soloAttemptId,
+          sourceEventId: correctEventId,
           questionId,
           consecutiveCorrect: nextDailyCorrectStreak,
         });
@@ -2228,7 +2229,7 @@ export default function Game() {
         return false;
       }
       setSoloJokerBalancesFromSpendResponse(response);
-      recordDailyQuestProgress({
+      await recordDailyQuestSourceEvent({
         ...(guestDailyQuestPayload || {}),
         eventType: 'joker_used',
         mode: 'joker',
@@ -2248,7 +2249,7 @@ export default function Game() {
         debugLog('[Game] daily joker task progress failed:', error?.message || error);
       });
       if (inventoryType === 'time_freeze') {
-        recordDailyQuestProgress({
+        await recordDailyQuestSourceEvent({
           ...(guestDailyQuestPayload || {}),
           eventType: 'time_freeze_joker_used',
           mode: 'joker',
@@ -2640,7 +2641,7 @@ export default function Game() {
         ),
       }));
       setHintError('');
-      recordDailyQuestProgress({
+      await recordDailyQuestSourceEvent({
         ...(currentUser?.email ? {} : (guestDailyQuestPayload || {})),
         eventType: 'hint_used',
         mode: 'solo_hint',
@@ -2866,11 +2867,13 @@ export default function Game() {
           levelNumber,
           result: soloLevelResult,
           cardTarget: soloLevelResult.cardTarget ?? soloCardsRequired ?? 7,
-          onPersistedCompletion: () => {
+          attemptId: soloAttemptId,
+          usedRealJoker: jokerUsedRef.current === true && !isSoloTrainingConsumables,
+          onPersistedCompletion: async () => {
             const completionEventId = `${soloAttemptId || 'solo_attempt'}:solo_level_complete:${levelNumber}`;
             if (soloDailyQuestCompletionRecordedRef.current === completionEventId) return;
             soloDailyQuestCompletionRecordedRef.current = completionEventId;
-            recordDailyQuestSoloEvent('solo_level_complete', completionEventId, {
+            await recordDailyQuestSoloEvent('solo_level_complete', completionEventId, {
               questType: 'solo_level_complete',
               passed: true,
               soloLevelNumber: levelNumber,
@@ -2878,6 +2881,15 @@ export default function Game() {
               cardsCompleted: soloLevelResult.cardsCompleted,
               elapsedSeconds: soloLevelResult.timeSeconds,
             });
+            if (jokerUsedRef.current !== true || isSoloTrainingConsumables) {
+              await recordDailyQuestSoloEvent('jokerless_solo_level_complete', `${soloAttemptId || 'solo_attempt'}:jokerless:${levelNumber}`, {
+                questType: 'jokerless_solo_level_complete',
+                passed: true,
+                usedRealJoker: false,
+                soloLevelNumber: levelNumber,
+                attemptId: soloAttemptId,
+              });
+            }
           },
         });
         setSoloLevelResult((prev) => prev ? {
@@ -2901,6 +2913,7 @@ export default function Game() {
     recordDailyQuestSoloEvent,
     soloAttemptId,
     soloCardsRequired,
+    isSoloTrainingConsumables,
     soloLevel,
     soloLevelResult,
   ]);

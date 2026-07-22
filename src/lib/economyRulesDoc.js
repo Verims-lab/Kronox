@@ -171,6 +171,14 @@ profile state, or FriendRequest state. Missing, foreign, stale, or unsupported
 source references are rejected. Levels 1-6 training Joker/Hint actions have no
 spend receipt and cannot satisfy Daily tasks. Hint is not Joker. Daily progress
 never grants Kronox Puan or affects Leaderboard.
+Real Joker/Hint progress follows a successful server spend and verifies the
+matching ledger idempotency key with bounded read-after-write retries. Zamanı
+Dondur additionally requires joker_type = time_freeze. Solo level/jokerless
+progress binds the exact persisted passed attempt; jokerless checks only real
+Joker use, so Hint does not disqualify it. Profile and friend tasks follow
+successful save/create/accept results. Accepted receipts stale the shared Daily
+cache, duplicate receipts do not double-count, and the executable 18-case Daily
+Goals Runtime Simulation Suite guards these contracts.
 
 Legacy DailyQuestDefinition rows are ignored by the active runtime. The
 admin-gated cleanupLegacyDailyQuests path defaults to dry_run and only deletes

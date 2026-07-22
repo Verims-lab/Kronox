@@ -72,7 +72,7 @@ export const EXTRA_TESTS = [
         'calculateSoloAttemptResult',
         'result.passed',
         'if (persisted && result.passed && typeof onPersistedCompletion',
-        'onPersistedCompletion: () => {',
+        'onPersistedCompletion: async () => {',
         "recordDailyQuestSoloEvent('solo_level_complete'",
         "questType: 'solo_level_complete'",
         'passed: true,',
@@ -80,7 +80,7 @@ export const EXTRA_TESTS = [
       const gateIndex = effectsSrc.indexOf('if (persisted && result.passed && typeof onPersistedCompletion');
       const awaitIndex = effectsSrc.indexOf('await onPersistedCompletion()');
       const gateBeforeAwait = gateIndex >= 0 && awaitIndex > gateIndex;
-      const callbackIndex = gameSrc.indexOf('onPersistedCompletion: () => {');
+      const callbackIndex = gameSrc.indexOf('onPersistedCompletion: async () => {');
       const completeEventIndex = gameSrc.indexOf("recordDailyQuestSoloEvent('solo_level_complete'");
       const eventInsideCallback = callbackIndex >= 0 && completeEventIndex > callbackIndex;
       if (missing.length || !gateBeforeAwait || !eventInsideCallback) {

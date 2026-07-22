@@ -14,6 +14,8 @@ import claimDailyWheelRewardSource from '../../../base44/functions/claimDailyWhe
 import claimDailyQuestRewardSource from '../../../base44/functions/claimDailyQuestReward/entry.ts?raw';
 import cleanupLegacyDailyQuestsSource from '../../../base44/functions/cleanupLegacyDailyQuests/entry.ts?raw';
 import dailyQuestGatewaySource from '../../lib/dbGateway/dailyQuestGateway.js?raw';
+import dailyQuestEventsSource from '../../lib/dailyQuestEvents.js?raw';
+import dailyGoalsRuntimeSource from '../../lib/dailyGoalsRuntime.js?raw';
 import dailyStatusCacheSource from '../../lib/dailyStatusCache.js?raw';
 import dailyCalendarSource from '../../lib/dailyCalendar.js?raw';
 import useDailyQuestsSource from '../../hooks/useDailyQuests.js?raw';
@@ -24,7 +26,10 @@ import mainMenuSource from '../../pages/MainMenu.jsx?raw';
 import appSource from '../../App.jsx?raw';
 import bottomNavSource from '../layout/BottomNav.jsx?raw';
 import gameSource from '../../pages/Game.jsx?raw';
+import profileEditSource from '../../pages/ProfileEditPage.jsx?raw';
 import friendsApiSource from '../../lib/friendsApi.js?raw';
+import soloAttemptEffectsSource from '../../features/solo/services/soloAttemptEffects.js?raw';
+import soloLevelsSource from '../../lib/soloLevels.js?raw';
 import {
   isCanonicalDailyDayComplete,
   selectCanonicalDailyTaskRows,
@@ -83,11 +88,16 @@ const runtimeSources = [
   recordDailyQuestProgressSource,
   claimDailyQuestRewardSource,
   dailyQuestGatewaySource,
+  dailyQuestEventsSource,
+  dailyGoalsRuntimeSource,
   dailyStatusCacheSource,
   useDailyQuestsSource,
   dailyPageSource,
   mainMenuSource,
   gameSource,
+  profileEditSource,
+  soloAttemptEffectsSource,
+  soloLevelsSource,
   useDailyWheelSource,
   friendsApiSource,
 ].join('\n');
@@ -115,7 +125,8 @@ export const EXTRA_TESTS = [
         'İpucu kullan',
         'profile_already_complete',
         'requires_registered_user',
-        'DEFERRED_PROVENANCE_TASK_KEYS',
+        "title: 'Üst üste 4 doğru cevap ver'",
+        "title: '5 soruyu doğru cevapla'",
         'PROVENANCE_SAFE_FALLBACKS',
         'resolveDailyTaskTemplates',
         'selectCanonicalDailyTaskRows',
@@ -391,7 +402,7 @@ export const EXTRA_TESTS = [
   makeCase('daily_task_event_source_matrix_and_training_exclusions',
     'All Daily task event sources are wired and training Joker/Hint use is excluded',
     () => {
-      const combined = `${dailyCalendarSource}\n${getDailyQuestStatusSource}\n${recordDailyQuestProgressSource}\n${gameSource}\n${friendsApiSource}`;
+      const combined = `${dailyCalendarSource}\n${getDailyQuestStatusSource}\n${recordDailyQuestProgressSource}\n${gameSource}\n${profileEditSource}\n${friendsApiSource}`;
       const missing = missingTokens(combined, [
         'daily_wheel_claim',
         'solo_level_complete',
@@ -419,7 +430,12 @@ export const EXTRA_TESTS = [
         'HintTransaction',
         'hint_transaction_verified',
         'levelNumber > 6',
-        'authoritative_jokerless_attempt_receipt_unavailable',
+        'lastAttemptId',
+        'lastAttemptPassed',
+        'lastAttemptUsedRealJoker',
+        'persisted_jokerless_solo_attempt_verified',
+        'recordDailyQuestSourceEvent',
+        "eventType: 'profile_complete'",
       ]);
       const forbidden = forbiddenTokens(combined, [
         "eventType: 'joker_used',\n        mode: 'solo_hint'",
@@ -434,7 +450,7 @@ export const EXTRA_TESTS = [
           actual: { missing, forbidden },
         });
       }
-      return pass('Daily event verification covers wheel, persisted level, answer, real spend, profile, and friend receipts; training consumables and jokerless-without-receipt are rejected.', { verification: 'STATIC_CONTRACT' });
+      return pass('Daily event verification covers wheel, exact persisted Solo attempts, answers, real spend, profile, and friend receipts; training consumables remain excluded.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('guest_and_logged_in_paths_are_supported',

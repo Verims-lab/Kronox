@@ -67,6 +67,7 @@ const TASK_LIBRARY: Record<string, any> = {
     questType: TASK_TYPES.CONSECUTIVE_CORRECT_4,
     targetValue: 1,
     icon: 'star',
+    requiresRegisteredUser: true,
   },
   correct5: {
     key: 'correct5',
@@ -75,6 +76,7 @@ const TASK_LIBRARY: Record<string, any> = {
     questType: TASK_TYPES.CORRECT_ANSWER,
     targetValue: 5,
     icon: 'star',
+    requiresRegisteredUser: true,
   },
   joker1: {
     key: 'joker1',
@@ -83,7 +85,6 @@ const TASK_LIBRARY: Record<string, any> = {
     questType: TASK_TYPES.JOKER_USED,
     targetValue: 1,
     icon: 'shield',
-    requiresRegisteredUser: true,
   },
   joker2: {
     key: 'joker2',
@@ -92,7 +93,6 @@ const TASK_LIBRARY: Record<string, any> = {
     questType: TASK_TYPES.JOKER_USED,
     targetValue: 2,
     icon: 'shield',
-    requiresRegisteredUser: true,
   },
   timeFreeze: {
     key: 'timeFreeze',
@@ -101,7 +101,6 @@ const TASK_LIBRARY: Record<string, any> = {
     questType: TASK_TYPES.TIME_FREEZE_JOKER_USED,
     targetValue: 1,
     icon: 'freeze',
-    requiresRegisteredUser: true,
   },
   hint: {
     key: 'hint',
@@ -159,7 +158,6 @@ const DAILY_TASK_TEMPLATE_CYCLE = [
   ['wheel', 'joker2', 'level3'],
 ];
 const PROVENANCE_SAFE_FALLBACKS = ['level1', 'hint', 'profile', 'friendInvite', 'joker1', 'timeFreeze'];
-const DEFERRED_PROVENANCE_TASK_KEYS = new Set(['correct4', 'correct5', 'jokerless']);
 
 function json(payload: unknown, status = 200) {
   return Response.json(payload, { status });
@@ -406,14 +404,14 @@ function resolveTaskTemplates(dateKey: string, player: any) {
     let key = templateKey;
     let fallbackReason = '';
     if (key === 'profile' && profileComplete) {
-      key = 'level1';
+      key = 'correct5';
       fallbackReason = 'profile_already_complete';
     }
     let task = TASK_LIBRARY[key] || TASK_LIBRARY.correct5;
-    if (DEFERRED_PROVENANCE_TASK_KEYS.has(task.key) || (task.requiresRegisteredUser && player?.isGuest) || usedQuestTypes.has(task.questType)) {
-      fallbackReason = DEFERRED_PROVENANCE_TASK_KEYS.has(task.key)
-        ? `${task.key}_awaiting_authoritative_receipt`
-        : (task.requiresRegisteredUser && player?.isGuest ? `${task.key}_requires_registered_user` : `${task.key}_duplicate_event_type`);
+    if ((task.requiresRegisteredUser && player?.isGuest) || usedQuestTypes.has(task.questType)) {
+      fallbackReason = task.requiresRegisteredUser && player?.isGuest
+        ? `${task.key}_requires_registered_user`
+        : `${task.key}_duplicate_event_type`;
       const fallbackKey = PROVENANCE_SAFE_FALLBACKS.find((candidate) => {
         const fallbackTask = TASK_LIBRARY[candidate];
         return fallbackTask

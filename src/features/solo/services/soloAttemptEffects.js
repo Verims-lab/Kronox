@@ -15,6 +15,8 @@ import {
  *   levelNumber: number,
  *   result: Record<string, any>,
  *   cardTarget: number,
+ *   attemptId?: string,
+ *   usedRealJoker?: boolean,
  *   onPersistedCompletion?: () => unknown | Promise<unknown>,
  * }} options
  */
@@ -22,6 +24,8 @@ export async function persistSoloLevelAttempt({
   levelNumber,
   result,
   cardTarget,
+  attemptId = '',
+  usedRealJoker = false,
   onPersistedCompletion,
 }) {
   const player = await base44.auth.me().catch(() => null);
@@ -64,6 +68,8 @@ export async function persistSoloLevelAttempt({
     timeBonus: result.timeBonus,
     levelScore: result.levelScore,
     soloRulesVersion: result.soloRulesVersion || SOLO_RULES_VERSION,
+    attemptId: String(attemptId || ''),
+    usedRealJoker: usedRealJoker === true,
   });
   const persisted = await writeSoloProgress(player, next);
 

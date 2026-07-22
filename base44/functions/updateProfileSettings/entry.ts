@@ -440,6 +440,7 @@ Deno.serve(async (req: Request) => {
         ok: true,
         mode: 'registered',
         user: publicUser,
+        profileUpdatedAt: timestamp,
         leaderboardUpdated,
         contract: {
           authUserVerifiedServerSide: true,
@@ -478,6 +479,7 @@ Deno.serve(async (req: Request) => {
       ...built.patch,
       ...(await ensureKronoxUserIdPatch(base44, guest, 'system_profile_settings_backfill')),
       last_seen_at: timestamp,
+      profile_settings_updated_at: timestamp,
     });
     const publicGuest = updatedGuest || { ...guest, ...built.patch };
     const leaderboardUpdated = await refreshLeaderboardIdentity(
@@ -490,6 +492,7 @@ Deno.serve(async (req: Request) => {
       ok: true,
       mode: 'guest',
       profile: publicGuestProfile(publicGuest),
+      profileUpdatedAt: timestamp,
       leaderboardUpdated,
       contract: {
         guestTokenProofRequired: true,

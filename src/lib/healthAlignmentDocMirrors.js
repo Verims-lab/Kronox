@@ -843,7 +843,7 @@ a missing key or complete the day/reward. Day 3 uses Profilini tamamla only whil
 the profile is incomplete; otherwise it falls back to 5 soruyu doğru cevapla.
 İpucu kullan tasks use the real hint_used event and must verify a matching
 HintTransaction.reason = solo_use row before progress advances.
-Registered-only friend/joker tasks fall back for completed guests when needed
+Registered-only friend/answer tasks fall back for completed guests when needed
 so the runtime never creates impossible active tasks.
 
 The Daily page shows the simplified UI contract: Daily header shows only GÜNLÜK.
@@ -864,7 +864,15 @@ recordDailyQuestProgress ignores client amount, verifies same-actor/server-day
 source provenance for wheel, attempt, answer, Joker, Hint, profile, and friend
 events, rejects missing/foreign/stale proof, and never grants Diamonds. Training
 levels 1-6 have no spend receipt and cannot satisfy Joker/Hint tasks; Hint is not
-Joker. Daily tasks never grant Kronox Puan or affect Leaderboard.
+Joker. Real Joker/Hint progress follows the successful server spend and exact
+ledger idempotency key with bounded read-after-write retries; Zamanı Dondur also
+requires the real time_freeze type. Solo level/jokerless progress binds the
+exact persisted passed attempt, with Hint separate from the real-Joker flag.
+Profile and friend tasks require successful source state, duplicate receipts do
+not double-count, and accepted events refresh the shared Daily status cache.
+The executable 18-case Daily Goals Runtime Simulation Suite guards these source,
+training, idempotency, and refresh contracts. Daily tasks never grant Kronox
+Puan or affect Leaderboard.
 
 claimDailyQuestReward is the only Daily Calendar reward path. It grants the
 7-day streak reward server-side and idempotently through

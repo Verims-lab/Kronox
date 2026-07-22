@@ -487,6 +487,13 @@ Streak:
 - Solo emits real-event progress for level completion, correct answers,
   consecutive-correct-4, joker usage, Time Freeze usage, and jokerless level
   completion.
+- Real Joker/Hint progress is emitted only after the server spend succeeds and
+  is verified from the matching ledger idempotency key. `Zamanı Dondur` also
+  requires the exact `time_freeze` type. Short bounded retries cover ledger
+  propagation without turning failed spends into progress.
+- Level and jokerless progress is emitted only after the exact passed attempt
+  is persisted. Jokerless uses the persisted real-Joker flag; Hint use remains
+  separate and does not disqualify the attempt. Failed attempts never count.
 - Daily Wheel and Friends emit their own event progress; Solo does not fake
   those tasks.
 - `Çark çevir` is completed by a successful Daily Wheel claim and can be
@@ -498,6 +505,9 @@ Streak:
 - Daily task-relevant events invalidate the Daily status cache so `/daily`
   refreshes without app restart while older background status responses are
   ignored.
+- Daily receipt IDs are idempotent and client-only completion events are
+  rejected. Health Center executes the 18-case `Daily Goals Runtime Simulation
+  Suite` across all canonical source types and training exclusions.
 - `recordDailyQuestProgress` is idempotent and never grants Diamonds.
 - A day is complete only after all 3 task rows are complete; missing a UTC day
   breaks the computed streak.

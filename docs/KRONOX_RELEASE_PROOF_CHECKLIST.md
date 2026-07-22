@@ -670,6 +670,18 @@ Checklist:
   from the idempotent `DailyWheelSpin` claim/recovery path, and
   `getDailyQuestStatus` reconciles the task from `DailyWheelSpin` if the
   progress row was missed.
+* Source-event proof: use one real Joker and confirm its generic task refreshes
+  without restart; use two distinct spend receipts for `2 joker kullan`; verify
+  only a real `time_freeze` ledger row completes `Zamanı Dondur`; verify a real
+  Hint completes only `İpucu kullan`; verify levels 1-6 training Joker/Hint do
+  not count. Passed persisted Solo attempts count, failed attempts do not, and
+  jokerless requires the exact passed attempt with no real Joker (Hint is
+  allowed). Profile save, FriendRequest create, and FriendRequest accept are
+  the only sources for their respective tasks. Replaying one receipt is
+  idempotent and unproven client events return `daily_event_provenance_invalid`.
+* Run the targeted `Daily Goals Runtime Simulation Suite` and confirm all 18
+  executable cases pass before release proof. Full Health remains a separate
+  user-run gate.
 * Per-task progress does not grant Diamonds. A day is complete only when all 3
   task rows are complete. Missing a UTC day breaks the computed streak.
 * `claimDailyQuestReward` grants only the 7-day streak reward, writes

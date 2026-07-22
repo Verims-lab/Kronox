@@ -336,6 +336,15 @@ Daily Calendar runtime and legacy Daily Quest definition management:
   real Joker/Hint spend, profile, or friend event. Missing, foreign, stale, and
   unsupported proof is rejected. Training levels 1-6 have no spend receipt and
   cannot satisfy Joker/Hint tasks; Hint is not Joker.
+* Joker/Hint proof is the exact ledger idempotency key after a successful
+  server spend; bounded retries cover read-after-write delay. Generic Joker
+  tasks accept a real Joker type, while `Zamanı Dondur` additionally requires
+  `joker_type = time_freeze`. Solo task proof binds the exact persisted attempt
+  ID, passed flag, UTC date, and real-Joker flag. Answer proof binds the exact
+  `QuestionAttemptEvent.event_id`, with the four-correct task requiring a real
+  uninterrupted sequence. Duplicate source receipts are ignored per task/day.
+  Accepted progress invalidates the shared Daily cache; fake client completion
+  input never grants progress, Diamonds, Kronox Puan, or Leaderboard score.
 * User-facing Daily entry is the Home `GÜNLÜK` shortcut and `/daily` calendar;
   the security contract remains Diamonds-only, no Kronox Puan, and no
   Leaderboard impact.
