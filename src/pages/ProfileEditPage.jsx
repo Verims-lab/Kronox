@@ -7,10 +7,14 @@ import { useAuth } from '@/lib/AuthContext';
 import CategoryPreferencesSection from '@/components/settings/CategoryPreferencesSection';
 import KronoxAvatar from '@/components/profile/KronoxAvatar';
 import AvatarPickerSheet from '@/components/profile/AvatarPickerSheet';
-import { normalizeSafePublicUsernameInput, resolveSafePublicUsername } from '@/lib/guestProfile';
+import {
+  getCompletedGuestCredentialsPayload,
+  normalizeSafePublicUsernameInput,
+  resolveSafePublicUsername,
+} from '@/lib/guestProfile';
 import { ensureKronoxUserIdForCurrentActor, getKronoxUserId } from '@/lib/kronoxUserId';
 import { getSafeBackRoute } from '@/lib/NavigationStackContext';
-import { markDailyQuestStatusStale } from '@/lib/dailyStatusCache';
+import { recordDailyQuestSourceEvent } from '@/lib/dailyQuestEvents';
 import {
   PROFILE_AGE_GROUP_OPTIONS,
   PROFILE_GENDER_OPTIONS,
@@ -169,10 +173,20 @@ export default function ProfileEditPage() {
         age_group: nextAgeGroup,
       });
       await applyResult(result);
-      markDailyQuestStatusStale({
-        reason: 'profile_settings_saved',
+      const profileUpdatedAt = String(
+        result?.profileUpdatedAt ||
+        result?.user?.profile_settings_updated_at ||
+        result?.profile?.profile_settings_updated_at ||
+        '',
+      );
+      await recordDailyQuestSourceEvent({
+        ...(getCompletedGuestCredentialsPayload(guestProfile) || {}),
         eventType: 'profile_complete',
-      });
+        mode: 'profile',
+        eventId: profileUpdatedAt ? `profile_settings:${profileUpdatedAt}` : 'profile_settings:verified_state',
+        profileUpdatedAt,
+        metadata: { source: 'ProfileEditPage.saveProfile' },
+      }).catch(() => null);
       setEditor(null);
       setMessage('Profil bilgilerin kaydedildi.');
     } catch (saveError) {

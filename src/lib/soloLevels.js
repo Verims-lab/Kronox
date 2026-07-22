@@ -432,6 +432,9 @@ function mergeBetterResult(previous, fresh) {
     attempts,
     completedAt: best.improvedStars ? now : prev.completedAt,
     lastAttemptAt: now,
+    lastAttemptId: String(fresh.attemptId || ''),
+    lastAttemptPassed: attempt.passed === true,
+    lastAttemptUsedRealJoker: fresh.usedRealJoker === true,
   };
 }
 
@@ -441,7 +444,7 @@ function mergeBetterResult(previous, fresh) {
  * `writeSoloProgress()`.
  *
  * fresh = { levelNumber, stars, usedMoves, remainingMoves, maxMoves, mistakes, timeSeconds, passed,
- *           baseScore, timeBonus, levelScore }
+ *           baseScore, timeBonus, levelScore, attemptId, usedRealJoker }
  */
 export function applyLevelAttempt(progress, fresh) {
   const next = {

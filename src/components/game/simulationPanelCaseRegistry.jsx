@@ -213,6 +213,9 @@ import * as dailyQuestDefinitionCases from './simulationPanelDailyQuestDefinitio
 // Daily Calendar / Streak runtime: user-owned UTC daily_calendar task rows,
 // Diamond-only 7-day streak reward claim flow, and Home GÜNLÜK route surface.
 import * as dailyQuestRuntimeCases from './simulationPanelDailyQuestRuntimeCases';
+// Daily Goals source-proof simulations: all canonical task event types,
+// training exclusions, receipt idempotency, and cache refresh behavior.
+import * as dailyGoalsRuntimeCases from './simulationPanelDailyGoalsRuntimeCases';
 // iOS/mobile compatibility: scoped pull-to-refresh, independent tab stacks,
 // and Kronox bottom-sheet selectors for preference/admin selection controls.
 import * as mobileCompatibilityCases from './simulationPanelMobileCompatibilityCases';
@@ -302,6 +305,7 @@ const MODULES = [
   marketCases,
   dailyQuestDefinitionCases,
   dailyQuestRuntimeCases,
+  dailyGoalsRuntimeCases,
   mobileCompatibilityCases,
   onboardingGuestProfileCases,
   a11yQualityCases,

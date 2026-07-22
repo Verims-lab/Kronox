@@ -1,5 +1,14 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex593 - Daily Goals runtime source-proof completion:
+//   - Real Joker/Hint spends retry and verify exact ledger receipts; Time
+//     Freeze requires its exact type and token-proven guests remain supported.
+//   - Solo completion/jokerless bind the exact persisted passed attempt;
+//     answer streaks use real uninterrupted QuestionAttemptEvent rows.
+//   - Profile/Friend event callers, shared cache refresh, receipt idempotency,
+//     canonical task cycle, docs/mirrors, and 18 executable Health simulations
+//     are aligned without changing Puan, Leaderboard, or BottomNav.
+//
 // Codex592 — Fix Health FAIL KRONOX-MRUC9UZE:
 //   - Retarget stale Online category source/deck Health checks to the current
 //     no-selector contract: Category-row metadata source, all-active-random
@@ -147,7 +156,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex592';
+const BUILD_MARKER = 'Codex593';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

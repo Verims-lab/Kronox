@@ -127,6 +127,15 @@ transaction, profile state, or FriendRequest state. Missing, foreign, stale, or
 unsupported source references are rejected. Levels 1-6 training Joker/Hint
 actions have no spend receipt and therefore cannot satisfy Daily tasks. Hint is
 not Joker, and Daily progress never grants Kronox Puan or affects Leaderboard.
+Real Joker and Hint progress is recorded only after the matching server spend
+succeeds; short bounded receipt retries cover ledger read-after-write delay.
+`Zamanı Dondur` additionally requires `JokerTransaction.joker_type =
+time_freeze`. Solo completion and jokerless completion require the exact
+persisted passed attempt ID; jokerless checks only real Joker spend, so Hint use
+does not disqualify it. Profile and friend tasks follow successful save/create/
+accept results. Accepted events stale the shared Daily cache and receipt IDs are
+deduped per actor/day/task. Health Center's `Daily Goals Runtime Simulation
+Suite` executes these source, training, idempotency, and refresh contracts.
 
 Daily Calendar grants Diamonds only through the server-backed
 `claimDailyQuestReward` callable when the 7-day streak reward is ready. Claims write

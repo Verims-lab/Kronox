@@ -6,7 +6,7 @@
 
 import { base44 } from '@/api/base44Client';
 import { normalizeSafePublicUsernameInput } from '@/lib/guestProfile';
-import { recordDailyQuestProgress } from '@/lib/dbGateway/dailyQuestGateway';
+import { recordDailyQuestSourceEvent } from '@/lib/dailyQuestEvents';
 import { loadSocialSnapshot } from '@/lib/onlinePlayerSelection';
 
 export const USERNAME_NOT_FOUND_MESSAGE = 'Kronox’ta bu kullanıcı adıyla biri yok.';
@@ -180,7 +180,7 @@ export async function sendFriendRequest({ me = null, target = '', toEmail = '' }
   invalidateFriendsSnapshot();
   const requestId = String(data.requestId || data.request_id || data.friendRequestId || data.id || '').trim();
   if (requestId) {
-    recordDailyQuestProgress({
+    await recordDailyQuestSourceEvent({
       eventType: 'friend_invite_sent',
       mode: 'friends',
       amount: 1,
@@ -234,7 +234,7 @@ export async function acceptIncomingRequest(requestOrId) {
     console.error('[friendsApi] acceptFriendRequest backend error', data);
     throw new Error('Arkadaşlık isteği kabul edilemedi. Lütfen tekrar dene.');
   }
-  recordDailyQuestProgress({
+  await recordDailyQuestSourceEvent({
     eventType: 'friend_added',
     mode: 'friends',
     amount: 1,

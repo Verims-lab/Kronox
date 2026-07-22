@@ -36,11 +36,11 @@ const TASK_LIBRARY: Record<string, any> = {
   level1: { key: 'level1', title: '1 seviye tamamla', description: 'Herhangi bir modda 1 seviye tamamla.', questType: TASK_TYPES.SOLO_LEVEL_COMPLETE, targetValue: 1, icon: 'level' },
   level2: { key: 'level2', title: '2 seviye tamamla', description: 'Herhangi bir modda 2 seviye tamamla.', questType: TASK_TYPES.SOLO_LEVEL_COMPLETE, targetValue: 2, icon: 'level' },
   level3: { key: 'level3', title: '3 seviye tamamla', description: 'Herhangi bir modda 3 seviye tamamla.', questType: TASK_TYPES.SOLO_LEVEL_COMPLETE, targetValue: 3, icon: 'level' },
-  correct4: { key: 'correct4', title: 'Üst üste 4 doğru cevap ver', description: 'Bir oyun içinde 4 doğru cevabı seri yap.', questType: TASK_TYPES.CONSECUTIVE_CORRECT_4, targetValue: 1, icon: 'star' },
-  correct5: { key: 'correct5', title: '5 soruyu doğru cevapla', description: 'Bugün toplam 5 doğru cevap ver.', questType: TASK_TYPES.CORRECT_ANSWER, targetValue: 5, icon: 'star' },
-  joker1: { key: 'joker1', title: '1 joker kullan', description: 'Herhangi bir jokeri 1 kez kullan.', questType: TASK_TYPES.JOKER_USED, targetValue: 1, icon: 'shield', requiresRegisteredUser: true },
-  joker2: { key: 'joker2', title: '2 joker kullan', description: 'Herhangi bir jokeri 2 kez kullan.', questType: TASK_TYPES.JOKER_USED, targetValue: 2, icon: 'shield', requiresRegisteredUser: true },
-  timeFreeze: { key: 'timeFreeze', title: 'Zamanı Dondur jokerini kullan', description: 'Zamanı Dondur jokerini 1 kez kullan.', questType: TASK_TYPES.TIME_FREEZE_JOKER_USED, targetValue: 1, icon: 'freeze', requiresRegisteredUser: true },
+  correct4: { key: 'correct4', title: 'Üst üste 4 doğru cevap ver', description: 'Bir oyun içinde 4 doğru cevabı seri yap.', questType: TASK_TYPES.CONSECUTIVE_CORRECT_4, targetValue: 1, icon: 'star', requiresRegisteredUser: true },
+  correct5: { key: 'correct5', title: '5 soruyu doğru cevapla', description: 'Bugün toplam 5 doğru cevap ver.', questType: TASK_TYPES.CORRECT_ANSWER, targetValue: 5, icon: 'star', requiresRegisteredUser: true },
+  joker1: { key: 'joker1', title: '1 joker kullan', description: 'Herhangi bir jokeri 1 kez kullan.', questType: TASK_TYPES.JOKER_USED, targetValue: 1, icon: 'shield' },
+  joker2: { key: 'joker2', title: '2 joker kullan', description: 'Herhangi bir jokeri 2 kez kullan.', questType: TASK_TYPES.JOKER_USED, targetValue: 2, icon: 'shield' },
+  timeFreeze: { key: 'timeFreeze', title: 'Zamanı Dondur jokerini kullan', description: 'Zamanı Dondur jokerini 1 kez kullan.', questType: TASK_TYPES.TIME_FREEZE_JOKER_USED, targetValue: 1, icon: 'freeze' },
   hint: { key: 'hint', title: 'İpucu kullan', description: 'Solo’da 1 ipucu kullan.', questType: TASK_TYPES.HINT_USED, targetValue: 1, icon: 'hint' },
   jokerless: { key: 'jokerless', title: 'Jokersiz seviye tamamla', description: 'Bir seviyeyi joker kullanmadan tamamla.', questType: TASK_TYPES.JOKERLESS_LEVEL_COMPLETE, targetValue: 1, icon: 'star' },
   profile: { key: 'profile', title: 'Profilini tamamla', description: 'Profil bilgilerini tamamla.', questType: TASK_TYPES.PROFILE_COMPLETE, targetValue: 1, icon: 'profile' },
@@ -60,7 +60,6 @@ const DAILY_TASK_TEMPLATE_CYCLE = [
   ['wheel', 'joker2', 'level3'],
 ];
 const PROVENANCE_SAFE_FALLBACKS = ['level1', 'hint', 'profile', 'friendInvite', 'joker1', 'timeFreeze'];
-const DEFERRED_PROVENANCE_TASK_KEYS = new Set(['correct4', 'correct5', 'jokerless']);
 
 function json(payload: unknown, status = 200) {
   return Response.json(payload, { status });
@@ -275,14 +274,14 @@ function resolveTaskTemplates(dateKey: string, player: any) {
     let key = templateKey;
     let fallbackReason = '';
     if (key === 'profile' && profileComplete) {
-      key = 'level1';
+      key = 'correct5';
       fallbackReason = 'profile_already_complete';
     }
     let task = TASK_LIBRARY[key] || TASK_LIBRARY.correct5;
-    if (DEFERRED_PROVENANCE_TASK_KEYS.has(task.key) || (task.requiresRegisteredUser && player?.isGuest) || usedQuestTypes.has(task.questType)) {
-      fallbackReason = DEFERRED_PROVENANCE_TASK_KEYS.has(task.key)
-        ? `${task.key}_awaiting_authoritative_receipt`
-        : (task.requiresRegisteredUser && player?.isGuest ? `${task.key}_requires_registered_user` : `${task.key}_duplicate_event_type`);
+    if ((task.requiresRegisteredUser && player?.isGuest) || usedQuestTypes.has(task.questType)) {
+      fallbackReason = task.requiresRegisteredUser && player?.isGuest
+        ? `${task.key}_requires_registered_user`
+        : `${task.key}_duplicate_event_type`;
       const fallbackKey = PROVENANCE_SAFE_FALLBACKS.find((candidate) => {
         const fallbackTask = TASK_LIBRARY[candidate];
         return fallbackTask
@@ -436,14 +435,13 @@ async function eventSourceIsVerified(base44: any, player: any, body: any, eventT
   }
 
   if (eventType === TASK_TYPES.JOKER_USED || eventType === TASK_TYPES.TIME_FREEZE_JOKER_USED) {
-    if (player.isGuest) return { ok: false, reason: 'guest_joker_task_disabled' };
     const entity = base44?.asServiceRole?.entities?.JokerTransaction || base44?.entities?.JokerTransaction;
     if (!entity?.filter) return { ok: false, reason: 'joker_transaction_entity_missing' };
     const idempotencyKey = String(body?.idempotencyKey || body?.idempotency_key || '').trim();
-    const filters: Record<string, unknown>[] = [];
-    if (idempotencyKey) filters.push({ user_email: player.playerKey, idempotency_key: idempotencyKey });
-    if (!filters.length) return { ok: false, reason: 'joker_ledger_key_missing' };
-    for (const filter of filters) {
+    if (!idempotencyKey) return { ok: false, reason: 'joker_ledger_key_missing' };
+    const filter = { user_email: player.playerKey, idempotency_key: idempotencyKey };
+    for (const delay of [0, 100, 220, 450]) {
+      if (delay) await sleep(delay);
       const rows = await entity.filter(filter, '-created_at', 3).catch(() => []);
       const match = Array.isArray(rows)
         ? rows.find((row: any) => {
@@ -465,10 +463,10 @@ async function eventSourceIsVerified(base44: any, player: any, body: any, eventT
     const entity = base44?.asServiceRole?.entities?.HintTransaction || base44?.entities?.HintTransaction;
     if (!entity?.filter) return { ok: false, reason: 'hint_transaction_entity_missing' };
     const idempotencyKey = String(body?.idempotencyKey || body?.idempotency_key || '').trim();
-    const filters: Record<string, unknown>[] = [];
-    if (idempotencyKey) filters.push({ user_email: player.playerKey, idempotency_key: idempotencyKey });
-    if (!filters.length) return { ok: false, reason: 'hint_ledger_key_missing' };
-    for (const filter of filters) {
+    if (!idempotencyKey) return { ok: false, reason: 'hint_ledger_key_missing' };
+    const filter = { user_email: player.playerKey, idempotency_key: idempotencyKey };
+    for (const delay of [0, 100, 220, 450]) {
+      if (delay) await sleep(delay);
       const rows = await entity.filter(filter, '-created_at', 3).catch(() => []);
       const match = Array.isArray(rows)
         ? rows.find((row: any) => rowId(row)
@@ -511,18 +509,27 @@ async function eventSourceIsVerified(base44: any, player: any, body: any, eventT
       : { ok: false, reason: 'profile_not_complete' };
   }
 
-  if (eventType === TASK_TYPES.JOKERLESS_LEVEL_COMPLETE) {
-    return { ok: false, reason: 'authoritative_jokerless_attempt_receipt_unavailable' };
-  }
-
-  if (eventType === TASK_TYPES.SOLO_LEVEL_COMPLETE) {
+  if (eventType === TASK_TYPES.SOLO_LEVEL_COMPLETE || eventType === TASK_TYPES.JOKERLESS_LEVEL_COMPLETE) {
     if (body?.passed !== true) return { ok: false, reason: 'solo_level_not_passed' };
     const levelNumber = readSoloLevelNumber(body);
+    const attemptId = readAttemptId(body);
+    if (!attemptId) return { ok: false, reason: 'solo_attempt_id_missing' };
     const entry = player?.row?.solo_progress?.levels?.[String(levelNumber)] || null;
-    const completedAt = entry?.lastAttemptAt || entry?.completedAt;
-    return levelNumber > 0 && Number(entry?.bestStars || 0) > 0 && timestampMatchesDate(completedAt, dateKey)
-      ? { ok: true, reason: 'persisted_solo_progress_verified' }
-      : { ok: false, reason: 'persisted_solo_progress_missing' };
+    const sameAttempt = String(entry?.lastAttemptId || '') === attemptId;
+    const passedAttempt = entry?.lastAttemptPassed === true;
+    const attemptRecordedToday = timestampMatchesDate(entry?.lastAttemptAt, dateKey);
+    if (levelNumber <= 0 || !sameAttempt || !passedAttempt || !attemptRecordedToday) {
+      return { ok: false, reason: 'persisted_solo_attempt_mismatch' };
+    }
+    if (eventType === TASK_TYPES.JOKERLESS_LEVEL_COMPLETE && entry?.lastAttemptUsedRealJoker !== false) {
+      return { ok: false, reason: 'persisted_solo_attempt_used_real_joker' };
+    }
+    return {
+      ok: true,
+      reason: eventType === TASK_TYPES.JOKERLESS_LEVEL_COMPLETE
+        ? 'persisted_jokerless_solo_attempt_verified'
+        : 'persisted_solo_attempt_verified',
+    };
   }
 
   if (eventType === TASK_TYPES.CORRECT_ANSWER || eventType === TASK_TYPES.CONSECUTIVE_CORRECT_4) {
@@ -531,23 +538,33 @@ async function eventSourceIsVerified(base44: any, player: any, body: any, eventT
     if (!entity?.filter) return { ok: false, reason: 'question_attempt_event_entity_missing' };
     const attemptId = readAttemptId(body);
     if (!attemptId) return { ok: false, reason: 'question_attempt_id_missing' };
+    const sourceEventId = String(body?.sourceEventId || body?.source_event_id || body?.eventId || body?.event_id || '').trim();
+    if (!sourceEventId) return { ok: false, reason: 'question_attempt_event_id_missing' };
     let rows: any[] = [];
-    for (const delay of [0, 100, 220]) {
+    for (const delay of [0, 100, 220, 450]) {
       if (delay) await sleep(delay);
       rows = await entity.filter({ user_email: player.playerKey, attempt_id: attemptId, event_type: 'answered' }, '-answered_at', 20).catch(() => []);
-      const correctCount = rows.filter((row: any) => row?.is_correct === true).length;
-      if ((eventType === TASK_TYPES.CONSECUTIVE_CORRECT_4 && correctCount >= 4) || (eventType === TASK_TYPES.CORRECT_ANSWER && rows.length)) break;
+      if (rows.some((row: any) => String(row?.event_id || '') === sourceEventId)) break;
     }
-    const verifiedCorrectRows = (rows || []).filter((row: any) => row?.is_correct === true && timestampMatchesDate(row?.answered_at || row?.created_at, dateKey));
+    const orderedRows = (rows || [])
+      .filter((row: any) => timestampMatchesDate(row?.answered_at || row?.created_at, dateKey))
+      .sort((left: any, right: any) => Date.parse(String(right?.answered_at || right?.created_at || ''))
+        - Date.parse(String(left?.answered_at || left?.created_at || '')));
+    const sourceIndex = orderedRows.findIndex((row: any) => String(row?.event_id || '') === sourceEventId);
+    if (sourceIndex < 0 || orderedRows[sourceIndex]?.is_correct !== true) {
+      return { ok: false, reason: 'correct_question_attempt_event_missing' };
+    }
     if (eventType === TASK_TYPES.CONSECUTIVE_CORRECT_4) {
-      return verifiedCorrectRows.length >= 4
-        ? { ok: true, reason: 'four_correct_attempt_events_verified' }
-        : { ok: false, reason: 'four_correct_attempt_events_missing' };
+      let consecutiveCorrect = 0;
+      for (let index = sourceIndex; index < orderedRows.length; index += 1) {
+        if (orderedRows[index]?.is_correct !== true) break;
+        consecutiveCorrect += 1;
+      }
+      return consecutiveCorrect >= 4
+        ? { ok: true, reason: 'four_consecutive_correct_attempt_events_verified' }
+        : { ok: false, reason: 'four_consecutive_correct_attempt_events_missing' };
     }
-    const eventId = String(body?.eventId || body?.event_id || '').trim();
-    return verifiedCorrectRows.some((row: any) => !eventId || String(row?.event_id || '') === eventId)
-      ? { ok: true, reason: 'correct_question_attempt_event_verified' }
-      : { ok: false, reason: 'correct_question_attempt_event_missing' };
+    return { ok: true, reason: 'correct_question_attempt_event_verified' };
   }
   return { ok: false, reason: 'event_provenance_not_supported' };
 }
