@@ -882,9 +882,11 @@ Puan or affect Leaderboard.
 
 claimDailyQuestReward is the only Daily Calendar reward path. It grants the
 7-day streak reward server-side and idempotently through
-DiamondTransaction.source = daily_calendar_streak_reward for exactly 200
-Diamonds, guarded by the streak cycle id, DiamondTransaction re-read, and the
-economy lock path. Daily Calendar grants Diamonds only, does not grant Kronox
+DiamondTransaction.source = daily_calendar_streak_reward with direction earn
+for exactly 200 Diamonds, guarded by the streak cycle id, DiamondTransaction
+re-read, and the economy lock path. This source is separate from Solo Streak
+V1 source solo_streak and from market_purchase direction spend. Daily Calendar
+grants Diamonds only, does not grant Kronox
 Puan, and does not affect Leaderboard. Daily Calendar rewards carry
 no Kronox Puan and no leaderboard impact. Authenticated users use normalized
 email keys; completed guests use token-proven internal guest keys and persist
