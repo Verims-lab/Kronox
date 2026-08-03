@@ -74,7 +74,7 @@ checks that source code and static Health cannot honestly prove alone.
   automatically, hides native controls, starts from the beginning on open, and
   pauses/resets on close. `ANLADIM` is the primary bottom action, and the
   effective timer remains paused until the popup is closed.
-* The Solo-only streak HUD stays compact above gameplay content at 320/360/390px, uses pointer-events-none feedback, never covers drag/timeline/Joker/Hint/timer/progress controls, uses finite transform/opacity motion, and respects reduced motion. Online renders no streak HUD. Levels 1-6 may show the same visual milestones but no Diamond reward copy may imply an applied grant when none occurred.
+* The Solo-only streak HUD stays compact above gameplay content at 320/360/390px, is width-bounded to the viewport/safe area, uses pointer-events-none feedback, never covers drag/timeline/Joker/Hint/timer/progress controls, uses finite transform/opacity motion, and removes translation/spark animation under reduced motion. Online renders no streak HUD. Levels 1-6 and fail-closed guest milestones may show the same visual milestones only with explicit non-reward copy; no Diamond reward title/value may imply an applied grant when none occurred.
 * Solo drop slots in `before_after`, `timeline_basic`, and normal timeline are
   static: no blinking, pulsing, flashing, shimmering, or pre-drop correct-slot
   guidance. Drag-over feedback is allowed only while actively dragging over a

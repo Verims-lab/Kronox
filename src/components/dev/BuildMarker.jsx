@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex595 - Solo Streak V1 hardening: placement/receipt dedupe, exact level
+// proof, bounded receipt/lock retry, explicit assistance persistence,
+// fail-closed guest/training copy, mobile/reduced-motion guards, and expanded
+// source-connected Health coverage without Online/Daily/Puan impact.
+//
 // Codex594 — Solo-only Kronox Seri Sistemi V1: clean-answer 2/3/4/5 feedback,
 // assisted-answer neutrality, level 1-6 visual-only protection, and locked/idempotent
 // authenticated Diamond milestone rewards with source-connected Health coverage.
@@ -160,7 +165,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex594';
+const BUILD_MARKER = 'Codex595';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
