@@ -14,26 +14,36 @@ export function useSoloStreakSystem({ enabled, attemptId, levelNumber, authentic
     setState(stateRef.current);
     setFeedback(null);
   }, []);
-  useEffect(() => { if (enabled) reset(); }, [attemptId, enabled, reset]);
+  useEffect(() => { reset(); }, [attemptId, enabled, reset]);
   useEffect(() => {
     mountedRef.current = true;
     return () => { mountedRef.current = false; };
   }, []);
-  const processPlacement = useCallback(({ correct, usedJoker, usedHint }) => {
+  const processPlacement = useCallback(({ correct, usedJoker, usedHint, placementKey }) => {
     if (!enabled) return;
-    const transition = applySoloStreakPlacement(stateRef.current, { correct, usedJoker, usedHint, levelNumber });
+    const transition = applySoloStreakPlacement(stateRef.current, {
+      correct,
+      usedJoker,
+      usedHint,
+      placementKey,
+      levelNumber,
+    });
+    if (transition.duplicate) return;
     stateRef.current = transition.state;
     setState(transition.state);
     if (transition.broken) trackSoloStreakEvent('solo_streak_broken', { level: levelNumber || 0 });
     if (transition.milestone) {
-      setFeedback({ key: `${attemptId}:${transition.milestone}:${Date.now()}`, milestone: transition.milestone, rewardStatus: transition.rewardRequest ? 'pending' : 'visual' });
+      setFeedback({
+        key: `${attemptId}:${transition.milestone}:${Date.now()}`,
+        milestone: transition.milestone,
+        rewardStatus: transition.rewardRequest
+          ? (authenticated ? 'pending' : 'unsupported')
+          : 'visual',
+      });
       trackSoloStreakEvent(`solo_${transition.milestone}`, { level: levelNumber || 0, rewardEligible: Boolean(transition.rewardRequest) });
     }
     if (!transition.rewardRequest) return;
-    if (!authenticated) {
-      setFeedback({ key: `${attemptId}:${transition.rewardRequest.milestone}:guest`, milestone: transition.rewardRequest.milestone, rewardStatus: 'unsupported' });
-      return;
-    }
+    if (!authenticated) return;
     const rewardAttemptId = attemptId;
     claimSoloStreakReward({ attemptId: rewardAttemptId, milestone: transition.rewardRequest.milestone, levelNumber })
       .then((result) => {

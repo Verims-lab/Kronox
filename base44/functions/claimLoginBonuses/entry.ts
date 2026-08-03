@@ -102,22 +102,41 @@ function normalizeSoloAttemptId(value: unknown) {
   return /^[A-Za-z0-9:_-]{8,180}$/.test(text) ? text : '';
 }
 
-async function verifyCleanSoloStreak(base44: any, email: string, attemptId: string) {
+function countVerifiedCleanSoloStreak(rows: any[], levelNumber: number, requiredStreak: number) {
+  const seenEventIds = new Set<string>();
+  let streak = 0;
+  for (let index = rows.length - 1; index >= 0; index -= 1) {
+    const row = rows[index];
+    const eventId = String(row?.event_id || '').trim();
+    if (!eventId || Number(row?.level) !== levelNumber) break;
+    if (seenEventIds.has(eventId)) continue;
+    seenEventIds.add(eventId);
+    if (row?.is_correct !== true) break;
+    const assisted = row?.joker_used === true
+      || row?.metadata?.hintUsed === true
+      || row?.metadata?.streakAssisted === true;
+    if (assisted) continue;
+    streak += 1;
+    if (streak >= requiredStreak) return streak;
+  }
+  return streak;
+}
+
+async function verifyCleanSoloStreak(base44: any, email: string, attemptId: string, levelNumber: number, requiredStreak: number) {
   const entity = questionAttemptEventEntity(base44);
   if (!entity?.filter) return 0;
   const waits = [0, 120, 250, 500];
   for (const delay of waits) {
     if (delay) await sleep(delay);
-    const rows = await entity.filter({ user_email: email, attempt_id: attemptId, mode: 'solo', event_type: 'answered' }, 'created_at', 30).catch(() => []);
-    let streak = 0;
-    for (let index = (Array.isArray(rows) ? rows.length : 0) - 1; index >= 0; index -= 1) {
-      const row = rows[index];
-      const assisted = row?.joker_used === true || row?.metadata?.hintUsed === true;
-      if (row?.is_correct !== true) break;
-      if (assisted) continue;
-      streak += 1;
-    }
-    if (streak >= 5 || delay === waits[waits.length - 1]) return streak;
+    const rows = await entity.filter({
+      user_email: email,
+      attempt_id: attemptId,
+      mode: 'solo',
+      event_type: 'answered',
+      level: levelNumber,
+    }, 'created_at', 30).catch(() => []);
+    const streak = countVerifiedCleanSoloStreak(Array.isArray(rows) ? rows : [], levelNumber, requiredStreak);
+    if (streak >= requiredStreak || delay === waits[waits.length - 1]) return streak;
   }
   return 0;
 }
@@ -142,7 +161,7 @@ async function claimSoloStreakReward(base44: any, user: any, email: string, body
   return withEconomyLock(base44, `economy:user:${email}`, idempotencyKey, async () => {
     const duplicate = await findDiamondTransaction(base44, email, idempotencyKey);
     if (duplicate) return json({ ok: true, granted: false, alreadyGranted: true, milestone, amount, diamondBalanceAfter: normalizeNumber(duplicate.balance_after), noKronoxPuan: true, noLeaderboardImpact: true, noDailyGoalImpact: true });
-    const verifiedStreak = await verifyCleanSoloStreak(base44, email, attemptId);
+    const verifiedStreak = await verifyCleanSoloStreak(base44, email, attemptId, levelNumber, requiredStreak);
     if (verifiedStreak < requiredStreak) return json({ ok: false, code: 'solo_streak_receipt_not_ready', error: 'Seri ödülü henüz doğrulanamadı.' }, 409);
     const row = await findUserRow(base44, user, email);
     const balanceBefore = normalizeNumber(row?.diamonds);

@@ -6,6 +6,7 @@ export function createSoloStreakState() {
     currentSoloStreak: 0,
     currentQuestionUsedJoker: false,
     currentQuestionUsedHint: false,
+    processedPlacementKeys: [],
     rewardedMilestonesThisAttempt: [],
     latestMilestone: null,
   };
@@ -13,11 +14,28 @@ export function createSoloStreakState() {
 
 export function applySoloStreakPlacement(state, placement = {}) {
   const previous = state || createSoloStreakState();
+  const previousPlacementKeys = Array.isArray(previous.processedPlacementKeys)
+    ? previous.processedPlacementKeys
+    : [];
+  const placementKey = String(placement.placementKey || '').trim();
+  if (placementKey && previousPlacementKeys.includes(placementKey)) {
+    return {
+      state: previous,
+      duplicate: true,
+      broken: false,
+      milestone: null,
+      rewardRequest: null,
+    };
+  }
+  const processedPlacementKeys = placementKey
+    ? [...previousPlacementKeys, placementKey].slice(-20)
+    : previousPlacementKeys;
   const usedJoker = placement.usedJoker === true;
   const usedHint = placement.usedHint === true;
   if (placement.correct !== true) {
     return {
-      state: { ...previous, currentSoloStreak: 0, currentQuestionUsedJoker: usedJoker, currentQuestionUsedHint: usedHint, latestMilestone: null },
+      state: { ...previous, currentSoloStreak: 0, currentQuestionUsedJoker: usedJoker, currentQuestionUsedHint: usedHint, processedPlacementKeys, latestMilestone: null },
+      duplicate: false,
       broken: previous.currentSoloStreak > 0,
       milestone: null,
       rewardRequest: null,
@@ -25,7 +43,8 @@ export function applySoloStreakPlacement(state, placement = {}) {
   }
   if (usedJoker || usedHint) {
     return {
-      state: { ...previous, currentQuestionUsedJoker: usedJoker, currentQuestionUsedHint: usedHint, latestMilestone: null },
+      state: { ...previous, currentQuestionUsedJoker: usedJoker, currentQuestionUsedHint: usedHint, processedPlacementKeys, latestMilestone: null },
+      duplicate: false,
       broken: false,
       milestone: null,
       rewardRequest: null,
@@ -40,7 +59,8 @@ export function applySoloStreakPlacement(state, placement = {}) {
     ? [...previous.rewardedMilestonesThisAttempt, milestone]
     : previous.rewardedMilestonesThisAttempt;
   return {
-    state: { ...previous, currentSoloStreak: streak, currentQuestionUsedJoker: false, currentQuestionUsedHint: false, rewardedMilestonesThisAttempt, latestMilestone: milestone },
+    state: { ...previous, currentSoloStreak: streak, currentQuestionUsedJoker: false, currentQuestionUsedHint: false, processedPlacementKeys, rewardedMilestonesThisAttempt, latestMilestone: milestone },
+    duplicate: false,
     broken: false,
     milestone,
     rewardRequest: rewardEligible && !alreadyRequested ? { milestone, amount: rewardAmount } : null,

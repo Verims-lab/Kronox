@@ -1363,14 +1363,29 @@ export default function Game() {
     const nextDailyCorrectStreak = event.isCorrect ? soloDailyQuestCorrectStreakRef.current + 1 : 0;
     soloDailyQuestCorrectStreakRef.current = nextDailyCorrectStreak;
     const decisionKey = getCurrentSoloJokerDecisionKey(event.question);
-    const usedJokerForStreak = Boolean(soloJokerUsedByDecisionKeyRef.current.get(decisionKey)); const usedHintForStreak = currentSoloHintRevealStage > 0;
-    processSoloStreakPlacement({ correct: event.isCorrect, usedJoker: usedJokerForStreak, usedHint: usedHintForStreak }); const shownAt = soloQuestionShownAtRef.current.get(questionId);
+    const usedJokerTypeForStreak = soloJokerUsedByDecisionKeyRef.current.get(decisionKey) || '';
+    const usedJokerForStreak = Boolean(usedJokerTypeForStreak);
+    const usedHintForStreak = currentSoloHintRevealStage > 0;
+    const streakPlacementKey = getSoloQuestionAnalyticsEventId(
+      event.question,
+      QUESTION_ANALYTICS_EVENT_TYPES.ANSWERED,
+    );
+    processSoloStreakPlacement({
+      correct: event.isCorrect,
+      usedJoker: usedJokerForStreak,
+      usedHint: usedHintForStreak,
+      placementKey: streakPlacementKey,
+    });
+    const shownAt = soloQuestionShownAtRef.current.get(questionId);
     const responseTimeMs = shownAt ? Math.max(0, Date.now() - shownAt) : undefined;
     const nextMistakeNumber = event.isCorrect
       ? mistakeCount
       : (mistakeShieldActive ? mistakeCount : mistakeCount + 1);
     const answerAttemptEventId = recordSoloQuestionAnalyticsEvent(event.question, QUESTION_ANALYTICS_EVENT_TYPES.ANSWERED, {
+      event_id: streakPlacementKey,
       is_correct: Boolean(event.isCorrect),
+      joker_used: usedJokerForStreak,
+      joker_type: usedJokerTypeForStreak,
       response_time_ms: responseTimeMs,
       mistake_number: nextMistakeNumber,
       metadata: {
@@ -1402,7 +1417,7 @@ export default function Game() {
     }
   }, [
     isSoloLevelMode,
-    isSoloOnboardingMode, currentSoloHintRevealStage, getCurrentSoloJokerDecisionKey, processSoloStreakPlacement,
+    isSoloOnboardingMode, currentSoloHintRevealStage, getCurrentSoloJokerDecisionKey, getSoloQuestionAnalyticsEventId, processSoloStreakPlacement,
     mistakeCount,
     mistakeShieldActive,
     recordSoloQuestionAnalyticsEvent,
