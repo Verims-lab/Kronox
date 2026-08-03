@@ -257,6 +257,16 @@ Checklist:
 
 ---
 
+## Solo Streak V1
+
+* Verify clean correct placements show Kombo x2, Alev Serisi, +3 Elmas, and KRONOX SERİSİ / +5 Elmas at streaks 2/3/4/5.
+* Verify wrong resets, while a successfully used Joker or Hint makes that correct card neutral without breaking the prior streak. Opening or failed assistance use must do nothing, and Hint must remain separate from Joker.
+* Verify replay, next level, fail, completion, and exit reset streak state/effects.
+* Verify levels 1-6 show visuals but create no `solo_streak` DiamondTransaction.
+* Retry streak4/streak5 claims and confirm one ledger row per attempt/milestone, Diamonds only, no Kronox Puan/Leaderboard/Daily Goal change.
+* Run the targeted Solo Streak System Health Suite. Manual mobile proof remains required at 320/360/390px and with reduced motion.
+* Authenticated reward runtime proof is required. Guest visuals work, but guest Diamond streak rewards remain a known fail-closed follow-up until reward-verifiable guest answer receipts exist.
+
 # 4. Solo Gameplay / Result Screens
 
 Checklist:

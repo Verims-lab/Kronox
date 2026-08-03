@@ -1,22 +1,24 @@
 {
   "name": "EconomyOperationLock",
   "type": "object",
-  "description": "Short-lived backend-owned guard for player economy mutations. One logical active row should exist per lock_key while a Diamond/Joker/Daily operation is mutating balance or inventory. Base44/platform uniqueness is not assumed, so functions create a TTL lock, re-read active lock rows, choose one deterministic winner, and mark expired rows stale. Public UI and exports must never expose actor_key or lock_key.",
+  "description": "Short-lived backend-owned guard for player economy mutations. Public UI and exports must never expose actor_key or lock_key.",
   "properties": {
     "lock_key": {
       "type": "string",
-      "description": "Internal per-player lock key such as economy:user:<normalized player key>. Logical unique active key."
+      "description": "Internal per-player lock key."
     },
     "actor_key": {
       "type": "string",
-      "description": "Internal normalized economy actor key. Email for registered users or guest:<g_owner_key> for completed guests. Never public."
+      "description": "Internal normalized economy actor key. Never public."
     },
     "operation_scope": {
       "type": "string",
       "enum": [
+        "login_bonus_grant",
         "market_purchase",
         "solo_joker_spend",
         "solo_hint_spend",
+        "solo_streak_reward",
         "daily_wheel_claim",
         "daily_calendar_streak_claim",
         "daily_quest_claim",
@@ -29,11 +31,11 @@
         "lobby_turn",
         "admin_diamond_grant"
       ],
-      "description": "Economy operation type guarded by this lock."
+      "description": "Guarded operation type."
     },
     "operation_id": {
       "type": "string",
-      "description": "Debug-safe operation id, usually the idempotency key or derived claim key."
+      "description": "Debug-safe operation id."
     },
     "status": {
       "type": "string",
@@ -42,26 +44,23 @@
         "released",
         "stale"
       ],
-      "description": "active while the guarded operation is running, released after normal completion, stale after TTL recovery."
+      "description": "Lock lifecycle."
     },
     "acquired_at": {
       "type": "string",
-      "format": "date-time",
-      "description": "ISO timestamp when the lock row was created."
+      "format": "date-time"
     },
     "expires_at": {
       "type": "string",
-      "format": "date-time",
-      "description": "ISO timestamp after which a future operation may mark this lock stale and continue."
+      "format": "date-time"
     },
     "released_at": {
       "type": "string",
-      "format": "date-time",
-      "description": "ISO timestamp when the lock was released or marked stale."
+      "format": "date-time"
     },
     "metadata": {
       "type": "object",
-      "description": "Debug-safe operation metadata. Must not contain secrets, provider IDs, raw guest IDs, raw guest tokens, or public question data."
+      "description": "Debug-safe metadata without secrets or private/public identity payloads."
     },
     "description": {
       "type": "string",

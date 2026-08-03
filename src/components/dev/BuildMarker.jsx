@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex594 — Solo-only Kronox Seri Sistemi V1: clean-answer 2/3/4/5 feedback,
+// assisted-answer neutrality, level 1-6 visual-only protection, and locked/idempotent
+// authenticated Diamond milestone rewards with source-connected Health coverage.
+//
 // Codex593 - Daily Goals runtime source-proof completion:
 //   - Real Joker/Hint spends retry and verify exact ledger receipts; Time
 //     Freeze requires its exact type and token-proven guests remain supported.
@@ -156,7 +160,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex593';
+const BUILD_MARKER = 'Codex594';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

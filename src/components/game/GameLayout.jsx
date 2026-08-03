@@ -9,6 +9,7 @@ import TurnTimer from './TurnTimer.jsx';
 import SoloLevelTimer from './SoloLevelTimer.jsx';
 import SoloJokerBar from './SoloJokerBar.jsx';
 import SoloHintButton from './SoloHintButton.jsx';
+import SoloStreakHud from './SoloStreakHud.jsx';
 import OnlineTurnIndicator from './OnlineTurnIndicator.jsx';
 import OnlineScoreboard from './OnlineScoreboard.jsx';
 import TutorialHandPointer from './TutorialHandPointer.jsx';
@@ -205,6 +206,8 @@ export default function GameLayout({
   guidedTimelineSwipeHintMinimumElapsed = false,
   interactionPaused = false,
   correctStreak = 0,
+  soloStreakFeedback = null,
+  onSoloStreakFeedbackDone,
   // Handlers
   onSelectZone,
   onDropOnZone,
@@ -506,6 +509,14 @@ export default function GameLayout({
           )}
         </div>
       </div>
+
+      {!isOnline && showSoloLevelHeader && (
+        <SoloStreakHud
+          streak={correctStreak}
+          feedback={soloStreakFeedback}
+          onFeedbackDone={onSoloStreakFeedbackDone}
+        />
+      )}
 
       {/* ONLINE SCOREBOARD — Codex094 */}
       {isOnline && players.length > 1 && !winner && (

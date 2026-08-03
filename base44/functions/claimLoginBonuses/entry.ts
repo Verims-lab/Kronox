@@ -23,7 +23,8 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 
 const STARTER_BONUS_AMOUNT = 100;
 const DAILY_LOGIN_AMOUNT = 20;
-const RUNTIME_VERSION = 'login-bonus-server-v1';
+const SOLO_STREAK_REWARDS: Record<string, number> = { streak4: 3, streak5: 5 };
+const RUNTIME_VERSION = 'login-bonus-server-v1-solo-streak-v1';
 const ECONOMY_LOCK_TTL_MS = 8_000;
 const ECONOMY_LOCK_SETTLE_MS = 80;
 
@@ -60,6 +61,10 @@ function userEntity(base44: any) {
   return base44?.asServiceRole?.entities?.User || base44?.entities?.User || null;
 }
 
+function questionAttemptEventEntity(base44: any) {
+  return base44?.asServiceRole?.entities?.QuestionAttemptEvent || null;
+}
+
 function economyOperationLockEntity(base44: any) {
   return base44?.asServiceRole?.entities?.EconomyOperationLock || base44?.entities?.EconomyOperationLock || null;
 }
@@ -90,6 +95,70 @@ async function findUserRow(base44: any, fallback: any, email: string) {
   if (!entity?.filter) return fallback;
   const rows = await entity.filter({ email }, '-updated_date', 1).catch(() => []);
   return (Array.isArray(rows) && rows[0]) || fallback;
+}
+
+function normalizeSoloAttemptId(value: unknown) {
+  const text = String(value || '').trim();
+  return /^[A-Za-z0-9:_-]{8,180}$/.test(text) ? text : '';
+}
+
+async function verifyCleanSoloStreak(base44: any, email: string, attemptId: string) {
+  const entity = questionAttemptEventEntity(base44);
+  if (!entity?.filter) return 0;
+  const waits = [0, 120, 250, 500];
+  for (const delay of waits) {
+    if (delay) await sleep(delay);
+    const rows = await entity.filter({ user_email: email, attempt_id: attemptId, mode: 'solo', event_type: 'answered' }, 'created_at', 30).catch(() => []);
+    let streak = 0;
+    for (let index = (Array.isArray(rows) ? rows.length : 0) - 1; index >= 0; index -= 1) {
+      const row = rows[index];
+      const assisted = row?.joker_used === true || row?.metadata?.hintUsed === true;
+      if (row?.is_correct !== true) break;
+      if (assisted) continue;
+      streak += 1;
+    }
+    if (streak >= 5 || delay === waits[waits.length - 1]) return streak;
+  }
+  return 0;
+}
+
+async function claimSoloStreakReward(base44: any, user: any, email: string, body: any) {
+  const milestone = String(body?.milestone || '');
+  const amount = SOLO_STREAK_REWARDS[milestone] || 0;
+  const attemptId = normalizeSoloAttemptId(body?.attemptId);
+  const levelNumber = Math.floor(Number(body?.levelNumber) || 0);
+  if (!attemptId || !amount || levelNumber < 7) return json({ ok: false, code: 'solo_streak_reward_ineligible', error: 'Seri ödülü doğrulanamadı.' }, 422);
+  const requiredStreak = milestone === 'streak5' ? 5 : 4;
+  const idempotencyKey = `solo_streak_reward:${email}:${attemptId}:${milestone}`;
+  const existing = await findDiamondTransaction(base44, email, idempotencyKey);
+  if (existing) {
+    const row = await findUserRow(base44, user, email);
+    const repairedBalance = Math.max(normalizeNumber(row?.diamonds), normalizeNumber(existing?.balance_after));
+    if (repairedBalance !== normalizeNumber(row?.diamonds) && rowId(row)) await userEntity(base44)?.update(rowId(row), { diamonds: repairedBalance, economy_updated_at: nowIso() });
+    return json({ ok: true, granted: false, alreadyGranted: true, milestone, amount, diamondBalanceAfter: repairedBalance, noKronoxPuan: true, noLeaderboardImpact: true, noDailyGoalImpact: true });
+  }
+  const lockEntity = economyOperationLockEntity(base44);
+  if (!lockEntity?.filter || !lockEntity?.create || !lockEntity?.update) return json({ ok: false, code: 'economy_lock_unavailable', error: 'Seri ödülü şu anda alınamıyor.' }, 503);
+  return withEconomyLock(base44, `economy:user:${email}`, idempotencyKey, async () => {
+    const duplicate = await findDiamondTransaction(base44, email, idempotencyKey);
+    if (duplicate) return json({ ok: true, granted: false, alreadyGranted: true, milestone, amount, diamondBalanceAfter: normalizeNumber(duplicate.balance_after), noKronoxPuan: true, noLeaderboardImpact: true, noDailyGoalImpact: true });
+    const verifiedStreak = await verifyCleanSoloStreak(base44, email, attemptId);
+    if (verifiedStreak < requiredStreak) return json({ ok: false, code: 'solo_streak_receipt_not_ready', error: 'Seri ödülü henüz doğrulanamadı.' }, 409);
+    const row = await findUserRow(base44, user, email);
+    const balanceBefore = normalizeNumber(row?.diamonds);
+    const balanceAfter = balanceBefore + amount;
+    const timestamp = nowIso();
+    const tx = await createDiamondTransaction(base44, email, idempotencyKey, {
+      user_email: email, amount, balance_before: balanceBefore, balance_after: balanceAfter,
+      source: 'solo_streak', direction: 'earn', idempotency_key: idempotencyKey,
+      metadata: { runtimeVersion: RUNTIME_VERSION, milestone, levelNumber, verifiedCleanStreak: verifiedStreak, grantsDiamondsOnly: true, noKronoxPuan: true, noLeaderboardImpact: true, noDailyGoalImpact: true },
+      related_entity_type: 'solo_attempt', related_entity_id: attemptId, created_at: timestamp, description: 'solo_streak_reward',
+    });
+    if (!tx) throw new Error('solo_streak_transaction_missing');
+    if (!rowId(row)) throw new Error('solo_streak_user_missing');
+    await userEntity(base44)?.update(rowId(row), { diamonds: balanceAfter, economy_updated_at: timestamp });
+    return json({ ok: true, granted: true, alreadyGranted: false, milestone, amount, diamondBalanceAfter: balanceAfter, noKronoxPuan: true, noLeaderboardImpact: true, noDailyGoalImpact: true });
+  }, 'solo_streak_reward');
 }
 
 function buildGrantSpecs(email: string, dateKey: string) {
@@ -157,7 +226,7 @@ async function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function withEconomyLock(base44: any, lockKey: string, operationId: string, callback: () => Promise<Response>) {
+async function withEconomyLock(base44: any, lockKey: string, operationId: string, callback: () => Promise<Response>, operationScope = 'login_bonus_grant') {
   const entity = economyOperationLockEntity(base44);
   if (!entity?.filter || !entity?.create || !entity?.update) return callback();
   const now = nowIso();
@@ -170,14 +239,31 @@ async function withEconomyLock(base44: any, lockKey: string, operationId: string
   const lock = await entity.create({
     lock_key: lockKey,
     actor_key: lockKey.slice(0, 220),
-    operation_scope: 'login_bonus_grant',
+    operation_scope: operationScope,
     operation_id: operationId.slice(0, 220),
     status: 'active',
     acquired_at: now,
     expires_at: new Date(nowMs + ECONOMY_LOCK_TTL_MS).toISOString(),
-    metadata: { runtimeVersion: RUNTIME_VERSION, ttlMs: ECONOMY_LOCK_TTL_MS },
+    metadata: { runtimeVersion: RUNTIME_VERSION, ttlMs: ECONOMY_LOCK_TTL_MS, deterministicWinner: true },
   }).catch(() => null);
-  await sleep(ECONOMY_LOCK_SETTLE_MS);
+  if (!rowId(lock)) {
+    return operationScope === 'solo_streak_reward'
+      ? json({ ok: false, code: 'economy_lock_unavailable', error: 'Seri ödülü şu anda alınamıyor.' }, 503)
+      : callback();
+  }
+  const settleMs = operationScope === 'solo_streak_reward' ? 600 : ECONOMY_LOCK_SETTLE_MS;
+  await sleep(settleMs);
+  const settledRows = await entity.filter({ lock_key: lockKey }, '-acquired_at', 20).catch(() => []);
+  const canonical = (Array.isArray(settledRows) ? settledRows : [])
+    .filter((row: any) => isActiveLock(row, Date.now()))
+    .sort((a: any, b: any) => {
+      const byTime = Date.parse(String(a?.acquired_at || '')) - Date.parse(String(b?.acquired_at || ''));
+      return Number.isFinite(byTime) && byTime !== 0 ? byTime : String(rowId(a) || '').localeCompare(String(rowId(b) || ''));
+    })[0] || null;
+  if (rowId(canonical) !== rowId(lock)) {
+    await entity.update(rowId(lock), { status: 'released', released_at: nowIso() }).catch(() => null);
+    return json({ ok: false, code: 'economy_operation_in_progress', error: 'Ekonomi işlemi işleniyor. Lütfen tekrar dene.' }, 409);
+  }
   try {
     return await callback();
   } finally {
@@ -193,10 +279,15 @@ Deno.serve(async (req: Request) => {
       return json({ ok: false, code: 'method_not_allowed', error: 'Bu işlem desteklenmiyor.' }, 405);
     }
     const base44 = createClientFromRequest(req);
+    const body = await req.json().catch(() => ({}));
     const user = await base44.auth.me().catch(() => null);
     const email = normalizeEmail(user?.email || user?.user_email);
     if (!email) {
       return json({ ok: false, code: 'auth_required', error: 'Giriş yapmanız gerekiyor.' }, 401);
+    }
+
+    if (String(body?.action || '') === 'solo_streak_reward') {
+      return claimSoloStreakReward(base44, user, email, body);
     }
 
     const dateKey = utcDateKey();

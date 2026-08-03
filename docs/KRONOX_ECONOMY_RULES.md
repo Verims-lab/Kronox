@@ -87,6 +87,8 @@ market_purchase
 daily_calendar_streak_reward
 ```
 
+`solo_streak` is an active Solo-only Diamond source: streak4 grants +3 and streak5 grants +5, each at most once per attempt. Eligibility is level 7+, uses persisted clean-answer receipts, and is guarded by the shared economy lock plus a `solo_streak_reward:<actor>:<attemptId>:<milestone>` idempotency key. Levels 1-6 remain visual-only. The source never grants Kronox Puan, affects Leaderboard, or advances Daily Goals. Authenticated claims are active; guest claims fail closed until guest Solo answer receipts have an equivalent reward-verifiable persisted source.
+
 Legacy historical source retained for old ledger rows: `daily_quest_reward`.
 
 Future schema-ready sources are intentionally inactive:

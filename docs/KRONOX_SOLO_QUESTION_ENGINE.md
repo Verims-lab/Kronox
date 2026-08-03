@@ -533,6 +533,14 @@ Joker behavior:
   active, the Hint pause is overlap-aware and must not subtract the same frozen
   seconds twice.
 
+## Kronox Seri Sistemi V1
+
+Kronox Seri Sistemi is Solo-only. Clean correct placements increment the attempt-local streak; wrong placements reset it. A successfully used Joker or Hint on the current card makes that correct placement neutral: it neither increments nor automatically breaks the existing streak, and Hint remains separate from Joker. Opening assistance UI or failed assistance use has no effect.
+
+Thresholds are Kombo x2 at 2, Alev Serisi at 3, +3 Diamonds at 4, and KRONOX SERİSİ plus +5 Diamonds at 5. Levels 1-6 may show every visual milestone but cannot request Diamond rewards. Eligible rewards are fixed server-side, verified from persisted clean Solo answer receipts, guarded by EconomyOperationLock, and idempotent once per attempt/milestone. They do not change Solo scoring, Kronox Puan, Leaderboard, Daily Goals, Daily Wheel, or Online. Authenticated rewards are active; guest reward claims fail closed until guest answer receipts have an equivalent reward-verifiable persisted source.
+
+The pure Solo streak transition helper and the source-connected Solo Streak System Health Suite protect thresholds, assistance neutrality, resets, training exclusion, reward idempotency, effect cleanup, and downstream-only analytics.
+
 ## Backward Compatibility
 
 Do not recalculate old completed Solo results. Do not rewrite old stored `bestScore`, `bestStars`, or `bestTimeSeconds`. New attempts can record `soloRulesVersion: 3` so future audits can distinguish Solo v3 move-based results from legacy stored results.

@@ -1,7 +1,7 @@
 {
   "name": "DiamondTransaction",
   "type": "object",
-  "description": "Codex152/Codex288 \u2014 User-owned Diamond economy ledger. One logical row should exist per idempotency_key. Base44 uniqueness is not assumed, so runtime helpers check idempotency_key and User guard fields before grants/spends.",
+  "description": "Codex152/Codex594 \u2014 User-owned Diamond economy ledger. One logical row should exist per idempotency_key. Solo streak rewards use source solo_streak and fixed per-attempt milestone keys.",
   "properties": {
     "user_email": {
       "type": "string",
@@ -9,11 +9,11 @@
     },
     "owner_key": {
       "type": "string",
-      "description": "Optional internal owner key (u_... or g_...) for audit/account-link correlation. Public APIs must not expose it."
+      "description": "Optional internal owner key for audit/account-link correlation. Public APIs must not expose it."
     },
     "kronox_user_id": {
       "type": "string",
-      "description": "Immutable Kronox ID of the economy owner when available. Admin/private audit field; not public identity and not authorization proof."
+      "description": "Immutable Kronox ID of the economy owner when available. Admin/private audit field."
     },
     "player_type": {
       "type": "string",
@@ -21,7 +21,7 @@
         "registered",
         "guest"
       ],
-      "description": "Internal economy owner type. Completed guests can earn Daily Wheel and Daily Calendar / Streak Diamonds before account linking."
+      "description": "Internal economy owner type."
     },
     "amount": {
       "type": "number",
@@ -29,11 +29,11 @@
     },
     "balance_before": {
       "type": "number",
-      "description": "Canonical User.diamonds balance before this transaction."
+      "description": "Canonical player Diamond balance before this transaction."
     },
     "balance_after": {
       "type": "number",
-      "description": "Canonical User.diamonds balance after this transaction."
+      "description": "Canonical player Diamond balance after this transaction."
     },
     "source": {
       "type": "string",
@@ -42,6 +42,7 @@
         "first_login_reward",
         "daily_login",
         "daily_wheel",
+        "solo_streak",
         "market_purchase",
         "account_link_merge",
         "daily_quest_reward",
@@ -55,7 +56,7 @@
         "special_event_future",
         "admin_adjustment"
       ],
-      "description": "Economy source. Active sources include starter_bonus, first_login_reward, daily_login, daily_wheel, market_purchase, daily_calendar_streak_reward, daily_quest_reward (legacy), account_link_merge, and admin_adjustment. daily_wheel is written only for the Diamond portion of Daily Wheel V2 rewards; approved wheel joker portions use JokerTransaction. first_login_reward is the one-time Profile account-link reward written by linkGuestAccount. Daily Calendar 7-day streak reward claims write daily_calendar_streak_reward with direction earn for exactly 200 Diamonds; Daily Calendar grants diamonds only, does not grant Kronox Puan, and has no leaderboard impact."
+      "description": "Economy source. solo_streak is the Solo-only clean-answer milestone reward and never changes Kronox Puan, Leaderboard, or Daily Goals."
     },
     "direction": {
       "type": "string",
@@ -63,23 +64,23 @@
         "earn",
         "spend"
       ],
-      "description": "earn for granted Diamonds, spend for Ma\u011faza purchases/costs."
+      "description": "earn for granted Diamonds, spend for costs."
     },
     "idempotency_key": {
       "type": "string",
-      "description": "Durable idempotency key, e.g. starter_bonus:<email> or daily_login:<email>:<YYYY-MM-DD>."
+      "description": "Durable logical unique idempotency key."
     },
     "metadata": {
       "type": "object",
-      "description": "Debug-safe metadata such as dateKey/dayBoundary. Must not contain secrets, push data, or private profile fields."
+      "description": "Debug-safe metadata. Must not contain secrets, raw auth tokens, or public/private identity payloads."
     },
     "related_entity_type": {
       "type": "string",
-      "description": "Optional related economy entity type, e.g. joker_purchase."
+      "description": "Optional related economy entity type."
     },
     "related_entity_id": {
       "type": "string",
-      "description": "Optional related economy entity id or idempotency key."
+      "description": "Optional related entity id or idempotency key."
     },
     "created_at": {
       "type": "string",
@@ -89,7 +90,7 @@
     "description": {
       "type": "string",
       "maxLength": 1000,
-      "description": "Optional free-text description for this transaction (up to 1000 characters)."
+      "description": "Optional free-text description for this transaction."
     }
   },
   "required": [

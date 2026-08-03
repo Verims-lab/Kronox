@@ -306,6 +306,10 @@ backfillSoloScores(progress, totalLevels)
 
 ---
 
+## 2.9 Solo Streak V1 Is Not Scoring
+
+Kronox Seri Sistemi V1 is Solo-only gameplay feedback. Clean consecutive correct placements reach visual milestones at 2/3 and fixed Diamond milestones at 4 (+3) and 5 (+5). Joker/Hint-assisted correct cards are neutral and wrong cards reset the streak. Levels 1-6 are visual-only. Streak Diamonds are idempotent per attempt and do not multiply or mutate Solo level score, Kronox Puan, Online score, or Leaderboard projection.
+
 # 3. Online Mode Scoring
 
 Implementation reference:

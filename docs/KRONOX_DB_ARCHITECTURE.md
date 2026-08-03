@@ -336,6 +336,10 @@ or account data.
 | `LobbyMessage` | Lobby chat/system messages. | Schema exists; active runtime usage not obvious in current scan. | Not currently core source. | No active high-confidence UI path found in quick audit. | Read by lobby membership via nested Lobby query; may be expensive. | `lobby_id + created_date`; `type`; `created_by_id`. | Delete/archive with lobby retention after chat retention policy. | Candidate for deletion after proof. | Prove no chat UI/function uses it; check production row count/export. |
 | `AdminMaintenanceLog` | Admin-only maintenance audit log. | Admin reset preview/execute logging. | Yes for maintenance audit. | `adminResetUserProgress`; future jobs should append here or a job log table. | Admin-only RLS. Contains admin/target emails; never public. | `created_at`; `action + created_at`; `target_email + created_at`; `admin_email + created_at`. | Archive/trim after admin audit retention. | Keep. | N/A. |
 
+### Solo Streak V1 Economy Boundary
+
+`claimLoginBonuses` also exposes the narrow `solo_streak_reward` action so the project stays within the 50-function deploy cap. It accepts no client reward amount, verifies level 7+, milestone 4/5, and the persisted tail of clean Solo `QuestionAttemptEvent` answers, then writes one `DiamondTransaction.source = solo_streak` under `EconomyOperationLock.operation_scope = solo_streak_reward`. The response contains no transaction/internal actor IDs and carries explicit no-Puan/no-Leaderboard/no-Daily impact markers. Levels 1-6 never enter this economy path. Guest claims are blocked because guest QuestionAttemptEvent reward receipts are not yet persisted through an equivalent backend-owned source.
+
 ## 3. Current Risks
 
 ### P0/P1 Data Risks

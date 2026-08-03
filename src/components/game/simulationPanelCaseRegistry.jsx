@@ -252,6 +252,7 @@ import * as architectureP1Cases from './simulationPanelArchitectureP1Cases';
 // Online waiting-room/lobby fallback poll + live-lobby priority contracts
 // retargeted to the real post-refactor helpers.
 import * as hamle3RuntimeAlignmentCases from './simulationPanelHamle3RuntimeAlignmentCases';
+import * as soloStreakCases from './simulationPanelSoloStreakCases';
 
 const MODULES = [
   soloProgressCases,
@@ -316,6 +317,7 @@ const MODULES = [
   logicalUniqueGuardCases,
   architectureP1Cases,
   hamle3RuntimeAlignmentCases,
+  soloStreakCases,
 ];
 
 function flatten(key) {
