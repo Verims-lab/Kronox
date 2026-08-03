@@ -33,6 +33,7 @@ Internal deck buffer formula:
 - Zamanı Dondur does not require a card buffer
 - Kart Değiştir uses the card-swap buffer and does not consume a move
 - Kronokalkan uses the shield buffer and protects one wrong valid placement from consuming a move
+- Move accounting runs only from final evaluated placement feedback: correct consumes one move, wrong consumes one move unless Kronokalkan-protected, and drag/touch/hover/preview/invalid-drop activity consumes none. Online is gated out through the Solo mode boundary. Solo Streak V1 receives the evaluated answer downstream and never dispatches a move action or adds a second decrement.
 - If a user owns more jokers than the per-attempt buffer, extra Kart Değiştir/Kronokalkan attempts fail safely before spend; no raw client question list or full-bank fallback is used.
 
 ## Solo Onboarding Level Types

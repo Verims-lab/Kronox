@@ -35,6 +35,7 @@ neither DB/entity unique nor function-level guard is High.
 - first_login_reward (one-time Profile account-link reward, guarded by User.first_login_reward_granted_at and DiamondTransaction idempotency_key first_login_reward:<email>)
 - daily_login (guarded by User.last_daily_diamond_reward_date)
 - daily_wheel (server-backed Daily Wheel V2 claim; Diamonds, approved Solo jokers, or Gift Box only; no Kronox Puan)
+- daily_calendar_streak_reward (code-owned 7-day Daily Calendar grant; direction earn; exactly 200 Diamonds; idempotent actor/cycle key; no Kronox Puan or Leaderboard impact)
 - solo_streak (Solo-only streak4 +3 / streak5 +5 Diamonds; level 7+; actor/attempt/level-bound persisted clean-answer verification with event-id dedupe; bounded receipt/lock retries; EconomyOperationLock; once per attempt/milestone; no Kronox Puan, Leaderboard, or Daily Goals; guest claims fail closed with non-reward HUD copy until reward-verifiable guest receipts exist)
 - market_purchase (server-backed Mağaza joker purchase; Diamond spend only)
 

@@ -83,8 +83,9 @@ starter_bonus
 first_login_reward
 daily_login
 daily_wheel
-market_purchase
 daily_calendar_streak_reward
+solo_streak
+market_purchase
 ```
 
 `solo_streak` is an active Solo-only Diamond source: streak4 grants +3 and streak5 grants +5, each at most once per attempt. Eligibility is level 7+, uses persisted clean-answer receipts bound to the authenticated actor, attempt, and level, deduplicates answer event IDs, and is guarded by the shared economy lock plus a `solo_streak_reward:<actor>:<attemptId>:<milestone>` idempotency key. Known receipt-propagation and lock-contention responses receive only bounded client retries. Levels 1-6 remain visual-only. The source never grants Kronox Puan, affects Leaderboard, or advances Daily Goals. Authenticated claims are active; guest claims fail closed until guest Solo answer receipts have an equivalent reward-verifiable persisted source, and guest/training milestone UI uses non-reward copy.
@@ -142,7 +143,10 @@ Suite` executes these source, training, idempotency, and refresh contracts.
 Daily Calendar grants Diamonds only through the server-backed
 `claimDailyQuestReward` callable when the 7-day streak reward is ready. Claims write
 `DiamondTransaction.source = daily_calendar_streak_reward` with
-`direction = earn`, grant exactly 200 Diamonds, and use an idempotency key
+`direction = earn`, grant exactly 200 Diamonds, and remain distinct from
+`DiamondTransaction.source = solo_streak` (+3/+5 Solo-only milestones). The
+source/direction model also keeps `daily_wheel` earn and `market_purchase` spend
+separate. Daily Calendar claims use an idempotency key
 shaped like
 `daily_calendar_streak:<playerKey>:<streak_anchor_date>:<claim_number>:200`.
 The client must not control reward amount. Daily Calendar does not grant Kronox

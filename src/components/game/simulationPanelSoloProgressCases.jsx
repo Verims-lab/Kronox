@@ -31,6 +31,7 @@ import soloLevelsLibSource from '../../lib/soloLevels.js?raw';
 import soloAttemptReducerSource from '../../lib/soloAttemptReducer.js?raw';
 import soloAttemptViewModelSource from '../../features/solo/viewModel/useSoloAttemptViewModel.js?raw';
 import soloRuntimeModelSource from '../../features/solo/model/soloRuntimeModel.js?raw';
+import soloStreakModelSource from '../../features/solo/model/soloStreakModel.js?raw';
 import soloProgressHelpersSource from '../../lib/soloProgressHelpers.js?raw';
 import soloRankingSource from '../../lib/soloRanking.js?raw';
 import soloLevelRecordSource from '../../lib/soloLevelRecord.js?raw';
@@ -59,6 +60,7 @@ import {
   SOLO_SPECIAL_MAX_EVALUATED_MOVES,
   summarizeSoloProgress,
 } from '../../lib/soloProgressHelpers';
+import { mapSoloPlacementFeedback } from '../../features/solo/model/soloRuntimeModel';
 
 const STATUS = {
   PASS: 'PASS',
@@ -786,7 +788,7 @@ export const EXTRA_TESTS = [
           'usedMoveCount: state.usedMoves',
           'remainingMoveCount',
           "feedback.result === 'wrong'",
-          "feedback.result === 'correct'",
+          "correct: result === 'correct'",
           'evaluateSoloPlacement(feedback, {',
           'protectedByJoker,',
           "countsAsMove: !(result === 'wrong' && protectedByJoker)",
@@ -797,6 +799,7 @@ export const EXTRA_TESTS = [
           'failReason: attempt.failReason || failReason',
           'remainingMoves={isSoloLevelMode ? remainingMoveCount : undefined}',
           'maxMoves={isSoloLevelMode ? soloMaxMoves : undefined}',
+          'processSoloStreakPlacement({',
         ]),
         ...missingTokens(`${soloSuccessPopupSource}\n${soloFailureCardSource}`, [
           'label="HAMLE"',
@@ -804,6 +807,24 @@ export const EXTRA_TESTS = [
           'MoveHorizontal',
         ]),
       ];
+      const started = soloAttemptReducer(createSoloAttemptInitialState(), {
+        type: SOLO_ATTEMPT_ACTIONS.ATTEMPT_STARTED,
+        levelNumber: 7,
+      });
+      const correctEvaluation = mapSoloPlacementFeedback({ result: 'correct', cardId: 'correct' });
+      const wrongEvaluation = mapSoloPlacementFeedback({ result: 'wrong', cardId: 'wrong' });
+      const protectedEvaluation = mapSoloPlacementFeedback(
+        { result: 'wrong', cardId: 'protected' },
+        { protectedByJoker: true },
+      );
+      const correctState = soloAttemptReducer(started, { type: SOLO_ATTEMPT_ACTIONS.MOVE_EVALUATED, ...correctEvaluation });
+      const wrongState = soloAttemptReducer(started, { type: SOLO_ATTEMPT_ACTIONS.MOVE_EVALUATED, ...wrongEvaluation });
+      const protectedState = soloAttemptReducer(started, { type: SOLO_ATTEMPT_ACTIONS.MOVE_EVALUATED, ...protectedEvaluation });
+      const executableFailures = [];
+      if (!correctEvaluation?.correct || correctState.usedMoves !== 1) executableFailures.push('evaluated correct placement did not consume exactly one move');
+      if (wrongEvaluation?.correct || wrongState.usedMoves !== 1) executableFailures.push('evaluated wrong placement did not consume exactly one move');
+      if (protectedEvaluation?.countsAsMove !== false || protectedState.usedMoves !== 0) executableFailures.push('Kronokalkan-protected wrong placement consumed a move');
+      if (soloStreakModelSource.includes('MOVE_EVALUATED') || soloStreakModelSource.includes('usedMoves')) executableFailures.push('Solo Streak model can mutate Solo move accounting');
       const forbiddenVisibleJokerOverlays = [
         'Kronokalkan hamle hakkını korudu!',
         'Zamanı Dondur tamamlandı.',
@@ -813,18 +834,18 @@ export const EXTRA_TESTS = [
       ].filter((token) => `${gamePageSource}\n${soloJokerBarSource}`.includes(token));
       const retiredLocalCounters = forbiddenTokensFound(gamePageSource, ['const [usedMoveCount', 'setUsedMoveCount(', 'setMistakeCount(']);
       const dragHandlerConsumesMoves = /handleGameplayCard(?:Drag|Touch)[\s\S]{0,900}(?:evaluateSoloPlacement|MOVE_EVALUATED)/.test(gamePageSource);
-      if (required.length || retiredLocalCounters.length || dragHandlerConsumesMoves || forbiddenVisibleJokerOverlays.length) {
+      if (required.length || executableFailures.length || retiredLocalCounters.length || dragHandlerConsumesMoves || forbiddenVisibleJokerOverlays.length) {
         return fail('Solo move-based runtime contract drifted.', {
-          verification: 'STATIC_CONTRACT',
+          verification: 'STATIC_AND_EXECUTABLE_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'used moves increment only from evaluated feedback; Kronokalkan preserves a protected wrong move without visible status overlay; HAMLE result stats; no drag/touch decrement; Online gated by isSoloLevelMode',
-          actual: { required, retiredLocalCounters, dragHandlerConsumesMoves, forbiddenVisibleJokerOverlays },
+          expected: 'evaluated correct/wrong placements consume one move, Kronokalkan-protected wrong consumes none, drag/touch consumes none, HAMLE copy remains, Online and Solo Streak are gated out',
+          actual: { required, executableFailures, retiredLocalCounters, dragHandlerConsumesMoves, forbiddenVisibleJokerOverlays },
         });
       }
-      return pass('Solo v3 remaining-move accounting is wired to evaluated feedback, Kronokalkan preserves the protected wrong move silently, and result popups use HAMLE.', {
-        verification: 'STATIC_CONTRACT',
-        classification: 'STATIC_CHECK_LIMITATION',
+      return pass('Solo v3 move accounting is executable-proven from evaluated feedback; Kronokalkan preserves its protected move, drag/touch and Solo Streak cannot decrement, Online is gated out, and results use HAMLE.', {
+        verification: 'STATIC_AND_EXECUTABLE_CONTRACT',
+        classification: 'EXECUTABLE_HELPER_PROOF',
         actionType: ACTION_TYPES.CODE_FIX,
       });
     },

@@ -1,7 +1,7 @@
 {
   "name": "DiamondTransaction",
   "type": "object",
-  "description": "Codex152/Codex594 \u2014 User-owned Diamond economy ledger. One logical row should exist per idempotency_key. Solo streak rewards use source solo_streak and fixed per-attempt milestone keys.",
+  "description": "Codex596 \u2014 User-owned Diamond economy ledger. One logical row should exist per idempotency_key. Daily Calendar 7-day streak reward claims write daily_calendar_streak_reward with direction earn; Solo streak rewards remain separate under source solo_streak; market purchases use direction spend.",
   "properties": {
     "user_email": {
       "type": "string",
@@ -56,7 +56,7 @@
         "special_event_future",
         "admin_adjustment"
       ],
-      "description": "Economy source. solo_streak is the Solo-only clean-answer milestone reward and never changes Kronox Puan, Leaderboard, or Daily Goals."
+      "description": "Economy source. daily_calendar_streak_reward is the code-owned 7-day Daily Calendar 200-Diamond grant; solo_streak is the separate Solo-only clean-answer milestone grant. Neither changes Kronox Puan or Leaderboard."
     },
     "direction": {
       "type": "string",
@@ -64,7 +64,7 @@
         "earn",
         "spend"
       ],
-      "description": "earn for granted Diamonds, spend for costs."
+      "description": "earn for grants including Daily Wheel, Daily Calendar, Solo Streak, login, and admin rewards; spend for costs such as market purchases."
     },
     "idempotency_key": {
       "type": "string",

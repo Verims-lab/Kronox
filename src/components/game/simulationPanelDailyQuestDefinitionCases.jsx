@@ -166,23 +166,40 @@ export const EXTRA_TESTS = [
   makeCase('streak_reward_schema_and_claim_source',
     'DiamondTransaction supports the Daily Calendar streak reward source',
     () => {
-      const missing = missingTokens(`${diamondTransactionEntitySource}\n${claimDailyQuestRewardSource}`, [
+      const combined = `${diamondTransactionEntitySource}\n${claimDailyQuestRewardSource}\n${docsCombined}`;
+      const missing = missingTokens(combined, [
+        '"daily_wheel"',
         '"daily_calendar_streak_reward"',
+        '"solo_streak"',
+        '"market_purchase"',
         'Daily Calendar 7-day streak reward claims write daily_calendar_streak_reward',
         'DAILY_STREAK_REWARD_DIAMONDS = 200',
+        "DAILY_CALENDAR_REWARD_SOURCE = 'daily_calendar_streak_reward'",
         'source: DAILY_CALENDAR_REWARD_SOURCE',
         "direction: 'earn'",
+        'daily_calendar_streak:${player.playerKey}',
+        'findDiamondTransaction',
+        'withEconomyLock',
         'clientRewardIgnored: true',
         'noKronoxPuan: true',
         'noLeaderboardImpact: true',
+        'DailyQuestDefinition is legacy/admin-only',
+        'Solo streak4/streak5 authenticated rewards use DiamondTransaction.source solo_streak',
       ]);
-      if (missing.length) {
+      const forbidden = forbiddenTokens(claimDailyQuestRewardSource, [
+        'body?.amount',
+        'body?.reward',
+        'kronox_puan_total',
+        'SoloLeaderboardEntry',
+        "source: 'solo_streak'",
+      ]);
+      if (missing.length || forbidden.length) {
         return fail('Daily Calendar streak reward ledger/schema source is incomplete.', {
           verification: 'STATIC_CONTRACT',
-          missing,
+          actual: { missing, forbidden },
         });
       }
-      return pass('Daily Calendar streak reward has a dedicated DiamondTransaction source and server-side 200-Diamond claim path.', { verification: 'STATIC_CONTRACT' });
+      return pass('Daily Calendar reward is source-connected to a dedicated earn ledger entry for exactly 200 Diamonds, idempotent by actor/cycle, no-Puan/no-Leaderboard, cleanup-only legacy definitions, and a separate Solo Streak source.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('legacy_cleanup_function_safe_scope',

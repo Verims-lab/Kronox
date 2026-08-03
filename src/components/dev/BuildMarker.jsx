@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex596 — Health blocker repair: Solo move Health now follows executable evaluated-feedback mapping, Base44 SDK returns to exact 0.8.34 package/lock alignment, and Daily Calendar 200-Diamond ledger source/direction proof is explicit and separate from Solo Streak. Online scoring and product rules are unchanged.
+//
 // Codex595 - Solo Streak V1 hardening: placement/receipt dedupe, exact level
 // proof, bounded receipt/lock retry, explicit assistance persistence,
 // fail-closed guest/training copy, mobile/reduced-motion guards, and expanded
@@ -165,7 +167,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex595';
+const BUILD_MARKER = 'Codex596';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
