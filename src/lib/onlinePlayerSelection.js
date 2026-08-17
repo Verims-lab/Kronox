@@ -144,9 +144,11 @@ export async function loadOnlinePlayerSelection({ limit = 200, guestCredentials 
   }
 }
 
-export async function loadSocialSnapshot() {
+export async function loadSocialSnapshot({ scope = 'all' } = {}) {
   try {
-    const response = await base44.functions.invoke('getOnlinePlayerSelection', { action: 'social_snapshot' });
+    const response = await base44.functions.invoke('getOnlinePlayerSelection', {
+      action: scope === 'friends' ? 'friends_snapshot' : 'social_snapshot',
+    });
     const data = response?.data || {};
     if (data?.ok === false) throw new Error(data.error || 'social_snapshot_failed');
     const forbidden = findForbiddenPublicDtoKeys(data);

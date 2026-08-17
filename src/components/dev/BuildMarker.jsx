@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex615 — Friends reliability: load the Friends snapshot without unrelated game-invite hydration, resolve leaderboard projection usernames to registered users server-side, and report unlinked guest identities honestly; privacy and authorization remain unchanged.
 // Codex614 — Restore deployed page-name compatibility for /TestSuite and /AdminPage by redirecting them to the existing guarded canonical routes; Health packs, admin authorization, and product behavior are unchanged.
 // Codex613 — Solo Level 1 guest bootstrap: preserve distinct-year coverage before capping the guest question candidate buffer and version the local cache key so stale narrow samples cannot block gameplay; scoring and rewards are unchanged.
 // Codex613 — Solo start recovery: invalidate stale question buffers, reject cached pools below the requested distinct-year deck size, and redirect reported /SoloChallenge and /Game URLs to canonical Solo entry; gameplay/scoring/joker rules are unchanged.
@@ -192,7 +193,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex614';
+const BUILD_MARKER = 'Codex615';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

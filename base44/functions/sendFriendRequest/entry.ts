@@ -14,6 +14,17 @@ const INTERNAL_ID_PUBLIC_USERNAME_PATTERN = /^(guest|player|owner|user_key|playe
 const normalizeEmail = (value: unknown) => String(value || '').trim().toLowerCase();
 const json = (payload: unknown, status = 200) => Response.json(payload, { status });
 
+function ownerKeyFromEmail(value: unknown) {
+  const email = normalizeEmail(value);
+  if (!email) return '';
+  let hash = 2166136261;
+  for (let index = 0; index < email.length; index += 1) {
+    hash ^= email.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `u_${(hash >>> 0).toString(36)}`;
+}
+
 function randomPublicRef(prefix: string) {
   const bytes = crypto.getRandomValues(new Uint8Array(24));
   let binary = '';
@@ -350,18 +361,74 @@ async function findTargetByEmail(base44: any, email: string) {
   };
 }
 
+async function findLeaderboardUserByUsername(base44: any, username: string, usernameKey: string) {
+  const projectionEntity = base44.asServiceRole.entities.SoloLeaderboardEntry;
+  const [usernameRows, displayRows] = await Promise.all([
+    projectionEntity.filter({ username }, '-updated_at', 5).catch(() => []),
+    projectionEntity.filter({ display_name: username }, '-updated_at', 5).catch(() => []),
+  ]);
+  const projection = [...(usernameRows || []), ...(displayRows || [])]
+    .find((row: any) => normalizeUsernameKey(row?.username || row?.display_name) === usernameKey) || null;
+  if (!projection) return null;
+
+  const kronoxUserId = normalizeKronoxUserId(projection?.kronox_user_id);
+  if (kronoxUserId) {
+    const rows = await base44.asServiceRole.entities.User
+      .filter({ kronox_user_id: kronoxUserId }, '-updated_date', 2)
+      .catch(() => []);
+    if (rows?.[0]?.email) return rows[0];
+  }
+
+  const ownerKey = String(projection?.owner_key || '').trim();
+  if (!ownerKey.startsWith('u_')) return null;
+  const users = await base44.asServiceRole.entities.User.list('-updated_date', 1200).catch(() => []);
+  return (users || []).find((row: any) => ownerKeyFromEmail(row?.email) === ownerKey) || null;
+}
+
+async function findGuestByUsername(base44: any, username: string, usernameKey: string) {
+  const [normalizedRows, usernameRows] = await Promise.all([
+    base44.asServiceRole.entities.GuestProfile.filter({ username_normalized: usernameKey }, '-updated_at', 2).catch(() => []),
+    base44.asServiceRole.entities.GuestProfile.filter({ username }, '-updated_at', 2).catch(() => []),
+  ]);
+  return [...(normalizedRows || []), ...(usernameRows || [])]
+    .find((row: any) => normalizeUsernameKey(row?.username || row?.display_name) === usernameKey) || null;
+}
+
 async function findTargetByUsername(base44: any, username: string) {
   const usernameKey = normalizeUsernameKey(username);
   if (!usernameKey) {
     return { ok: false, code: 'invalid_username', error: 'Geçerli bir kullanıcı adı gir.' };
   }
-  const [normalizedRows, usernameRows, publicUsernameRows] = await Promise.all([
+  const [normalizedRows, usernameRows, publicUsernameRows, displayNameRows] = await Promise.all([
     base44.asServiceRole.entities.User.filter({ username_normalized: usernameKey }, '-updated_date', 2).catch(() => []),
     base44.asServiceRole.entities.User.filter({ username }, '-updated_date', 2).catch(() => []),
     base44.asServiceRole.entities.User.filter({ public_username: username }, '-updated_date', 2).catch(() => []),
+    base44.asServiceRole.entities.User.filter({ display_name: username }, '-updated_date', 2).catch(() => []),
   ]);
-  const rows = [...(normalizedRows || []), ...(usernameRows || []), ...(publicUsernameRows || [])];
-  const exact = (rows || []).find((row: any) => normalizeUsernameKey(row?.username) === usernameKey || normalizeUsernameKey(row?.public_username) === usernameKey) || rows?.[0] || null;
+  const rows = [...(normalizedRows || []), ...(usernameRows || []), ...(publicUsernameRows || []), ...(displayNameRows || [])];
+  let exact = (rows || []).find((row: any) => (
+    normalizeUsernameKey(row?.username) === usernameKey
+    || normalizeUsernameKey(row?.public_username) === usernameKey
+    || normalizeUsernameKey(row?.display_name) === usernameKey
+  )) || null;
+
+  if (!exact?.email) {
+    exact = await findLeaderboardUserByUsername(base44, username, usernameKey);
+  }
+  if (!exact?.email) {
+    const guest = await findGuestByUsername(base44, username, usernameKey);
+    const linkedEmail = normalizeEmail(guest?.linked_user_email);
+    if (linkedEmail) {
+      const linkedRows = await base44.asServiceRole.entities.User.filter({ email: linkedEmail }, '-updated_date', 1).catch(() => []);
+      exact = linkedRows?.[0] || null;
+    } else if (guest) {
+      return {
+        ok: false,
+        code: 'guest_account_required',
+        error: 'Bu oyuncu henüz hesabını bağlamadığı için arkadaşlık isteği alamıyor.',
+      };
+    }
+  }
   if (!exact?.email) {
     return { ok: false, code: 'username_not_found', error: USERNAME_NOT_FOUND_MESSAGE };
   }
@@ -433,7 +500,10 @@ Deno.serve(async (req) => {
       target = await findTargetByEmail(base44, targetEmail);
     } else {
       const result = await findTargetByUsername(base44, rawInput);
-      if (!result.ok) return json({ ok: false, code: result.code, error: result.error }, result.code === 'username_not_found' ? 404 : 400);
+      if (!result.ok) {
+        const status = result.code === 'username_not_found' ? 404 : (result.code === 'guest_account_required' ? 409 : 400);
+        return json({ ok: false, code: result.code, error: result.error }, status);
+      }
       target = result.target;
     }
 

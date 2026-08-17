@@ -48,7 +48,7 @@ export async function loadFriendPresence(friends) {
   ));
   if (!targetRefs.length) return {};
 
-  const snapshot = await loadSocialSnapshot();
+  const snapshot = await loadSocialSnapshot({ scope: 'friends' });
   const rows = Array.isArray(snapshot?.friends) ? snapshot.friends : [];
   const requestedRefs = new Set(targetRefs);
   return Object.fromEntries(

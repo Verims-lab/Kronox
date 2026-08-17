@@ -10,6 +10,7 @@ import { recordDailyQuestSourceEvent } from '@/lib/dailyQuestEvents';
 import { loadSocialSnapshot } from '@/lib/onlinePlayerSelection';
 
 export const USERNAME_NOT_FOUND_MESSAGE = 'Kronox’ta bu kullanıcı adıyla biri yok.';
+export const GUEST_ACCOUNT_REQUIRED_MESSAGE = 'Bu oyuncu henüz hesabını bağlamadığı için arkadaşlık isteği alamıyor.';
 export const OPEN_INVITE_EXISTS_MESSAGE = 'Bu kişiye gönderilmiş açık davet var.';
 export const EXPIRED_INVITE_REQUIRES_DELETE_MESSAGE = 'Bu kişiye süresi dolmuş bir davetin var. Yeniden davet göndermeden önce eski daveti silmelisin.';
 
@@ -91,7 +92,7 @@ export function invalidateFriendsSnapshot() {
 
 async function getFriendsSnapshot() {
   if (!socialSnapshotPromise) {
-    socialSnapshotPromise = loadSocialSnapshot().finally(() => {
+    socialSnapshotPromise = loadSocialSnapshot({ scope: 'friends' }).finally(() => {
       window.setTimeout(() => { socialSnapshotPromise = null; }, 500);
     });
   }
@@ -148,6 +149,7 @@ export async function sendFriendRequest({ me = null, target = '', toEmail = '' }
   } catch (err) {
     const data = err?.response?.data || err?.data || {};
     if (data?.code === 'username_not_found') throw new Error(USERNAME_NOT_FOUND_MESSAGE);
+    if (data?.code === 'guest_account_required') throw new Error(GUEST_ACCOUNT_REQUIRED_MESSAGE);
     if (data?.code === 'OPEN_INVITE_EXISTS') throw makeFriendRequestError(OPEN_INVITE_EXISTS_MESSAGE, data.code);
     if (data?.code === 'EXPIRED_INVITE_REQUIRES_DELETE') throw makeFriendRequestError(EXPIRED_INVITE_REQUIRES_DELETE_MESSAGE, data.code);
     if (data?.error) throw makeFriendRequestError(getSafeFriendsErrorMessage({ message: data.error }), data.code);
@@ -157,6 +159,7 @@ export async function sendFriendRequest({ me = null, target = '', toEmail = '' }
   const data = res?.data || {};
   if (!data.ok || data.error) {
     if (data.code === 'username_not_found') throw new Error(USERNAME_NOT_FOUND_MESSAGE);
+    if (data.code === 'guest_account_required') throw new Error(GUEST_ACCOUNT_REQUIRED_MESSAGE);
     if (data.code === 'OPEN_INVITE_EXISTS') throw makeFriendRequestError(OPEN_INVITE_EXISTS_MESSAGE, data.code);
     if (data.code === 'EXPIRED_INVITE_REQUIRES_DELETE') throw makeFriendRequestError(EXPIRED_INVITE_REQUIRES_DELETE_MESSAGE, data.code);
     throw makeFriendRequestError(getSafeFriendsErrorMessage({ message: data.error }), data.code);

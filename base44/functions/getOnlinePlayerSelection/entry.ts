@@ -378,7 +378,7 @@ function effectiveLifecycleStatus(row: any, nowMs: number) {
   return status === 'pending' && Number.isFinite(expiresAt) && expiresAt <= nowMs ? 'expired' : status;
 }
 
-async function buildSocialSnapshot(base44: any, actor: any, nowMs: number) {
+async function buildSocialSnapshot(base44: any, actor: any, nowMs: number, includeGameInvites = true) {
   const myEmail = normalizeEmail(actor?.myEmail);
   const actorKeyHash = String(actor?.ownerKeyHash || '').trim();
   if (!myEmail && !actorKeyHash) {
@@ -398,12 +398,14 @@ async function buildSocialSnapshot(base44: any, actor: any, nowMs: number) {
     myEmail
       ? base44.asServiceRole.entities.FriendRequest.filter({ from_email: myEmail }, '-updated_date', 200).catch(() => [])
       : Promise.resolve([]),
-    myEmail
+    includeGameInvites && myEmail
       ? base44.asServiceRole.entities.GameInvite.filter({ to_email: myEmail }, '-updated_date', 100).catch(() => [])
       : Promise.resolve([]),
-    myEmail
-      ? base44.asServiceRole.entities.GameInvite.filter({ from_email: myEmail }, '-updated_date', 100).catch(() => [])
-      : base44.asServiceRole.entities.GameInvite.filter({ from_actor_key_hash: actorKeyHash }, '-updated_date', 100).catch(() => []),
+    includeGameInvites
+      ? (myEmail
+        ? base44.asServiceRole.entities.GameInvite.filter({ from_email: myEmail }, '-updated_date', 100).catch(() => [])
+        : base44.asServiceRole.entities.GameInvite.filter({ from_actor_key_hash: actorKeyHash }, '-updated_date', 100).catch(() => []))
+      : Promise.resolve([]),
     base44.asServiceRole.entities.PlayerPresence.filter({ status: 'online' }, '-last_seen_at', PRESENCE_SCAN_LIMIT).catch(() => []),
   ]);
 
@@ -478,8 +480,10 @@ async function buildSocialSnapshot(base44: any, actor: any, nowMs: number) {
       const lobby = await base44.asServiceRole.entities.Lobby.get(id).catch(() => null);
       if (lobby && !lobby.public_ref) {
         const publicRef = randomPublicRef('lobby');
-        await base44.asServiceRole.entities.Lobby.update(id, { public_ref: publicRef });
-        lobby.public_ref = publicRef;
+        const updated = await base44.asServiceRole.entities.Lobby
+          .update(id, { public_ref: publicRef })
+          .catch(() => null);
+        if (updated?.public_ref) lobby.public_ref = updated.public_ref;
       }
       lobbyCache.set(id, lobby);
     }
@@ -536,8 +540,8 @@ Deno.serve(async (req) => {
     if (!resolved.ok) return resolved.response;
     const actor = resolved.actor;
     const action = String(body?.action || 'selection').trim().toLowerCase();
-    if (action === 'social_snapshot') {
-      const social = await buildSocialSnapshot(base44, actor, Date.now());
+    if (action === 'social_snapshot' || action === 'friends_snapshot') {
+      const social = await buildSocialSnapshot(base44, actor, Date.now(), action === 'social_snapshot');
       return json({
         ok: true,
         ...social,
