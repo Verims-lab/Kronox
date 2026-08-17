@@ -1051,6 +1051,12 @@ The Question Quality Snapshot is mounted only under guarded Admin Ekranı and ca
 
 Normal and guest gameplay remain on the bounded `getQuestions` projection; direct `Question` reads remain admin-only. B3 adds no public route, function, entity, secret, connector, cleanup executor, or automatic content mutation.
 
+# Paket B4 — Release Readiness Security Boundary
+
+The guarded Admin Ekranı includes a static, read-only `Yayın Hazırlığı` tracker. It reads no user rows, environment variables, secret manager values, production configuration, question rows, or backend errors. It renders requirement labels only; VAPID production provisioning is always `MANUAL_REQUIRED`, and no private/public key value, secret value, email, private actor field, internal row ID, request payload, or stack trace may appear.
+
+The tracker does not call a backend function, write checklist state, mutate RLS/indexes, validate secrets automatically, deploy/publish, or claim Full Health PASS. FriendRequest sender/receiver isolation, GameInvite recipient isolation, Lobby participant isolation, non-admin rejection, and public DTO privacy remain two/three-account runtime proof. Production deploy, package-lock resolution, platform unique indexes, real devices, push delivery, account deletion, and store validation remain external/manual release gates.
+
 # 10. Health Coverage Expectations
 
 Health should cover:

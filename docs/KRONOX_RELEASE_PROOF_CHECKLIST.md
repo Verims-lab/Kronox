@@ -1318,6 +1318,17 @@ verified against the deployed Base44 environment.
 * Run Question Quality, Admin Security, Question Data Model, Category, Solo Question Engine, Online shared-deck/no-category, and deployability Health suites through the Testing Agent.
 * B3 reuses the existing report and keeps the backend function count at 50.
 
+# Paket B4 — Release Readiness / Manual Proof Tracker
+
+* `Yayın Hazırlığı` is mounted only inside guarded Admin Ekranı. It is a read-only tracker, not proof by itself, and stores no checklist state.
+* Every item remains pending, blocked, manual, or external until evidence is recorded. The panel must never fabricate Full Health PASS or release completion.
+* Required manual/external gates remain production Base44 publish and backend deploy, real Android/iOS/WebView devices, 320/360/390 layouts, RLS/multi-account probes, VAPID production provisioning, platform unique indexes, account deletion, and final store validation.
+* The panel displays the 50-function ceiling, current SDK compatibility blocker, build marker, compile requirement, and the fact that it never triggers deployment.
+* B1 Integrity Snapshot and B3 Soru Kalite Raporu remain the existing read-only proof tools; B4 links to them instead of duplicating their logic. No cleanup or question mutation is run.
+* Health is a source contract guard, not release proof. Run the targeted Release Readiness suite and affected Admin Security, Security Cleanup/VAPID, Deployability, Integrity, and Question Quality suites separately.
+* Release cannot be marked complete until all required manual and external proof has recorded date, build marker, device/accounts, result, evidence, and remaining risk.
+* B4 adds no backend function, entity, schema, secret reader, deployment action, or product behavior change; function count remains 50.
+
 # 16. Manual Proof Recording
 
 For every manual test run, record:

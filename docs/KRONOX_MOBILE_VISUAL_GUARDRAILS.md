@@ -156,6 +156,13 @@ checks that source code and static Health cannot honestly prove alone.
 * Daily status badges remain post-paint and concurrent identical actor/day reads are deduped without changing server authority or cache invalidation.
 * These optimizations must preserve 320/360/390px containment, safe areas, A1 visual quality, gameplay ordering, scoring, economy, Daily, Online, and Solo rules.
 
+## Paket B4 — Admin Release Tracker Mobile Proof
+
+* `Yayın Hazırlığı` remains inside the existing scrollable Admin Ekranı and must fit 320/360/390px without horizontal overflow.
+* Status badges, checklist rows, blocker copy, Health groups, and links remain readable and tappable with safe-area and BottomNav clearance.
+* Device rows are checklist visibility only. Android real device, iOS Safari/TestFlight/WebView, low-end Android smoothness, safe-area, keyboard, orientation, and final wrapper/store behavior remain manual proof.
+* The panel triggers no deployment, persistent status write, secret read, RLS/index change, or device test.
+
 ## Health Boundary
 
 Health may statically verify that the guardrails and source hooks exist, but it

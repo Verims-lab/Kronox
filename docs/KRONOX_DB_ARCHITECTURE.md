@@ -1210,6 +1210,12 @@ Home demand-loads the full Daily Wheel visual module and opt-in diagnostics; Adm
 
 Online countdown/poll owners invalidate stale sessions, suppress overlapping reads, and clean timers/listeners on cancel or unmount. Health runs stop advancing after their panel unmounts. Tutorial media is popup-scoped with metadata preload. These changes add no backend function and do not change entities, gateways, persistence, scoring, economy, Daily, Online, or Solo behavior.
 
+## Paket B4 — Operational Readiness Tracker Boundary
+
+B4 adds only a frontend Admin checklist plus static Health contracts. It creates no entity, function, persistence table, migration, index, scheduler, cleanup, or deployment action. Checklist state is intentionally not stored.
+
+The panel keeps Base44 platform unique/index configuration, package-lock resolution, deployed function/runtime markers, RLS/BOLA multi-account behavior, production secrets, parallel idempotency races, real devices, and store wrappers as manual/external gates. It points to the existing B1 Integrity Snapshot and B3 Question Quality report rather than repeating heavy reads. Function count remains exactly 50.
+
 ## Future Health Coverage Recommendations
 
 - `db_gateway_direct_question_reads_blocked`

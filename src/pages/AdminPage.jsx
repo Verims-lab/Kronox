@@ -11,6 +11,7 @@ import AdminDiamondGrantTool from '@/components/admin/AdminDiamondGrantTool';
 import AdminDailyWheelResetTool from '@/components/admin/AdminDailyWheelResetTool';
 import IntegritySnapshotTool from '@/components/admin/IntegritySnapshotTool';
 import QuestionQualityTool from '@/components/admin/QuestionQualityTool';
+import ReleaseReadinessTool from '@/components/admin/ReleaseReadinessTool';
 import StandardTopBar from '@/components/layout/StandardTopBar';
 import PullToRefresh from '@/components/mobile/PullToRefresh';
 import { AdminRefreshContext } from '@/lib/AdminRefreshContext';
@@ -184,6 +185,7 @@ export default function AdminPage() {
                 desc="Brutally honest mobile, gameplay, sync, and release-risk checks"
                 onClick={() => setShowSim(true)}
               />
+              <ReleaseReadinessTool />
               <IntegritySnapshotTool />
               <QuestionQualityTool />
               <QuestionAnalyticsReportTool />
@@ -239,6 +241,7 @@ function ToolCard({ icon, title, desc, loading, onClick }) {
       disabled={loading}
       className={`w-full ${ADMIN_TOOL_CARD_CLASS} ${ADMIN_TOOL_HEADER_BUTTON_CLASS}`}
       data-admin-standard-card
+      data-admin-tool-title={title}
     >
       <div className={ADMIN_TOOL_ICON_CLASS}>
         {loading ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : icon}

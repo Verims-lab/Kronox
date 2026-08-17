@@ -30,10 +30,14 @@ Base44 schema-level uniqueness is not assumed. DB/entity unique plus
 function-level guard is Low risk; function-level guard only = Medium/P1 hardening;
 neither DB/entity unique nor function-level guard is High.
 Paket B1 exposes an AdminUser-gated read-only Integrity Snapshot through the
-existing adminDuplicateKeyReport. It returns bounded aggregate source/direction,
-idempotency coverage, duplicate risk, operation-lock, Daily receipt, Solo streak,
-and Online authority proof with fingerprint-only samples. It never mutates rows,
-balances, rewards, prices, scoring, or gameplay and performs no cleanup.
+  existing adminDuplicateKeyReport. It returns bounded aggregate source/direction,
+  idempotency coverage, duplicate risk, operation-lock, Daily receipt, Solo streak,
+  and Online authority proof with fingerprint-only samples. It never mutates rows,
+  balances, rewards, prices, scoring, or gameplay and performs no cleanup.
+Paket B4 adds an Admin-only read-only release tracker that points to B1 and lists
+Daily Wheel, Daily Calendar 200 Diamonds, Solo Streak +3/+5, Store spend, and
+parallel idempotency as pending proof. It reads no ledger, mutates no balance,
+and keeps platform uniqueness and two-device races manual/external.
 
 ## Active sources
 - starter_bonus (one-time, guarded by User.starter_bonus_granted_at)
