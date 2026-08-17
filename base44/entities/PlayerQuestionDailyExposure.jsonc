@@ -85,6 +85,11 @@
     "metadata": {
       "type": "object",
       "description": "Debug-safe metadata only. Never store raw guest tokens, auth headers, emails, provider ids, or full question rows."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional free-text description for this daily player question exposure (up to 1000 characters)."
     }
   },
   "required": [

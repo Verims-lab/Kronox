@@ -1,7 +1,7 @@
 {
   "name": "GuestCreationThrottle",
   "type": "object",
-  "description": "Codex387 — Privacy-safe throttle/monitor rows for public createGuestProfile. Stores hashed source buckets only; never raw IP, raw headers, raw guest token, auth headers, provider secrets, or full request bodies.",
+  "description": "Codex387 \u2014 Privacy-safe throttle/monitor rows for public createGuestProfile. Stores hashed source buckets only; never raw IP, raw headers, raw guest token, auth headers, provider secrets, or full request bodies.",
   "properties": {
     "throttle_key": {
       "type": "string",
@@ -52,6 +52,11 @@
     "metadata": {
       "type": "object",
       "description": "Debug-safe metadata only. Must not contain raw IP, raw headers, raw guest token, auth headers, provider secrets, personal profile fields, or full request bodies."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional free-text description for this guest creation throttle row (up to 1000 characters)."
     }
   },
   "required": [

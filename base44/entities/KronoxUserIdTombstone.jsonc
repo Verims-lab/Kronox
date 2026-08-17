@@ -22,6 +22,11 @@
     "metadata": {
       "type": "object",
       "description": "Privacy-safe operational metadata. Must not contain email, provider id, raw guest_id, owner_key, or raw guest token."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional free-text description for this Kronox user ID tombstone (up to 1000 characters)."
     }
   },
   "required": [
