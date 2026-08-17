@@ -56,14 +56,14 @@ export default function useRandomMatchmaking() {
           try {
             const polled = await pollRandomMatchmaking();
             applyState(polled);
-          } catch (err) {
-            setErrorMessage(err?.message || 'Eşleşme kontrol edilemedi.');
+          } catch {
+            setErrorMessage('Bağlantı kurulamadı. Lütfen tekrar dene.');
           }
         }, POLL_INTERVAL_MS);
       }
-    } catch (err) {
+    } catch {
       setPhase('error');
-      setErrorMessage(err?.message || 'Eşleşme başlatılamadı.');
+      setErrorMessage('Rastgele eşleşme başlatılamadı. Lütfen tekrar dene.');
     }
   }, [applyState, stopPolling]);
 

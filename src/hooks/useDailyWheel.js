@@ -31,9 +31,8 @@ function autoPopupStorageKey(user, guestCredentials, serverDate, resetAt = '') {
 // instance so wheel/calendar invalidations stay independent.
 const dailyWheelStatusStore = createDailyStatusStore();
 
-function userSafeDailyWheelError(err, fallback) {
-  const body = err?.response?.data || err?.body || null;
-  return body?.error || fallback;
+function userSafeDailyWheelError(_err, fallback) {
+  return fallback;
 }
 
 function buildClaimResultFromStatus(body) {
@@ -96,7 +95,7 @@ async function invokeDailyWheelFunction(name, payload = {}) {
   if (body?.ok === false) {
     const error = new Error(isClaim
       ? 'Çark çevrilemedi. Lütfen tekrar dene.'
-      : body?.error || 'Günlük Çark işlemi tamamlanamadı.');
+      : 'Çark yüklenemedi. Lütfen tekrar dene.');
     error.code = body?.code || 'daily_wheel_error';
     error.body = body;
     throw error;

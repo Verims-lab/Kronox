@@ -623,7 +623,7 @@ Checklist:
      confirm `UserHintInventory` / `HintTransaction` and all joker grant rows
      are written as applicable.
   9. Confirm failed purchase copy is safe, e.g.
-     `Satın alma tamamlanamadı. Tekrar dene.`
+     `Satın alma tamamlanamadı. Lütfen tekrar dene.`
   10. Return to Profile and confirm `Joker Çantası` updated.
   11. Start Solo and confirm the purchased joker count appears in the joker bar.
   12. Test an existing account with missing/partial joker rows and confirm
@@ -931,6 +931,7 @@ Checklist:
 * Button styles feel tactile and consistent.
 * A1-polished panels/cards/modals use controlled navy/cyan/gold depth, finite decorative motion, and keep all primary actions above safe-area/BottomNav clearance at 320/360/390px.
 * Liderlik root remains exactly `className="leaderboard-page text-white"`; `.leaderboard-page` owns the approved gradient and safe areas while the centered trophy badge, gold `LİDERLİK` title, and sticky current-player card remain visible.
+* A2 state proof confirms global errors are page-blocking only, optional failures and retries are section-scoped, empty states are neutral, cached safe rows survive transient refresh failure where supported, and public state copy contains no raw backend errors or private identifiers. Online random matchmaking stays usable when player/social data fails or is empty.
 * Icon style is consistent.
 * The digit `7` is clearly distinguishable from `1`.
 * Timers, scores, ranks, mistakes, diamonds, and levels are readable.

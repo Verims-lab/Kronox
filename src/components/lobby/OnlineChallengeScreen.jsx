@@ -6,6 +6,7 @@ import FriendSelectModal from '@/components/lobby/FriendSelectModal';
 import IncomingInvitesPanel from '@/components/invites/IncomingInvitesPanel';
 import ActiveLobbyCard from '@/components/lobby/ActiveLobbyCard';
 import PreGameHourglass from '@/components/lobby/PreGameHourglass';
+import KronoxStatePanel from '@/components/ui/KronoxStatePanel';
 import { sounds } from '@/lib/gameSounds';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 import { getLobbySnapshot, leaveLobby, LOBBY_SNAPSHOT_SCOPES } from '@/lib/dbGateway/lobbyGateway';
@@ -31,7 +32,6 @@ export default function OnlineChallengeScreen({
   user,
   guestProfile = null,
   loading,
-  error,
   onCreateInviteLobby,
   onEnterLobby,
   onBackHome,
@@ -57,8 +57,8 @@ export default function OnlineChallengeScreen({
         setInviteLobby(lobby);
         setScreen('invite-wait');
       }
-    } catch (err) {
-      setScreenError(err?.message || 'Lobi oluşturulamadı.');
+    } catch {
+      setScreenError('Davet gönderilemedi. Lütfen tekrar dene.');
     } finally {
       setCreating(false);
     }
@@ -103,7 +103,7 @@ export default function OnlineChallengeScreen({
         const fresh = res?.data?.lobby;
         if (!cancelled && fresh) onEnterLobby?.(fresh);
       })
-      .catch(() => { if (!cancelled) setScreenError('Lobiye giriş yapılamadı.'); });
+      .catch(() => { if (!cancelled) setScreenError('Bağlantı kurulamadı. Lütfen tekrar dene.'); });
     return () => { cancelled = true; };
   }, [screen, random.phase, random.lobbyRef, onEnterLobby]);
 
@@ -113,7 +113,10 @@ export default function OnlineChallengeScreen({
   };
 
   const handleRandomTimeout = () => {
-    if (random.phase !== 'matched') setScreen('select');
+    if (random.phase !== 'matched') {
+      setScreenError('Eşleşme bulunamadı.');
+      setScreen('select');
+    }
   };
 
   // Codex593 — Named ctaDisabled state per CTA. Neither button is ever
@@ -207,11 +210,17 @@ export default function OnlineChallengeScreen({
           />
         </div>
 
-        {(error || screenError) && (
-          <p className="mt-3 rounded-xl px-3 py-2 font-inter text-[12px] text-rose-100/90"
-            style={{ background: 'rgba(244,63,94,0.10)', boxShadow: 'inset 0 0 0 1px rgba(244,63,94,0.35)' }}>
-            {error || screenError}
-          </p>
+        {screenError && (
+          <div className="mt-3">
+            <KronoxStatePanel
+              compact
+              title={screenError}
+              message="Diğer Online seçeneklerini kullanmaya devam edebilirsin."
+              onAction={screenError === 'Eşleşme bulunamadı.'
+                ? handleStartRandom
+                : () => { setScreenError(''); setFriendModalOpen(true); }}
+            />
+          </div>
         )}
 
         {onJoinOpenLobby && (

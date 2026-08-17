@@ -46,6 +46,7 @@ import AuthProviderButtons from '@/components/auth/AuthProviderButtons';
 import KronoxAvatar from '@/components/profile/KronoxAvatar';
 import { getProfileParentRouteState } from '@/lib/NavigationStackContext';
 import { useCurrentPlayerProfile } from '@/features/profile/viewModel/useCurrentPlayerProfile';
+import KronoxStatePanel from '@/components/ui/KronoxStatePanel';
 
 const FIRST_LOGIN_REWARD_AMOUNT = 80;
 
@@ -401,22 +402,12 @@ function JokerPocketSection({ authLoading, loading, playerAvailable, balances, h
 
   if (error) {
     return (
-      <div
-        className="rounded-2xl px-4 py-3 font-inter text-[12px] font-semibold text-amber-100"
-        style={{
-          background: 'linear-gradient(180deg, rgba(120,53,15,0.35), rgba(10,16,36,0.88))',
-          boxShadow: 'inset 0 0 0 1px rgba(251,191,36,0.35)',
-        }}
-      >
-        <p>Joker Çantası şu anda yüklenemedi.</p>
-        <button
-          type="button"
-          onClick={onRetry}
-          className="mt-2 rounded-full border border-amber-300/35 px-3 py-1 text-[11px] font-black text-amber-100"
-        >
-          Tekrar Dene
-        </button>
-      </div>
+      <KronoxStatePanel
+        compact
+        title="Joker ve İpucu bilgileri yüklenemedi."
+        message="Profilinin diğer bölümlerini kullanmaya devam edebilirsin."
+        onAction={onRetry}
+      />
     );
   }
 

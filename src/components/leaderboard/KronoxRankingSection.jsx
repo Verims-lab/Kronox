@@ -106,7 +106,7 @@ export default function KronoxRankingSection({
           ownScore={leaderboard.ownScoreFallback}
           onRetry={onRetry}
           isAdmin={isAdmin}
-          backendReason={leaderboard.error}
+          backendReason={leaderboard.error ? 'Sıralama şu anda güncellenemedi.' : ''}
         />
       ) : !hasRows ? (
         <RankingPreparingState

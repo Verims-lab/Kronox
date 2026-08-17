@@ -309,7 +309,7 @@ export default function LeaderboardPage() {
           loading: false,
           refreshing: false,
           loaded: true,
-          error: err?.message || 'Sıralama kaynağı hazırlanıyor.',
+          error: 'Liderlik yüklenemedi.',
           rankedRows: [],
           topRows: [],
           currentUserRow: null,

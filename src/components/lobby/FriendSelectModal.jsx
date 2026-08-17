@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Check, UserPlus, AlertCircle, ChevronDown, Swords } from 'lucide-react';
+import { X, Check, ChevronDown, Swords } from 'lucide-react';
+import KronoxStatePanel from '@/components/ui/KronoxStatePanel';
 import { sounds } from '@/lib/gameSounds';
 import {
   loadOnlinePlayerSelection,
@@ -74,7 +75,7 @@ export default function FriendSelectModal({
         const rows = await loadOnlinePlayerSelection({ guestCredentials });
         if (!cancelled) setPlayers(rows || []);
       } catch (err) {
-        if (!cancelled) setError(err?.message || 'Oyuncular yüklenemedi.');
+        if (!cancelled) setError('Oyuncular yüklenemedi.');
       } finally {
         if (!cancelled && showLoading) setLoading(false);
       }
@@ -224,17 +225,29 @@ export default function FriendSelectModal({
               {loading && players.length === 0 ? (
                 <FriendsSkeleton />
               ) : error && players.length === 0 ? (
-                <ErrorHint text={error} onRetry={() => {
-                  sounds.tap();
-                  setLoading(true);
-                  setError('');
-                  loadOnlinePlayerSelection({ guestCredentials })
-                    .then((rows) => setPlayers(rows || []))
-                    .catch((err) => setError(err?.message || 'Oyuncular yüklenemedi.'))
-                    .finally(() => setLoading(false));
-                }} />
+                <KronoxStatePanel
+                  compact
+                  title="Oyuncular yüklenemedi."
+                  message="Davet listesi şu anda güncellenemedi."
+                  onAction={() => {
+                    sounds.tap();
+                    setLoading(true);
+                    setError('');
+                    loadOnlinePlayerSelection({ guestCredentials })
+                      .then((rows) => setPlayers(rows || []))
+                      .catch(() => setError('Oyuncular yüklenemedi.'))
+                      .finally(() => setLoading(false));
+                  }}
+                />
               ) : players.length === 0 ? (
-                <EmptyPlayers onGoFriends={onGoFriends} onClose={onClose} />
+                <KronoxStatePanel
+                  kind="empty"
+                  compact
+                  title="Davet edilecek oyuncu bulunamadı."
+                  message="Arkadaşlarını ekledikten sonra davet edebilirsin."
+                  actionLabel="Arkadaşlara Git"
+                  onAction={onGoFriends ? () => { onClose?.(); onGoFriends(); } : undefined}
+                />
               ) : (
                 <GroupedPlayerList
                   players={players}
@@ -408,64 +421,6 @@ function FriendsSkeleton() {
         />
       ))}
       <style>{`@keyframes kx-skeleton { 0%{background-position:200% 0} 100%{background-position:-200% 0} }`}</style>
-    </div>
-  );
-}
-
-function EmptyPlayers({ onGoFriends, onClose }) {
-  return (
-    <div
-      className="rounded-2xl px-4 py-5 text-center my-2"
-      style={{
-        background: 'linear-gradient(180deg, rgba(30,41,75,0.7), rgba(10,16,36,0.85))',
-        boxShadow: 'inset 0 0 0 1.5px rgba(120,170,255,0.30)',
-      }}
-    >
-      <UserPlus className="mx-auto h-7 w-7 text-amber-300" />
-      <p className="mt-2 font-cinzel text-base tracking-wider text-white">Oyuncu bulunamadı</p>
-      <p className="mt-1 font-inter text-[12px] text-blue-100/65">
-        Çevrimiçi oyuncu veya arkadaş görünmüyor.
-      </p>
-      {onGoFriends && (
-        <button
-          type="button"
-          onClick={() => { sounds.tap(); onClose?.(); onGoFriends(); }}
-          className="mt-3 inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 font-inter text-xs font-black text-amber-950"
-          style={{
-            background: 'linear-gradient(180deg,#ffe066,#b97a06)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.45), 0 0 12px rgba(250,204,21,0.45)',
-          }}
-        >
-          Arkadaşlarım sayfasına git
-        </button>
-      )}
-    </div>
-  );
-}
-
-function ErrorHint({ text, onRetry }) {
-  return (
-    <div
-      className="my-2 rounded-xl px-3 py-3"
-      style={{ background: 'rgba(244,63,94,0.10)', boxShadow: 'inset 0 0 0 1px rgba(244,63,94,0.35)' }}
-    >
-      <div className="flex items-start gap-2">
-        <AlertCircle className="h-4 w-4 text-rose-300 flex-shrink-0 mt-0.5" />
-        <p className="font-inter text-xs text-rose-100/90">{text || 'Oyuncular yüklenemedi.'}</p>
-      </div>
-      {onRetry && (
-        <button
-          type="button"
-          onClick={onRetry}
-          className="mt-3 min-h-9 w-full rounded-xl px-3 py-2 font-inter text-[12px] font-black text-amber-950"
-          style={{
-            background: 'linear-gradient(180deg,#ffe066,#b97a06)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.45), 0 0 12px rgba(250,204,21,0.30)',
-          }}
-        >
-          Tekrar Dene
-        </button>
-      )}
     </div>
   );
 }

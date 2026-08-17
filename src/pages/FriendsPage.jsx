@@ -24,6 +24,7 @@ import StandardTopBar from '@/components/layout/StandardTopBar';
 import PullToRefresh from '@/components/mobile/PullToRefresh';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 import { getSafeBackRoute } from '@/lib/NavigationStackContext';
+import KronoxStatePanel from '@/components/ui/KronoxStatePanel';
 
 const FRIENDS_LOAD_ERROR_MESSAGE = 'Arkadaş verisi yüklenemedi.';
 
@@ -224,10 +225,12 @@ export default function FriendsPage() {
           </p>
 
           {loadError && (
-            <p className="rounded-xl px-3 py-2 font-inter text-xs text-rose-100/90"
-              style={{ background: 'rgba(244,63,94,0.10)', boxShadow: 'inset 0 0 0 1px rgba(244,63,94,0.35)' }}>
-              {loadError}
-            </p>
+            <KronoxStatePanel
+              compact
+              title={loadError}
+              message="Mevcut arkadaşların korunur; yalnızca bu bölüm yeniden yüklenir."
+              onAction={() => refresh(user.email)}
+            />
           )}
 
           {successMsg && (
@@ -242,7 +245,7 @@ export default function FriendsPage() {
 
           {/* Incoming */}
           <Section icon={Inbox} label="Gelen İstekler" badge={incoming.length}>
-            {loading ? <RowSkeleton /> : incoming.length === 0 ? (
+            {loading && incoming.length === 0 ? <RowSkeleton /> : incoming.length === 0 ? (
               <EmptyHint text="Şu an bekleyen istek yok." />
             ) : (
               <div className="space-y-2">
@@ -260,7 +263,7 @@ export default function FriendsPage() {
 
           {/* My Friends */}
           <Section icon={Users} label="Arkadaşlarım" badge={friends.length}>
-            {loading ? <RowSkeleton /> : friends.length === 0 ? (
+            {loading && friends.length === 0 ? <RowSkeleton /> : friends.length === 0 ? (
               <EmptyHint text="Henüz arkadaşın yok. Aşağıdan e-posta veya kullanıcı adı ile ekleyebilirsin." />
             ) : (
               <div className="space-y-2">

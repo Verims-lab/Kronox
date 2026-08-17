@@ -46,17 +46,15 @@ function buildClaimKey(state) {
   return String(state?.streakRewardCycleId || `${state?.serverDate || todayFallbackKey()}:streak`);
 }
 
-function safeDailyRewardError(err, fallback) {
-  const message = String(err?.message || '').trim();
-  const normalized = message.toLocaleLowerCase('tr-TR');
-  if (!message || (normalized.includes('hediye') && normalized.includes('kutusu'))) return fallback;
-  return message;
+function safeDailyRewardError(_err, fallback) {
+  return fallback;
 }
 
 export function useDailyQuests({ user, guestProfile, onUserUpdated } = {}) {
   const [status, setStatus] = useState('loading');
   const [state, setState] = useState(() => buildEmptyCalendarState());
   const [error, setError] = useState('');
+  const [claimError, setClaimError] = useState('');
   const [claimingId, setClaimingId] = useState(null);
   const claimPendingRef = useRef(new Set());
   const refreshVersionRef = useRef(0);
@@ -103,7 +101,7 @@ export function useDailyQuests({ user, guestProfile, onUserUpdated } = {}) {
         setStatus('error');
         setState(buildEmptyCalendarState());
       }
-      setError(err?.message || 'Günlük verileri yüklenemedi.');
+      setError('Günlük hedefler yüklenemedi.');
       return null;
     }
   }, [applyDailyQuestStatusBody, dailyCacheKey, dailyPayload, isSignedIn]);
@@ -150,7 +148,7 @@ export function useDailyQuests({ user, guestProfile, onUserUpdated } = {}) {
       return null;
     }
     if (claimPendingRef.current.has(claimKey)) return null;
-    setError('');
+    setClaimError('');
     claimPendingRef.current.add(claimKey);
     setClaimingId(claimKey);
     try {
@@ -163,7 +161,7 @@ export function useDailyQuests({ user, guestProfile, onUserUpdated } = {}) {
       await refresh();
       return body;
     } catch (err) {
-      setError(safeDailyRewardError(err, 'Seri ödülü alınamadı. Tekrar dene.'));
+      setClaimError(safeDailyRewardError(err, 'Günlük ödül alınamadı. Lütfen tekrar dene.'));
       return null;
     } finally {
       claimPendingRef.current.delete(claimKey);
@@ -185,6 +183,7 @@ export function useDailyQuests({ user, guestProfile, onUserUpdated } = {}) {
     dayCompleted: state.dayCompleted === true,
     legacyCleanupDryRun: state.legacyCleanupDryRun || null,
     error,
+    claimError,
     claimingId,
     isSignedIn,
     refresh,
@@ -193,6 +192,7 @@ export function useDailyQuests({ user, guestProfile, onUserUpdated } = {}) {
   }), [
     claim,
     claimingId,
+    claimError,
     error,
     isSignedIn,
     refresh,

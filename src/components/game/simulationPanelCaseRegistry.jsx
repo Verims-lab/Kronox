@@ -225,6 +225,8 @@ import * as onboardingGuestProfileCases from './simulationPanelOnboardingGuestPr
 // Security Pass 3: accessible loading/status contracts, custom modal labels,
 // incremental lint/code-quality decisions, and SimulationPanel scope audit.
 import * as a11yQualityCases from './simulationPanelA11yQualityCases';
+// Codex599 — A2 local error, empty, loading, retry, and privacy-safe copy contracts.
+import * as errorStateCases from './simulationPanelErrorStateCases';
 // Health Center recent-contract update audit: Profile/Settings route ownership,
 // Leaderboard own row, presence/invite/admin reporting, performance/visual
 // guardrails, UX docs, and SDK pin Health coverage inventory.
@@ -310,6 +312,7 @@ const MODULES = [
   mobileCompatibilityCases,
   onboardingGuestProfileCases,
   a11yQualityCases,
+  errorStateCases,
   healthUpdateAuditCases,
   profileAvatarCases,
   startupStatusCacheCases,

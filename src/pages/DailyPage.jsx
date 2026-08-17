@@ -6,8 +6,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Gem,
-  Loader2,
-  RefreshCw,
   Star,
   Trophy,
 } from 'lucide-react';
@@ -16,6 +14,7 @@ import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 import { isGuestOnboardingComplete } from '@/lib/guestProfile';
 import { createParentRouteState } from '@/lib/NavigationStackContext';
 import { useDailyQuests } from '@/hooks/useDailyQuests';
+import KronoxStatePanel from '@/components/ui/KronoxStatePanel';
 import {
   DAILY_CALENDAR_TASKS_PER_DAY,
   DAILY_STREAK_REWARD_DIAMONDS,
@@ -182,24 +181,23 @@ export default function DailyPage() {
           </div>
 
           {daily.status === 'loading' && (
-            <div className="grid min-h-32 place-items-center text-slate-300">
-              <Loader2 className="h-8 w-8 animate-spin" />
-            </div>
+            <KronoxStatePanel kind="loading" compact title="Günlük hedefler yükleniyor" />
           )}
 
           {daily.status === 'error' && (
-            <button
-              type="button"
-              onClick={daily.refresh}
-              className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-4 font-inter text-sm font-black text-amber-100"
-              style={{ background: 'rgba(250,204,21,0.10)', boxShadow: 'inset 0 0 0 1px rgba(250,204,21,0.28)' }}
-            >
-              <RefreshCw className="h-4 w-4" />
-              {daily.error || 'Günlük verileri yüklenemedi.'}
-            </button>
+            <KronoxStatePanel
+              compact
+              title="Günlük hedefler yüklenemedi."
+              message="Şu anda yüklenemedi. Tekrar dene."
+              onAction={() => daily.refresh({ ignoreCache: true })}
+            />
           )}
 
-          {daily.status === 'ready' && (
+          {daily.status === 'ready' && daily.tasks.length === 0 && (
+            <KronoxStatePanel kind="empty" compact title="Bugün için hedef bulunamadı." message="Biraz sonra tekrar kontrol edebilirsin." />
+          )}
+
+          {daily.status === 'ready' && daily.tasks.length > 0 && (
             <div className="grid min-w-0 gap-2">
               {daily.tasks.slice(0, DAILY_CALENDAR_TASKS_PER_DAY).map((task) => (
                 <TaskRow key={task.id || task.questKey} task={task} />
@@ -258,6 +256,11 @@ export default function DailyPage() {
                 <Gem className="h-4 w-4 fill-yellow-300 text-yellow-300" />
                 {DAILY_STREAK_REWARD_DIAMONDS} Elmas
               </p>
+              {daily.claimError && (
+                <div className="mb-2">
+                  <KronoxStatePanel compact title="Günlük ödül alınamadı." message="Lütfen tekrar dene." />
+                </div>
+              )}
               <button
                 type="button"
                 onClick={daily.claim}

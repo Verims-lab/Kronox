@@ -39,7 +39,7 @@ export default function AddFriendForm({ onSubmit }) {
       await onSubmit(parsed.value);
       setTarget('');
     } catch (err) {
-      setError(err.message || 'İstek gönderilemedi.');
+      setError(err?.message || 'Davet gönderilemedi. Lütfen tekrar dene.');
     } finally {
       submittingRef.current = false;
       setBusy(false);

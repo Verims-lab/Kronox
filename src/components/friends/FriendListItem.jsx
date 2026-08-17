@@ -21,8 +21,8 @@ export default function FriendListItem({ friend, presence, onRemove }) {
     setError('');
     try {
       await onRemove(friend.target_ref);
-    } catch (err) {
-      setError(err.message || 'Arkadaş kaldırılamadı.');
+    } catch {
+      setError('Arkadaş kaldırılamadı. Lütfen tekrar dene.');
       setBusy(false);
       setConfirming(false);
     }

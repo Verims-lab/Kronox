@@ -150,8 +150,8 @@ export async function sendFriendRequest({ me = null, target = '', toEmail = '' }
     if (data?.code === 'username_not_found') throw new Error(USERNAME_NOT_FOUND_MESSAGE);
     if (data?.code === 'OPEN_INVITE_EXISTS') throw makeFriendRequestError(OPEN_INVITE_EXISTS_MESSAGE, data.code);
     if (data?.code === 'EXPIRED_INVITE_REQUIRES_DELETE') throw makeFriendRequestError(EXPIRED_INVITE_REQUIRES_DELETE_MESSAGE, data.code);
-    if (data?.error) throw makeFriendRequestError(data.error, data.code);
-    throw new Error(err?.message || 'İstek gönderilemedi.');
+    if (data?.error) throw makeFriendRequestError(getSafeFriendsErrorMessage({ message: data.error }), data.code);
+    throw new Error(getSafeFriendsErrorMessage(err));
   }
 
   const data = res?.data || {};
@@ -159,7 +159,7 @@ export async function sendFriendRequest({ me = null, target = '', toEmail = '' }
     if (data.code === 'username_not_found') throw new Error(USERNAME_NOT_FOUND_MESSAGE);
     if (data.code === 'OPEN_INVITE_EXISTS') throw makeFriendRequestError(OPEN_INVITE_EXISTS_MESSAGE, data.code);
     if (data.code === 'EXPIRED_INVITE_REQUIRES_DELETE') throw makeFriendRequestError(EXPIRED_INVITE_REQUIRES_DELETE_MESSAGE, data.code);
-    throw makeFriendRequestError(data.error || 'İstek gönderilemedi.', data.code);
+    throw makeFriendRequestError(getSafeFriendsErrorMessage({ message: data.error }), data.code);
   }
 
   // Backward-compatible fallback for older deployed functions. The current

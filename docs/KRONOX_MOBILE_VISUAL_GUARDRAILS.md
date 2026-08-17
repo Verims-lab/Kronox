@@ -35,6 +35,8 @@ checks that source code and static Health cannot honestly prove alone.
 * Reduced motion keeps functional feedback without relying on long animations.
 * A1 visual polish uses shared navy/cyan/gold depth, tactile press states, and finite decorative motion only. Panels, cards, and modals must remain readable, width-bounded, safe-area-aware, and free of new gesture-blocking overlays at 320/360/390px.
 * Liderlik keeps the exact root token `className="leaderboard-page text-white"`. The scoped `.leaderboard-page` CSS owns its deep-navy background, radial blue glow, vertical dark-blue gradient, safe areas, centered trophy badge, and gold `LİDERLİK` title; A1 card polish stays inside that root.
+* A2 state policy: global errors are reserved for page-blocking failures; optional failures stay inside their section, empty states are not errors, loading does not flash empty content, and retry actions reload only the affected section where possible.
+* Public error, empty, and loading surfaces use short Turkish copy and never render raw backend errors, stack traces, emails, guest tokens, owner/player keys, provider IDs, or internal row identifiers. Online random matchmaking remains available when the invite/player list fails or is empty.
 * Loading/error/retry states must be local to the affected section when possible
   so one slow data source does not blank an entire screen.
 * Health Center report actions, case details, copy buttons, clipboard fallback

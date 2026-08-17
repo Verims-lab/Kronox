@@ -18,8 +18,10 @@ export default function IncomingRequestItem({ request, onAccept, onReject }) {
     try {
       if (action === 'accept') await onAccept(request);
       else await onReject(request);
-    } catch (err) {
-      setError(err.message || 'İşlem başarısız.');
+    } catch {
+      setError(action === 'accept'
+        ? 'Arkadaşlık isteği kabul edilemedi. Lütfen tekrar dene.'
+        : 'Arkadaşlık isteği reddedilemedi. Lütfen tekrar dene.');
       setBusy(null);
     }
   };

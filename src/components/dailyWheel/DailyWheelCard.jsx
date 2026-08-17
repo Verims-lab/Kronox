@@ -1082,7 +1082,7 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
             role="alert"
             className="rounded-xl bg-red-500/12 px-3 py-2 text-center text-xs font-bold text-red-100"
           >
-            {error || 'Çark çevrilemedi. Lütfen tekrar dene.'}
+            Ödül alınamadı. Lütfen tekrar dene.
           </p>
           <div className="mt-2 flex w-full gap-2">
             <ModalButton tone="secondary" onClick={handleModalClose}>Kapat</ModalButton>
@@ -1138,7 +1138,7 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
           <DailyWheelReadyTitle />
           {error && (
             <p role="alert" className="rounded-xl bg-red-500/12 px-3 py-2 text-center text-xs font-bold text-red-100">
-              {error}
+              Ödül alınamadı. Lütfen tekrar dene.
             </p>
           )}
           <DailyWheelReadyActions claiming={claiming} onSpin={onSpin} onClose={handleModalClose} />

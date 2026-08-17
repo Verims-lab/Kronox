@@ -195,7 +195,7 @@ export default function MarketPage() {
         productId: product.id,
       });
       if (!result?.ok) {
-        setNotice({ type: result?.code === 'real_money_unavailable' || result?.code === 'future_feature' ? 'info' : 'error', text: result?.error || 'Satın alma tamamlanamadı. Tekrar dene.' });
+        setNotice({ type: result?.code === 'real_money_unavailable' || result?.code === 'future_feature' ? 'info' : 'error', text: 'Satın alma tamamlanamadı. Lütfen tekrar dene.' });
         return;
       }
       setBalances(normalizeJokerBalances(result.balances));
@@ -210,7 +210,7 @@ export default function MarketPage() {
         setSelectedProduct(null);
       }
     } catch {
-      setNotice({ type: 'error', text: 'Satın alma tamamlanamadı. Tekrar dene.' });
+      setNotice({ type: 'error', text: 'Satın alma tamamlanamadı. Lütfen tekrar dene.' });
     } finally {
       setPendingProductId('');
     }
@@ -262,7 +262,7 @@ export default function MarketPage() {
           </div>
         </header>
 
-        {notice.text && (
+        {notice.text && !selectedProduct && (
           <Notice type={notice.type} text={notice.text} />
         )}
 
@@ -299,6 +299,7 @@ export default function MarketPage() {
           authLoading={isLoadingAuth}
           pending={pendingProductId === selectedProduct.id}
           anyPending={Boolean(pendingProductId)}
+          notice={notice}
           onClose={() => {
             sounds.tap();
             setSelectedProduct(null);
@@ -582,6 +583,7 @@ function StorePurchaseModal({
   authLoading,
   pending,
   anyPending,
+  notice,
   onClose,
   onPurchase,
 }) {
@@ -682,6 +684,8 @@ function StorePurchaseModal({
             ))}
           </div>
         </div>
+
+        {notice?.text && <div className="mt-4"><Notice type={notice.type} text={notice.text} /></div>}
 
         <button
           type="button"
