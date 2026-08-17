@@ -94,6 +94,7 @@ function normalizeQuestionRequestContext(context = {}) {
 function buildQuestionRequestCacheKey(context = {}) {
   const normalized = normalizeQuestionRequestContext(context);
   return [
+    GAMEPLAY_QUESTION_REQUEST_VERSION,
     normalized.authScope,
     normalized.requestKind,
     normalized.levelNumber,

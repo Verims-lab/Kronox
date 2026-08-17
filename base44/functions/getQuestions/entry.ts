@@ -1260,7 +1260,16 @@ Deno.serve(async (req) =>
           ? 'guest_fallback_difficulty_1_2'
           : 'guest_fallback_all_active_playable');
       const projection = buildPoolProportionalProjection(guestCandidateQuestions, limit, projectionSeed, playerExposureStats);
-      const projected = projection.projected;
+      // The guest response is a candidate buffer for the client-side Solo engine,
+      // which requires a full unique-year deck. Preserve proportional picks first,
+      // then supplement from the full eligible pool before applying the response cap.
+      const projected = keepYearDiverseBuffer(
+        dedupeQuestions([...projection.projected, ...guestCandidateQuestions]),
+        limit,
+        `${projectionSeed}:guest-year-diverse-buffer`,
+        playerExposureStats,
+      );
+      const guestDistinctYearCount = new Set(projected.map((question: any) => Number(question?.year)).filter(Number.isFinite)).size;
 
       return json({
         ok: true,
@@ -1284,6 +1293,8 @@ Deno.serve(async (req) =>
         guest: true,
         guestLimitCap: MAX_GUEST_GAMEPLAY_LIMIT,
         guestDifficultyRule: guestDifficultyRuleApplied,
+        guestYearDiverseBuffer: true,
+        guestDistinctYearCount,
         playerExposureAwareSelection: playerExposureStats.size > 0,
         playerExposureMode: exposureMode,
         playerExposureStatsCount: playerExposureStats.size,

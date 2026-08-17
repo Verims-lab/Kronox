@@ -401,6 +401,9 @@ export const EXTRA_TESTS = [
         'MAX_GUEST_GAMEPLAY_LIMIT',
         'isForbiddenGuestQuestionRequest',
         'guest_minimal_playable_projection',
+        'guest-year-diverse-buffer',
+        'guestYearDiverseBuffer: true',
+        'guestDistinctYearCount',
       ];
       const forbidden = presentTokens(getQuestionsSource, [
         'auth gerekmez',
