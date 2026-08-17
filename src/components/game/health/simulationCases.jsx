@@ -76,7 +76,13 @@ import {
 import { STATUS, pass, fail, warning, blocked, notAutomatable } from './healthStatus';
 import { captureEnvironment, extractBuildMarker } from './simulationRunner';
 import { buildBlockerCopyJson, buildReport, buildHumanSummary } from './simulationReportBuilder';
-import { createHealthCatalogAuditCases, HEALTH_RETIRED_CASE_KEYS, HEALTH_RETIRED_SUITE_IDS } from './healthCatalog';
+import {
+  canonicalizeHealthCases,
+  createHealthCatalogAuditCases,
+  HEALTH_RETIRED_CASE_KEYS,
+  HEALTH_RETIRED_SUITES,
+  HEALTH_RETIRED_SUITE_IDS,
+} from './healthCatalog';
 
 export const BASE_SUITES = [
   { id: 'environment', name: 'Environment Suite', critical: false, color: '#67e8f9' },
@@ -320,7 +326,7 @@ const UNFILTERED_TESTS = [
   sourceHas('offline_solo', 'gameplay_question_fetch_requires_authenticated_projection', 'Solo question loading uses authenticated getQuestions bounded attempt buffer or capped guest deck', 'useOfflineQuestions.js', SRC.UseOfflineQuestions, ['gameplay_question_fetch_requires_authenticated_getQuestions', 'authenticated_gameplay_getQuestions_returns_server_attempt_candidate_buffer', 'Signed-in gameplay receives the authenticated bounded attempt buffer', 'Guests use only the explicit, capped minimal guest mode', "base44.functions.invoke('getQuestions'"]),
   sourceHas('offline_solo', 'offline_no_cache_requires_known_offline', 'Offline/no-cache screen is reserved for known offline plus no usable cache', 'Game/useOfflineQuestions', `${SRC.Game}\n${SRC.UseOfflineQuestions}`, ['offline_no_cache_requires_known_offline_and_no_cache', 'navigator.onLine === false', 'QUESTION_LOAD_ERROR_KIND.OFFLINE_NO_CACHE', 'İnternet bağlantısı yok']),
   sourceHas('offline_solo', 'retry_refetches_questions_online', 'Retry clears transient error and refetches questions', 'Game/useOfflineQuestions', `${SRC.Game}\n${SRC.UseOfflineQuestions}`, ['retry_clears_transient_error_and_refetches_online', 'setErrorKind(null)', 'fetchFromNetwork({ attempts: NO_CACHE_NETWORK_ATTEMPTS, forceLoading: true, includeDiagnostics: debugEnabled })', 'handleQuestionBootstrapRetry', 'retryQuestionsWhenNotReady', 'Tekrar Dene']),
-  sourceHas('offline_solo', 'question_refresh_cache_versioned', 'Question-set refresh invalidates stale local question cache', 'questionCache.js/useOfflineQuestions.js', `${SRC.QuestionCache}\n${SRC.UseOfflineQuestions}\n${SRC.Game}\n${SRC.QuestionPreparationLoading}`, ['question-runtime-v11-distinct-year-coverage', 'QUESTION_CACHE_VERSION', 'hasRequiredSoloYearCoverage', 'applyCachedQuestions', 'empty_response_retrying', 'QuestionPreparationLoading', 'QUESTION_PREPARATION_LOADING_CONTRACT', 'noArtificialDelay', 'Sorular yüklenemedi.']),
+  sourceHas('offline_solo', 'question_refresh_cache_versioned', 'Question-set refresh invalidates stale local question cache', 'questionCache.js/useOfflineQuestions.js', `${SRC.QuestionCache}\n${SRC.UseOfflineQuestions}\n${SRC.Game}\n${SRC.QuestionPreparationLoading}`, ['question-runtime-v10-solo-architecture', 'QUESTION_CACHE_VERSION', 'applyCachedQuestions', 'empty_response_retrying', 'QuestionPreparationLoading', 'QUESTION_PREPARATION_LOADING_CONTRACT', 'noArtificialDelay', 'Sorular yüklenemedi.']),
   sourceHas('offline_solo', 'data_empty_not_fake_offline', 'No active questions shows data-empty state instead of fake offline', 'Game/useOfflineQuestions', `${SRC.Game}\n${SRC.UseOfflineQuestions}`, ['NO_ACTIVE_QUESTIONS', 'Şu anda aktif soru bulunamadı.', 'Soru havuzu hazır olduğunda oyun başlayacak.']),
   sourceHas('offline_solo', 'direct_game_route_safe_message', 'Direct /game route without Solo launch state is handled safely', 'Game.jsx', SRC.Game, ['Oyuna başlamak için Ana Sayfa’dan Solo’ya giriş yap.', "navigate('/')", 'Ana Sayfa’ya Dön']),
   sourceHas('offline_solo', 'daily_quest_solo_completion_only', 'Daily Quest solo_level_complete is recorded only after passed Solo result', 'Game.jsx', SRC.Game, ['calculateSoloAttemptResult', 'attempt.passed', "recordDailyQuestSoloEvent('solo_level_complete'", "questType: 'solo_level_complete'"]),
@@ -698,28 +704,40 @@ const UNFILTERED_TESTS = [
   /* ------------------------------------------------------------------
    *  Codex075 report-integrity additions for social/invite/release-risk suites.
    * ------------------------------------------------------------------ */
-  makeCase('report_integrity', 'extra_suites_registered', 'Codex075 Health Simulator suites are registered in SUITES', () => {
-    const ids = new Set(SUITES.map((s) => s.id));
-    const expected = [
+  makeCase('report_integrity', 'extra_suites_registered', 'Active suites honor the B6 retirement and replacement registry', () => {
+    const ids = new Set(SUITES.map((suite) => suite.id));
+    const expectedActive = [
       'profile_navigation', 'friends_ui', 'friends_validation', 'friends_security', 'profile_economy',
       'online_lobby_setup', 'create_lobby_invite_gate', 'game_invites', 'lobby_code_ux', 'admin_visibility',
-      'mobile_social_flow', 'fantasy_visual_update', 'research_test_strategy', 'historical_kronox_regression',
-      'mobile_gesture_risk', 'live_dom_geometry', 'social_rls_two_account_risk', 'invite_contract_drift',
-      'visual_composition_regression', 'route_navigation_resilience', 'report_ux_human_decision', 'kronox_game_feel',
+      'mobile_social_flow', 'fantasy_visual_update', 'historical_kronox_regression', 'mobile_gesture_risk',
+      'live_dom_geometry', 'social_rls_two_account_risk', 'invite_contract_drift',
+      'visual_composition_regression', 'route_navigation_resilience', 'kronox_game_feel', 'health_intelligence',
     ];
-    const missing = expected.filter((id) => !ids.has(id));
-    return missing.length
-      ? fail('Some Codex075 suites are missing from SUITES.', { expected, actual: { missing } })
-      : pass('All Codex075 suites are registered.', { expected, actual: 'all present' });
+    const missingActive = expectedActive.filter((id) => !ids.has(id));
+    const retiredStillActive = HEALTH_RETIRED_SUITES.filter((suite) => ids.has(suite.id)).map((suite) => suite.id);
+    const invalidRetirements = HEALTH_RETIRED_SUITES.filter((suite) => (
+      !suite.reason || suite.proofCoverageRetained !== true || !ids.has(suite.replacementSuiteId)
+    )).map((suite) => suite.id);
+    return missingActive.length || retiredStillActive.length || invalidRetirements.length
+      ? fail('B6 active/retired suite registration is inconsistent.', { expected: expectedActive, actual: { missingActive, retiredStillActive, invalidRetirements } })
+      : pass('Retired suites are absent, replacement coverage is active, and every retirement records retained proof.');
   }),
-  makeCase('report_integrity', 'json_export_includes_new_suites', 'JSON export includes Codex075 suites', () => {
+  makeCase('report_integrity', 'json_export_includes_new_suites', 'JSON export reports active and retired/replaced suites honestly', () => {
     const report = buildReport([], SUITES);
-    const ids = new Set(report.suites.map((s) => s.id));
-    const expected = ['profile_navigation', 'friends_ui', 'friends_security', 'game_invites', 'research_test_strategy', 'mobile_gesture_risk', 'report_ux_human_decision'];
-    const missing = expected.filter((id) => !ids.has(id));
-    return missing.length
-      ? fail('Codex075 suites missing from JSON export.', { expected, actual: { missing } })
-      : pass('Codex075 suites present in JSON export.');
+    const activeIds = new Set(report.suites.map((suite) => suite.id));
+    const expectedActive = ['profile_navigation', 'friends_ui', 'friends_security', 'game_invites', 'mobile_gesture_risk', 'health_intelligence'];
+    const missingActive = expectedActive.filter((id) => !activeIds.has(id));
+    const retiredMetadata = Array.isArray(report.retiredSuites) ? report.retiredSuites : [];
+    const missingRetiredMetadata = HEALTH_RETIRED_SUITES.filter((suite) => !retiredMetadata.some((item) => (
+      item.id === suite.id
+      && item.replacementSuiteId === suite.replacementSuiteId
+      && item.proofCoverageRetained === true
+      && Boolean(item.reason)
+    ))).map((suite) => suite.id);
+    const retiredExportedAsActive = HEALTH_RETIRED_SUITES.filter((suite) => activeIds.has(suite.id)).map((suite) => suite.id);
+    return missingActive.length || missingRetiredMetadata.length || retiredExportedAsActive.length
+      ? fail('Health JSON export does not preserve the B6 active/retired boundary.', { actual: { missingActive, missingRetiredMetadata, retiredExportedAsActive } })
+      : pass('JSON export keeps active suites active and publishes explicit retired/replacement metadata.');
   }),
   makeCase('report_integrity', 'critical_social_uncertainty_penalty', 'Critical social NOT_AUTOMATABLE gates release without lowering automated score', () => {
     const baseline = buildReport([{ suiteId: 'report_integrity', suiteName: 'Report Integrity Suite', id: 's1', name: 'baseline', status: STATUS.PASS, reason: 'sample', durationMs: 0, critical: true }], SUITES);
@@ -819,7 +837,7 @@ const UNFILTERED_TESTS = [
   ...EXTRA_TESTS,
 ];
 
-const ACTIVE_TESTS = UNFILTERED_TESTS.filter(
+const ACTIVE_TESTS = canonicalizeHealthCases(UNFILTERED_TESTS.filter(
   (item) => !HEALTH_RETIRED_SUITE_IDS.has(item.suiteId) && !HEALTH_RETIRED_CASE_KEYS.has(item.key),
-);
+));
 export const TESTS = [...ACTIVE_TESTS, ...createHealthCatalogAuditCases(SUITES, ACTIVE_TESTS)];

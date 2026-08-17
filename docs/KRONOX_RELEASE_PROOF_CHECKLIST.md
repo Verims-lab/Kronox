@@ -12,7 +12,8 @@ Do not mark these as PASS without:
 * a real backend/security probe
 * a two-account or three-account runtime test where applicable
 
-Health PASS does not mean release-ready.
+Health PASS is not release-ready proof.
+Health is a contract guard, not release proof.
 
 ---
 

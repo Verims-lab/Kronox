@@ -32,6 +32,7 @@ import {
 import {
   buildHealthInventory,
   deriveFixOwner,
+  HEALTH_RETIRED_SUITES,
   deriveProofQuality,
   deriveRelatedFiles as catalogRelatedFiles,
   nextActionForOwner,
@@ -411,6 +412,7 @@ export function buildReport(caseResults, suites, meta = createRunMeta(), environ
     environment,
     route: environment.route,
     suites: suites.map(suite => ({ id: suite.id, name: suite.name, critical: suite.critical })),
+    retiredSuites: HEALTH_RETIRED_SUITES.map((suite) => ({ ...suite })),
     suiteSummary,
     suiteCount: activeSuiteSummary.length,
     runPack: meta.runPack || null,

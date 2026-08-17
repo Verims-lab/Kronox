@@ -317,7 +317,7 @@ export const EXTRA_TESTS = [
         'muted',
         'loop',
         'playsInline',
-        'preload="auto"',
+        'preload="metadata"',
         'controls={false}',
         "objectFit: 'cover'",
         'video.currentTime = 0',
@@ -350,7 +350,7 @@ export const EXTRA_TESTS = [
         'https://',
         'media.base44.com',
         'controls\n',
-        'preload="metadata"',
+        'preload="auto"',
       ]);
       if (missing.length || forbidden.length || configByLevel.length !== 5 || !noPopupLevels || !levelOneContract || !otherTutorialsUnchanged) {
         return fail('Level-start popup or privacy-safe analytics contract drifted.', {
@@ -358,7 +358,7 @@ export const EXTRA_TESTS = [
           actual: { missing, forbidden, configByLevel, noPopupLevels, levelOneContract, otherTutorialsUnchanged },
         });
       }
-      return pass('Level 1 uses the local Seviye1tutorial.mp4 asset with exact copy, inline muted autoplay/loop/reset video, an ANLADIM action, unchanged later popups, and privacy-safe analytics.', { verification: 'STATIC_CONTRACT' });
+      return pass('Level 1 uses popup-scoped metadata preload for the local Seviye1tutorial.mp4 asset, keeps inline muted autoplay/loop/reset cleanup, ANLADIM, unchanged later popups, and privacy-safe analytics.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('onboarding_contract_documented_in_sources',

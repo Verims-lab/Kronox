@@ -51,11 +51,9 @@ function makeCase(suiteId, id, name, run, options = {}) {
   };
 }
 
-export const EXTRA_SUITES = [
-  { id: 'offline_solo', name: SUITE_NAMES.offline_solo, critical: true, color: '#4ade80' },
-  { id: 'waiting_room_start', name: SUITE_NAMES.waiting_room_start, critical: true, color: '#38bdf8' },
-  { id: 'route_bootstrap', name: SUITE_NAMES.route_bootstrap, critical: true, color: '#818cf8' },
-];
+// These are canonical replacements inside three existing built-in suites.
+// Re-registering their suite definitions would create duplicate active IDs.
+export const EXTRA_SUITES = [];
 
 export const EXTRA_TESTS = [
   /* ------------------------------------------------------------------

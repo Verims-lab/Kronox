@@ -1,8 +1,43 @@
-export const HEALTH_RETIRED_SUITE_IDS = new Set([
-  'research_test_strategy',
-  'report_ux_human_decision',
-  'sre_release_health_signals',
+export const HEALTH_RETIRED_SUITES = [
+  {
+    id: 'research_test_strategy',
+    replacementSuiteId: 'health_intelligence',
+    reason: 'Retired after B6 because orchestration-comment scans duplicated executable catalog and proof-quality coverage.',
+    proofCoverageRetained: true,
+  },
+  {
+    id: 'report_ux_human_decision',
+    replacementSuiteId: 'health_intelligence',
+    reason: 'Retired after B6 because report actionability is covered by source-connected HealthCenter Intelligence cases.',
+    proofCoverageRetained: true,
+  },
+  {
+    id: 'sre_release_health_signals',
+    replacementSuiteId: 'health_intelligence',
+    reason: 'Retired after B6 because report timing, counts, ownership, and recoverability intelligence moved to the active report builder.',
+    proofCoverageRetained: true,
+  },
+];
+
+export const HEALTH_RETIRED_SUITE_IDS = new Set(HEALTH_RETIRED_SUITES.map((suite) => suite.id));
+
+export const HEALTH_CANONICAL_REPLACEMENT_CASE_KEYS = new Set([
+  'offline_solo.daily_quest_solo_completion_only',
+  'waiting_room_start.start_not_route_only',
+  'waiting_room_start.backend_snapshot_polling_detectable',
+  'route_bootstrap.live_lobby_priority',
 ]);
+
+export function canonicalizeHealthCases(cases) {
+  const lastReplacementIndex = new Map();
+  cases.forEach((item, index) => {
+    if (HEALTH_CANONICAL_REPLACEMENT_CASE_KEYS.has(item?.key)) lastReplacementIndex.set(item.key, index);
+  });
+  return cases.filter((item, index) => (
+    !HEALTH_CANONICAL_REPLACEMENT_CASE_KEYS.has(item?.key)
+    || lastReplacementIndex.get(item.key) === index
+  ));
+}
 
 export const HEALTH_RETIRED_CASE_KEYS = new Set([
   'timeline_hit_testing.drop_zone_rects_measurable',

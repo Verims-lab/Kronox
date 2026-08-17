@@ -72,6 +72,12 @@ const LIVE_SOURCES = [
 ].join('\n');
 
 const BASE44_SDK_VERSION = '0.8.34';
+const PACKAGE_LOCK_PROOF = {
+  packageLockAvailable: false,
+  classification: 'MANUAL_EXTERNAL',
+  fixOwner: 'Codex package / repo',
+  nextAction: 'Regenerate and verify package-lock.json in the external package/repo layer.',
+};
 const CRITICAL_BASE44_FUNCTION_SDK_SOURCES = [
   ['sendFriendRequest', sendFriendRequestSource],
   ['createGameInvitesForTargets', createGameInvitesForTargetsSource],
@@ -392,6 +398,7 @@ export const EXTRA_TESTS = [
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
+        packageLayerProof: PACKAGE_LOCK_PROOF,
       });
     }),
 
