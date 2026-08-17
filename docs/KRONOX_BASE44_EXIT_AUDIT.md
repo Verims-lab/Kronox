@@ -16,12 +16,13 @@ API client:
 * `src/api/base44Client.js` creates the shared frontend SDK client.
 * Frontend runtime code calls Base44 auth, entities, functions, subscriptions,
   and provider login paths directly from pages, hooks, and shared libs.
-* `base44/entities` defines 40 entity schemas.
-* `base44/functions` contains 51 function entry files; 29 currently have
+* `base44/entities` defines 41 entity schemas.
+* `base44/functions` contains 50 function entry files; 28 currently have
   `function.jsonc` manifests in this repo.
-* The repository is one entry above the configured Base44 deployment ceiling.
-  No function was removed during Paket A because no entry was proven obsolete;
-  deployment remains blocked pending an explicit consolidation/removal decision.
+* The repository is at the configured Base44 deployment ceiling. The prior
+  51st callable, `getPlayerQuestionExposureStats`, was safely consolidated into
+  the existing `recordPlayerQuestionExposure` function as its `read_stats`
+  action; the frontend gateway and response contract remain compatible.
 * Release docs assume Base44 for backend deploy proof, Android/iOS wrapper
   generation, App Store file generation, and some manual platform gates.
 
@@ -56,13 +57,41 @@ Current inventory from source scan:
 
 | Item | Count / Finding |
 | --- | --- |
-| Files containing `@base44/sdk`, `createClientFromRequest`, or `base44.` | 149, including runtime, docs, scripts, and Health cases |
-| Base44 entity schemas | 40 |
+| Files containing `@base44/sdk`, `createClientFromRequest`, or `base44.` | 168, including runtime, docs, scripts, and Health cases |
+| Base44 entity schemas | 41 |
 | Base44 function entry files | 50 |
 | Function manifests present in repo | 29 |
 | Frontend Base44 client | `src/api/base44Client.js` |
 | Existing adapter start | `src/lib/dbGateway/*`, but many direct calls remain |
 | Mobile source of truth | No complete native iOS/Android app source of truth in repo; current wrapper/export path is Base44-managed |
+
+### Deployability Inventory And Decision
+
+The pre-fix inventory contained 51 entry files. Every entry was classified from
+frontend/backend call sites, Admin/Health references, manifests, docs, and
+release-proof roles before the consolidation:
+
+| Classification | Count | Functions |
+| --- | ---: | --- |
+| Active runtime | 32 | `acceptFriendRequest`, `acceptGameInvite`, `claimDailyQuestReward`, `claimDailyWheelReward`, `claimLoginBonuses`, `consumeUserHint`, `createGameInvitesForTargets`, `createGuestProfile`, `deleteAccount`, `ensureKronoxUserId`, `ensureUserJokerInventory`, `findLobbyByCode`, `getCategoryMetadata`, `getDailyQuestStatus`, `getDailyWheelStatus`, `getOnlinePlayerSelection`, `getQuestions`, `getSoloLeaderboard`, `linkGuestAccount`, `purchaseJokerWithDiamonds`, `randomMatchmaking`, `recordAppOpen`, `recordDailyQuestProgress`, `recordPlayerQuestionExposure`, `removeFriend`, `sendFriendRequest`, `sendGameInvitePush`, `spendUserJoker`, `startLobbyGame`, `updateLobbyGameState`, `updatePlayerPresence`, `updateProfileSettings` |
+| Admin / safety tool | 12 | `adminDuplicateKeyCleanup`, `adminDuplicateKeyReport`, `adminGrantDiamonds`, `adminResetDailyWheelState`, `adminResetUserProgress`, `aggregateQuestionStats`, `cleanupInactiveGuestUsernames`, `generateTechDoc`, `generateWorkflowDoc`, `getAdminStatus`, `getUserReport`, `sendQuestionAnalyticsReportEmail` |
+| Cleanup / proof tool still needed | 6 | `cancelStaleLobbies`, `cleanupAdminMaintenanceLog`, `cleanupLegacyDailyQuests`, `expireOldGameInvites`, `expirePushSubscriptions`, `refreshLeaderboardProjection` |
+| Legacy but still referenced | 0 | None |
+| High-confidence removable | 0 | None |
+| Safe consolidation candidate | 1 | `getPlayerQuestionExposureStats`, because its only product caller used the stable exposure gateway and its read behavior/actor proof can be owned by `recordPlayerQuestionExposure/read_stats` without changing that gateway API or response shape |
+| Unknown / do not touch | 0 | None after source classification; dynamic deployment still requires platform proof |
+
+The only safe consolidation candidate was the exposure projection pair.
+`getPlayerQuestionExposureStats` and `recordPlayerQuestionExposure` duplicated
+the same linked/guest actor proof and `PlayerQuestionExposure` entity ownership.
+The read callable had one product caller, the stable
+`loadPlayerQuestionExposureStats` gateway. That gateway now invokes
+`recordPlayerQuestionExposure` with `action: read_stats`, while retaining its
+existing public helper API and normalized response. The removed name is also in
+the deploy checker's denylist so it cannot silently return. No Admin, safety,
+cleanup, proof, account deletion, economy, lobby, push, or leaderboard function
+was removed. The post-fix deploy surface is therefore 50 entry files: 32 active
+runtime, 12 Admin/safety, and 6 cleanup/proof.
 
 ## Base44 Dependency Map
 
@@ -98,21 +127,20 @@ Current inventory from source scan:
 Function entry files exist for these areas:
 
 * Admin/status/maintenance: `getAdminStatus`, `adminResetUserProgress`,
-  `adminResetDailyWheelState`,
-  `resetTestAccountProgress`, `cleanupAdminMaintenanceLog`,
+  `adminResetDailyWheelState`, `cleanupAdminMaintenanceLog`,
   `aggregateQuestionStats`, `refreshLeaderboardProjection`
 * Guest/account/profile: `createGuestProfile`, `linkGuestAccount`,
   `updateProfileSettings`, `deleteAccount`
 * Questions/categories/analytics: `getQuestions`, `getCategoryMetadata`,
-  `diagnoseSoloQuestionStartQuery`, `recordPlayerQuestionExposure`,
-  `getPlayerQuestionExposureStats`, `sendQuestionAnalyticsReportEmail`
+  `recordPlayerQuestionExposure` (`record` and `read_stats` actions),
+  `sendQuestionAnalyticsReportEmail`
 * Economy/jokers: `getDailyWheelStatus`, `claimDailyWheelReward`,
   `ensureUserJokerInventory`, `spendUserJoker`, `purchaseJokerWithDiamonds`
 * Daily Quest: `getDailyQuestStatus`, `recordDailyQuestProgress`,
-  `claimDailyQuestReward`, `createDailyQuestDefinition`
+  `claimDailyQuestReward`, `cleanupLegacyDailyQuests`
 * Online/lobby/social: `findLobbyByCode`, `startLobbyGame`,
   `updateLobbyGameState`, `acceptGameInvite`, `sendGameInvitePush`,
-  `sendFriendRequestEmail`, `acceptFriendRequest`, `removeFriend`,
+  `sendFriendRequest`, `acceptFriendRequest`, `removeFriend`,
   `cancelStaleLobbies`, `expireOldGameInvites`, `expirePushSubscriptions`
 
 Migration implication: each Base44 function must become a provider-neutral API

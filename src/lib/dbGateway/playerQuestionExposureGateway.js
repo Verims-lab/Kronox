@@ -59,8 +59,9 @@ function normalizeExposureStat(row = {}) {
 
 export async function loadPlayerQuestionExposureStats({ mode = 'solo', limit = 2500 } = {}) {
   try {
-    const response = await base44.functions.invoke('getPlayerQuestionExposureStats', {
+    const response = await base44.functions.invoke('recordPlayerQuestionExposure', {
       ...guestCredentialsPayload(),
+      action: 'read_stats',
       mode: normalizeMode(mode),
       limit,
     });

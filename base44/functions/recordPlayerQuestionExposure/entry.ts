@@ -5,6 +5,7 @@ import { jsonResponse as json, normalizeEmail, hashGuestToken } from "../../shar
 const VALID_MODES = new Set(["solo", "tutorial", "online"]);
 const VALID_ROLES = new Set(["anchor", "playable", "replacement", "tutorial", "unknown"]);
 const MAX_EVENT_KEYS_PER_ROW = 60;
+const MAX_STATS_LIMIT = 2500;
 
 async function readBody(req: Request) {
   try {
@@ -31,6 +32,11 @@ function normalizeQuestionId(value: unknown) {
 function normalizeCategoryId(value: unknown) {
   const number = Number(value);
   return Number.isFinite(number) && number > 0 ? Math.trunc(number) : null;
+}
+
+function normalizeStatsLimit(value: unknown) {
+  const limit = Math.trunc(Number(value) || 1000);
+  return Math.max(1, Math.min(MAX_STATS_LIMIT, limit));
 }
 
 function nowIso() {
@@ -93,6 +99,66 @@ async function resolvePlayer(base44: any, body: any) {
   }
 
   return verifyGuestPlayer(base44, body);
+}
+
+function publicExposureStat(row: any) {
+  const questionId = normalizeQuestionId(row?.question_id);
+  const shownCount = Math.max(0, Math.trunc(Number(row?.shown_count) || 0));
+  return {
+    question_id: questionId,
+    questionId,
+    category_id: Number.isFinite(Number(row?.category_id)) ? Number(row.category_id) : null,
+    mode: normalizeMode(row?.mode),
+    shown_count: shownCount,
+    shownCount,
+    first_shown_at: row?.first_shown_at || null,
+    last_shown_at: row?.last_shown_at || null,
+    lastShownAt: row?.last_shown_at || null,
+    last_role: row?.last_role || "",
+    source: "PlayerQuestionExposure",
+  };
+}
+
+async function readExposureStats(base44: any, player: any, body: any) {
+  const mode = normalizeMode(body?.mode);
+  const limit = normalizeStatsLimit(body?.limit);
+  const entity = serviceEntity(base44, "PlayerQuestionExposure");
+  if (!entity?.filter) {
+    return json({
+      ok: true,
+      rows: [],
+      stats: [],
+      warning: "PlayerQuestionExposure entity unavailable",
+      contract: {
+        table: "PlayerQuestionExposure",
+        playerKeyReturned: false,
+        guestRequiresToken: true,
+        rawGuestTokenStoredServerSide: false,
+      },
+    });
+  }
+
+  const rows = await entity
+    .filter({ player_key: player.playerKey, mode, status: "active" }, "-last_shown_at", limit)
+    .catch(() => []);
+  const stats = (Array.isArray(rows) ? rows : [])
+    .map(publicExposureStat)
+    .filter((row) => row.question_id);
+
+  return json({
+    ok: true,
+    mode,
+    count: stats.length,
+    stats,
+    rows: stats,
+    contract: {
+      table: "PlayerQuestionExposure",
+      uniqueKey: "player_key + question_id + mode",
+      playerKeyReturned: false,
+      guestRequiresToken: true,
+      rawGuestTokenStoredServerSide: false,
+    },
+  });
 }
 
 function readEventKeys(row: any) {
@@ -183,6 +249,7 @@ Deno.serve(async (req: Request) => {
 
   const base44 = createClientFromRequest(req);
   const body = await readBody(req);
+  const action = String(body?.action || "record").trim().toLowerCase();
   const player = await resolvePlayer(base44, body);
   if (!player?.playerKey) {
     return json({
@@ -190,9 +257,14 @@ Deno.serve(async (req: Request) => {
       error: "player_identity_required",
       contract: {
         guestRequiresToken: true,
+        playerKeyReturned: false,
         rawGuestTokenStoredServerSide: false,
       },
     }, 401);
+  }
+
+  if (action === "read_stats") {
+    return readExposureStats(base44, player, body);
   }
 
   const questionId = normalizeQuestionId(body?.question_id ?? body?.questionId);

@@ -12,6 +12,7 @@ const REMOVED_FUNCTION_NAMES = Object.freeze([
   'diagnoseSoloQuestionStartQuery',
   'ensureUserHintInventory',
   'getFriendPresence',
+  'getPlayerQuestionExposureStats',
   'resetTestAccountProgress',
   'runTestSuite',
   'sendFriendRequestEmail',

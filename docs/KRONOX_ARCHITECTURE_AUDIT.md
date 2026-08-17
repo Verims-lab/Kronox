@@ -26,10 +26,10 @@ Mechanical scan from this pass:
 | Item | Current count / finding |
 | --- | --- |
 | Audited source/doc/script files in requested folders | 416 |
-| Base44 entity schemas | 40 |
-| Base44 function entry files | 51; `npm run check:base44-functions` intentionally blocks above the 50-entry deploy ceiling |
-| Base44 function manifests in repo | 29 |
-| Files touching `base44.` / SDK calls in source, backend, scripts, or Health | 151 |
+| Base44 entity schemas | 41 |
+| Base44 function entry files | 50; the duplicate exposure-stats read callable was consolidated into `recordPlayerQuestionExposure/read_stats`, and `npm run check:base44-functions` still blocks above the 50-entry deploy ceiling |
+| Base44 function manifests in repo | 28 |
+| Files touching `base44.` / SDK calls in source, backend, scripts, docs, or Health | 168 |
 | Existing DB gateway start | `src/lib/dbGateway/*`, plus many direct Base44 calls remain |
 | Health coverage | Broad static and some executable cases; live two-account and device proof remain manual |
 

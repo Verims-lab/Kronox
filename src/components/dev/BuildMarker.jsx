@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex604 — Base44 deployability fix: consolidate exposure-stat reads into recordPlayerQuestionExposure/read_stats, retire the duplicate callable, preserve linked/guest response contracts, and align source-connected Health/docs at the 50-function ceiling. Gameplay, scoring, economy, DB schemas, Online/Daily rules, Solo Streak, and BottomNav are unchanged.
 // Codex603 — Paket A post-A1-A4 audit: exact Base44 SDK lock alignment, fixed-copy friend-request cancellation errors, source-connected A2 Health coverage, and honest 51/50 backend deployability documentation. Gameplay, scoring, economy, DB, Online/Daily rules, Solo Streak, and BottomNav are unchanged.
 // Codex602 — A4 Health proof hardening: per-source A3 modal/route assertions, rendered-private-key false-positive control, independently scoped A2 retry checks, active Online all-category/shared-deck/join-code proof, exact BottomNav extraction, and current docs/mirror alignment. Product behavior is unchanged.
 //
@@ -180,7 +181,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex603';
+const BUILD_MARKER = 'Codex604';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

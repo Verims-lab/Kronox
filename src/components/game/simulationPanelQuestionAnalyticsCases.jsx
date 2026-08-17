@@ -23,7 +23,6 @@ import aggregateQuestionStatsSource from '../../../base44/functions/aggregateQue
 import reportFunctionSource from '../../../base44/functions/sendQuestionAnalyticsReportEmail/entry.ts?raw';
 import reportFunctionManifestSource from '../../../base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc?raw';
 import recordPlayerQuestionExposureSource from '../../../base44/functions/recordPlayerQuestionExposure/entry.ts?raw';
-import getPlayerQuestionExposureStatsSource from '../../../base44/functions/getPlayerQuestionExposureStats/entry.ts?raw';
 import getQuestionsSource from '../../../base44/functions/getQuestions/entry.ts?raw';
 import playerQuestionExposureGatewaySource from '../../lib/dbGateway/playerQuestionExposureGateway.js?raw';
 import { DB_ARCHITECTURE_IMPLEMENTATION_MIRROR } from '@/lib/dbArchitectureMirrors';
@@ -991,7 +990,7 @@ export const EXTRA_TESTS = [
   makeCase('player_question_exposure_projection_architecture',
     'Per-player question exposure projections exist and use safe internal keys',
     () => {
-      const combined = `${playerQuestionExposureEntitySource}\n${playerQuestionDailyExposureEntitySource}\n${recordPlayerQuestionExposureSource}\n${getPlayerQuestionExposureStatsSource}\n${playerQuestionExposureGatewaySource}`;
+      const combined = `${playerQuestionExposureEntitySource}\n${playerQuestionDailyExposureEntitySource}\n${recordPlayerQuestionExposureSource}\n${playerQuestionExposureGatewaySource}`;
       const missing = missingTokens(combined, [
         'PlayerQuestionExposure',
         'PlayerQuestionDailyExposure',
@@ -1011,6 +1010,10 @@ export const EXTRA_TESTS = [
         'hashGuestToken',
         'playerKeyReturned: false',
         'rawGuestTokenStoredServerSide: false',
+        'action === "read_stats"',
+        'readExposureStats',
+        "base44.functions.invoke('recordPlayerQuestionExposure'",
+        "action: 'read_stats'",
       ]);
       const forbidden = forbiddenTokens(`${playerQuestionExposureEntitySource}\n${playerQuestionDailyExposureEntitySource}`, [
         'user_email',
@@ -1019,19 +1022,22 @@ export const EXTRA_TESTS = [
         'guest_token',
         'auth_header',
       ]);
-      if (missing.length || forbidden.length) {
+      const staleGatewayReferences = forbiddenTokens(playerQuestionExposureGatewaySource, [
+        "base44.functions.invoke('getPlayerQuestionExposureStats'",
+      ]);
+      if (missing.length || forbidden.length || staleGatewayReferences.length) {
         return fail('Per-player exposure storage can expose identity or lacks required projection keys.', {
           verification: 'STATIC_CONTRACT',
           files: [
             'base44/entities/PlayerQuestionExposure.jsonc',
             'base44/entities/PlayerQuestionDailyExposure.jsonc',
             'base44/functions/recordPlayerQuestionExposure/entry.ts',
-            'base44/functions/getPlayerQuestionExposureStats/entry.ts',
+            'src/lib/dbGateway/playerQuestionExposureGateway.js',
           ],
-          actual: { missing, forbidden },
+          actual: { missing, forbidden, staleGatewayReferences },
         });
       }
-      return pass('Per-player exposure projections store internal player_key rows only and expose stats through token/auth-verified functions.', {
+      return pass('Per-player exposure projections store internal player_key rows only; the canonical record function owns token/auth-verified record and read_stats actions.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

@@ -525,14 +525,14 @@ Base44 function config proof:
 * public-by-design: `createGuestProfile`, `getCategoryMetadata`
 * guest-token required: guest profile update/progress/category/exposure paths
   including `updateProfileSettings`, Daily Calendar/Wheel guest reward paths,
-  `getSoloLeaderboard` guest current-row access, `getPlayerQuestionExposureStats`,
-  and `recordPlayerQuestionExposure` guest mode
+  `getSoloLeaderboard` guest current-row access, and both the `record` and
+  `read_stats` actions of `recordPlayerQuestionExposure`
 * registered-auth required: `getQuestions` normal gameplay,
   `updateProfileSettings`, `linkGuestAccount`, Mağaza purchases, and registered
   economy/Daily Calendar/Wheel functions
 * admin-only/internal reporting: AdminUser-guarded report, diagnostic,
   simulation, maintenance, and reset functions
-* configured manifests currently present for 22 functions; additional
+* configured manifests currently present for 28 functions; additional
   `entry.ts` directories are compile-checked but must not be assumed
   platform-published unless a matching `function.jsonc` or Base44 deploy proof
   exists
@@ -544,8 +544,7 @@ Configured function auth/public matrix:
 | `createGuestProfile` | Public by design | Scope-limited guest create/verify, throttle, token hash, no role/body trust. |
 | `getCategoryMetadata` | Public by design | Metadata-only active categories; no questions/answers/user data. |
 | `getQuestions` | Capped guest gameplay mode + authenticated normal/admin mode | Guest requests forbid diagnostics/full bank; normal gameplay requires auth; diagnostics/full bank require AdminUser. |
-| `getPlayerQuestionExposureStats` | Guest-token or authenticated user | Guest path verifies `guest_id + guest_token`; auth path derives user from `base44.auth.me()`. |
-| `recordPlayerQuestionExposure` | Guest-token or authenticated user | Same player proof model as exposure stats; no request-body identity trust. |
+| `recordPlayerQuestionExposure` | Guest-token or authenticated user | One canonical function owns `record` and `read_stats`; both actions verify `guest_id + guest_token` or derive the authenticated user from `base44.auth.me()`, trust no request-body identity, and return no internal player key. |
 | `updateProfileSettings` | Guest-token or authenticated user | Guest path verifies token; auth path derives current user. |
 | `linkGuestAccount` | Authenticated user + guest-token | Auth user from `base44.auth.me()` and guest ownership from token hash. |
 | `sendFriendRequest` | Authenticated user | Current user from `base44.auth.me()`; email or username target is resolved server-side, self/open-pending/expired-outgoing guards run under `FriendRequestOperationLock`, new rows get 72-hour `expires_at`, creates `FriendRequest` only through the backend service/admin path, and username add responses return username-safe labels without target email. |
