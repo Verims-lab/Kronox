@@ -9,6 +9,7 @@ import UserReportTool from '@/components/admin/UserReportTool';
 import InactiveGuestCleanupTool from '@/components/admin/InactiveGuestCleanupTool';
 import AdminDiamondGrantTool from '@/components/admin/AdminDiamondGrantTool';
 import AdminDailyWheelResetTool from '@/components/admin/AdminDailyWheelResetTool';
+import IntegritySnapshotTool from '@/components/admin/IntegritySnapshotTool';
 import StandardTopBar from '@/components/layout/StandardTopBar';
 import PullToRefresh from '@/components/mobile/PullToRefresh';
 import { AdminRefreshContext } from '@/lib/AdminRefreshContext';
@@ -182,6 +183,7 @@ export default function AdminPage() {
                 desc="Brutally honest mobile, gameplay, sync, and release-risk checks"
                 onClick={() => setShowSim(true)}
               />
+              <IntegritySnapshotTool />
               <QuestionAnalyticsReportTool />
               <UserReportTool />
               <AdminDiamondGrantTool />

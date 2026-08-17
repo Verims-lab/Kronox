@@ -1196,6 +1196,14 @@ Before release after DB architecture changes:
 9. How are production index/config changes exported or documented so they are
    not lost between environments?
 
+## Paket B1 — Read-Only Integrity Proof
+
+`adminDuplicateKeyReport` is the single AdminUser-gated B1 report path. It remains dry-run/read-only and returns pass/fail/incomplete status, bounded counts, and irreversible sample-key fingerprints without row dumps. It covers Diamond/Daily/Joker/Hint/Online receipts, current inventories, active operation locks, Lobby codes, materialized leaderboard owners, FriendRequest, and GameInvite duplicate risk.
+
+Admin Ekranı exposes one compact `Integrity Snapshot` that summarizes economy source/direction ledgers, Daily source receipts, Solo streak reward receipts, and Online shared-deck/result authority. It performs no cleanup, merge, grant, spend, migration, schema, index, score, or gameplay write. Platform unique indexes, parallel races, RLS/multi-account behavior, production deployment/secrets, and real-device behavior remain manual proof.
+
+B1 reuses the existing report function at the 50-entry deploy ceiling. No backend function was added.
+
 ## Future Health Coverage Recommendations
 
 - `db_gateway_direct_question_reads_blocked`

@@ -880,6 +880,12 @@ Do not implement these without explicit product approval.
 
 ---
 
+# Paket B1 — Economy Integrity Snapshot
+
+Admin Ekranı now offers an AdminUser-gated, read-only `Integrity Snapshot` backed by `adminDuplicateKeyReport`. It reports bounded aggregate source/direction counts for Diamond, Joker, and Hint ledgers; idempotency-key coverage; operation-lock scopes/status; duplicate risk; and source-proof status. Raw ledger rows, email, guest tokens, owner/player/actor keys, internal row IDs, secrets, and raw backend errors are not rendered.
+
+The report keeps `daily_wheel`, `daily_calendar_streak_reward`, `solo_streak`, `market_purchase`, starter/login sources, admin adjustments, Joker spends, Hint spends, and purchase receipts distinct. It never repairs balances, cleans duplicates, grants rewards, changes prices, or mutates economy state. Platform unique indexes and live parallel consistency remain manual release proof.
+
 # 13. Health Coverage Expectations
 
 Health should cover:

@@ -1286,6 +1286,17 @@ verified against the deployed Base44 environment.
 
 ---
 
+# Paket B1 — Read-Only Integrity Release Proof
+
+* Open Admin Ekranı as an active AdminUser and run `Integrity Snapshot`; confirm non-admin/direct callers remain blocked.
+* Confirm every duplicate check reports PASS, FAIL, or INCOMPLETE with bounded counts and fingerprint-only samples.
+* Confirm the report response states `dryRun`, `readOnly`, `mutatesRows: false`, `mutatesBalances: false`, and `destructiveCleanupImplemented: false`.
+* Confirm Daily source proof, Solo streak receipts, Online shared-deck/result authority, and economy source/direction summaries render without private row dumps.
+* Run the targeted `Integrity Proof Health Suite` plus affected Admin/security/economy/Daily/Solo/Online suites.
+* B1 adds no backend function; the repository remains at the 50-function ceiling.
+* Production deployment, real RLS/multi-account probes, real devices, Base44 unique indexes, production secrets, and parallel race behavior remain manual.
+* Package-layer blocker: the current frontend dependency is `@base44/sdk ^0.8.42` while the existing deploy gate/backend imports still require `0.8.34`. B1 does not change dependency/runtime versions; resolve this explicitly before relying on the full deploy gate.
+
 # 16. Manual Proof Recording
 
 For every manual test run, record:
@@ -1409,8 +1420,7 @@ Before release, manually verify guest-to-account linking:
 
 Automated/source-connected gates:
 
-* `npm run check:base44-functions` reports at most 50 entries, exact
-  `@base44/sdk` `0.8.34` package/lock/Deno pins, and no removed callable paths.
+* `npm run check:base44-functions` enforces at most 50 entries and no removed callable paths. The current repo is at 50 entries, but the frontend package sync (`@base44/sdk ^0.8.42`) does not match the gate/backend Deno `0.8.34` contract; this remains an explicit pre-deploy blocker until an approved compatibility alignment is performed.
 * Online client source contains no direct `OnlineMatchResult`, User/GuestProfile
   Online score, or leaderboard projection writes.
 * `updateLobbyGameState` rejects forged/nonterminal/nonparticipant result

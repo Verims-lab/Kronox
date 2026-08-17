@@ -89,21 +89,18 @@ cannot create `OnlineMatchResult` or write profile/leaderboard score.
 
 ## Base44 SDK alignment
 
-Security Pass 1 pins the frontend `@base44/sdk` dependency exactly at
-`0.8.34`, keeps the package-lock root spec exactly at `0.8.34`, and aligns
-Base44 Deno function imports to `npm:@base44/sdk@0.8.34`. Do not reintroduce
-`^` on the frontend SDK package or older `npm:@base44/sdk@0.8.25` function
-imports unless a Base44 runtime compatibility incident requires an explicit
-documented split.
+The backend Base44 Deno functions remain pinned to `npm:@base44/sdk@0.8.34`,
+and the deploy gate still expects the frontend package/lock layer to match that
+version exactly. The current package-layer sync instead declares frontend
+`@base44/sdk ^0.8.42`. This is an explicit pre-deploy compatibility blocker:
+B1 does not silently change dependency/runtime versions, loosen the gate, or
+rewrite all backend imports.
 
-`scripts/checkBase44FunctionsCompile.mjs` is the deploy gate: it caps the repo
-at 50 Base44 function entry files, requires exactly 50 or fewer deployable
-entries, verifies the exact SDK pin in `package.json`, package-lock root spec,
-installed package metadata when available, and all Deno imports, and rejects
-the removed legacy/test/diagnostic function directories if reintroduced.
-The current repository has 51 entry files, so this gate correctly remains red
-until one function is explicitly approved for consolidation or removal. Do not
-weaken the ceiling or delete an active callable merely to make the check green.
+`scripts/checkBase44FunctionsCompile.mjs` caps the repo at 50 Base44 function
+entry files, verifies SDK alignment, and rejects removed legacy/test/diagnostic
+function directories. The repository is currently at exactly 50 entries after
+the exposure-stat callable consolidation. B1 reuses
+`adminDuplicateKeyReport`, adds no function, and does not weaken the ceiling.
 
 `@base44/vite-plugin` remains unchanged in this pass; it is build/runtime
 tooling, not the SDK auth/entity/function client.
@@ -1035,6 +1032,12 @@ Security contract:
   contain the deleted user's email/key
 
 ---
+
+# Paket B1 — Admin Integrity Boundary
+
+The B1 `Integrity Snapshot` is mounted only inside the guarded Admin Ekranı and invokes the existing AdminUser-gated `adminDuplicateKeyReport`. The function derives the caller from `auth.me`, requires an active owner/admin row, performs bounded service-role reads only, and returns aggregates plus irreversible key fingerprints. It never returns raw email, guest token, owner/player/actor keys, internal row IDs, secrets, request bodies, stack traces, or raw database rows.
+
+Both supported report modes are dry-run/read-only. B1 introduces no cleanup action, mutation, migration, schema/index change, automatic scheduler, or public route. Runtime 401/403/admin success, cross-account isolation, platform unique indexes, production deployment/secrets, and real-device proof remain manual.
 
 # 10. Health Coverage Expectations
 

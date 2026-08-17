@@ -1,117 +1,81 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 
-// adminDuplicateKeyReport — GFable 5 DB indexing prep.
-//
-// AdminUser-gated, READ-ONLY duplicate dry-run tool for every planned P0/P1
-// unique key. Base44 repo JSONC schemas cannot declare indexes/unique
-// constraints, so unique keys are platform/manual configuration. Rule:
-// duplicate cleanup must complete before any unique constraint is configured
-// (INDEX BEFORE DUPLICATE CLEANUP IS NOT ALLOWED).
-//
-// Modes (both read-only):
-//   • dry_run (default)        — duplicate counts + masked sample keys.
-//   • prepare_cleanup_plan     — same counts plus a canonical-row cleanup
-//                                strategy note per duplicate-bearing key.
-//
-// This function NEVER mutates rows or balances. Destructive cleanup is
-// intentionally NOT implemented: canonical-row semantics for economy ledgers
-// and inventory merges require explicit product/admin approval first.
-
-const DEFAULT_SCAN_LIMIT = 5000;
-const MAX_SCAN_LIMIT = 20000;
+// B1 read-only integrity report. Both supported modes are dry-run only.
+// This function never creates, updates, deletes, merges, grants, spends, or cleans rows.
+const DEFAULT_SCAN_LIMIT = 1000;
+const MAX_SCAN_LIMIT = 5000;
 const PAGE_SIZE = 500;
 
 const DUPLICATE_KEY_CHECKS = [
-  { id: 'diamond_transaction_idempotency_key', entity: 'DiamondTransaction', priority: 'P0', fields: ['idempotency_key'], purpose: 'Prevent duplicate Diamond grant/spend from retry, double-click, race, or repeated backend invocation.' },
-  { id: 'daily_wheel_spin_idempotency_key', entity: 'DailyWheelSpin', priority: 'P0', fields: ['idempotency_key'], purpose: 'Daily Wheel claim retry safety.' },
-  { id: 'daily_wheel_spin_user_day', entity: 'DailyWheelSpin', priority: 'P0', fields: ['user_email', 'spin_date'], purpose: 'One free Daily Wheel spin per player per UTC server day.' },
-  { id: 'user_joker_inventory_user_joker_type', entity: 'UserJokerInventory', priority: 'P0', fields: ['user_email', 'joker_type'], purpose: 'One balance row per user per joker type for Solo joker bar / Market display.' },
-  { id: 'user_daily_quest_progress_idempotency_key', entity: 'UserDailyQuestProgress', priority: 'P0', fields: ['idempotency_key'], purpose: 'Daily Calendar task assignment idempotency.' },
-  { id: 'user_daily_quest_progress_user_day_task', entity: 'UserDailyQuestProgress', priority: 'P0', fields: ['user_email', 'quest_date', 'quest_key'], purpose: 'One row per player per UTC day per Daily Calendar task (3-task day / streak correctness).' },
-  { id: 'joker_transaction_idempotency_key', entity: 'JokerTransaction', priority: 'P0', fields: ['idempotency_key'], purpose: 'Prevent duplicate joker grant/spend ledger rows.' },
-  { id: 'hint_transaction_idempotency_key', entity: 'HintTransaction', priority: 'P0', fields: ['idempotency_key'], purpose: 'Prevent duplicate Hint grant/spend ledger rows.' },
-  { id: 'solo_leaderboard_entry_owner_key', entity: 'SoloLeaderboardEntry', priority: 'P1', fields: ['owner_key'], purpose: 'One leaderboard projection row per player; fast total_kronox_score descending sort.' },
-  { id: 'lobby_code', entity: 'Lobby', priority: 'P1', fields: ['code'], purpose: 'Fast unique lobby-code lookup.' },
+  { id: 'diamond_transaction_idempotency_key', entity: 'DiamondTransaction', priority: 'P0', fields: ['idempotency_key'], purpose: 'Diamond grant/spend receipt' },
+  { id: 'daily_wheel_spin_idempotency_key', entity: 'DailyWheelSpin', priority: 'P0', fields: ['idempotency_key'], purpose: 'Daily Wheel claim receipt' },
+  { id: 'daily_wheel_spin_user_day', entity: 'DailyWheelSpin', priority: 'P0', fields: ['user_email', 'spin_date'], purpose: 'One wheel claim per actor/day' },
+  { id: 'user_daily_quest_progress_idempotency_key', entity: 'UserDailyQuestProgress', priority: 'P0', fields: ['idempotency_key'], purpose: 'Daily assignment receipt' },
+  { id: 'user_daily_quest_progress_user_day_task', entity: 'UserDailyQuestProgress', priority: 'P0', fields: ['user_email', 'quest_date', 'quest_key'], purpose: 'One Daily task row per actor/day/task' },
+  { id: 'solo_streak_reward_idempotency_key', entity: 'DiamondTransaction', priority: 'P0', fields: ['idempotency_key'], filter: { source: 'solo_streak' }, purpose: 'One Solo streak reward per attempt/milestone' },
+  { id: 'joker_transaction_idempotency_key', entity: 'JokerTransaction', priority: 'P0', fields: ['idempotency_key'], purpose: 'Joker grant/spend receipt' },
+  { id: 'hint_transaction_idempotency_key', entity: 'HintTransaction', priority: 'P0', fields: ['idempotency_key'], purpose: 'Hint grant/spend receipt' },
+  { id: 'user_joker_inventory_actor_type', entity: 'UserJokerInventory', priority: 'P0', fields: ['user_email', 'joker_type'], purpose: 'One Joker balance per actor/type' },
+  { id: 'user_hint_inventory_actor', entity: 'UserHintInventory', priority: 'P0', fields: ['user_email'], purpose: 'One Hint balance per actor' },
+  { id: 'online_match_result_idempotency_key', entity: 'OnlineMatchResult', priority: 'P0', fields: ['idempotency_key'], purpose: 'Online result receipt' },
+  { id: 'online_match_result_actor_lobby', entity: 'OnlineMatchResult', priority: 'P0', fields: ['lobby_id', 'actor_key_hash'], purpose: 'One Online result per actor/lobby' },
+  { id: 'economy_operation_lock_key', entity: 'EconomyOperationLock', priority: 'P0', fields: ['lock_key'], filter: { status: 'active' }, purpose: 'Active operation lock key' },
+  { id: 'lobby_code', entity: 'Lobby', priority: 'P1', fields: ['code'], purpose: 'Unique lobby code' },
+  { id: 'solo_leaderboard_entry_owner_key', entity: 'SoloLeaderboardEntry', priority: 'P1', fields: ['owner_key'], purpose: 'One materialized score row per actor' },
+  { id: 'friend_request_sender_recipient_status', entity: 'FriendRequest', priority: 'P1', fields: ['from_email', 'to_email', 'status'], purpose: 'Open social relation risk' },
+  { id: 'game_invite_sender_recipient_status', entity: 'GameInvite', priority: 'P1', fields: ['from_email', 'to_email', 'status'], purpose: 'Invite lifecycle duplicate risk' },
 ];
 
-const CLEANUP_STRATEGY_NOTES: Record<string, string> = {
-  DiamondTransaction: 'Canonical row = earliest ledger row per idempotency_key whose balance_after matches the applied grant/spend; extra rows are audit-archive candidates only. Cleanup must preserve the visible User/GuestProfile balance and never re-apply or reverse grants. Requires explicit admin approval; not automated.',
-  DailyWheelSpin: 'Canonical row = earliest claimed spin per player/day; later rows are retry echoes. No balance mutation during cleanup.',
-  UserJokerInventory: 'Canonical row = row matching the latest JokerTransaction balance_after (fallback: newest updated row); duplicates are merge/passivate candidates. Runtime already dedupes on read; cleanup must not change effective balances.',
-  UserDailyQuestProgress: 'daily_calendar:* duplicates: keep the row with the highest progress_value/earliest completion. Legacy daily_quest:* rows are handled by the existing admin-gated cleanupLegacyDailyQuests dry-run/delete path.',
-  JokerTransaction: 'Ledger rows are append-only audit; duplicates per idempotency_key are archive candidates only, never balance mutations.',
-  HintTransaction: 'Ledger rows are append-only audit; duplicates per idempotency_key are archive candidates only, never balance mutations.',
-  SoloLeaderboardEntry: 'Canonical row = newest updated_at per owner_key (getSoloLeaderboard already dedupes server-side); older projection rows are passivate/remove candidates after admin confirmation.',
-  Lobby: 'Duplicate codes would require regenerating codes on non-authoritative rows; only with explicit admin confirmation.',
-};
+const DAILY_SOURCE_PROOF = [
+  { taskType: 'daily_wheel_claim', title: 'Çark çevir', proofSource: 'DailyWheelSpin', receiptField: 'idempotency_key' },
+  { taskType: 'joker_used', title: '1/2 joker kullan', proofSource: 'JokerTransaction', receiptField: 'idempotency_key' },
+  { taskType: 'time_freeze_joker_used', title: 'Zamanı Dondur jokerini kullan', proofSource: 'JokerTransaction:time_freeze', receiptField: 'idempotency_key' },
+  { taskType: 'hint_used', title: 'İpucu kullan', proofSource: 'HintTransaction:solo_use', receiptField: 'idempotency_key' },
+  { taskType: 'solo_level_complete', title: '1/2/3 seviye tamamla', proofSource: 'Persisted Solo attempt', receiptField: 'lastAttemptId' },
+  { taskType: 'consecutive_correct_4', title: 'Üst üste 4 doğru cevap ver', proofSource: 'QuestionAttemptEvent', receiptField: 'event_id' },
+  { taskType: 'correct_answer', title: '5 soruyu doğru cevapla', proofSource: 'QuestionAttemptEvent', receiptField: 'event_id' },
+  { taskType: 'jokerless_solo_level_complete', title: 'Jokersiz seviye tamamla', proofSource: 'Persisted Solo attempt', receiptField: 'lastAttemptId' },
+  { taskType: 'profile_complete', title: 'Profilini tamamla', proofSource: 'Profile state', receiptField: 'profile_settings_updated_at' },
+  { taskType: 'friend_invite_sent', title: 'Arkadaşını davet et', proofSource: 'FriendRequest', receiptField: 'public_ref' },
+  { taskType: 'friend_added', title: '1 arkadaş ekle', proofSource: 'FriendRequest:accepted', receiptField: 'public_ref' },
+];
 
-function json(payload: unknown, status = 200) {
+function json(payload, status = 200) {
   return Response.json(payload, { status });
 }
 
-function normalizeEmail(value: unknown) {
+function normalizeEmail(value) {
   return String(value || '').trim().toLowerCase();
 }
 
-function isActiveAdminRole(role: unknown) {
-  const value = String(role || '').trim().toLowerCase();
-  return value === 'owner' || value === 'admin';
+function isActiveAdminRole(role) {
+  return ['owner', 'admin'].includes(String(role || '').trim().toLowerCase());
 }
 
-function isActiveAdminStatus(status: unknown) {
-  return String(status || '').trim().toLowerCase() === 'active';
-}
-
-async function requireAdmin(base44: any) {
-  let user: any = null;
-  try {
-    user = await base44.auth.me();
-  } catch (_error) {
-    user = null;
-  }
-  if (!user?.email) {
-    return { response: json({ ok: false, code: 'auth_required', error: 'Giris gerekli.' }, 401) };
-  }
+async function requireAdmin(base44) {
+  const user = await base44.auth.me().catch(() => null);
+  if (!user?.email) return { response: json({ ok: false, code: 'auth_required', error: 'Giriş gerekli.' }, 401) };
   const email = normalizeEmail(user.email);
-  const adminEntity = base44?.asServiceRole?.entities?.AdminUser;
-  if (!adminEntity?.filter) {
-    return { response: json({ ok: false, code: 'admin_required', error: 'Admin yetkisi gerekli.' }, 403) };
-  }
-  let rows: any[] = [];
-  for (const field of ['email', 'Email', 'user_email', 'admin_email']) {
-    const result = await adminEntity.filter({ [field]: email }, '-updated_at', 10).catch(() => []);
-    if (Array.isArray(result) && result.length > 0) { rows = result; break; }
-  }
-  const active = rows.find((row) => (
-    normalizeEmail(row?.email || row?.user_email || row?.admin_email) === email
-    && isActiveAdminStatus(row?.status)
+  const entity = base44?.asServiceRole?.entities?.AdminUser;
+  if (!entity?.filter) return { response: json({ ok: false, code: 'admin_required', error: 'Admin yetkisi gerekli.' }, 403) };
+  const rows = await entity.filter({ email }, '-updated_at', 10).catch(() => []);
+  const active = (Array.isArray(rows) ? rows : []).some((row) => (
+    normalizeEmail(row?.email) === email
+    && String(row?.status || '').toLowerCase() === 'active'
     && isActiveAdminRole(row?.role)
   ));
-  if (!active) {
-    return { response: json({ ok: false, code: 'admin_required', error: 'Admin yetkisi gerekli.' }, 403) };
-  }
-  return { adminActorEmail: email };
+  return active ? { admin: true } : { response: json({ ok: false, code: 'admin_required', error: 'Admin yetkisi gerekli.' }, 403) };
 }
 
-// Masked sample keys only: never return raw emails, guest ids, owner keys, or
-// internal player keys in the report payload.
-function maskPrivateKeys(value: unknown) {
-  return String(value || '')
-    .replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+/g, '<email>')
-    .replace(/guest:[A-Za-z0-9_-]+/g, 'guest:<key>')
-    .replace(/\bg_[A-Za-z0-9]+/g, 'g_<key>')
-    .replace(/\bu_[A-Za-z0-9]+/g, 'u_<key>');
-}
-
-async function fetchWindow(base44: any, entityName: string, cap: number) {
+async function fetchWindow(base44, entityName, cap) {
   const entity = base44?.asServiceRole?.entities?.[entityName];
-  if (!entity?.filter) return { rows: [], entityAvailable: false };
-  const seen = new Set<string>();
-  const rows: any[] = [];
-  let cursor: string | null = null;
-  for (let page = 0; page < Math.ceil(MAX_SCAN_LIMIT / PAGE_SIZE) + 2; page += 1) {
+  if (!entity?.filter) return { rows: [], entityAvailable: false, scanWindowComplete: false };
+  const rows = [];
+  const seen = new Set();
+  let cursor = null;
+  while (rows.length < cap) {
     const query = cursor ? { created_date: { $gte: cursor } } : {};
-    const batch = await entity.filter(query, 'created_date', PAGE_SIZE).catch(() => []);
+    const batch = await entity.filter(query, 'created_date', Math.min(PAGE_SIZE, cap - rows.length)).catch(() => []);
     if (!Array.isArray(batch) || batch.length === 0) break;
     let added = 0;
     for (const row of batch) {
@@ -120,90 +84,158 @@ async function fetchWindow(base44: any, entityName: string, cap: number) {
       seen.add(id);
       rows.push(row);
       added += 1;
-      if (rows.length >= cap) break;
     }
     cursor = String(batch[batch.length - 1]?.created_date || '') || cursor;
-    if (added === 0 || rows.length >= cap || batch.length < PAGE_SIZE) break;
+    if (!added || batch.length < PAGE_SIZE) break;
   }
-  return { rows, entityAvailable: true };
+  return { rows, entityAvailable: true, scanWindowComplete: rows.length < cap };
 }
 
-function duplicateReport(rows: any[], fields: string[]) {
-  const counts = new Map<string, number>();
+function matchesFilter(row, filter = {}) {
+  return Object.entries(filter).every(([field, value]) => String(row?.[field] || '') === String(value));
+}
+
+function keyFingerprint(value) {
+  const text = String(value || '');
+  let hash = 2166136261;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `key_${(hash >>> 0).toString(36)}`;
+}
+
+function duplicateReport(rows, fields, filter) {
+  const counts = new Map();
   let missingKeyRows = 0;
-  for (const row of rows) {
+  const relevant = rows.filter((row) => matchesFilter(row, filter));
+  for (const row of relevant) {
     const parts = fields.map((field) => String(row?.[field] ?? '').trim());
     if (parts.some((part) => !part)) { missingKeyRows += 1; continue; }
     const key = parts.join('|');
     counts.set(key, (counts.get(key) || 0) + 1);
   }
-  const duplicates = [...counts.entries()]
-    .filter(([, count]) => count > 1)
-    .sort((a, b) => b[1] - a[1]);
+  const duplicates = [...counts.entries()].filter(([, count]) => count > 1).sort((a, b) => b[1] - a[1]);
   return {
-    scannedRows: rows.length,
+    scannedRows: relevant.length,
     distinctKeys: counts.size,
     duplicateKeyCount: duplicates.length,
-    rowsInDuplicateGroups: duplicates.reduce((sum, [, count]) => sum + count, 0),
+    duplicateRowCount: duplicates.reduce((sum, [, count]) => sum + count - 1, 0),
     missingKeyRows,
-    sampleKeys: duplicates.slice(0, 5).map(([key, count]) => ({ key: maskPrivateKeys(key), count })),
+    samples: duplicates.slice(0, 3).map(([key, count]) => ({ fingerprint: keyFingerprint(key), count })),
   };
 }
 
-Deno.serve(async (req: Request) => {
-  try {
-    if (req.method !== 'POST') {
-      return json({ ok: false, code: 'method_not_allowed', error: 'Bu islem desteklenmiyor.' }, 405);
-    }
-    const base44 = createClientFromRequest(req);
-    const adminAuth = await requireAdmin(base44);
-    if (adminAuth.response) return adminAuth.response;
+function latestDate(rows, fields = ['created_at', 'claimed_at', 'applied_at', 'created_date']) {
+  return rows.reduce((latest, row) => {
+    const value = fields.map((field) => row?.[field]).find(Boolean);
+    const time = Date.parse(String(value || ''));
+    return Number.isFinite(time) && time > latest.time ? { time, value } : latest;
+  }, { time: 0, value: null }).value;
+}
 
+function summarizeLedger(rows, sourceField = 'source') {
+  const buckets = new Map();
+  for (const row of rows) {
+    const source = String(row?.[sourceField] || row?.reason || 'unknown');
+    const direction = String(row?.direction || (Number(row?.quantity_delta) < 0 ? 'spend' : 'earn'));
+    const key = `${source}|${direction}`;
+    const current = buckets.get(key) || { source, direction, rowCount: 0, amountTotal: 0, idempotencyKeyCoverage: 0, latestAt: null };
+    current.rowCount += 1;
+    current.amountTotal += Math.abs(Number(row?.amount ?? row?.quantity_delta) || 0);
+    current.idempotencyKeyCoverage += row?.idempotency_key ? 1 : 0;
+    current.latestAt = latestDate([current.latestAt ? { created_at: current.latestAt } : {}, row]);
+    buckets.set(key, current);
+  }
+  return [...buckets.values()].sort((a, b) => a.source.localeCompare(b.source));
+}
+
+function buildDailySnapshot(windows, checks, serverDay) {
+  const rows = windows.UserDailyQuestProgress?.rows || [];
+  const today = rows.filter((row) => String(row?.quest_date || '') === serverDay && String(row?.quest_key || '').startsWith('daily_calendar:'));
+  const duplicateCheck = checks.find((check) => check.id === 'user_daily_quest_progress_user_day_task');
+  return {
+    serverDay,
+    currentDayRows: today.length,
+    currentDayCompletedRows: today.filter((row) => ['completed', 'claimed'].includes(String(row?.status || ''))).length,
+    duplicateReceiptRisk: Number(duplicateCheck?.duplicateKeyCount || 0) > 0,
+    cacheContract: '60s actor/day cache with source-event invalidation',
+    tasks: DAILY_SOURCE_PROOF.map((task) => ({ ...task, proofRegistryPresent: true })),
+  };
+}
+
+function buildIntegritySnapshot(windows, checks) {
+  const diamondRows = windows.DiamondTransaction?.rows || [];
+  const jokerRows = windows.JokerTransaction?.rows || [];
+  const hintRows = windows.HintTransaction?.rows || [];
+  const lockRows = windows.EconomyOperationLock?.rows || [];
+  const onlineRows = windows.OnlineMatchResult?.rows || [];
+  const lobbyRows = windows.Lobby?.rows || [];
+  const streakRows = diamondRows.filter((row) => String(row?.source || '') === 'solo_streak');
+  return {
+    economy: {
+      diamondLedger: summarizeLedger(diamondRows),
+      jokerLedger: summarizeLedger(jokerRows, 'reason'),
+      hintLedger: summarizeLedger(hintRows, 'reason'),
+      operationLocks: summarizeLedger(lockRows, 'operation_scope'),
+      distinctSourcesRequired: ['daily_wheel', 'daily_calendar_streak_reward', 'solo_streak', 'market_purchase', 'starter_bonus', 'first_login_reward', 'daily_login', 'admin_adjustment'],
+      readOnly: true,
+    },
+    daily: buildDailySnapshot(windows, checks, new Date().toISOString().slice(0, 10)),
+    solo: {
+      streakRewardReceipts: streakRows.length,
+      latestReceiptAt: latestDate(streakRows),
+      duplicateReceiptRisk: Number(checks.find((check) => check.id === 'solo_streak_reward_idempotency_key')?.duplicateKeyCount || 0) > 0,
+      attemptProof: 'QuestionAttemptEvent + persisted Solo attempt metadata',
+      rewardIsolation: ['Diamonds only', 'No Kronox Puan', 'No Leaderboard', 'No Daily Goals'],
+    },
+    online: {
+      sharedDeckLobbyCount: lobbyRows.filter((row) => Array.isArray(row?.online_question_deck) && row.online_question_deck.length > 0).length,
+      serverAuthoredDeckMarkerCount: lobbyRows.filter((row) => row?.online_deck_meta?.source === 'online_shared_all_active_random_deck_v1').length,
+      resultReceiptCount: onlineRows.length,
+      appliedResultCount: onlineRows.filter((row) => String(row?.status || '') === 'applied').length,
+      duplicateReceiptRisk: checks.some((check) => ['online_match_result_idempotency_key', 'online_match_result_actor_lobby'].includes(check.id) && check.duplicateKeyCount > 0),
+      authority: 'startLobbyGame shared deck + updateLobbyGameState commit_result',
+      scoreRule: 'winner_15_loser_minus_6',
+    },
+  };
+}
+
+export default async function adminDuplicateKeyReport(req) {
+  try {
+    if (req.method !== 'POST') return json({ ok: false, code: 'method_not_allowed', error: 'Bu işlem desteklenmiyor.' }, 405);
+    const base44 = createClientFromRequest(req);
+    const auth = await requireAdmin(base44);
+    if (auth.response) return auth.response;
     const body = await req.json().catch(() => ({}));
     const requestedMode = String(body?.mode || 'dry_run').trim().toLowerCase();
     const mode = requestedMode === 'prepare_cleanup_plan' ? 'prepare_cleanup_plan' : 'dry_run';
     const scanLimit = Math.max(PAGE_SIZE, Math.min(MAX_SCAN_LIMIT, Math.floor(Number(body?.scanLimit) || DEFAULT_SCAN_LIMIT)));
-    const requestedCheckIds = Array.isArray(body?.checks)
-      ? body.checks.map((id: unknown) => String(id || '').trim()).filter(Boolean)
-      : [];
-    const activeChecks = requestedCheckIds.length
-      ? DUPLICATE_KEY_CHECKS.filter((check) => requestedCheckIds.includes(check.id))
-      : DUPLICATE_KEY_CHECKS;
-
-    // One bounded read per entity, shared across that entity's key checks.
+    const requestedCheckIds = Array.isArray(body?.checks) ? body.checks.map(String) : [];
+    const activeChecks = requestedCheckIds.length ? DUPLICATE_KEY_CHECKS.filter((check) => requestedCheckIds.includes(check.id)) : DUPLICATE_KEY_CHECKS;
     const entityNames = [...new Set(activeChecks.map((check) => check.entity))];
-    const windows: Record<string, { rows: any[]; entityAvailable: boolean }> = {};
-    for (const entityName of entityNames) {
-      windows[entityName] = await fetchWindow(base44, entityName, scanLimit);
-    }
-
+    const windows = {};
+    for (const entityName of entityNames) windows[entityName] = await fetchWindow(base44, entityName, scanLimit);
     const checks = activeChecks.map((check) => {
-      const window = windows[check.entity] || { rows: [], entityAvailable: false };
-      const report = duplicateReport(window.rows, check.fields);
-      const scanWindowComplete = report.scannedRows < scanLimit;
-      const result: Record<string, unknown> = {
+      const window = windows[check.entity] || { rows: [], entityAvailable: false, scanWindowComplete: false };
+      const report = duplicateReport(window.rows, check.fields, check.filter);
+      const status = !window.entityAvailable || !window.scanWindowComplete ? 'INCOMPLETE' : report.duplicateKeyCount > 0 ? 'FAIL' : 'PASS';
+      return {
         id: check.id,
         entity: check.entity,
         priority: check.priority,
         uniqueKeyFields: check.fields,
         purpose: check.purpose,
+        status,
         entityAvailable: window.entityAvailable,
-        scanWindowComplete,
+        scanWindowComplete: window.scanWindowComplete,
         ...report,
         uniqueIndexBlockedByDuplicates: report.duplicateKeyCount > 0,
       };
-      if (mode === 'prepare_cleanup_plan' && report.duplicateKeyCount > 0) {
-        result.cleanupPlan = {
-          requiresExplicitAdminConfirmation: true,
-          destructiveCleanupImplemented: false,
-          canonicalRowStrategy: CLEANUP_STRATEGY_NOTES[check.entity] || 'Define canonical-row semantics with product approval before any cleanup.',
-        };
-      }
-      return result;
     });
-
     return json({
       ok: true,
+      reportVersion: 'b1-read-only-integrity-v1',
       mode,
       dryRun: true,
       readOnly: true,
@@ -215,9 +247,10 @@ Deno.serve(async (req: Request) => {
       scanLimit,
       scannedAt: new Date().toISOString(),
       checks,
+      integritySnapshot: buildIntegritySnapshot(windows, checks),
     });
   } catch (error) {
-    console.error('[adminDuplicateKeyReport] failed', (error as any)?.message || error);
-    return json({ ok: false, code: 'duplicate_report_failed', error: 'Rapor olusturulamadi.' }, 500);
+    console.error('[adminDuplicateKeyReport] failed');
+    return json({ ok: false, code: 'duplicate_report_failed', error: 'Rapor oluşturulamadı.' }, 500);
   }
-});
+}

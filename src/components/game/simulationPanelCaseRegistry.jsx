@@ -257,6 +257,8 @@ import * as architectureP1Cases from './simulationPanelArchitectureP1Cases';
 // retargeted to the real post-refactor helpers.
 import * as hamle3RuntimeAlignmentCases from './simulationPanelHamle3RuntimeAlignmentCases';
 import * as soloStreakCases from './simulationPanelSoloStreakCases';
+// Paket B1 — admin-only, read-only economy/idempotency/source proof contracts.
+import * as integrityProofCases from './simulationPanelIntegrityProofCases';
 
 const MODULES = [
   soloProgressCases,
@@ -324,6 +326,7 @@ const MODULES = [
   architectureP1Cases,
   hamle3RuntimeAlignmentCases,
   soloStreakCases,
+  integrityProofCases,
 ];
 
 function flatten(key) {

@@ -29,6 +29,11 @@ create.
 Base44 schema-level uniqueness is not assumed. DB/entity unique plus
 function-level guard is Low risk; function-level guard only = Medium/P1 hardening;
 neither DB/entity unique nor function-level guard is High.
+Paket B1 exposes an AdminUser-gated read-only Integrity Snapshot through the
+existing adminDuplicateKeyReport. It returns bounded aggregate source/direction,
+idempotency coverage, duplicate risk, operation-lock, Daily receipt, Solo streak,
+and Online authority proof with fingerprint-only samples. It never mutates rows,
+balances, rewards, prices, scoring, or gameplay and performs no cleanup.
 
 ## Active sources
 - starter_bonus (one-time, guarded by User.starter_bonus_granted_at)

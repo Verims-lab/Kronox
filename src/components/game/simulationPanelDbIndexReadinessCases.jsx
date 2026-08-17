@@ -154,23 +154,23 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('duplicate_report_samples_masked_no_private_ids',
-    'Duplicate report samples mask emails/guest ids/owner keys before returning',
+    'Duplicate report samples use irreversible fingerprints before returning',
     () => {
       const missing = missingTokens(duplicateReportFnSource, [
-        'function maskPrivateKeys',
-        "'<email>'",
-        "'guest:<key>'",
-        'maskPrivateKeys(key)',
-        'sampleKeys',
+        'function keyFingerprint',
+        '`key_${(hash >>> 0).toString(36)}`',
+        'fingerprint: keyFingerprint(key)',
+        'samples:',
       ]);
-      if (missing.length) {
-        return fail('Duplicate report sample masking contract drifted; private identifiers could leak into admin report payloads.', {
+      const forbidden = forbiddenTokens(duplicateReportFnSource, ['sampleKeys:', 'key: maskPrivateKeys(key)']);
+      if (missing.length || forbidden.length) {
+        return fail('Duplicate report sample fingerprint contract drifted; private identifiers could leak into the admin report.', {
           verification: 'STATIC_CONTRACT',
           file: 'base44/functions/adminDuplicateKeyReport/entry.ts',
-          missing,
+          actual: { missing, forbidden },
         });
       }
-      return pass('Sample duplicate keys are masked (emails, guest keys, u_/g_ owner keys) before response.', {
+      return pass('Duplicate samples expose only irreversible fingerprints and counts, never raw composite keys.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
