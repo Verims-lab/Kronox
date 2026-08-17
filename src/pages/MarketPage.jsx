@@ -218,7 +218,7 @@ export default function MarketPage() {
 
   return (
     <main
-      className="min-h-screen overflow-x-hidden overflow-y-auto text-white"
+      className="kx-a1-screen kx-a1-market min-h-screen overflow-x-hidden overflow-y-auto text-white"
       style={{
         paddingTop: 'calc(4.25rem + env(safe-area-inset-top))',
         paddingBottom: 'calc(6.25rem + env(safe-area-inset-bottom))',
@@ -454,7 +454,7 @@ function MarketProductCard({
     </>
   );
 
-  const cardClassName = 'relative grid w-full items-center gap-3 px-3 py-3 text-left';
+  const cardClassName = 'kx-a1-panel relative grid w-full items-center gap-3 px-3 py-3 text-left';
   const cardStyle = {
     gridTemplateColumns: '4.7rem minmax(0, 1fr) minmax(4.55rem, 6.05rem)',
     background: 'rgba(12,24,48,.88)',
@@ -470,7 +470,7 @@ function MarketProductCard({
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.2 }}
-        className={`${cardClassName} transition-transform active:scale-[0.99]`}
+        className={`${cardClassName} kx-a1-pressable`}
         style={cardStyle}
         onClick={onOpenDetails}
         aria-label={`${product.title} detayını aç`}
@@ -623,7 +623,7 @@ function StorePurchaseModal({
         initial={{ opacity: 0, y: 18, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.16 }}
-        className="rounded-2xl p-4 text-white"
+        className="kx-a1-modal rounded-2xl p-4 text-white"
         style={{
           width: 'min(92vw, 34rem)',
           maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 2rem)',

@@ -48,7 +48,7 @@ export default function GoldButton({
       aria-label={ariaLabel}
       whileTap={disabled ? undefined : { scale: 0.955, y: 4 }}
       transition={{ type: 'spring', stiffness: 620, damping: 24 }}
-      className={`relative flex w-full items-center justify-center gap-2 border-0 bg-transparent font-cinzel font-black ${className}`}
+      className={`kx-a1-pressable relative flex w-full items-center justify-center gap-2 border-0 bg-transparent font-cinzel font-black ${className}`}
       style={{
         height,
         fontSize: size === 'lg' ? 15 : 14,

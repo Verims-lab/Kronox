@@ -38,7 +38,7 @@ export default function LobbyCreateJoinPanel({
 
   return (
     <div
-      className="min-h-screen bg-background flex flex-col items-center justify-center px-6"
+      className="kx-a1-screen kx-a1-online min-h-screen bg-background flex flex-col items-center justify-center px-6"
       style={{
         paddingTop: 'calc(5rem + env(safe-area-inset-top))',
         paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))',
@@ -62,7 +62,7 @@ export default function LobbyCreateJoinPanel({
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="space-y-4 rounded-2xl p-5"
+          className="kx-a1-panel space-y-4 rounded-2xl p-5"
           style={{
             background:
               'linear-gradient(180deg, rgba(30,41,75,0.95) 0%, rgba(14,22,46,0.98) 70%, rgba(6,10,24,1) 100%)',

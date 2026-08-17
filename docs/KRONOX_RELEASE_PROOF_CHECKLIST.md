@@ -929,6 +929,7 @@ Checklist:
 * General typography is consistent.
 * No unintended italic text appears.
 * Button styles feel tactile and consistent.
+* A1-polished panels/cards/modals use controlled navy/cyan/gold depth, finite decorative motion, and keep all primary actions above safe-area/BottomNav clearance at 320/360/390px.
 * Icon style is consistent.
 * The digit `7` is clearly distinguishable from `1`.
 * Timers, scores, ranks, mistakes, diamonds, and levels are readable.

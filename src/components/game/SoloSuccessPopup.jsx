@@ -98,7 +98,7 @@ export default function SoloSuccessPopup({
         initial={panelInitial}
         animate={panelAnimate}
         transition={reduceMotion ? { duration: 0.2 } : { type: 'spring', stiffness: 280, damping: 24 }}
-        className="w-full max-w-sm rounded-[28px] overflow-hidden"
+        className="kx-a1-modal w-full max-w-sm rounded-[28px] overflow-hidden"
         style={{
           background:
             'radial-gradient(ellipse at 50% 0%, rgba(250,204,21,0.14), transparent 60%), linear-gradient(180deg, #0a1c46 0%, #061332 100%)',
@@ -306,7 +306,7 @@ function StarsRow({ stars, reduceMotion }) {
           key={i}
           initial={{ opacity: 0, scale: 0 }}
           animate={{ opacity: [0, 1, 0.5, 1], scale: [0, 1.1, 0.9, 1] }}
-          transition={{ delay: sp.delay, duration: 1.2, repeat: Infinity, repeatDelay: 1.8 }}
+          transition={{ delay: sp.delay, duration: 1.2, repeat: 0 }}
           style={{
             position: 'absolute', top: sp.top, left: sp.left, width: sp.size, height: sp.size,
             transform: 'translate(-50%, -50%) rotate(45deg)',

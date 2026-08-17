@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex597 — A1 visual polish pass: shared navy/cyan/gold depth tokens, tactile cards/buttons, restrained finite decorative motion, and safe-area/mobile refinements across Home, Solo, Online, Daily, Wheel, Store, Profile, and Liderlik. Gameplay, scoring, economy, data, backend authority, routes, and product rules are unchanged.
+//
 // Codex596 — Health blocker repair: Solo move Health now follows executable evaluated-feedback mapping, the frontend Base44 SDK package returns to exact 0.8.34, and Daily Calendar 200-Diamond ledger source/direction proof is explicit and separate from Solo Streak. Base44 did not expose/generate package-lock.json, so that strict lockfile gate remains unresolved; Online scoring and product rules are unchanged.
 //
 // Codex595 - Solo Streak V1 hardening: placement/receipt dedupe, exact level
@@ -167,7 +169,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex596';
+const BUILD_MARKER = 'Codex597';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

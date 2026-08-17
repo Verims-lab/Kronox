@@ -237,7 +237,7 @@ export default function ProfilePage() {
 
   return (
     <div
-      className="min-h-screen bg-background text-white"
+      className="kx-a1-screen kx-a1-profile min-h-screen bg-background text-white"
       style={{
         paddingTop: 'calc(4rem + env(safe-area-inset-top))',
         paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))',
@@ -475,7 +475,7 @@ function IdentityCard({ loading, user, guestProfile, isAdmin, onOpenEdit, onLogi
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: 'spring', stiffness: 320, damping: 26 }}
-      className="rounded-2xl p-4"
+      className="kx-a1-panel rounded-2xl p-4"
       style={{
         background:
           'linear-gradient(180deg, rgba(30,41,75,0.95) 0%, rgba(14,22,46,0.98) 70%, rgba(6,10,24,1) 100%)',
@@ -582,7 +582,7 @@ function IdentityCard({ loading, user, guestProfile, isAdmin, onOpenEdit, onLogi
 function SecureGuestProgressCard({ onOpenLogin }) {
   return (
     <div
-      className="rounded-2xl p-4"
+      className="kx-a1-panel rounded-2xl p-4"
       style={{
         background: 'linear-gradient(180deg, rgba(30,41,75,0.92), rgba(10,16,36,0.96))',
         boxShadow: 'inset 0 0 0 1.5px rgba(120,170,255,0.32), 0 0 16px rgba(59,130,246,0.16)',
@@ -641,7 +641,7 @@ function LoginEntrySheet({ open, onClose, onBeforeStart }) {
             aria-label="Giriş ekranını kapat"
           />
           <motion.div
-            className="relative w-full max-w-md overflow-hidden rounded-[28px] p-5"
+            className="kx-a1-modal relative w-full max-w-md overflow-hidden rounded-[28px] p-5"
             style={{
               background:
                 'radial-gradient(circle at 50% 0%, rgba(59,130,246,0.32), transparent 45%), linear-gradient(180deg, rgba(20,33,69,0.98), rgba(5,10,24,0.98))',
@@ -723,7 +723,7 @@ function RowCard({ icon, title, desc, badge, onClick, disabled }) {
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="w-full flex items-center gap-3 p-4 rounded-2xl text-left transition-all disabled:opacity-70"
+      className="kx-a1-panel kx-a1-pressable w-full flex items-center gap-3 p-4 rounded-2xl text-left disabled:opacity-70"
       style={{
         background: 'linear-gradient(180deg, rgba(30,41,75,0.9), rgba(10,16,36,0.95))',
         boxShadow:

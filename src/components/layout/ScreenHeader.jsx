@@ -77,7 +77,7 @@ export default function ScreenHeader({
 
   return (
     <header
-      className="fixed top-0 left-0 right-0 z-[110] flex items-center gap-2 px-3 bg-background/85 backdrop-blur-md border-b border-white/10"
+      className="fixed top-0 left-0 right-0 z-[110] flex items-center gap-2 px-3 bg-background/90 backdrop-blur-md border-b border-cyan-200/15 shadow-[0_8px_24px_rgba(2,6,23,0.26)]"
       style={{
         paddingTop: 'env(safe-area-inset-top)',
         height: 'calc(3.5rem + env(safe-area-inset-top))',
@@ -90,7 +90,7 @@ export default function ScreenHeader({
           <button
             type="button"
             onClick={handleBack}
-            className="w-10 h-10 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center text-white hover:bg-white/20 active:scale-95 transition-all"
+            className="kx-a1-pressable w-10 h-10 rounded-2xl bg-white/10 border border-cyan-100/20 flex items-center justify-center text-white hover:bg-white/15"
             style={{ minHeight: 40, minWidth: 40 }}
             aria-label="Geri"
           >

@@ -28,14 +28,14 @@ function CTAButton({ active, onClick, disabled }) {
       disabled={disabled}
       aria-disabled={disabled}
       animate={active ? {
-        boxShadow: CTA_ACTIVE_SHADOW,
-        scale: [1, 1.012, 1],
+        boxShadow: CTA_ACTIVE_SHADOW[1],
+        scale: 1,
       } : {
         boxShadow: '0 5px 0 rgba(6,10,26,0.82), 0 12px 24px rgba(0,0,0,0.22)',
         scale: 1,
       }}
       whileTap={active ? { scale: 0.965, y: 3 } : { scale: 0.99 }}
-      transition={active ? { duration: 1.25, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.18 }}
+      transition={{ duration: 0.18, ease: 'easeOut' }}
       className="relative isolate h-12 w-full max-w-[320px] overflow-hidden rounded-2xl from-primary text-xl tracking-[0.05em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300/70"
       style={{
         background: active
@@ -64,15 +64,15 @@ function CTAButton({ active, onClick, disabled }) {
         aria-hidden="true"
         className="absolute -inset-x-10 top-0 h-full skew-x-[-18deg]"
         style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.42), transparent)' }}
-        animate={active ? { x: ['-34%', '34%'], opacity: [0.08, 0.24, 0.08] } : { opacity: 0 }}
-        transition={active ? { duration: 1.55, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.16 }}
+        animate={active ? { x: '14%', opacity: 0.13 } : { opacity: 0 }}
+        transition={{ duration: 0.22, ease: 'easeOut' }}
       />
       <motion.span
         aria-hidden="true"
         className="absolute inset-x-5 bottom-1 h-1 rounded-full"
         style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.84), transparent)' }}
-        animate={active ? { opacity: [0.36, 0.72, 0.36], scaleX: [0.82, 1, 0.82] } : { opacity: 0.08, scaleX: 0.72 }}
-        transition={active ? { duration: 1.25, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.16 }}
+        animate={active ? { opacity: 0.58, scaleX: 0.94 } : { opacity: 0.08, scaleX: 0.72 }}
+        transition={{ duration: 0.18, ease: 'easeOut' }}
       />
       <span className="relative z-10 block translate-y-[1px]">Kartı Yerleştir</span>
     </motion.button>
@@ -303,7 +303,7 @@ export default function GameLayout({
   return (
     <div
       ref={gameplayRootRef}
-      className={`kx-viewport-lock kronox-gameplay-root flex flex-col ${isDragging ? 'kronox-game-drag-lock' : ''} ${showSoloQuestionSideRails ? 'kronox-solo-joker-right-layout' : ''}`}
+      className={`kx-a1-screen kx-a1-game kx-viewport-lock kronox-gameplay-root flex flex-col ${isDragging ? 'kronox-game-drag-lock' : ''} ${showSoloQuestionSideRails ? 'kronox-solo-joker-right-layout' : ''}`}
       data-kronox-gameplay-root="true"
       data-kronox-solo-joker-right-layout={showSoloQuestionJokerRail ? 'true' : undefined}
       data-kronox-solo-hint-left-layout={showSoloQuestionHintRail ? 'true' : undefined}

@@ -81,7 +81,7 @@ export default function BottomNav() {
           <button
             key={path}
             onClick={() => handleTabClick(path)}
-            className="relative flex flex-col items-center justify-center gap-0.5 flex-1 h-full"
+            className="kx-a1-pressable relative flex flex-col items-center justify-center gap-0.5 flex-1 h-full"
             style={{ touchAction: 'manipulation', minHeight: '56px' }}
             aria-label={`${label} sekmesi`}
             aria-current={isActive ? 'page' : undefined}

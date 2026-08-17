@@ -28,7 +28,7 @@ export default function StonePanel({
 
   return (
     <Tag
-      className={`relative ${padding} ${className}`}
+      className={`kx-a1-panel relative ${padding} ${className}`}
       style={{
         borderRadius: 18,
         background:

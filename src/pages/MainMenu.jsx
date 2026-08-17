@@ -200,7 +200,7 @@ export default function MainMenu() {
 
   return (
     <main
-      className="fixed inset-0 w-full overflow-hidden text-white"
+      className="kx-a1-screen kx-a1-home fixed inset-0 w-full overflow-hidden text-white"
       style={{
         width: '100%',
         minHeight: '100dvh',
@@ -326,7 +326,7 @@ function HomeShortcut({ label, icon: Icon, tone, ready = false, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="flex min-w-0 flex-col items-center justify-center gap-2 text-center active:scale-95"
+      className="kx-a1-pressable flex min-w-0 flex-col items-center justify-center gap-2 text-center"
       style={{ touchAction: 'manipulation' }}
       aria-label={label}
     >
@@ -488,7 +488,7 @@ function HomeCTA({ variant, label, primaryLabel, secondaryLabel, onClick, ariaLa
       disabled={disabled}
       whileTap={{ y: 2, scale: 0.985 }}
       transition={{ type: 'spring', stiffness: 620, damping: 26, mass: 0.7 }}
-      className="relative flex items-center justify-center text-center"
+      className="kx-a1-pressable relative flex items-center justify-center text-center"
       style={{ ...baseStyle, ...variantStyle }}
       aria-label={ariaLabel}
     >
@@ -496,7 +496,7 @@ function HomeCTA({ variant, label, primaryLabel, secondaryLabel, onClick, ariaLa
         <span className="flex min-w-0 flex-col items-center justify-center" style={{ lineHeight: 1 }}>
           <span
             style={{
-              fontFamily: '"Montserrat", sans-serif',
+              fontFamily: '"Barlow Condensed", "Inter", sans-serif',
               fontSize: 'clamp(1.45rem, 7.2vw, 2rem)',
               fontWeight: 600,
               letterSpacing: '0.1em',
@@ -509,7 +509,7 @@ function HomeCTA({ variant, label, primaryLabel, secondaryLabel, onClick, ariaLa
           <span
             style={{
               marginTop: 6,
-              fontFamily: '"Montserrat", sans-serif',
+              fontFamily: '"Barlow Condensed", "Inter", sans-serif',
               fontSize: 'clamp(0.72rem, 3.2vw, 0.92rem)',
               fontWeight: 500,
               letterSpacing: '0',
@@ -523,7 +523,7 @@ function HomeCTA({ variant, label, primaryLabel, secondaryLabel, onClick, ariaLa
         <span
           className="min-w-0 truncate"
           style={{
-            fontFamily: '"Montserrat", sans-serif',
+            fontFamily: '"Barlow Condensed", "Inter", sans-serif',
             fontSize: 'clamp(1.45rem, 7.2vw, 2rem)',
             lineHeight: 1,
             fontWeight: 600,

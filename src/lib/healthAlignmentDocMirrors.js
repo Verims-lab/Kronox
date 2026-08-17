@@ -594,6 +594,7 @@ Status: Active manual visual/platform release gate.
 - The zoom guard targets scale gestures only and must not block one-finger Solo drag/drop, timeline horizontal scroll/auto-scroll, normal scrollable panels, BottomNav taps, form inputs, or modals.
 - Pull-to-refresh/overscroll guards are scoped to the relevant container or active gameplay drag only.
 - Reduced motion keeps functional feedback without relying on long animations.
+- A1 visual polish uses shared navy/cyan/gold depth, tactile press states, and finite decorative motion only. Panels, cards, and modals remain readable, width-bounded, safe-area-aware, and free of new gesture-blocking overlays at 320/360/390px.
 - The Solo-only streak HUD is pointer-events-none, compact at 320/360/390px, finite/cleanup-safe, and absent from Online. Training levels may show visual milestones without Diamond reward application.
 - Loading/error/retry states are local to the affected section when possible.
 - Health Center report actions, case details, copy buttons, clipboard fallback textarea, manual proof details, and raw JSON preview must fit narrow mobile widths without horizontal overflow.

@@ -151,7 +151,7 @@ export default function OnlineChallengeScreen({
 
   return (
     <div
-      className="fixed inset-0 flex flex-col text-white"
+      className="kx-a1-screen kx-a1-online fixed inset-0 flex flex-col text-white"
       style={{
         background:
           'radial-gradient(ellipse at 50% 8%, rgba(59,130,246,0.30), transparent 48%), radial-gradient(ellipse at 50% 96%, rgba(34,211,238,0.12), transparent 55%), linear-gradient(180deg, #050b1c 0%, #0a1738 55%, #03060f 100%)',
@@ -308,7 +308,7 @@ function ModeButton({ icon: Icon, label, ariaLabel, hint, disabled, onClick }) {
       disabled={disabled}
       aria-label={ariaLabel || label}
       whileTap={disabled ? undefined : { scale: 0.98 }}
-      className="w-full flex items-center gap-4 rounded-2xl px-4 py-4 text-left disabled:opacity-55"
+      className="kx-a1-panel kx-a1-pressable w-full flex items-center gap-4 rounded-2xl px-4 py-4 text-left disabled:opacity-55"
       style={{
         background: 'linear-gradient(180deg, rgba(20,32,68,0.85), rgba(8,14,32,0.95))',
         boxShadow: 'inset 0 0 0 1.5px rgba(120,170,255,0.32), inset 0 1px 0 rgba(255,255,255,0.08), 0 8px 18px rgba(2,6,23,0.45)',

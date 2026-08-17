@@ -68,7 +68,7 @@ export default function DailyPage() {
   return (
     <main
       data-kronox-daily-page-root="true"
-      className="min-h-[100dvh] w-full max-w-full overflow-x-hidden overflow-y-auto text-white"
+      className="kx-a1-screen kx-a1-daily min-h-[100dvh] w-full max-w-full overflow-x-hidden overflow-y-auto text-white"
       style={{
         boxSizing: 'border-box',
         maxWidth: '100vw',
@@ -286,7 +286,7 @@ export default function DailyPage() {
 function Panel({ children }) {
   return (
     <section
-      className="w-full min-w-0 max-w-full overflow-hidden rounded-2xl p-3"
+      className="kx-a1-panel w-full min-w-0 max-w-full overflow-hidden rounded-2xl p-3"
       style={{
         background: 'linear-gradient(180deg, rgba(15,35,73,0.78), rgba(6,18,37,0.82))',
         boxShadow: 'inset 0 0 0 1px rgba(96,165,250,0.32), 0 16px 34px rgba(0,0,0,0.20)',

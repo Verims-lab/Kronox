@@ -73,7 +73,7 @@ export default function SoloFailureCard({
         initial={panelInitial}
         animate={panelAnimate}
         transition={reduceMotion ? { duration: 0.2 } : { type: 'spring', stiffness: 280, damping: 24 }}
-        className="w-full max-w-sm rounded-[28px] overflow-hidden relative"
+        className="kx-a1-modal w-full max-w-sm rounded-[28px] overflow-hidden relative"
         style={{
           background: 'linear-gradient(165deg, #0d1430 0%, #060a1e 100%)',
           boxShadow:

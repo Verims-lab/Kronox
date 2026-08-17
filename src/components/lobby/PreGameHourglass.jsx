@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Hourglass, X } from 'lucide-react';
 
 // Codex591 — Pre-game Hourglass: shared visual for both Online matchmaking
@@ -15,6 +15,7 @@ export default function PreGameHourglass({
   onTimeout,
   onCancel,
 }) {
+  const reduceMotion = useReducedMotion();
   const startRef = useRef(Date.now());
   const firedRef = useRef(false);
   const totalMs = expiresAt ? Math.max(1000, (Date.parse(expiresAt) || 0) - startRef.current) : durationMs;
@@ -42,15 +43,15 @@ export default function PreGameHourglass({
 
   return (
     <div
-      className="fixed inset-0 flex flex-col items-center justify-center px-6 text-white"
+      className="kx-a1-screen kx-a1-online fixed inset-0 flex flex-col items-center justify-center px-6 text-white"
       style={{
         background:
           'radial-gradient(ellipse at 50% 20%, rgba(59,130,246,0.30), transparent 48%), linear-gradient(180deg, #050b1c 0%, #0a1738 55%, #03060f 100%)',
       }}
     >
       <motion.div
-        animate={{ rotate: [0, 10, -10, 0] }}
-        transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+        animate={reduceMotion ? { opacity: 1 } : { rotate: [0, 8, -8, 0] }}
+        transition={reduceMotion ? { duration: 0 } : { duration: 1.15, repeat: 1, ease: 'easeInOut' }}
       >
         <Hourglass
           style={{ width: 64, height: 64, color: '#facc15', filter: 'drop-shadow(0 0 16px rgba(250,204,21,0.5))' }}
@@ -76,7 +77,7 @@ export default function PreGameHourglass({
         <button
           type="button"
           onClick={onCancel}
-          className="mt-9 flex items-center gap-2 rounded-2xl px-5 py-2.5 font-inter text-sm font-bold text-blue-100/80"
+          className="kx-a1-pressable mt-9 flex items-center gap-2 rounded-2xl px-5 py-2.5 font-inter text-sm font-bold text-blue-100/80"
           style={{ background: 'rgba(148,163,184,0.12)', boxShadow: 'inset 0 0 0 1px rgba(148,163,184,0.28)' }}
         >
           <X className="w-4 h-4" /> Vazgeç
