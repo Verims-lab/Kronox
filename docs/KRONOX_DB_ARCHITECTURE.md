@@ -1204,6 +1204,12 @@ Admin Ekranı exposes one compact `Integrity Snapshot` that summarizes economy s
 
 B1 reuses the existing report function at the 50-entry deploy ceiling. No backend function was added.
 
+## Paket B2 — Frontend Runtime Boundaries
+
+Home demand-loads the full Daily Wheel visual module and opt-in diagnostics; Admin remains route-lazy and the Health Simulator remains click-lazy. Daily status stores now dedupe only concurrent identical actor/day reads while retaining the existing TTL, server-owned claim authority, and invalidation rules.
+
+Online countdown/poll owners invalidate stale sessions, suppress overlapping reads, and clean timers/listeners on cancel or unmount. Health runs stop advancing after their panel unmounts. Tutorial media is popup-scoped with metadata preload. These changes add no backend function and do not change entities, gateways, persistence, scoring, economy, Daily, Online, or Solo behavior.
+
 ## Future Health Coverage Recommendations
 
 - `db_gateway_direct_question_reads_blocked`

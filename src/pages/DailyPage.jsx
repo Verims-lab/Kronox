@@ -22,6 +22,7 @@ import {
 } from '@/lib/dailyCalendar';
 
 const WEEKDAY_LABELS = ['PZT', 'SAL', 'ÇAR', 'PER', 'CUM', 'CMT', 'PAZ'];
+const DAILY_STREAK_STEPS = Array.from({ length: DAILY_STREAK_REWARD_DAYS }, (_, index) => index + 1);
 const MONTH_LABELS = [
   'OCAK',
   'ŞUBAT',
@@ -61,7 +62,6 @@ export default function DailyPage() {
   const daily = useDailyQuests({ user, guestProfile: completedGuestProfile });
   const diamonds = getLeaderboardDiamondValue(user || completedGuestProfile);
   const monthTitle = formatMonthTitle(daily.month);
-  const streakSteps = Array.from({ length: DAILY_STREAK_REWARD_DAYS }, (_, index) => index + 1);
   const streakProgress = Math.max(0, Math.min(DAILY_STREAK_REWARD_DAYS, Number(daily.streakRewardProgress) || 0));
 
   return (
@@ -224,7 +224,7 @@ export default function DailyPage() {
                 </span>
               </div>
               <div data-kronox-daily-streak-strip="true" className="flex w-full min-w-0 items-center gap-1 overflow-hidden">
-                {streakSteps.map((step) => (
+                {DAILY_STREAK_STEPS.map((step) => (
                   <React.Fragment key={step}>
                     <span
                       className="grid h-6 w-6 shrink-0 place-items-center rounded-full font-inter text-[10px] font-black sm:h-7 sm:w-7 sm:text-xs"

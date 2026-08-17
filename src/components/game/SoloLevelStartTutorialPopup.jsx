@@ -132,7 +132,7 @@ export default function SoloLevelStartTutorialPopup({
                   muted
                   loop
                   playsInline
-                  preload="auto"
+                  preload="metadata"
                   controls={false}
                   aria-label={config.videoLabel || config.title || 'Eğitim videosu'}
                   onError={() => setVideoFailed(true)}

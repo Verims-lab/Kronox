@@ -18,12 +18,17 @@ export default function PreGameHourglass({
   const reduceMotion = useReducedMotion();
   const startRef = useRef(Date.now());
   const firedRef = useRef(false);
+  const onTimeoutRef = useRef(onTimeout);
+  useEffect(() => { onTimeoutRef.current = onTimeout; }, [onTimeout]);
   const totalMs = expiresAt ? Math.max(1000, (Date.parse(expiresAt) || 0) - startRef.current) : durationMs;
   const [remainingMs, setRemainingMs] = useState(totalMs);
 
   useEffect(() => {
     firedRef.current = false;
     startRef.current = Date.now();
+    setRemainingMs(expiresAt
+      ? Math.max(0, (Date.parse(expiresAt) || 0) - startRef.current)
+      : durationMs);
     const intervalId = window.setInterval(() => {
       const next = expiresAt
         ? Math.max(0, (Date.parse(expiresAt) || 0) - Date.now())
@@ -32,11 +37,10 @@ export default function PreGameHourglass({
       if (next <= 0 && !firedRef.current) {
         firedRef.current = true;
         window.clearInterval(intervalId);
-        onTimeout?.();
+        onTimeoutRef.current?.();
       }
     }, 250);
     return () => window.clearInterval(intervalId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expiresAt, durationMs]);
 
   const seconds = Math.ceil(remainingMs / 1000);

@@ -94,7 +94,7 @@
 //   If you remove a section above, you must also remove the corresponding
 //   line here OR update the matching Health case in the registry.
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Activity, X } from 'lucide-react';
 
@@ -215,13 +215,20 @@ export default function SimulationPanel({ onClose }) {
   const [copyFallback, setCopyFallback] = useState({ text: '', label: '' });
   const [currentRunMeta, setCurrentRunMeta] = useState(null);
   const [runFreshState, setRunFreshState] = useState('previous');
+  const mountedRef = useRef(true);
+  const runSequenceRef = useRef(0);
 
   useEffect(() => {
+    mountedRef.current = true;
     const saved = restoreLatestStoredReport();
     if (saved) {
       setLastRun(saved);
       setRunFreshState('previous');
     }
+    return () => {
+      mountedRef.current = false;
+      runSequenceRef.current += 1;
+    };
   }, []);
 
   const selectedSuite = SUITES.find(suite => suite.id === selectedSuiteId) || SUITES[0];
@@ -247,6 +254,9 @@ export default function SimulationPanel({ onClose }) {
 
   const runCases = useCallback(async (cases) => {
     let failedToRun = false;
+    const runSequence = runSequenceRef.current + 1;
+    runSequenceRef.current = runSequence;
+    const isActiveRun = () => mountedRef.current && runSequenceRef.current === runSequence;
     const meta = createRunMeta(cases.map(item => item.key));
     setCurrentRunMeta(meta);
     setRunFreshState('running');
@@ -263,9 +273,11 @@ export default function SimulationPanel({ onClose }) {
 
     try {
       for (let index = 0; index < cases.length; index += 1) {
+        if (!isActiveRun()) return;
         const testCase = cases[index];
         setRunningKey(testCase.key);
         const caseResult = await executeCase(testCase);
+        if (!isActiveRun()) return;
         nextResults[testCase.key] = caseResult;
         pendingResultStateCount += 1;
 
@@ -302,9 +314,10 @@ export default function SimulationPanel({ onClose }) {
       }
     } catch (error) {
       failedToRun = true;
-      setCopyState(`Run failed: ${error?.message || 'Unknown error'}`);
+      if (isActiveRun()) setCopyState(`Run failed: ${error?.message || 'Unknown error'}`);
     }
 
+    if (!isActiveRun()) return;
     publishResultStateSnapshot(setResultsByKey, nextResults);
     if (Object.keys(nextResults).length) {
       updateReport(nextResults, meta, { persist: !failedToRun, runState: failedToRun ? 'failed' : 'completed' });

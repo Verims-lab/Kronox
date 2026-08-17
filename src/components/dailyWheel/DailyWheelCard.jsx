@@ -75,6 +75,7 @@ export default function DailyWheelCard({
 }) {
   const [claimedResultAutoOpened, setClaimedResultAutoOpened] = useState(false);
   const [availableResultAutoOpened, setAvailableResultAutoOpened] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
   const wheel = useDailyWheel({ user, guestProfile, onUserUpdated });
   const claimedLabel = useMemo(
     () => formatCountdown(wheel.wheel?.nextAvailableAt),
@@ -189,8 +190,8 @@ export default function DailyWheelCard({
           <motion.span
             aria-hidden="true"
             className="absolute inset-0"
-            animate={{ opacity: [0.25, 0.55, 0.25] }}
-            transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+            animate={prefersReducedMotion ? { opacity: 0.35 } : { opacity: [0.25, 0.55, 0.25] }}
+            transition={prefersReducedMotion ? { duration: 0 } : { duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
             style={{
               background: 'radial-gradient(circle at 22% 50%, rgba(250,204,21,0.24), transparent 42%)',
             }}
@@ -1053,12 +1054,14 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
       cancelled = true;
       effectSessionRef.current += 1;
       timers.forEach((id) => window.clearTimeout(id));
+      sounds.stopWheelEffects?.();
       stopDailyWheelConfetti();
     };
   }, [hasReward, prefersReducedMotion, readOnlyResult, displayResult?.rewardId, spinDurationMs]);
 
   const handleModalClose = () => {
     effectSessionRef.current += 1;
+    sounds.stopWheelEffects?.();
     stopDailyWheelConfetti();
     onClose?.();
   };

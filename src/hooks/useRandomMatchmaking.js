@@ -17,8 +17,13 @@ export default function useRandomMatchmaking() {
   const [lobbyCode, setLobbyCode] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const pollRef = useRef(null);
+  const mountedRef = useRef(true);
+  const sessionRef = useRef(0);
+  const pollPendingRef = useRef(false);
 
   const stopPolling = useCallback(() => {
+    sessionRef.current += 1;
+    pollPendingRef.current = false;
     if (pollRef.current) {
       window.clearInterval(pollRef.current);
       pollRef.current = null;
@@ -44,24 +49,32 @@ export default function useRandomMatchmaking() {
 
   const start = useCallback(async () => {
     stopPolling();
+    const sessionId = sessionRef.current;
+    const isActiveSession = () => mountedRef.current && sessionRef.current === sessionId;
     setPhase('queuing');
     setErrorMessage('');
     setLobbyRef('');
     setLobbyCode('');
     try {
       const data = await joinRandomMatchmaking();
+      if (!isActiveSession()) return;
       applyState(data);
       if (data.status === 'waiting') {
         pollRef.current = window.setInterval(async () => {
+          if (!isActiveSession() || pollPendingRef.current) return;
+          pollPendingRef.current = true;
           try {
             const polled = await pollRandomMatchmaking();
-            applyState(polled);
+            if (isActiveSession()) applyState(polled);
           } catch {
-            setErrorMessage('Bağlantı kurulamadı. Lütfen tekrar dene.');
+            if (isActiveSession()) setErrorMessage('Bağlantı kurulamadı. Lütfen tekrar dene.');
+          } finally {
+            pollPendingRef.current = false;
           }
         }, POLL_INTERVAL_MS);
       }
     } catch {
+      if (!isActiveSession()) return;
       setPhase('error');
       setErrorMessage('Rastgele eşleşme başlatılamadı. Lütfen tekrar dene.');
     }
@@ -73,7 +86,13 @@ export default function useRandomMatchmaking() {
     await cancelRandomMatchmaking().catch(() => null);
   }, [stopPolling]);
 
-  useEffect(() => () => stopPolling(), [stopPolling]);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      stopPolling();
+    };
+  }, [stopPolling]);
 
   return { phase, expiresAt, lobbyRef, lobbyCode, errorMessage, start, cancel };
 }

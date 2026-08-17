@@ -259,6 +259,8 @@ import * as hamle3RuntimeAlignmentCases from './simulationPanelHamle3RuntimeAlig
 import * as soloStreakCases from './simulationPanelSoloStreakCases';
 // Paket B1 — admin-only, read-only economy/idempotency/source proof contracts.
 import * as integrityProofCases from './simulationPanelIntegrityProofCases';
+// Paket B2 — lazy chunks, finite effects, polling cleanup, and mobile runtime guards.
+import * as performanceRuntimeCases from './simulationPanelPerformanceRuntimeCases';
 
 const MODULES = [
   soloProgressCases,
@@ -327,6 +329,7 @@ const MODULES = [
   hamle3RuntimeAlignmentCases,
   soloStreakCases,
   integrityProofCases,
+  performanceRuntimeCases,
 ];
 
 function flatten(key) {

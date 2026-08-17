@@ -7,8 +7,8 @@ import { sounds } from '@/lib/gameSounds';
 import { useAuth } from '@/lib/AuthContext';
 import StandardTopBar from '@/components/layout/StandardTopBar';
 import { createParentRouteState } from '@/lib/NavigationStackContext';
-import DailyWheelCard from '@/components/dailyWheel/DailyWheelCard';
 import { useDailyWheel } from '@/hooks/useDailyWheel';
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import { useDailyQuests } from '@/hooks/useDailyQuests';
 import {
   getGuestLeaderboardOwnerKey,
@@ -40,6 +40,10 @@ const HOME_HOURGLASS_SRC = '/assets/ui/kronox-hourglass-home.png';
 const HOME_BOTTOM_NAV_HEIGHT = '3.6rem';
 const HOME_CTA_BALANCE_GAP = 'clamp(1rem, 3dvh, 2rem)';
 const HOME_MIDDLE_STAGE_HEIGHT = 'clamp(14rem, 38dvh, 20rem)';
+const DailyWheelCard = lazyWithRetry(
+  () => import('@/components/dailyWheel/DailyWheelCard'),
+  'DailyWheelCard',
+);
 
 export default function MainMenu() {
   const navigate = useNavigate();
@@ -545,17 +549,19 @@ function HomeShortcutModal({ activeShortcut, user, guestProfile, onClose, onUser
     return (
       <AnimatePresence>
         {isWheel && (
-          <DailyWheelCard
-            key="home-wheel-direct"
-            user={user}
-            guestProfile={guestProfile}
-            onUserUpdated={onUserUpdated}
-            renderLauncher={false}
-            forceModalOpen
-            openAvailableResultOnMount
-            openClaimedResultOnMount
-            onResultClose={onClose}
-          />
+          <React.Suspense fallback={null}>
+            <DailyWheelCard
+              key="home-wheel-direct"
+              user={user}
+              guestProfile={guestProfile}
+              onUserUpdated={onUserUpdated}
+              renderLauncher={false}
+              forceModalOpen
+              openAvailableResultOnMount
+              openClaimedResultOnMount
+              onResultClose={onClose}
+            />
+          </React.Suspense>
         )}
       </AnimatePresence>
     );

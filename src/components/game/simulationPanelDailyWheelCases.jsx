@@ -1155,6 +1155,7 @@ export const EXTRA_TESTS = [
         'handleModalClose',
         'effectSessionRef.current += 1',
         'timers.forEach((id) => window.clearTimeout(id))',
+        'sounds.stopWheelEffects?.()',
         'return resultModal ? <>{resultModal}</> : null;',
       ]);
       const forbidden = forbiddenTokens(dailyWheelCardSource, [
@@ -1180,6 +1181,7 @@ export const EXTRA_TESTS = [
         'sounds.wheelSpinStart?.()',
         'sounds.wheelTick?.()',
         'sounds.rewardReveal?.()',
+        'sounds.stopWheelEffects?.()',
         'wheelSpinStart()',
         'wheelTick()',
         'rewardReveal()',

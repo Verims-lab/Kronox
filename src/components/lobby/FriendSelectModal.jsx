@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Check, ChevronDown, Swords } from 'lucide-react';
 import KronoxStatePanel from '@/components/ui/KronoxStatePanel';
@@ -51,6 +51,7 @@ export default function FriendSelectModal({
   const [players, setPlayers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const refreshRef = useRef(null);
   const guestCredentials = getCompletedGuestCredentialsPayload(guestProfile);
   const hasPlayerContext = Boolean(user?.email || guestCredentials);
 
@@ -68,8 +69,10 @@ export default function FriendSelectModal({
       return undefined;
     }
     let cancelled = false;
+    let refreshPending = false;
     const refresh = async ({ showLoading = false } = {}) => {
-      if (cancelled) return;
+      if (cancelled || refreshPending) return;
+      refreshPending = true;
       if (showLoading) setLoading(true);
       setError('');
       try {
@@ -81,9 +84,11 @@ export default function FriendSelectModal({
           setError('Oyuncular yüklenemedi.');
         }
       } finally {
+        refreshPending = false;
         if (!cancelled && showLoading) setLoading(false);
       }
     };
+    refreshRef.current = refresh;
     const refreshIfVisible = () => {
       if (document.visibilityState === 'visible') refresh();
     };
@@ -94,6 +99,7 @@ export default function FriendSelectModal({
     window.addEventListener('online', refreshIfVisible);
     return () => {
       cancelled = true;
+      if (refreshRef.current === refresh) refreshRef.current = null;
       window.clearInterval(intervalId);
       document.removeEventListener('visibilitychange', refreshIfVisible);
       window.removeEventListener('focus', refreshIfVisible);
@@ -237,15 +243,7 @@ export default function FriendSelectModal({
                   actionLabel="Tekrar Dene"
                   onAction={() => {
                     sounds.tap();
-                    setLoading(true);
-                    setError('');
-                    loadOnlinePlayerSelection({ guestCredentials })
-                      .then((rows) => setPlayers(rows || []))
-                      .catch(() => {
-                        setPlayers((previousRows) => preserveSafeRowsOnTransientFailure(previousRows));
-                        setError('Oyuncular yüklenemedi.');
-                      })
-                      .finally(() => setLoading(false));
+                    refreshRef.current?.({ showLoading: true });
                   }}
                 />
               ) : players.length === 0 ? (

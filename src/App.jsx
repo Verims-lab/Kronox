@@ -13,7 +13,7 @@ import BottomNav from '@/components/layout/BottomNav';
 import SplashScreen from '@/components/SplashScreen';
 import { NavigationStackProvider } from '@/lib/NavigationStackContext';
 import BuildMarker, { KRONOX_BUILD_MARKER } from '@/components/dev/BuildMarker';
-import AppDiagnostics from '@/components/dev/AppDiagnostics';
+import LazyAppDiagnostics from '@/components/dev/LazyAppDiagnostics';
 import AppErrorBoundary from '@/components/dev/AppErrorBoundary';
 import { appDiagSetBuildMarker, pushAppDiag } from '@/lib/appDiagBus';
 import { isGuestOnboardingComplete } from '@/lib/guestProfile';
@@ -162,7 +162,7 @@ const AuthenticatedApp = () => {
   if (isLoadingAuth && !isPublicStandalonePage) {
     return (
       <>
-        <AppDiagnostics currentUser={user} />
+        <LazyAppDiagnostics currentUser={user} />
         <SplashScreen />
       </>
     );
@@ -173,7 +173,7 @@ const AuthenticatedApp = () => {
     if (authError.type === 'user_not_registered') {
       return (
         <>
-          <AppDiagnostics currentUser={user} />
+          <LazyAppDiagnostics currentUser={user} />
           <UserNotRegisteredError />
         </>
       );
@@ -199,7 +199,7 @@ const AuthenticatedApp = () => {
   // Render the main app
   return (
     <div style={viewportShellStyle} data-kx-route-locked={isViewportLockedPage ? 'true' : 'false'}>
-      <AppDiagnostics currentUser={user} />
+      <LazyAppDiagnostics currentUser={user} />
       {/* Codex102 — Global AppHeader removed. Each screen renders its own
           ScreenHeader so the title/back/avatar match the active page. */}
       <Suspense fallback={<PageLoader />}>

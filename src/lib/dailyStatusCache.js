@@ -7,6 +7,8 @@
 //     from cache while a background refresh revalidates.
 //   • Idle-scheduled (post-paint) status refresh so Home first render is
 //     never blocked on Daily Wheel / Daily Calendar network status.
+//   • Per-key in-flight request dedupe so Home badges and a just-opened modal
+//     share one identical status read instead of racing duplicate requests.
 //
 // These helpers are pure/config-only. Reward source of truth stays
 // server-side; caching here is display-freshness only and must never be
@@ -28,6 +30,7 @@ export function buildDailyStatusCacheKey(user, guestCredentials) {
 
 export function createDailyStatusStore(ttlMs = DAILY_STATUS_CACHE_TTL_MS) {
   const store = new Map();
+  const pendingRequests = new Map();
   return {
     read(cacheKey) {
       if (!cacheKey) return null;
@@ -42,6 +45,16 @@ export function createDailyStatusStore(ttlMs = DAILY_STATUS_CACHE_TTL_MS) {
     write(cacheKey, body) {
       if (!cacheKey || !body) return;
       store.set(cacheKey, { cachedAt: Date.now(), body });
+    },
+    request(cacheKey, loader) {
+      if (!cacheKey) return loader();
+      const pending = pendingRequests.get(cacheKey);
+      if (pending) return pending;
+      const request = Promise.resolve().then(loader).finally(() => {
+        if (pendingRequests.get(cacheKey) === request) pendingRequests.delete(cacheKey);
+      });
+      pendingRequests.set(cacheKey, request);
+      return request;
     },
     invalidate(cacheKey = '') {
       if (cacheKey) {

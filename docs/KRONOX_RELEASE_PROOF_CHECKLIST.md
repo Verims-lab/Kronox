@@ -1297,6 +1297,17 @@ verified against the deployed Base44 environment.
 * Production deployment, real RLS/multi-account probes, real devices, Base44 unique indexes, production secrets, and parallel race behavior remain manual.
 * Package-layer blocker: the current frontend dependency is `@base44/sdk ^0.8.42` while the existing deploy gate/backend imports still require `0.8.34`. B1 does not change dependency/runtime versions; resolve this explicitly before relying on the full deploy gate.
 
+# Paket B2 — Performance / Runtime Cleanup Proof
+
+* Confirm Home renders without loading the Admin route, Health Simulator, opt-in diagnostics, or the full Daily Wheel visual chunk; opening each demand surface must still work.
+* Open/close Daily Wheel repeatedly and confirm spin timers, confetti, sound scheduling, and overlays stop with no invisible pointer blocker.
+* Start/cancel invite and random Online waits repeatedly; confirm countdowns and polling stop, do not overlap, and do not update the closed screen.
+* Open/close Friend selection, Store details, and Solo tutorial/result overlays; confirm body scrolling, media playback, backdrop count, and pointer input restore.
+* Confirm Solo Streak feedback remains finite and reduced-motion mode leaves stable final visuals.
+* Confirm Daily status Home/modal reads dedupe only concurrent identical requests; required post-claim refresh/invalidation remains active.
+* Run Performance Runtime Cleanup, Mobile Safety, Daily Wheel, Online, Solo Streak, Admin/Health, and deployability suites through the Testing Agent.
+* B2 adds no backend function and keeps the repository at the 50-function ceiling. Production device smoothness, network timing, memory, chunk-cache recovery, and native wrapper behavior remain manual proof.
+
 # 16. Manual Proof Recording
 
 For every manual test run, record:

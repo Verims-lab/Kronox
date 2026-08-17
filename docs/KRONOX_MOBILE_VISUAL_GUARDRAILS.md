@@ -146,6 +146,16 @@ checks that source code and static Health cannot honestly prove alone.
 * Push and installability must be checked on a real Android device or emulator
   using the actual release wrapper/channel.
 
+## Paket B2 — Mobile/WebView Runtime Performance
+
+* Normal Home startup must not eagerly evaluate Admin, Health Simulator, opt-in diagnostics, or the full Daily Wheel visual implementation. Route/modal demand boundaries use the shared resilient lazy-chunk loader.
+* Route/modal timers, polling loops, visibility/focus listeners, body scroll locks, media playback, confetti, and delayed visual callbacks must stop or restore their previous state on close/unmount.
+* Online waiting reads must suppress overlapping polls and ignore stale async completions after cancel or route change.
+* Large tutorial media is route/popup scoped and uses metadata preload; muted, inline, looped autoplay behavior remains unchanged while the popup is open.
+* Infinite decorative animation must provide a static reduced-motion state. Finite reward/waiting/streak effects must not leave a half-finished overlay.
+* Daily status badges remain post-paint and concurrent identical actor/day reads are deduped without changing server authority or cache invalidation.
+* These optimizations must preserve 320/360/390px containment, safe areas, A1 visual quality, gameplay ordering, scoring, economy, Daily, Online, and Solo rules.
+
 ## Health Boundary
 
 Health may statically verify that the guardrails and source hooks exist, but it

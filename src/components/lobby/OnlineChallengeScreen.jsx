@@ -68,7 +68,10 @@ export default function OnlineChallengeScreen({
   useEffect(() => {
     if (screen !== 'invite-wait' || !inviteLobby?.id) return undefined;
     let cancelled = false;
+    let tickPending = false;
     const tick = async () => {
+      if (cancelled || tickPending) return;
+      tickPending = true;
       try {
         const res = await getLobbySnapshot({ lobbyId: inviteLobby.id, scope: LOBBY_SNAPSHOT_SCOPES.WAITING_ROOM });
         const fresh = res?.data?.lobby;
@@ -76,6 +79,7 @@ export default function OnlineChallengeScreen({
           onEnterLobby?.(fresh);
         }
       } catch { /* transient poll errors are ignored; next tick retries */ }
+      finally { tickPending = false; }
     };
     const intervalId = window.setInterval(tick, INVITE_POLL_MS);
     return () => { cancelled = true; window.clearInterval(intervalId); };

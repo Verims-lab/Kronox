@@ -28,7 +28,8 @@ function autoPopupStorageKey(user, guestCredentials, serverDate, resetAt = '') {
 
 // Shared Daily status cache contract (60s TTL + idle-scheduled refresh)
 // lives in src/lib/dailyStatusCache.js; the wheel keeps its own store
-// instance so wheel/calendar invalidations stay independent.
+// instance so wheel/calendar invalidations stay independent. The store also
+// dedupes concurrent status reads from Home and a just-opened wheel modal.
 const dailyWheelStatusStore = createDailyStatusStore();
 
 function userSafeDailyWheelError(_err, fallback) {
@@ -164,7 +165,10 @@ export function useDailyWheel({ user, guestProfile, onUserUpdated } = {}) {
       setStatus('loading');
     }
     try {
-      const body = await invokeDailyWheelFunction('getDailyWheelStatus', dailyWheelPayload);
+      const body = await dailyWheelStatusStore.request(
+        dailyWheelCacheKey,
+        () => invokeDailyWheelFunction('getDailyWheelStatus', dailyWheelPayload),
+      );
       dailyWheelStatusStore.write(dailyWheelCacheKey, body);
       applyDailyWheelStatusBody(body);
       return body;
