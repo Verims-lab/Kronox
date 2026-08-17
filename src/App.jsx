@@ -238,6 +238,8 @@ const AuthenticatedApp = () => {
                   <Route path="/market" element={<MarketPage />} />
                   <Route path="/daily" element={<DailyPage />} />
                   <Route path="/solo" element={<SoloChallenge />} />
+                  <Route path="/SoloChallenge" element={<Navigate to="/solo" replace />} />
+                  <Route path="/Game" element={<Navigate to="/solo" replace />} />
                   <Route path="/setup" element={<Navigate to="/solo" replace />} />
                   <Route path="/settings" element={<SettingsPage />} />
                   <Route path="/profile" element={<ProfilePage />} />

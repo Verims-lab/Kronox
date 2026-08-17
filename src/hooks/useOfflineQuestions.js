@@ -35,6 +35,7 @@ const NO_CACHE_NETWORK_ATTEMPTS = 3;
 const AUTH_GAMEPLAY_QUESTION_RESPONSE_LIMIT = 96;
 const GUEST_GAMEPLAY_QUESTION_RESPONSE_LIMIT = 48;
 const GAMEPLAY_QUESTION_REQUEST_VERSION = 'per_category_projection_v2';
+const GAMEPLAY_QUESTION_CACHE_REVISION = 'guest-year-diverse-v1';
 const GUEST_GAMEPLAY_QUESTION_MODE = 'guest_gameplay_runtime';
 const SERVER_ATTEMPT_SELECTION_MODE = 'server_attempt_candidate_buffer_v1';
 
@@ -95,6 +96,7 @@ function buildQuestionRequestCacheKey(context = {}) {
   const normalized = normalizeQuestionRequestContext(context);
   return [
     GAMEPLAY_QUESTION_REQUEST_VERSION,
+    GAMEPLAY_QUESTION_CACHE_REVISION,
     normalized.authScope,
     normalized.requestKind,
     normalized.levelNumber,
@@ -204,7 +206,7 @@ function readUsableCachedQuestions(requestKey = '') {
   const cached = loadQuestionsFromCache();
   const questions = normalizeQuestionsForRuntime(cached?.questions || []);
   if (!cached || questions.length === 0) return null;
-  if (requestKey && cached.requestKey && cached.requestKey !== requestKey) return null;
+  if (requestKey && cached.requestKey !== requestKey) return null;
   const activeCategoryIds = Array.isArray(cached.activeCategoryIds) && cached.activeCategoryIds.length
     ? cached.activeCategoryIds
     : deriveActiveCategoryIds(questions);

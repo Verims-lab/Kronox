@@ -164,7 +164,7 @@ empty/retryable state instead of fallback IDs and must not permanently exclude
 newer active category IDs.
 Runtime active-category status aliases include a, active, and aktif, and live
 category_id normalization accepts any positive DB category id instead of
-clamping to original seed IDs. question-runtime-v10-solo-architecture
+clamping to original seed IDs. question-runtime-v11-distinct-year-coverage
 invalidates stale local projections and old difficulty-lane buffers after the
 server-attempt/readiness change.
 Gameplay fetches request the v2 per-category projection and
