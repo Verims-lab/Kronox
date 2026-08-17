@@ -1295,7 +1295,7 @@ verified against the deployed Base44 environment.
 * Run the targeted `Integrity Proof Health Suite` plus affected Admin/security/economy/Daily/Solo/Online suites.
 * B1 adds no backend function; the repository remains at the 50-function ceiling.
 * Production deployment, real RLS/multi-account probes, real devices, Base44 unique indexes, production secrets, and parallel race behavior remain manual.
-* Package-layer blocker: the current frontend dependency is `@base44/sdk ^0.8.42` while the existing deploy gate/backend imports still require `0.8.34`. B1 does not change dependency/runtime versions; resolve this explicitly before relying on the full deploy gate.
+* Package-layer boundary: `package.json` now pins `@base44/sdk` exactly to `0.8.34`, matching the deploy gate/backend imports. Base44 does not expose `package-lock.json` through the editable file surface. A package-layer probe still observes root `^0.8.42` and resolved `0.8.42`; regeneration/alignment remains an external blocker and is not claimed by Health.
 
 # Paket B2 — Performance / Runtime Cleanup Proof
 
@@ -1328,6 +1328,16 @@ verified against the deployed Base44 environment.
 * Health is a source contract guard, not release proof. Run the targeted Release Readiness suite and affected Admin Security, Security Cleanup/VAPID, Deployability, Integrity, and Question Quality suites separately.
 * Release cannot be marked complete until all required manual and external proof has recorded date, build marker, device/accounts, result, evidence, and remaining risk.
 * B4 adds no backend function, entity, schema, secret reader, deployment action, or product behavior change; function count remains 50.
+
+# Paket B5 — Paket B Closure Proof
+
+* B1 Integrity, B3 Question Quality, and B4 Yayın Hazırlığı remain guarded Admin-only read-only tools. B5 adds no mutation, cleanup, deploy, secret-read, or question-write action.
+* B2 cleanup Health remains connected to active Daily Wheel, random matchmaking, Friend Select, tutorial media, Solo Streak, and Health runner sources.
+* Editable SDK source now matches exact `0.8.34`; unavailable `package-lock.json` resolution remains external package-layer proof. The compile gate must not crash solely because the lockfile is unavailable.
+* Production Base44 deployment, Full Health, VAPID provisioning, real devices/WebViews, RLS/multi-account, platform unique indexes, parallel economy races, account deletion, and store acceptance remain pending manual/external evidence.
+* Source-connected Paket B Closure Health must pass before release review, but Health PASS alone cannot close manual gates.
+* No Paket B panel may expose email, provider/private actor fields, raw IDs, secrets, stack traces, request payloads, raw backend errors, or the full question bank.
+* Function count remains 50 and no new backend function is introduced.
 
 # 16. Manual Proof Recording
 
@@ -1452,7 +1462,7 @@ Before release, manually verify guest-to-account linking:
 
 Automated/source-connected gates:
 
-* `npm run check:base44-functions` enforces at most 50 entries and no removed callable paths. The current repo is at 50 entries, but the frontend package sync (`@base44/sdk ^0.8.42`) does not match the gate/backend Deno `0.8.34` contract; this remains an explicit pre-deploy blocker until an approved compatibility alignment is performed.
+* `npm run check:base44-functions` enforces at most 50 entries and no removed callable paths. The current repo is at 50 entries and `package.json` exactly matches backend Deno `0.8.34`; the editable file surface does not expose `package-lock.json`; the observed package layer still resolves `^0.8.42` / `0.8.42`, so regeneration/alignment remains an external gate.
 * Online client source contains no direct `OnlineMatchResult`, User/GuestProfile
   Online score, or leaderboard projection writes.
 * `updateLobbyGameState` rejects forged/nonterminal/nonparticipant result

@@ -38,6 +38,8 @@ Paket B4 adds an Admin-only read-only release tracker that points to B1 and list
 Daily Wheel, Daily Calendar 200 Diamonds, Solo Streak +3/+5, Store spend, and
 parallel idempotency as pending proof. It reads no ledger, mutates no balance,
 and keeps platform uniqueness and two-device races manual/external.
+Paket B5 changes no economy behavior. B1 remains the read-only source, while
+platform uniqueness and live parallel two-device proof remain manual/external.
 
 ## Active sources
 - starter_bonus (one-time, guarded by User.starter_bonus_granted_at)

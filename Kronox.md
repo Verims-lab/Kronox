@@ -995,10 +995,10 @@ Online main should feel like preparing for a challenge.
 
 Use:
 
-* compact active categories
-* clear friend selection
-* tactile invite/start button
-* readable selected state
+* clear all-active random-category policy copy
+* clear invite and random-match actions
+* tactile lobby/invite buttons
+* readable waiting and recovery states
 * stable no-scroll layout if designed as fixed
 
 ## Lobby Waiting

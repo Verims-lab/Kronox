@@ -8,6 +8,7 @@ export default function ReleaseDeployabilitySummary() {
     ['Base44 fonksiyon sınırı', `${RELEASE_DEPLOYABILITY.functionCount} / ${RELEASE_DEPLOYABILITY.functionLimit}`, 'Bekliyor'],
     ['Frontend SDK', RELEASE_DEPLOYABILITY.currentSdk, RELEASE_DEPLOYABILITY.sdkStatus],
     ['Deploy SDK politikası', RELEASE_DEPLOYABILITY.expectedSdk, RELEASE_DEPLOYABILITY.sdkStatus],
+    ['Package-lock', RELEASE_DEPLOYABILITY.packageLockStatus, 'Engelli'],
     ['Backend compile kanıtı', RELEASE_DEPLOYABILITY.backendCompile, 'Manuel'],
     ['Build Marker', KRONOX_BUILD_MARKER, 'Bekliyor'],
     ['Otomatik deploy', RELEASE_DEPLOYABILITY.deployment, 'Harici'],

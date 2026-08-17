@@ -348,7 +348,7 @@ function GroupedPlayerList({ players, selected, onToggle }) {
 }
 
 function PlayerRow({ player, selected, capped, disabled, onToggle }) {
-  const display = player?.username || player?.display_name || 'Oyuncu';
+  const display = player?.username || 'Oyuncu';
   const isOnline = Boolean(player?.online);
   const rowDisabled = Boolean(disabled);
 

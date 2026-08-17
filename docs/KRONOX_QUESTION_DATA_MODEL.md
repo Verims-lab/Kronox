@@ -309,7 +309,7 @@ Rules:
 
 # 8. User Category Preferences
 
-Users can select active main `Category` interests under Settings.
+Users can select active main `Category` interests under Profile > Profil Bilgileri.
 
 Preference storage:
 

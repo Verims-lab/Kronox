@@ -114,9 +114,11 @@ Mechanical scan from this pass:
   scoring is exactly `+15`, loser scoring is exactly `-6` before checkpoint
   protection, and elapsed seconds are audit/display only with no Online speed
   bonus.
-- Restored the root `@base44/sdk` package and lockfile contract to the exact
-  `0.8.34` pin required by the security Health suite and current deployment
-  docs; no runtime SDK upgrade work was attempted in this audit.
+- Restored the editable root `@base44/sdk` package source to the exact `0.8.34`
+  pin required by the deploy gate and backend imports. Base44 does not expose
+  `package-lock.json` through the editable file surface; the package layer still
+  reports root `^0.8.42` and resolved `0.8.42`, so regeneration remains external.
+  No runtime SDK upgrade work was attempted.
 - Converted transient social/lobby/debug UI timers to ref-owned timers with
   previous-timer clearing and unmount cleanup in the Friends success banner,
   create-lobby auto-trim note, lobby copy-code state, and debug copy controls.

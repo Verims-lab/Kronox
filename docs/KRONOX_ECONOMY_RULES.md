@@ -890,6 +890,10 @@ The report keeps `daily_wheel`, `daily_calendar_streak_reward`, `solo_streak`, `
 
 The Admin-only `Yayın Hazırlığı` tracker lists B1 Integrity Snapshot, Daily Wheel, Daily Calendar 200-Diamond reward, Solo Streak +3/+5, Store Diamond spending, and duplicate/idempotency proof as required release evidence. It does not read ledgers, grant or spend Diamonds, repair balances, run cleanup, or mark parallel proof complete. Platform uniqueness and two-device race behavior remain manual/external proof.
 
+# Paket B5 — Economy Closure
+
+B5 changes no balance, reward, price, ledger, lock, Daily, Store, or Solo Streak behavior. B1 remains the read-only integrity source, while platform uniqueness and live parallel two-device proof remain unresolved manual/external gates.
+
 # 13. Health Coverage Expectations
 
 Health should cover:

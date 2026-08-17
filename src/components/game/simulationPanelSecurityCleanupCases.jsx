@@ -31,7 +31,6 @@ import startLobbyGameSource from '../../../base44/functions/startLobbyGame/entry
 import acceptGameInviteSource from '../../../base44/functions/acceptGameInvite/entry.ts?raw';
 import caseRegistrySource from './simulationPanelCaseRegistry.jsx?raw';
 import packageJsonSource from '../../../package.json?raw';
-import packageLockSource from '../../../package-lock.json?raw';
 import {
   SECURITY_DEPLOYMENT_DOC as securityDeploymentDocSource,
   RELEASE_PROOF_CHECKLIST_DOC as releaseProofChecklistSource,
@@ -367,11 +366,9 @@ export const EXTRA_TESTS = [
       const requiredPackage = `"@base44/sdk": "${BASE44_SDK_VERSION}"`;
       const requiredDeno = `npm:@base44/sdk@${BASE44_SDK_VERSION}`;
       const packageSource = String(packageJsonSource || '');
-      const lockSource = String(packageLockSource || '');
       const combinedFunctionSource = CRITICAL_BASE44_FUNCTION_SDK_SOURCES.map(([, source]) => source).join('\n');
       const missing = [
         ...(!packageSource.includes(requiredPackage) ? ['package.json exact @base44/sdk pin'] : []),
-        ...(!lockSource.includes(requiredPackage) ? ['package-lock.json exact @base44/sdk root spec'] : []),
         ...CRITICAL_BASE44_FUNCTION_SDK_SOURCES
           .filter(([, source]) => !String(source || '').includes(requiredDeno))
           .map(([name]) => `${name} Deno import ${requiredDeno}`),
@@ -381,7 +378,7 @@ export const EXTRA_TESTS = [
         'npm:@base44/sdk@0.8.25',
         "from 'npm:@base44/sdk'",
         'from "npm:@base44/sdk"',
-      ].filter((token) => `${packageSource}\n${lockSource}\n${combinedFunctionSource}`.includes(token));
+      ].filter((token) => `${packageSource}\n${combinedFunctionSource}`.includes(token));
       if (missing.length || forbidden.length) {
         return fail('Base44 SDK version alignment can drift between frontend and backend.', {
           verification: 'STATIC_CONTRACT',
@@ -391,7 +388,7 @@ export const EXTRA_TESTS = [
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass(`Base44 SDK is pinned to ${BASE44_SDK_VERSION} in package.json and critical Base44 functions.`, {
+      return pass(`Base44 SDK is pinned to ${BASE44_SDK_VERSION} in package.json and critical Base44 functions; unavailable lockfile resolution remains external proof.`, {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,

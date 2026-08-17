@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex609 — Paket B5 closure: align SDK source policy while keeping lock proof external, remove stale preload/Online docs, harden public username fallback, add Paket B Closure Health, and preserve every manual release gate without product behavior changes.
 // Codex608 — Paket B4 release readiness: add an Admin-only read-only manual proof tracker, explicit Health/manual/external boundaries, deployability blockers, source-connected Health, and docs alignment without product behavior changes.
 // Codex607 — Paket B3 question quality: extend the existing Admin-only report with bounded category/difficulty/year/duplicate/metadata/readiness QA, add a compact read-only panel, Health proof, and docs alignment without question mutation or gameplay changes.
 // Codex606 — Paket B2 performance cleanup: demand-load diagnostics/wheel UI, dedupe Daily status reads, harden Online/Health async cleanup, scope tutorial media, and add source-connected performance Health without changing product behavior.
@@ -185,7 +186,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex608';
+const BUILD_MARKER = 'Codex609';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

@@ -265,6 +265,8 @@ import * as performanceRuntimeCases from './simulationPanelPerformanceRuntimeCas
 import * as questionQualityCases from './simulationPanelQuestionQualityCases';
 // Paket B4 — Admin-only release readiness tracker and manual/external proof boundaries.
 import * as releaseReadinessCases from './simulationPanelReleaseReadinessCases';
+// Paket B5 — final source-fixable closure and manual-boundary honesty.
+import * as paketBClosureCases from './simulationPanelPaketBClosureCases';
 
 const MODULES = [
   soloProgressCases,
@@ -336,6 +338,7 @@ const MODULES = [
   performanceRuntimeCases,
   questionQualityCases,
   releaseReadinessCases,
+  paketBClosureCases,
 ];
 
 function flatten(key) {

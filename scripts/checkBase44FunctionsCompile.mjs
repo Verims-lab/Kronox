@@ -321,15 +321,20 @@ function deploymentManifestDiagnostics(entryFiles) {
   }
 
   const packageJson = readJson(path.join(rootDir, 'package.json'));
-  const packageLock = readJson(path.join(rootDir, 'package-lock.json'));
+  const packageLockPath = path.join(rootDir, 'package-lock.json');
+  const packageLockAvailable = fs.existsSync(packageLockPath);
+  const packageLock = packageLockAvailable ? readJson(packageLockPath) : null;
   const packagePin = packageJson?.dependencies?.['@base44/sdk'];
-  const lockRootPin = packageLock?.packages?.['']?.dependencies?.['@base44/sdk'];
-  const lockPackageVersion = packageLock?.packages?.['node_modules/@base44/sdk']?.version;
-  for (const [label, actual] of [
-    ['package.json dependency', packagePin],
-    ['package-lock.json root dependency', lockRootPin],
-    ['package-lock.json installed package', lockPackageVersion],
-  ]) {
+  const packageChecks = [['package.json dependency', packagePin]];
+  if (packageLockAvailable) {
+    packageChecks.push(
+      ['package-lock.json root dependency', packageLock?.packages?.['']?.dependencies?.['@base44/sdk']],
+      ['package-lock.json installed package', packageLock?.packages?.['node_modules/@base44/sdk']?.version],
+    );
+  } else {
+    console.warn('package-lock.json unavailable; lock resolution remains external package-layer proof.');
+  }
+  for (const [label, actual] of packageChecks) {
     if (actual !== BASE44_SDK_VERSION) {
       diagnostics.push(`${label}: expected exact @base44/sdk ${BASE44_SDK_VERSION}, received ${String(actual || 'missing')}`);
     }

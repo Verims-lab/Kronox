@@ -89,12 +89,12 @@ cannot create `OnlineMatchResult` or write profile/leaderboard score.
 
 ## Base44 SDK alignment
 
-The backend Base44 Deno functions remain pinned to `npm:@base44/sdk@0.8.34`,
-and the deploy gate still expects the frontend package/lock layer to match that
-version exactly. The current package-layer sync instead declares frontend
-`@base44/sdk ^0.8.42`. This is an explicit pre-deploy compatibility blocker:
-B1 does not silently change dependency/runtime versions, loosen the gate, or
-rewrite all backend imports.
+The backend Base44 Deno functions and frontend `package.json` remain pinned to
+`@base44/sdk 0.8.34` exactly. The deploy gate checks the editable package source
+and backend imports. Base44 does not expose `package-lock.json` through the editable file surface.
+A package-layer probe still observes root `^0.8.42` and resolved `0.8.42`, so
+regeneration/alignment remains an external blocker and must not be claimed as
+an automated Health pass.
 
 `scripts/checkBase44FunctionsCompile.mjs` caps the repo at 50 Base44 function
 entry files, verifies SDK alignment, and rejects removed legacy/test/diagnostic
@@ -1056,6 +1056,12 @@ Normal and guest gameplay remain on the bounded `getQuestions` projection; direc
 The guarded Admin Ekranı includes a static, read-only `Yayın Hazırlığı` tracker. It reads no user rows, environment variables, secret manager values, production configuration, question rows, or backend errors. It renders requirement labels only; VAPID production provisioning is always `MANUAL_REQUIRED`, and no private/public key value, secret value, email, private actor field, internal row ID, request payload, or stack trace may appear.
 
 The tracker does not call a backend function, write checklist state, mutate RLS/indexes, validate secrets automatically, deploy/publish, or claim Full Health PASS. FriendRequest sender/receiver isolation, GameInvite recipient isolation, Lobby participant isolation, non-admin rejection, and public DTO privacy remain two/three-account runtime proof. Production deploy, package-lock resolution, platform unique indexes, real devices, push delivery, account deletion, and store validation remain external/manual release gates.
+
+# Paket B5 — Closure Security Statement
+
+B5 keeps Integrity Snapshot, Soru Kalite Raporu, and Yayın Hazırlığı under the guarded Admin route. The tools remain read-only and render aggregate/static output only. The frontend SDK source is exact-aligned with backend policy; package-lock resolution remains external because the workspace does not expose the file.
+
+Production deployment, secret provisioning, push delivery, RLS/multi-account isolation, platform indexes, devices, destructive account deletion, and store acceptance remain manual/external. No source-connected Health result may convert these items to PASS without real evidence.
 
 # 10. Health Coverage Expectations
 
