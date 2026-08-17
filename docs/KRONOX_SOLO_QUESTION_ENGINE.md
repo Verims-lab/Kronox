@@ -287,7 +287,7 @@ P3 adds question analytics without changing question selection:
   an active category has no playable questions.
 - Codex417 proof marker: `/getQuestions` now returns backend-only
   `getQuestionsRuntimeMarker` / diagnostics `runtimeMarker`
-  `getQuestions-live-per-category-v8-Codex417`. If this marker is absent
+  `getQuestions-live-guest-year-diverse-v9-Codex418`. If this marker is absent
   from Solo debug JSON after deployment, the frontend is invoking stale or
   different deployed function code.
 - Codex417 fetch bound: authenticated gameplay candidate reads use

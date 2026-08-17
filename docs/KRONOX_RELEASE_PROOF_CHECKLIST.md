@@ -233,8 +233,8 @@ Checklist:
   still absent, verify whether active Category rows are missing/passive or the
   deployed `getQuestions` function manifest/source is stale before treating it
   as a deck-builder bug.
-* Codex417 live callable proof marker is
-  `getQuestions-live-per-category-v8-Codex417`. If Solo debug shows the v8
+* Codex418 live callable proof marker is
+  `getQuestions-live-guest-year-diverse-v9-Codex418`. If Solo debug shows the v9
   frontend cache/build but this backend marker is still null, redeploy or
   repair the Base44 `getQuestions` callable for app `69e753d5ab4c08a7c4287c25`
   before changing the Solo deck builder.

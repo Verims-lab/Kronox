@@ -179,7 +179,7 @@ function getQuestionsDiagnostics(entryFiles) {
     'Giris yapmaniz gerekiyor.',
     'authenticated_minimal_playable_projection',
     'getQuestionsRuntimeMarker',
-    'getQuestions-live-per-category-v8-Codex417',
+    'getQuestions-live-guest-year-diverse-v9-Codex418',
     'AUTH_GAMEPLAY_CANDIDATE_FETCH_MULTIPLIER',
     'per_category_projection_v2',
     'MAX_AUTH_GAMEPLAY_RESPONSE_LIMIT',

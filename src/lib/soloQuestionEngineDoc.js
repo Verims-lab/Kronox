@@ -164,7 +164,7 @@ empty/retryable state instead of fallback IDs and must not permanently exclude
 newer active category IDs.
 Runtime active-category status aliases include a, active, and aktif, and live
 category_id normalization accepts any positive DB category id instead of
-clamping to original seed IDs. question-runtime-v11-distinct-year-coverage
+clamping to original seed IDs. question-runtime-v10-solo-architecture
 invalidates stale local projections and old difficulty-lane buffers after the
 server-attempt/readiness change.
 Gameplay fetches request the v2 per-category projection and
@@ -177,7 +177,7 @@ forbidden even when Category read fails, sourcePoolCapRemoved/responseCapApplied
 runtime contract, and Question category fields are not capped to the original
 1-6 seed set.
 getQuestionsRuntimeMarker / diagnostics runtimeMarker
-getQuestions-live-per-category-v8-Codex417 must appear in Solo debug
+getQuestions-live-guest-year-diverse-v9-Codex418 must appear in Solo debug
 JSON after deployment; if absent, the deployed callable is stale or different.
 Authenticated candidate fetches are bounded to 96 * 3 = 288 rows per active
 category/query variant before projection; 5000-row per-category reads are not

@@ -426,7 +426,7 @@ export const EXTRA_TESTS = [
         '5–6 used moves: 3 stars',
         'Deck sizing is 2 anchors + 10 playable moves + Kart Değiştir buffer',
         'Kronokalkan buffer',
-        'getQuestions-live-per-category-v8-Codex417',
+        'getQuestions-live-guest-year-diverse-v9-Codex418',
         'sourcePoolCapRemoved',
         'responseCapApplied',
         'QuestionAttemptEvent',

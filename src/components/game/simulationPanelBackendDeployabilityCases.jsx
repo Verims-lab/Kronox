@@ -534,7 +534,7 @@ export const EXTRA_TESTS = [
         "base44.functions.invoke('getQuestions'",
         'GET_QUESTIONS_RUNTIME_CONTRACT_VERSION',
         'GET_QUESTIONS_RUNTIME_MARKER',
-        'getQuestions-live-per-category-v8-Codex417',
+        'getQuestions-live-guest-year-diverse-v9-Codex418',
         'getQuestionsRuntimeMarker',
         'requestPayload',
         'responsePayload',

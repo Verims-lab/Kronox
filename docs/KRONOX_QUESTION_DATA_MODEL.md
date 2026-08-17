@@ -62,8 +62,8 @@ Rules:
   rows. If Category metadata is unavailable, it must not fall back to legacy
   category names or old seeded category IDs.
 * If Solo debug JSON lacks `getQuestionsRuntimeMarker`, the deployed callable
-  is stale or the frontend is invoking a different function. Codex417 expects
-  backend marker `getQuestions-live-per-category-v8-Codex417`.
+  is stale or the frontend is invoking a different function. Codex418 expects
+  backend marker `getQuestions-live-guest-year-diverse-v9-Codex418`.
 * Authenticated gameplay candidate reads are bounded to `96 * 3 = 288` rows
   per active category/query variant before projection. This preserves attempt
   deck and joker-buffer selection while avoiding 5000-row per-category reads.
