@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex603 — Paket A post-A1-A4 audit: exact Base44 SDK lock alignment, fixed-copy friend-request cancellation errors, source-connected A2 Health coverage, and honest 51/50 backend deployability documentation. Gameplay, scoring, economy, DB, Online/Daily rules, Solo Streak, and BottomNav are unchanged.
 // Codex602 — A4 Health proof hardening: per-source A3 modal/route assertions, rendered-private-key false-positive control, independently scoped A2 retry checks, active Online all-category/shared-deck/join-code proof, exact BottomNav extraction, and current docs/mirror alignment. Product behavior is unchanged.
 //
 // Codex601 — A3 mobile safety pass: 320/360/390px width containment, BottomNav/safe-area clearance, short-height modal scrolling, reachable 44px actions, WebView 100dvh bounds, and source-connected mobile guards. Gameplay, scoring, economy, DB, Online/Daily behavior, Solo Streak, and BottomNav items are unchanged.
@@ -179,7 +180,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex602';
+const BUILD_MARKER = 'Codex603';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
