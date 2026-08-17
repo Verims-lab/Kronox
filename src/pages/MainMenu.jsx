@@ -315,7 +315,7 @@ export default function MainMenu() {
         user={user}
         guestProfile={completedGuestProfile}
         onClose={() => {
-          if (activeShortcut === 'wheel') dailyWheel?.markAutoPopupShown?.();
+          if (activeShortcut === 'wheel') dailyWheel?.dismissPrompt?.();
           setActiveShortcut(null);
         }}
         onUserUpdated={handleDailyWheelUserPatch}

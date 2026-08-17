@@ -1071,8 +1071,9 @@ export const EXTRA_TESTS = [
         'handleModalClose',
         'stopDailyWheelConfetti',
         'onResultClose?.()',
-        'dailyWheel?.markAutoPopupShown?.()',
+        'dailyWheel?.dismissPrompt?.()',
         'setActiveShortcut(null)',
+        'setShowPrompt(false)',
         'markPromptSeen',
         'closing the auto-popup does not consume the free spin',
       ]);
@@ -1093,7 +1094,7 @@ export const EXTRA_TESTS = [
           actual: { missing, forbidden },
         });
       }
-      return pass('Sonra/close uses the modal cleanup path and Home auto-popup marker only; closing the auto-popup does not consume the free spin or call claim/Daily task progress.', { verification: 'STATIC_CONTRACT' });
+      return pass('Sonra/close clears the live auto-open state and its per-day marker before unmounting the Home modal; it does not consume the free spin or call claim/Daily task progress.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('daily_wheel_ad_repeat_cta_disabled_no_fake_ad',

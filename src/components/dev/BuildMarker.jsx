@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex611 — Daily Wheel modal dismissal: X/SONRA clear both the live auto-open state and per-day marker before unmount, preventing an immediate reopen that blocked Home navigation; reward and Daily task behavior are unchanged.
 // Codex610 — Paket B6 HealthCenter intelligence: retire obsolete/duplicate checks with stronger replacements, add grouped on-demand packs, executable catalog self-audit, proof/owner/action reporting, latest completed summaries, and run cleanup without product behavior changes.
 // Codex609 — Paket B5 closure: align SDK source policy while keeping lock proof external, remove stale preload/Online docs, harden public username fallback, add Paket B Closure Health, and preserve every manual release gate without product behavior changes.
 // Codex608 — Paket B4 release readiness: add an Admin-only read-only manual proof tracker, explicit Health/manual/external boundaries, deployability blockers, source-connected Health, and docs alignment without product behavior changes.
@@ -187,7 +188,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex610';
+const BUILD_MARKER = 'Codex611';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
