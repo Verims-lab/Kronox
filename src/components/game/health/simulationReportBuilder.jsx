@@ -29,6 +29,13 @@ import {
   criticalSocialUncertaintyPenalty,
   criticalStaticLimitationPenalty,
 } from '../simulationPanelCaseRegistry';
+import {
+  buildHealthInventory,
+  deriveFixOwner,
+  deriveProofQuality,
+  deriveRelatedFiles as catalogRelatedFiles,
+  nextActionForOwner,
+} from './healthCatalog';
 
 const PROOF_ACTION_TYPES = [
   ACTION_TYPES.DEVICE_TEST,
@@ -99,11 +106,18 @@ export function normalizeCaseResult(item) {
   const labels = normalizeLabels({ ...item, actionType });
   const classification = item.classification || (labels.includes('STATIC_CHECK_LIMITATION') ? 'STATIC_CHECK_LIMITATION' : item.status === STATUS.PASS ? 'RUNTIME_VERIFIED' : 'REAL_PRODUCT_RISK');
   const verificationLabels = Array.from(new Set([...labels, classification])).filter(Boolean);
+  const relatedFiles = catalogRelatedFiles(item);
+  const proofQuality = deriveProofQuality({ ...item, classification, verificationLabels, relatedFiles });
+  const fixOwner = deriveFixOwner({ ...item, actionType, proofQuality, relatedFiles });
   return {
     ...item,
     actionType,
     classification,
     verificationLabels,
+    relatedFiles,
+    proofQuality,
+    fixOwner,
+    nextAction: item.nextAction || nextActionForOwner(fixOwner),
     nextStep: item.nextStep || describeNextStep({ ...item, actionType }),
   };
 }
@@ -279,7 +293,7 @@ export function recommendedActions(problemCases) {
   if (problemCases.some(item => item.suiteId === 'game_invites')) actions.push('Run a two-account GameInvite probe (cross-user read/update attempt) before claiming invite security.');
   if (problemCases.some(item => item.suiteId === 'create_lobby_invite_gate')) actions.push('Manually verify the "Lobi Oluştur ve Davet Et" disabled state and helper text on a real mobile device.');
   if (problemCases.some(item => item.suiteId === 'mobile_social_flow')) actions.push('Verify Profile / Friends / Invite screens on a narrow real phone (320×568) including keyboard focus behavior.');
-  if (problemCases.some(item => item.suiteId === 'research_test_strategy' || item.suiteId === 'report_ux_human_decision')) actions.push('Keep the report honest: distinguish runtime proof, static contracts, manual gaps, and action categories before release decisions.');
+  if (problemCases.some(item => item.suiteId === 'health_intelligence')) actions.push('Repair Health catalog, grouping, proof classification, or report actionability before relying on the affected pack.');
   if (problemCases.some(item => item.suiteId === 'historical_kronox_regression')) actions.push('Re-test recently fixed Kronox incidents, especially Settings stability and duplicate lobby title composition.');
   if (problemCases.some(item => item.suiteId === 'mobile_gesture_risk' || item.suiteId === 'live_dom_geometry')) actions.push('Run mounted DOM and real-device drag checks for Timeline geometry, page scroll, and touch-action behavior.');
   if (problemCases.some(item => item.suiteId === 'social_rls_two_account_risk')) actions.push('Execute the required User A / User B / User C RLS matrix before claiming social security readiness.');
@@ -289,10 +303,11 @@ export function recommendedActions(problemCases) {
   if (problemCases.some(item => item.suiteId === 'friend_request_email_deep_link')) actions.push('Verify FriendRequest email delivery with a real recipient inbox and confirm the /friends deep link survives login.');
   if (problemCases.some(item => item.suiteId === 'game_invite_push_notifications')) actions.push('Run push-notification proof on a subscribed device with VAPID configured; keep in-app invites working if push fails.');
   if (problemCases.some(item => item.suiteId === 'online_category_taxonomy')) actions.push('Confirm Online has no category selector/carousel and backend Online start uses all active categories randomly.');
-  if (problemCases.some(item => item.suiteId === 'sre_release_health_signals')) actions.push('Use the report as release-risk intelligence only; production latency/error/saturation need deployed telemetry.');
+  if (problemCases.some(item => item.proofQuality === 'MANUAL_EXTERNAL')) actions.push('Keep production telemetry, devices, deployment, secrets, indexes, and cross-account evidence outside automated PASS.');
   if (problemCases.some(item => item.status === STATUS.NOT_AUTOMATABLE)) actions.push('Treat non-automatable critical cases as release risk until covered by device/backend tests.');
   if (problemCases.some(item => item.suiteId === 'debug_hygiene' || item.suiteId === 'admin_visibility')) actions.push('Confirm debug/test surfaces and admin tooling are gated outside gameplay and Profile for normal users.');
-  return actions.length ? actions : ['No major simulator blockers detected; still run the required two-device multiplayer smoke test plus a two-account invite/RLS probe.'];
+  new Set(problemCases.map((item) => item.fixOwner).filter(Boolean)).forEach((owner) => actions.push(`${owner}: ${nextActionForOwner(owner)}`));
+  return Array.from(new Set(actions.length ? actions : ['No major simulator blockers detected; still run the required two-device multiplayer smoke test plus a two-account invite/RLS probe.']));
 }
 
 export function buildReport(caseResults, suites, meta = createRunMeta(), environment = captureEnvironment()) {
@@ -377,6 +392,12 @@ export function buildReport(caseResults, suites, meta = createRunMeta(), environ
     manualRequiredCount: manualOnlyVerificationNeeded.length,
     warningCount: trueWarnings.length,
   };
+  const activeSuiteSummary = suiteSummary.filter((suite) => suite.total > 0);
+  const healthInventory = buildHealthInventory(cases, suites);
+  const ownershipMap = new Map();
+  problemCases.forEach((item) => ownershipMap.set(item.fixOwner, (ownershipMap.get(item.fixOwner) || 0) + 1));
+  const fixOwnershipSummary = Array.from(ownershipMap, ([owner, count]) => ({ owner, count, nextAction: nextActionForOwner(owner) }));
+  const proofQualitySummary = cases.reduce((summary, item) => ({ ...summary, [item.proofQuality]: (summary[item.proofQuality] || 0) + 1 }), {});
 
   return {
     runId: meta.runId,
@@ -391,9 +412,14 @@ export function buildReport(caseResults, suites, meta = createRunMeta(), environ
     route: environment.route,
     suites: suites.map(suite => ({ id: suite.id, name: suite.name, critical: suite.critical })),
     suiteSummary,
+    suiteCount: activeSuiteSummary.length,
+    runPack: meta.runPack || null,
     counts,
     totalCases: cases.length,
     totalDurationMs,
+    healthInventory,
+    proofQualitySummary,
+    fixOwnershipSummary,
     automatedScore: score,
     releaseReady,
     manualGateStatus,
@@ -505,7 +531,10 @@ export function buildBlockerCopyJson(report) {
       caseId: item.key || (item.suiteId && item.id ? `${item.suiteId}.${item.id}` : item.id || ''),
       title: item.name || item.id || '',
       severity: deriveBlockerSeverity(item),
+      proofQuality: item.proofQuality,
+      fixOwner: item.fixOwner,
       message: item.reason || '',
+      nextAction: item.nextAction,
       expected: compactForBlockerCopy(item.expected),
       actual: compactForBlockerCopy(item.actual),
       hint: item.nextStep || item.hint || '',
@@ -545,7 +574,10 @@ export function buildWarningCopyJson(report) {
       caseId: item.key || (item.suiteId && item.id ? `${item.suiteId}.${item.id}` : item.id || ''),
       title: item.name || item.id || '',
       severity: item.critical ? 'CRITICAL_WARNING' : 'WARNING',
+      proofQuality: item.proofQuality,
+      fixOwner: item.fixOwner,
       message: item.reason || '',
+      nextAction: item.nextAction,
       expected: compactForBlockerCopy(item.expected),
       actual: compactForBlockerCopy(item.actual),
       hint: item.nextStep || item.hint || '',
@@ -584,6 +616,7 @@ export function buildHumanSummary(report) {
     `Score: ${report.score.value} (${report.score.rating})`,
     `Score explanation: ${report.score.explanation || 'No score explanation available.'}`,
     `Build: ${report.buildMarker}`,
+    `Pack: ${report.runPack?.label || 'Custom'} / Suites: ${report.suiteCount || 0} / Duration: ${report.totalDurationMs || 0}ms`,
     `Device: ${report.environment.deviceType} ${report.environment.viewport.width}x${report.environment.viewport.height} DPR ${report.environment.dpr}`,
     `Counts: ${counts}`,
     '',

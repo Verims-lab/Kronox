@@ -1,0 +1,25 @@
+import panelSource from './SimulationPanel.jsx?raw';
+import runnerSource from './health/simulationRunner.jsx?raw';
+import reportSource from './health/simulationReportBuilder.jsx?raw';
+import summarySource from './health/SimulationSuiteSummary.jsx?raw';
+import actionsSource from './health/SimulationReportActions.jsx?raw';
+import catalogSource from './health/healthCatalog.js?raw';
+import releaseSummarySource from '../admin/ReleaseHealthSummary.jsx?raw';
+import releaseLinksSource from '../admin/ReleaseProofLinks.jsx?raw';
+import { HEALTH_GAP_ANALYSIS_DOC, RELEASE_PROOF_CHECKLIST_DOC, SECURITY_DEPLOYMENT_DOC, MOBILE_VISUAL_GUARDRAILS_DOC } from '@/lib/healthAlignmentDocMirrors';
+
+const SUITE_ID = 'health_intelligence';
+const SUITE_NAME = 'HealthCenter Intelligence Suite';
+const pass = (reason, extra = {}) => ({ status: 'PASS', reason, verification: 'SOURCE_CONNECTED', ...extra });
+const fail = (reason, actual) => ({ status: 'FAIL', reason, actual, verification: 'SOURCE_CONNECTED', classification: 'REAL_PRODUCT_RISK' });
+const makeCase = (id, name, run, relatedFiles) => ({ key: `${SUITE_ID}.${id}`, suiteId: SUITE_ID, suiteName: SUITE_NAME, id, name, critical: true, actionType: 'CODE_FIX', relatedFiles, run });
+const missing = (source, tokens) => tokens.filter((token) => !String(source || '').includes(token));
+
+export const EXTRA_SUITES = [{ id: SUITE_ID, name: SUITE_NAME, critical: true, color: '#22d3ee' }];
+export const EXTRA_TESTS = [
+  makeCase('grouped_packs_are_wired', 'Grouped Health packs are wired to active runner cases', () => { const absent = missing(`${panelSource}\n${summarySource}\n${catalogSource}`, ['HEALTH_PACKS', 'getHealthPackCases', 'HealthPackControls', 'onRunPack', 'quick_smoke', 'release_gate', 'admin_proof', "id: 'full'"]); return absent.length ? fail('Grouped pack orchestration is incomplete.', { missing: absent }) : pass('Quick, release, domain, admin/proof, and full packs target the active TESTS registry.'); }, ['healthCatalog.js', 'SimulationPanel.jsx', 'SimulationSuiteSummary.jsx']),
+  makeCase('concurrent_run_and_close_cleanup', 'Health prevents concurrent runs and cancels UI work on close/unmount', () => { const absent = missing(`${panelSource}\n${runnerSource}`, ['runLockRef.current', 'if (runLockRef.current || !cases.length) return', 'runSequenceRef.current += 1', 'mountedRef.current = false', 'handlePanelClose', 'setRunningKey(null)', 'setPlannedKeys([])']); return absent.length ? fail('Run locking or close cleanup is incomplete.', { missing: absent }) : pass('One run owns execution; close/unmount invalidates the sequence and clears progress state.'); }, ['SimulationPanel.jsx', 'simulationRunner.jsx']),
+  makeCase('report_has_proof_and_owner_intelligence', 'Reports include proof quality, ownership, next action, pack, counts, and timing', () => { const absent = missing(`${reportSource}\n${actionsSource}\n${catalogSource}`, ['proofQuality', 'fixOwner', 'nextAction', 'healthInventory', 'fixOwnershipSummary', 'runPack', 'suiteCount', 'totalDurationMs', 'HealthIntelligenceSummary']); return absent.length ? fail('Health intelligence report fields are incomplete.', { missing: absent }) : pass('Completed reports expose proof quality, fix ownership, action guidance, pack scope, suite count, blockers, warnings, manual count, and duration.'); }, ['simulationReportBuilder.jsx', 'SimulationReportActions.jsx', 'healthCatalog.js']),
+  makeCase('release_panel_reads_latest_completed_health', 'Release Readiness can show the latest completed Health summary without claiming release proof', () => { const absent = missing(`${releaseSummarySource}\n${releaseLinksSource}`, ['LAST_RUN_KEY', 'kronox-health-run-completed', 'Health PASS yayın kanıtı değildir', 'Kronox Health Simulator', 'section.click()']); return absent.length ? fail('Release-to-Health linkage is incomplete.', { missing: absent }) : pass('The Admin release tracker links to Health and shows only a completed local run summary while preserving manual gates.'); }, ['ReleaseHealthSummary.jsx', 'ReleaseProofLinks.jsx']),
+  makeCase('official_guidance_and_automation_boundary_documented', 'Official-source guidance and automation boundaries are documented', () => { const docs = `${HEALTH_GAP_ANALYSIS_DOC}\n${RELEASE_PROOF_CHECKLIST_DOC}\n${SECURITY_DEPLOYMENT_DOC}\n${MOBILE_VISUAL_GUARDRAILS_DOC}`; const absent = missing(docs, ['react.dev/reference/react/useEffect', 'vite.dev/guide/features', 'developer.mozilla.org', 'cheatsheetseries.owasp.org', 'maximum of 50 backend functions', 'run on demand from guarded Admin', 'scheduled/continuous monitoring']); return absent.length ? fail('B6 official-source or automation-boundary notes are incomplete.', { missing: absent }) : pass('B6 guidance cites primary sources and keeps scheduled monitoring external.'); }, ['docs/KRONOX_HEALTH_GAP_ANALYSIS.md', 'docs/KRONOX_RELEASE_PROOF_CHECKLIST.md', 'docs/KRONOX_SECURITY_DEPLOYMENT.md', 'docs/KRONOX_MOBILE_VISUAL_GUARDRAILS.md']),
+];

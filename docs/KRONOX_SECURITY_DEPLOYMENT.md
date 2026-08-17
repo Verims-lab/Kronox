@@ -1063,6 +1063,10 @@ B5 keeps Integrity Snapshot, Soru Kalite Raporu, and Yayın Hazırlığı under 
 
 Production deployment, secret provisioning, push delivery, RLS/multi-account isolation, platform indexes, devices, destructive account deletion, and store acceptance remain manual/external. No source-connected Health result may convert these items to PASS without real evidence.
 
+# Paket B6 — Health Intelligence Security Statement
+
+B6 Health automation remains inside guarded Admin and performs local source/executable checks only. Reports classify proof quality, redact blocker exports, and route failures by owner without reading production secrets, mutating RLS/indexes, or exposing private rows. React cleanup, Vite loading, MDN lifecycle/safe-area, OWASP secret-management, and official Base44 function-limit guidance inform these guards. Scheduled monitoring, production secret verification, deployed RLS/BOLA, and cross-account proof remain external/manual.
+
 # 10. Health Coverage Expectations
 
 Health should cover:

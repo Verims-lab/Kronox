@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex610 — Paket B6 HealthCenter intelligence: retire obsolete/duplicate checks with stronger replacements, add grouped on-demand packs, executable catalog self-audit, proof/owner/action reporting, latest completed summaries, and run cleanup without product behavior changes.
 // Codex609 — Paket B5 closure: align SDK source policy while keeping lock proof external, remove stale preload/Online docs, harden public username fallback, add Paket B Closure Health, and preserve every manual release gate without product behavior changes.
 // Codex608 — Paket B4 release readiness: add an Admin-only read-only manual proof tracker, explicit Health/manual/external boundaries, deployability blockers, source-connected Health, and docs alignment without product behavior changes.
 // Codex607 — Paket B3 question quality: extend the existing Admin-only report with bounded category/difficulty/year/duplicate/metadata/readiness QA, add a compact read-only panel, Health proof, and docs alignment without question mutation or gameplay changes.
@@ -186,7 +187,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex609';
+const BUILD_MARKER = 'Codex610';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

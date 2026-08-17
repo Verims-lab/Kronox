@@ -17,6 +17,7 @@ import ReleaseReadinessExplainer from '../ReleaseReadinessExplainer';
 import { safeRender } from './healthStatus';
 import { StatusBadge } from './SimulationCaseRow';
 import { ActionButton } from './SimulationSuiteSummary';
+import HealthIntelligenceSummary from './HealthIntelligenceSummary';
 
 function ReportBox({ title, children, className = '' }) {
   return (
@@ -101,6 +102,7 @@ export default function SimulationReportActions({
       ) : null}
 
       <ReleaseReadinessExplainer report={report} />
+      <HealthIntelligenceSummary report={report} />
 
       <div data-health-report-summary="true" className="mt-4 grid grid-cols-2 gap-2 text-center text-[11px] sm:grid-cols-6">
         {['PASS', 'FAIL', 'ERROR', 'WARNING', 'NOT_AUTOMATABLE', 'BLOCKED'].map(status => (
@@ -172,10 +174,12 @@ export default function SimulationReportActions({
               <div className="flex flex-wrap items-center gap-1.5">
                 <StatusBadge status={item.status} />
                 <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] font-semibold text-white/55">{item.actionType}</span>
+                <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] font-semibold text-white/55">{item.fixOwner}</span>
               </div>
               <div className="mt-1 font-semibold">{item.name}</div>
               <div className="mt-1 text-white/55">{item.reason}</div>
               {item.nextStep && <div className="mt-1 text-[11px] text-cyan-100/75">Next: {item.nextStep}</div>}
+              {item.nextAction && <div className="mt-1 text-[11px] text-amber-100/70">Owner action: {item.nextAction}</div>}
             </div>
           )) : <p className="text-white/55">None</p>}
         </ReportBox>

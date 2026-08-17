@@ -233,6 +233,25 @@ Android/WebView smoothness, and bundle/device image-decode behavior.
 - When a static check uses source tokens, pair it with a doc note explaining
   what live proof remains.
 
+## Paket B6 — HealthCenter Intelligence
+
+B6 inventories the active registry, removes obsolete/duplicate coverage, and adds on-demand grouped packs: Quick Smoke, Release Gate, Security, Economy, Online, Daily, Solo, Mobile, Admin / Proof, and Full. Reports now include run/build/pack metadata, executed suite count, blockers, warnings, manual-required count, elapsed time, proof quality (`EXECUTABLE`, `SOURCE_CONNECTED`, `STATIC_ONLY`, `MANUAL_EXTERNAL`), fix owner, and next action. The latest completed pack summary is local Admin UI state only and is never release proof.
+
+Retired suites `research_test_strategy`, `report_ux_human_decision`, and `sre_release_health_signals` scanned orchestration comments and duplicated stronger executable report-integrity/intelligence coverage. Retired duplicate cases covered old Timeline DOM-manual rows, repeated subjective beauty/title checks, and the obsolete "random matchmaking not detected" warning; active dedicated mobile/DOM, visual, and matchmaking suites remain. No meaningful contract was removed without stronger replacement.
+
+Health runs are single-owner, reject duplicate concurrent starts, batch/yield UI work, persist completed pack summaries, and invalidate progress when the panel closes or unmounts. They run on-demand from guarded Admin only. Scheduled/continuous monitoring requires external automation or future platform support; B6 does not fake a scheduler.
+
+Primary-source notes used for B6 guidance:
+
+- Base44 backend-function overview documents a maximum of 50 backend functions: https://docs.base44.com/developers/backend/resources/backend-functions/overview
+- Base44 SDK guidance recommends latest unversioned installation; Kronox keeps its existing exact 0.8.34 cross-runtime gate until a separate SDK migration/deploy proof is approved.
+- React effect cleanup: https://react.dev/reference/react/useEffect
+- Vite glob/dynamic import behavior: https://vite.dev/guide/features
+- MDN safe-area and visibility lifecycle references: https://developer.mozilla.org/en-US/docs/Web/CSS/env and https://developer.mozilla.org/en-US/docs/Web/API/Document/visibilitychange_event
+- OWASP secrets management: https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html
+
+Official guidance informs Health/docs only; it does not replace live Base44 deployment, device, RLS, secret, index, or store proof.
+
 ## Manual / Live Probe Checklist
 
 - Two-account Online: host creates 4-player lobby, three recipients join by

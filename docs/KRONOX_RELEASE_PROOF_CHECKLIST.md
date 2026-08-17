@@ -1339,6 +1339,18 @@ verified against the deployed Base44 environment.
 * No Paket B panel may expose email, provider/private actor fields, raw IDs, secrets, stack traces, request payloads, raw backend errors, or the full question bank.
 * Function count remains 50 and no new backend function is introduced.
 
+# Paket B6 — HealthCenter Intelligence Proof
+
+* Run the grouped Quick Smoke, Release Gate, Security, Economy, Online, Daily, Solo, Mobile, Admin / Proof, and Full packs from guarded Admin Health Center.
+* Each completed report records run ID, build marker, pack, executed suite count, blocker/warning/manual counts, duration, proof-quality summary, fix ownership, and next action.
+* Proof quality is explicit: executable simulation, source-connected, static-only, or manual/external. Static PASS is not runtime or release proof.
+* Retired comment-scan and duplicate cases must remain absent; the Health Intelligence self-audit fails duplicate IDs, orphan cases, malformed runners, empty packs, and active retired keys.
+* Duplicate concurrent runs are rejected. Closing/unmounting Health invalidates the current run sequence and clears UI progress; completed pack summaries only are persisted locally.
+* Health runs on demand. Scheduled/continuous monitoring requires external automation or future platform support and is not claimed by B6.
+* Fix ownership is one of Base44 UI, Codex package/repo, Backend/runtime, Docs/mirror, or Manual/external. Manual/external items never become PASS automatically.
+* Primary guidance: Base44 50-function overview, React effect cleanup, Vite dynamic/glob imports, MDN safe-area/visibility lifecycle, and OWASP secrets management. Official guidance informs the guard; deployed evidence remains separate.
+* No backend function, entity, schema, gameplay, scoring, economy, Daily, Online, or BottomNav behavior changes in B6.
+
 # 16. Manual Proof Recording
 
 For every manual test run, record:

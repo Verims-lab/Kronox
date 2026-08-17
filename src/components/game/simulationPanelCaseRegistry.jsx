@@ -267,6 +267,9 @@ import * as questionQualityCases from './simulationPanelQuestionQualityCases';
 import * as releaseReadinessCases from './simulationPanelReleaseReadinessCases';
 // Paket B5 — final source-fixable closure and manual-boundary honesty.
 import * as paketBClosureCases from './simulationPanelPaketBClosureCases';
+// B6 — catalog intelligence, grouped automation, proof quality, and ownership reporting.
+import * as healthIntelligenceCases from './simulationPanelHealthIntelligenceCases';
+import { HEALTH_RETIRED_CASE_KEYS, HEALTH_RETIRED_SUITE_IDS } from './health/healthCatalog';
 
 const MODULES = [
   soloProgressCases,
@@ -339,6 +342,7 @@ const MODULES = [
   questionQualityCases,
   releaseReadinessCases,
   paketBClosureCases,
+  healthIntelligenceCases,
 ];
 
 function flatten(key) {
@@ -371,12 +375,13 @@ const FILTERED_MODULAR_EXTRA_TESTS = MODULAR_EXTRA_TESTS.filter(
 // Aggregated outputs SimulationPanel.jsx consumes. Ordering: legacy
 // social/release-risk suites first (preserves every existing suite id
 // and side-panel position), then overrides, then modular additions.
-export const ALL_EXTRA_SUITES = [...BASE_EXTRA_SUITES, ...MODULAR_EXTRA_SUITES];
+export const ALL_EXTRA_SUITES = [...BASE_EXTRA_SUITES, ...MODULAR_EXTRA_SUITES]
+  .filter((suite) => !HEALTH_RETIRED_SUITE_IDS.has(suite.id));
 export const ALL_EXTRA_TESTS = [
   ...FILTERED_BASE_EXTRA_TESTS,
   ...OVERRIDE_TESTS,
   ...FILTERED_MODULAR_EXTRA_TESTS,
-];
+].filter((item) => !HEALTH_RETIRED_SUITE_IDS.has(item.suiteId) && !HEALTH_RETIRED_CASE_KEYS.has(item.key));
 
 // Re-export the score hooks unchanged so SimulationPanel.jsx only needs
 // to import from the registry.

@@ -163,6 +163,12 @@ checks that source code and static Health cannot honestly prove alone.
 * Device rows are checklist visibility only. Android real device, iOS Safari/TestFlight/WebView, low-end Android smoothness, safe-area, keyboard, orientation, and final wrapper/store behavior remain manual proof.
 * The panel triggers no deployment, persistent status write, secret read, RLS/index change, or device test.
 
+## Paket B6 — Health Automation Mobile Boundary
+
+* Grouped Health pack controls, latest-run summary, proof-quality metrics, owner/action cards, report actions, and case details must remain usable at 320/360/390px.
+* Health run progress is local and finite; closing the panel cancels visible progress and prevents stale UI updates.
+* On-demand Admin execution is implemented. Scheduled/continuous device monitoring remains external and must not be shown as automated proof.
+
 ## Health Boundary
 
 Health may statically verify that the guardrails and source hooks exist, but it

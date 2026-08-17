@@ -105,6 +105,7 @@ import { SUITES, TESTS } from './health/simulationCases';
 import SimulationSuiteSummary from './health/SimulationSuiteSummary';
 import SimulationCaseRow, { StatusBadge } from './health/SimulationCaseRow';
 import SimulationReportActions from './health/SimulationReportActions';
+import { HEALTH_PACKS, getHealthPack, getHealthPackCases } from './health/healthCatalog';
 
 const LEGACY_LAST_RUN_KEYS = [
   LAST_RUN_KEY,
@@ -178,6 +179,10 @@ function readStoredLastRun(key) {
   }
 }
 
+function restorePackReports() {
+  return Object.fromEntries(HEALTH_PACKS.map((pack) => [pack.id, readStoredLastRun(`${LAST_RUN_KEY}:${pack.id}`)]).filter(([, report]) => report));
+}
+
 function restoreLatestStoredReport() {
   const reports = LEGACY_LAST_RUN_KEYS
     .map(readStoredLastRun)
@@ -196,6 +201,8 @@ function persistCompletedReport(report) {
   if (!normalized || normalized.runState !== 'completed' || !isCompletedHealthReport(normalized)) return null;
   try {
     localStorage.setItem(LAST_RUN_KEY, JSON.stringify(normalized));
+    if (normalized.runPack?.id) localStorage.setItem(`${LAST_RUN_KEY}:${normalized.runPack.id}`, JSON.stringify(normalized));
+    window.dispatchEvent(new CustomEvent('kronox-health-run-completed', { detail: { runId: normalized.runId, packId: normalized.runPack?.id || null } }));
   } catch (_) {}
   return normalized;
 }
@@ -209,6 +216,7 @@ export default function SimulationPanel({ onClose }) {
   const [resultsByKey, setResultsByKey] = useState({});
   const [report, setReport] = useState(null);
   const [lastRun, setLastRun] = useState(null);
+  const [lastRunsByPack, setLastRunsByPack] = useState({});
   const [runningKey, setRunningKey] = useState(null);
   const [plannedKeys, setPlannedKeys] = useState([]);
   const [copyState, setCopyState] = useState('');
@@ -217,16 +225,19 @@ export default function SimulationPanel({ onClose }) {
   const [runFreshState, setRunFreshState] = useState('previous');
   const mountedRef = useRef(true);
   const runSequenceRef = useRef(0);
+  const runLockRef = useRef(false);
 
   useEffect(() => {
     mountedRef.current = true;
     const saved = restoreLatestStoredReport();
+    setLastRunsByPack(restorePackReports());
     if (saved) {
       setLastRun(saved);
       setRunFreshState('previous');
     }
     return () => {
       mountedRef.current = false;
+      runLockRef.current = false;
       runSequenceRef.current += 1;
     };
   }, []);
@@ -247,17 +258,21 @@ export default function SimulationPanel({ onClose }) {
     setReport(nextReport);
     if (options.persist === true) {
       const completedReport = persistCompletedReport(nextReport);
-      setLastRun(completedReport || nextReport);
+      const finalReport = completedReport || nextReport;
+      setLastRun(finalReport);
+      if (finalReport.runPack?.id) setLastRunsByPack((current) => ({ ...current, [finalReport.runPack.id]: finalReport }));
     }
     return nextReport;
   }, []);
 
-  const runCases = useCallback(async (cases) => {
+  const runCases = useCallback(async (cases, runContext = {}) => {
+    if (runLockRef.current || !cases.length) return;
+    runLockRef.current = true;
     let failedToRun = false;
     const runSequence = runSequenceRef.current + 1;
     runSequenceRef.current = runSequence;
     const isActiveRun = () => mountedRef.current && runSequenceRef.current === runSequence;
-    const meta = createRunMeta(cases.map(item => item.key));
+    const meta = createRunMeta(cases.map(item => item.key), runContext);
     setCurrentRunMeta(meta);
     setRunFreshState('running');
     const nextResults = {};
@@ -314,7 +329,7 @@ export default function SimulationPanel({ onClose }) {
       }
     } catch (error) {
       failedToRun = true;
-      if (isActiveRun()) setCopyState(`Run failed: ${error?.message || 'Unknown error'}`);
+      if (isActiveRun()) setCopyState('Health run failed safely. Review the ERROR case and retry the affected pack.');
     }
 
     if (!isActiveRun()) return;
@@ -326,10 +341,22 @@ export default function SimulationPanel({ onClose }) {
     setRunFreshState(failedToRun ? 'failed' : 'completed');
     setPlannedKeys([]);
     setRunningKey(null);
+    runLockRef.current = false;
   }, [updateReport]);
 
-  const runAll = () => runCases(TESTS);
-  const runSelected = () => runCases(selectedTests);
+  const runPack = (packId) => {
+    const pack = getHealthPack(packId);
+    return runCases(getHealthPackCases(TESTS, pack.id), { packId: pack.id, packLabel: pack.label });
+  };
+  const runAll = () => runPack('full');
+  const runSelected = () => runCases(selectedTests, { packId: `suite:${selectedSuite.id}`, packLabel: selectedSuite.name });
+  const handlePanelClose = () => {
+    runSequenceRef.current += 1;
+    runLockRef.current = false;
+    setRunningKey(null);
+    setPlannedKeys([]);
+    onClose?.();
+  };
 
   const copyText = async (text, label) => {
     setCopyFallback({ text: '', label: '' });
@@ -437,7 +464,7 @@ export default function SimulationPanel({ onClose }) {
       }}
     >
       <div className="mx-auto flex h-full max-h-full w-full max-w-6xl flex-col overflow-hidden rounded-lg border border-white/15 bg-[#07090f] shadow-2xl">
-        <Header onClose={onClose} report={report} progress={progress} running={Boolean(runningKey)} />
+        <Header onClose={handlePanelClose} report={report} progress={progress} running={Boolean(runningKey)} />
 
         <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden md:grid-cols-[290px_minmax(0,1fr)] md:grid-rows-1">
         <SimulationSuiteSummary
@@ -451,9 +478,11 @@ export default function SimulationPanel({ onClose }) {
           runFreshState={runFreshState}
           currentReport={report}
           lastRun={lastRun}
+          lastRunsByPack={lastRunsByPack}
           running={Boolean(runningKey)}
           onRunAll={runAll}
           onRunSuite={runSelected}
+          onRunPack={runPack}
         />
 
           <main

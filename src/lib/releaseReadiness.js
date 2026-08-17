@@ -16,7 +16,7 @@ export const RELEASE_HEALTH_GROUPS = [
 ].map((label) => ({ label, status: 'Koşum gerekli', proof: 'Otomatik sözleşme kontrolü' }));
 
 export const RELEASE_CHECKLIST_GROUPS = [
-  { title: 'Production / Base44 Deploy', proof: 'Harici', items: ['Base44 yayınlama tamamlandı', 'Backend fonksiyonları başarıyla deploy edildi', 'Deploy limit hatası oluşmadı', 'Codex609 üretimde göründü', 'Fonksiyon sayısı 50 sınırını aşmadı'] },
+  { title: 'Production / Base44 Deploy', proof: 'Harici', items: ['Base44 yayınlama tamamlandı', 'Backend fonksiyonları başarıyla deploy edildi', 'Deploy limit hatası oluşmadı', 'Codex610 üretimde göründü', 'Fonksiyon sayısı 50 sınırını aşmadı'] },
   { title: 'Real Device / WebView', proof: 'Manuel', items: ['Android gerçek cihaz smoke testi', 'iOS Safari / TestFlight / WebView smoke testi', '320 / 360 / 390 genişlik kanıtı', 'Safe-area / BottomNav / modal kanıtı', 'Düşük seviye Android akıcılık kontrolü'] },
   { title: 'Auth / Guest', proof: 'Manuel', items: ['Misafir giriş ve onboarding', 'Misafir Solo', 'Misafir Online', 'Bağlı hesap ve profil düzenleme', 'Misafirden bağlı hesaba geçiş'] },
   { title: 'Online / Multi-account', proof: 'Manuel', items: ['İki hesapla davet akışı', 'Rastgele eşleşme ve kodla katılma', 'Backend ortak deste doğrulaması', 'Kazanan +15 / kaybeden -6 sonucu', 'Yeniden bağlanma / iptal / zaman aşımı', 'Herkese açık yanıt gizlilik kontrolü'] },

@@ -76,6 +76,7 @@ import {
 import { STATUS, pass, fail, warning, blocked, notAutomatable } from './healthStatus';
 import { captureEnvironment, extractBuildMarker } from './simulationRunner';
 import { buildBlockerCopyJson, buildReport, buildHumanSummary } from './simulationReportBuilder';
+import { createHealthCatalogAuditCases, HEALTH_RETIRED_CASE_KEYS, HEALTH_RETIRED_SUITE_IDS } from './healthCatalog';
 
 export const BASE_SUITES = [
   { id: 'environment', name: 'Environment Suite', critical: false, color: '#67e8f9' },
@@ -97,7 +98,8 @@ export const BASE_SUITES = [
 // Social/online-invite and release-risk suites are appended via the
 // registry so BASE_SUITES order — and every existing suite id — stays
 // untouched.
-export const SUITES = [...BASE_SUITES, ...EXTRA_SUITES];
+export const SUITES = [...BASE_SUITES, ...EXTRA_SUITES]
+  .filter((suite) => !HEALTH_RETIRED_SUITE_IDS.has(suite.id));
 
 export const SRC = {
   App: appSource,
@@ -229,7 +231,7 @@ function classifyDirectLobbyUpdates() {
   }));
 }
 
-export const TESTS = [
+const UNFILTERED_TESTS = [
   makeCase('environment', 'viewport_dimensions', 'Detect viewport dimensions', () => {
     const viewport = captureEnvironment().viewport;
     return viewport.width > 0 && viewport.height > 0
@@ -816,3 +818,8 @@ export const TESTS = [
 
   ...EXTRA_TESTS,
 ];
+
+const ACTIVE_TESTS = UNFILTERED_TESTS.filter(
+  (item) => !HEALTH_RETIRED_SUITE_IDS.has(item.suiteId) && !HEALTH_RETIRED_CASE_KEYS.has(item.key),
+);
+export const TESTS = [...ACTIVE_TESTS, ...createHealthCatalogAuditCases(SUITES, ACTIVE_TESTS)];

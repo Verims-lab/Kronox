@@ -61,9 +61,10 @@ export function captureEnvironment() {
   };
 }
 
-export function createRunMeta(casePlan = []) {
+export function createRunMeta(casePlan = [], context = {}) {
   const buildMarker = extractBuildMarker();
   return {
+    runPack: context.packId ? { id: context.packId, label: context.packLabel || context.packId } : null,
     runId: `KRONOX-${Date.now().toString(36).toUpperCase()}`,
     startedAt: new Date().toISOString(),
     buildMarker,

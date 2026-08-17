@@ -9,6 +9,7 @@
 import React from 'react';
 import { AlertTriangle, Play, RefreshCw } from 'lucide-react';
 import { STATUS, STATUS_LOOK } from './healthStatus';
+import HealthPackControls from './HealthPackControls';
 
 export function ActionButton({ icon: Icon, label, shortLabel, onClick, disabled, dataHealthAction }) {
   return (
@@ -76,16 +77,19 @@ export default function SimulationSuiteSummary({
   allResults,
   counts,
   lastRun,
+  lastRunsByPack,
   running,
   onRunAll,
   onRunSuite,
+  onRunPack,
 }) {
   return (
     <aside className="border-b border-white/10 bg-white/[0.03] p-3 md:border-b-0 md:border-r md:overflow-y-auto">
       <div className="mb-3 grid grid-cols-2 gap-2">
-        <ActionButton icon={Play} label="Run All" onClick={onRunAll} disabled={running} />
+        <ActionButton icon={Play} label="Run Full" onClick={onRunAll} disabled={running} />
         <ActionButton icon={RefreshCw} label="Run Suite" onClick={onRunSuite} disabled={running} />
       </div>
+      <HealthPackControls running={running} onRunPack={onRunPack} lastRunsByPack={lastRunsByPack} />
 
       <div className="mb-3 grid grid-cols-3 gap-2 text-center">
         <CountPill status={STATUS.PASS} count={counts.PASS} />

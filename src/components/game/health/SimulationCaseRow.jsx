@@ -45,7 +45,11 @@ export default function SimulationCaseRow({ testCase, result: caseResult, runnin
       verificationLabels: caseResult.verificationLabels,
       classification: caseResult.classification,
       actionType: caseResult.actionType,
+      proofQuality: caseResult.proofQuality,
+      fixOwner: caseResult.fixOwner,
+      nextAction: caseResult.nextAction,
       nextStep: caseResult.nextStep,
+      relatedFiles: caseResult.relatedFiles,
       file: caseResult.file,
       expected: caseResult.expected,
       actual: caseResult.actual,
@@ -85,6 +89,8 @@ export default function SimulationCaseRow({ testCase, result: caseResult, runnin
               <CaseMeta label="Action" value={caseResult.actionType || 'CODE_FIX'} />
               <CaseMeta label="Class" value={caseResult.classification || 'n/a'} />
               <CaseMeta label="Verify" value={caseResult.verification || caseResult.verificationLabels?.[0] || 'n/a'} />
+              <CaseMeta label="Proof" value={caseResult.proofQuality || 'n/a'} />
+              <CaseMeta label="Owner" value={caseResult.fixOwner || 'n/a'} />
               <CaseMeta label="Duration" value={`${caseResult.durationMs}ms`} />
             </div>
             {caseResult.nextStep && (
@@ -113,6 +119,10 @@ export default function SimulationCaseRow({ testCase, result: caseResult, runnin
                   classification: caseResult.classification,
                   actionType: caseResult.actionType,
                   nextStep: caseResult.nextStep,
+                  nextAction: caseResult.nextAction,
+                  proofQuality: caseResult.proofQuality,
+                  fixOwner: caseResult.fixOwner,
+                  relatedFiles: caseResult.relatedFiles,
                   file: caseResult.file,
                   expected: caseResult.expected,
                   actual: caseResult.actual,
