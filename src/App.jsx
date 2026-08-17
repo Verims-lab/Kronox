@@ -245,11 +245,13 @@ const AuthenticatedApp = () => {
                   <Route path="/profile" element={<ProfilePage />} />
                   <Route path="/profile/edit" element={<ProfileEditPage />} />
                   <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
+                  <Route path="/AdminPage" element={<Navigate to="/admin" replace />} />
                   <Route path="/friends" element={<FriendsPage />} />
                   <Route path="/leaderboard" element={<LeaderboardPage />} />
                   <Route path="/lobby" element={<LobbyRoom />} />
                   <Route path="/LobbyRoom" element={<Navigate to="/lobby" replace />} />
                   <Route path="/test-suite" element={<TestSuite />} />
+                  <Route path="/TestSuite" element={<Navigate to="/test-suite" replace />} />
                   <Route path="/account-deletion" element={<AccountDeletionPage />} />
                   <Route path="/privacy" element={<PrivacyPolicy />} />
                   <Route path="*" element={<PageNotFound />} />
