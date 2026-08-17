@@ -636,7 +636,8 @@ Deno.serve(async (req) => {
         ownerKeyReturned: false,
       },
     });
-  } catch {
+  } catch (error) {
+    console.error('[getOnlinePlayerSelection] failed:', error instanceof Error ? error.message : 'unknown_error');
     return json({ ok: false, error: 'Oyuncu listesi yüklenemedi.' }, 500);
   }
 });
