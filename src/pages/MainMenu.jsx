@@ -47,7 +47,14 @@ const DailyWheelCard = lazyWithRetry(
 
 export default function MainMenu() {
   const navigate = useNavigate();
-  const { user: authUser, guestProfile, isLoadingAuth, authChecked } = useAuth();
+  const {
+    user: authUser,
+    guestProfile,
+    isLoadingAuth,
+    authChecked,
+    setUser,
+    setGuestProfile,
+  } = useAuth();
   const [localUser, setLocalUser] = useState(authUser || null);
   const [localGuestProfile, setLocalGuestProfile] = useState(guestProfile || null);
   const [activeShortcut, setActiveShortcut] = useState(null);
@@ -190,17 +197,21 @@ export default function MainMenu() {
   const handleDailyWheelUserPatch = useCallback((patch) => {
     if (!patch || typeof patch !== 'object') return;
     if (user) {
-      setLocalUser((current) => ({
+      const applyUserPatch = (current) => ({
         ...(current || user || {}),
         ...patch,
-      }));
+      });
+      setLocalUser(applyUserPatch);
+      setUser(applyUserPatch);
       return;
     }
-    setLocalGuestProfile((current) => ({
+    const applyGuestPatch = (current) => ({
       ...(current || completedGuestProfile || {}),
       ...patch,
-    }));
-  }, [completedGuestProfile, user]);
+    });
+    setLocalGuestProfile(applyGuestPatch);
+    setGuestProfile(applyGuestPatch);
+  }, [completedGuestProfile, setGuestProfile, setUser, user]);
 
   return (
     <main

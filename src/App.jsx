@@ -221,7 +221,7 @@ const AuthenticatedApp = () => {
             </Routes>
           </AppErrorBoundary>
         ) : (
-          <AnimatePresence mode="wait">
+          <AnimatePresence mode="sync">
             <motion.div
               key={location.pathname}
               initial={{ opacity: 0, x: transitionDir === 'push' ? 100 : -100 }}
