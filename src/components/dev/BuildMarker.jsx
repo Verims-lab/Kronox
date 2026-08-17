@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex615 — B6 Health closure: normalize active catalog identities, preserve retired/replacement export metadata, retarget tutorial and SDK proof to current source truth, and keep release/manual boundaries honest without product behavior changes.
 // Codex613 — Solo Level 1 guest bootstrap: preserve distinct-year coverage before capping the guest question candidate buffer and version the local cache key so stale narrow samples cannot block gameplay; scoring and rewards are unchanged.
+// Codex613 — Solo start recovery: invalidate stale question buffers, reject cached pools below the requested distinct-year deck size, and redirect reported /SoloChallenge and /Game URLs to canonical Solo entry; gameplay/scoring/joker rules are unchanged.
 // Codex612 — Automated Online entry recovery: preserve the Daily Wheel dismissal fix and redirect the reported /LobbyRoom URL to the canonical /lobby route; multiplayer, scoring, and leaderboard logic are unchanged.
 // Codex611 — Daily Wheel modal dismissal: X/SONRA clear both the live auto-open state and per-day marker before unmount, preventing an immediate reopen that blocked Home navigation; reward and Daily task behavior are unchanged.
 // Codex610 — Paket B6 HealthCenter intelligence: retire obsolete/duplicate checks with stronger replacements, add grouped on-demand packs, executable catalog self-audit, proof/owner/action reporting, latest completed summaries, and run cleanup without product behavior changes.
@@ -191,7 +191,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex615';
+const BUILD_MARKER = 'Codex613';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
