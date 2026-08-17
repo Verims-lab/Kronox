@@ -31,6 +31,10 @@ import incomingInvitesPanelSource from '../../components/invites/IncomingInvites
 import useRandomMatchmakingSource from '../../hooks/useRandomMatchmaking.js?raw';
 import randomMatchmakingApiSource from '../../lib/randomMatchmakingApi.js?raw';
 import preGameHourglassSource from '../../components/lobby/PreGameHourglass.jsx?raw';
+import lobbyCreateJoinPanelSource from '../../components/lobby/LobbyCreateJoinPanel.jsx?raw';
+import startLobbyGameSource from '../../../base44/functions/startLobbyGame/entry.ts?raw';
+import gameSource from '../../pages/Game.jsx?raw';
+import { auditSourceContracts, findRenderedSensitiveKeyHits } from '@/lib/health/sourceProof';
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL' };
 const ACTION_TYPES = { CODE_FIX: 'CODE_FIX' };
@@ -62,12 +66,6 @@ function forbiddenTokensFound(source, tokens) {
   return tokens.filter((t) => String(source || '').includes(t));
 }
 
-function safeStr(source) {
-  if (source == null) return '';
-  if (typeof source === 'string') return source;
-  try { return String(source); } catch { return ''; }
-}
-
 export const EXTRA_SUITES = [
   {
     id: 'online_challenge_flow',
@@ -87,14 +85,17 @@ export const EXTRA_TESTS = [
         'selectedCategories',
         'selected_category_ids',
       ]);
-      if (forbidden.length) {
+      const required = missingTokens(onlineChallengeScreenSource, [
+        'Tüm kategorilerden rastgele sorular',
+      ]);
+      if (forbidden.length || required.length) {
         return fail('Category selection UI/state leaked back into the Online screen.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'OnlineChallengeScreen.jsx',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'no OnlineCategoryCarousel / selectedCategories / selected_category_ids tokens',
-          actual: { forbidden },
+          expected: 'visible all-category random copy and no OnlineCategoryCarousel / selectedCategories / selected_category_ids tokens',
+          actual: { forbidden, required },
         });
       }
       return pass('Online screen has no category selection UI/state.',
@@ -109,6 +110,8 @@ export const EXTRA_TESTS = [
       const required = missingTokens(onlineChallengeScreenSource, [
         'Arkadaşını Davet Et',
         'Rastgele Eşleş',
+        'const INVITE_WAIT_MS = 60 * 1000',
+        'durationMs={30 * 1000}',
         "import PreGameHourglass from '@/components/lobby/PreGameHourglass'",
         "import useRandomMatchmaking from '@/hooks/useRandomMatchmaking'",
         "'invite-wait'",
@@ -337,32 +340,45 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 11. Privacy — no forbidden private keys rendered/exposed in the Pre-game Hourglass surfaces. */
+  makeCase('online_challenge_flow', 'online_shared_deck_runtime_contract',
+    'Online uses the backend-authored all-active shared deck and never Solo preference/question buffers',
+    () => {
+      const violations = auditSourceContracts([
+        { file: 'base44/functions/startLobbyGame/entry.ts', source: startLobbyGameSource, required: ["const ONLINE_DECK_SELECTION_SOURCE = 'online_shared_all_active_random_deck_v1'", 'allCategoriesRandom: true', 'soloPreferenceWeightingApplied: false', 'guestSoloPathUsed: false', 'return Array.from(activeMainCategoryIds)', 'online_question_deck: initialState.onlineQuestionDeck'] },
+        { file: 'src/pages/Game.jsx', source: gameSource, required: ['const questionFetchEnabled = !isOnline', 'normalizeOnlineQuestionDeck', 'if (isOnline) {', 'return onlineQuestionDeck;'] },
+      ]);
+      return violations.length
+        ? fail('Online shared-deck/all-active isolation drifted.', { verification: 'STATIC_CONTRACT', classification: 'REAL_PRODUCT_RISK', actual: { violations } })
+        : pass('startLobbyGame authors the all-active random shared deck; Game disables Solo fetching and consumes that deck.', { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION' });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('online_challenge_flow', 'join_by_code_remains_available',
+    'Join-by-code remains an active Online entry path',
+    () => {
+      const violations = auditSourceContracts([
+        { file: 'OnlineChallengeScreen.jsx', source: onlineChallengeScreenSource, required: ['onJoinOpenLobby', 'veya kodla katıl'] },
+        { file: 'LobbyCreateJoinPanel.jsx', source: lobbyCreateJoinPanelSource, required: ["if (mode !== 'join') return null", 'Lobi Kodu (örn: ABC123)', 'onClick={onJoin}'] },
+      ]);
+      return violations.length
+        ? fail('Join-by-code active wiring drifted.', { verification: 'STATIC_CONTRACT', classification: 'REAL_PRODUCT_RISK', actual: { violations } })
+        : pass('Online selection still opens the dedicated join-code panel and its real join handler.', { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION' });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  /* Privacy — no forbidden private keys rendered/exposed in the Pre-game Hourglass surfaces. */
   makeCase('online_challenge_flow', 'online_flow_privacy_no_forbidden_keys',
     'OnlineChallengeScreen / PreGameHourglass / FriendSelectModal never render invited emails or private actor identifiers (guest_token may only be used as an opaque backend-call/effect-dependency value, never rendered)',
     () => {
-      const simpleForbidden = [
-        onlineChallengeScreenSource,
-        preGameHourglassSource,
-        friendSelectModalSource,
-      ].flatMap((source) => forbiddenTokensFound(source, [
-        'invite.to_email', 'invite.from_email', 'owner_key', 'actor_key_hash',
-      ]));
-      // guest_token is legitimately passed to backend calls / effect dependency
-      // arrays (e.g. `[guestCredentials?.guest_token]`) so it can trigger a
-      // refetch — that is not exposure. Only flag it if actually rendered:
-      // JSX text nodes, aria-*/data-* attributes, or console/log calls.
-      const exposurePatterns = [
-        />\s*\{[^<}]*guest_token[^<}]*\}\s*</,
-        /(?:aria|data)-[\w-]+=\{[^}]*guest_token/,
-        /console\.(?:log|warn|error)\([^)]*guest_token/,
+      const keys = ['to_email', 'from_email', 'owner_key', 'actor_key_hash', 'guest_token', 'guest_id', 'player_key', 'kronox_user_id'];
+      const surfaces = [
+        ['OnlineChallengeScreen.jsx', onlineChallengeScreenSource],
+        ['PreGameHourglass.jsx', preGameHourglassSource],
+        ['FriendSelectModal.jsx', friendSelectModalSource],
       ];
-      const guestTokenExposureFound = [
-        onlineChallengeScreenSource,
-        preGameHourglassSource,
-        friendSelectModalSource,
-      ].some((source) => exposurePatterns.some((pattern) => pattern.test(safeStr(source))));
-      const forbidden = guestTokenExposureFound ? [...simpleForbidden, 'guest_token (rendered)'] : simpleForbidden;
+      const forbidden = surfaces.flatMap(([file, source]) => (
+        findRenderedSensitiveKeyHits(source, keys).map((key) => ({ file, key }))
+      ));
       if (forbidden.length) {
         return fail('Private identifiers leaked into the Online invite/matchmaking UI.', {
           verification: 'STATIC_CONTRACT',

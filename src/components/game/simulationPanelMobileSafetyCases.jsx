@@ -1,4 +1,4 @@
-// Codex601 — source-connected A3 mobile safety contracts.
+// Codex602 — A3 contracts hardened during A4 with per-source proof.
 import indexCssSource from '../../index.css?raw';
 import mainMenuSource from '../../pages/MainMenu.jsx?raw';
 import gameLayoutSource from './GameLayout.jsx?raw';
@@ -9,7 +9,6 @@ import soloTutorialSource from './SoloLevelStartTutorialPopup.jsx?raw';
 import onlineSource from '../lobby/OnlineChallengeScreen.jsx?raw';
 import waitingSource from '../lobby/PreGameHourglass.jsx?raw';
 import friendModalSource from '../lobby/FriendSelectModal.jsx?raw';
-import joinSource from '../lobby/LobbyCreateJoinPanel.jsx?raw';
 import dailySource from '../../pages/DailyPage.jsx?raw';
 import wheelSource from '../dailyWheel/DailyWheelCard.jsx?raw';
 import marketSource from '../../pages/MarketPage.jsx?raw';
@@ -20,6 +19,7 @@ import privacySource from '../../pages/PrivacyPolicy.jsx?raw';
 import leaderboardSource from '../../pages/LeaderboardPage.jsx?raw';
 import statePanelSource from '../ui/KronoxStatePanel.jsx?raw';
 import bottomNavSource from '../layout/BottomNav.jsx?raw';
+import { auditSourceContracts, extractConstArrayLabels } from '@/lib/health/sourceProof';
 
 const SUITE_ID = 'mobile_safety';
 const SUITE_NAME = 'Mobile Safety Health Suite';
@@ -34,11 +34,18 @@ const requireTokens = (source, tokens, reason) => {
 export const EXTRA_SUITES = [{ id: SUITE_ID, name: SUITE_NAME, critical: false, color: '#22d3ee' }];
 
 export const EXTRA_TESTS = [
-  makeCase('no_horizontal_overflow_core_routes', 'Core routes contain narrow-width horizontal overflow', () => requireTokens(
-    `${indexCssSource}\n${mainMenuSource}\n${gameLayoutSource}\n${onlineSource}\n${dailySource}\n${marketSource}\n${profileSource}\n${friendsSource}\n${settingsSource}\n${privacySource}`,
-    ['max-width: 100vw', 'overflow-x: hidden', 'max-w-full', 'overflow-x-hidden'],
-    'Core route width containment is missing.',
-  )),
+  makeCase('no_horizontal_overflow_core_routes', 'Each active route family has a narrow-width containment contract', () => {
+    const violations = auditSourceContracts([
+      { file: 'src/index.css', source: indexCssSource, required: ['.kx-a1-home,', '.kronox-gameplay-root,', '.kx-a1-online,', '[data-kronox-daily-page-root="true"]', '.kx-a1-market,', '.kx-a1-profile,', '.leaderboard-page {', 'max-width: 100vw', 'overflow-x: hidden'] },
+      { file: 'src/pages/MainMenu.jsx', source: mainMenuSource, required: ['overflow-x-hidden'] },
+      { file: 'src/pages/MarketPage.jsx', source: marketSource, required: ['kx-a1-market', 'overflow-x-hidden'] },
+      { file: 'src/pages/ProfilePage.jsx', source: profileSource, required: ['kx-a1-profile', 'overflow-x-hidden'] },
+      { file: 'src/pages/FriendsPage.jsx', source: friendsSource, required: ['max-w-full', 'overflow-x-hidden'] },
+      { file: 'src/pages/SettingsPage.jsx', source: settingsSource, required: ['max-w-full', 'overflow-x-hidden'] },
+      { file: 'src/pages/PrivacyPolicy.jsx', source: privacySource, required: ['max-w-full', 'overflow-x-hidden'] },
+    ]);
+    return violations.length ? fail('A specific active route lost its narrow-width containment.', { violations }) : pass('Every audited route family has its own active-source containment proof.');
+  }),
   makeCase('bottom_nav_clearance_core_routes', 'BottomNav routes reserve safe bottom clearance', () => requireTokens(
     `${mainMenuSource}\n${dailySource}\n${marketSource}\n${profileSource}\n${friendsSource}\n${settingsSource}\n${leaderboardSource}\n${bottomNavSource}\n${indexCssSource}`,
     ['HOME_BOTTOM_NAV_HEIGHT', "paddingBottom: 'calc(6.25rem + env(safe-area-inset-bottom))'", "paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))'", 'my-rank-sticky', "height: 'calc(3.6rem + env(safe-area-inset-bottom))'"],
@@ -49,11 +56,17 @@ export const EXTRA_TESTS = [
     ['env(safe-area-inset-top)', 'env(safe-area-inset-bottom)', '100dvh'],
     'Safe-area or dynamic viewport sizing is missing from active mobile shells.',
   )),
-  makeCase('modals_have_max_height_and_internal_scroll', 'Critical modals are viewport-bounded with internal scrolling', () => requireTokens(
-    `${wheelSource}\n${marketSource}\n${friendModalSource}\n${soloTutorialSource}\n${soloSuccessSource}\n${soloFailureSource}`,
-    ["maxHeight: 'calc(100dvh", "overflowY: 'auto'", 'overflow-y-auto', "overscrollBehavior: 'contain'"],
-    'One or more critical modal families lack max-height/internal-scroll protection.',
-  )),
+  makeCase('modals_have_max_height_and_internal_scroll', 'Each critical modal is viewport-bounded with an internal scroll path', () => {
+    const violations = auditSourceContracts([
+      { file: 'DailyWheelCard.jsx', source: wheelSource, required: ['data-kronox-daily-wheel-modal-frame="mobile-safe"', "maxHeight: 'calc(100dvh", "overflowY: 'auto'", "overscrollBehavior: 'contain'"] },
+      { file: 'MarketPage.jsx', source: marketSource, required: ['data-kronox-market-modal-position="centered-safe-area"', "maxHeight: 'calc(100dvh", "overflowY: 'auto'"] },
+      { file: 'FriendSelectModal.jsx', source: friendModalSource, required: ["maxHeight: 'calc(100dvh", 'overflow-y-auto'] },
+      { file: 'SoloLevelStartTutorialPopup.jsx', source: soloTutorialSource, required: ["maxHeight: 'calc(100dvh", 'overflow-y-auto', "overscrollBehavior: 'contain'"] },
+      { file: 'SoloSuccessPopup.jsx', source: soloSuccessSource, required: ['data-kronox-solo-result-modal="success-mobile-safe"', "maxHeight: 'calc(100dvh", 'overflow-y-auto'] },
+      { file: 'SoloFailureCard.jsx', source: soloFailureSource, required: ['data-kronox-solo-result-modal="failure-mobile-safe"', "maxHeight: 'calc(100dvh", 'overflow-y-auto'] },
+    ]);
+    return violations.length ? fail('A specific critical modal lacks viewport bounds or internal scrolling.', { violations }) : pass('Every audited critical modal has its own max-height and scroll proof.');
+  }),
   makeCase('solo_drag_targets_unobstructed', 'Solo overlays preserve drag and touch surfaces', () => requireTokens(
     `${gameLayoutSource}\n${soloStreakSource}\n${indexCssSource}`,
     ['pointer-events-none', 'kronox-game-drag-lock', 'kronox-question-card-drag-surface', 'touch-action: none', 'kronox-timeline-horizontal-scroll'],
@@ -69,11 +82,13 @@ export const EXTRA_TESTS = [
     ['data-kronox-state-panel="mobile-safe"', 'max-w-full', 'overflow-hidden', 'break-words', 'min-h-11', 'actionLabel'],
     'Shared A2 state panels are not narrow-screen safe.',
   )),
-  makeCase('leaderboard_root_contract_preserved', 'Leaderboard root and centered trophy contract remain intact', () => requireTokens(
-    `${leaderboardSource}\n${indexCssSource}`,
-    ['className="leaderboard-page text-white"', 'leaderboard-heading', 'leaderboard-trophy', 'leaderboard-title', 'my-rank-sticky'],
-    'Leaderboard root/heading/sticky-card visual contract drifted.',
-  )),
+  makeCase('leaderboard_root_contract_preserved', 'Leaderboard keeps the approved root/heading and no removed summary grid', () => {
+    const violations = auditSourceContracts([
+      { file: 'LeaderboardPage.jsx', source: leaderboardSource, required: ['className="leaderboard-page text-white"', 'leaderboard-heading', 'leaderboard-trophy', 'leaderboard-title'], forbidden: ['KronoxStatTile', 'leaderboard-summary', 'grid-cols-3'] },
+      { file: 'src/index.css', source: indexCssSource, required: ['.my-rank-sticky', '.leaderboard-heading', '.leaderboard-trophy', '.leaderboard-title'] },
+    ]);
+    return violations.length ? fail('Approved Liderlik anatomy drifted or a removed summary-card grid returned.', { violations }) : pass('Exact root, centered trophy/title, sticky own row, and no summary-card grid are source-proven.');
+  }),
   makeCase('store_popup_action_reachable', 'Store popup action is safe-area bounded and reachable', () => requireTokens(
     marketSource,
     ['data-kronox-market-modal-position="centered-safe-area"', "maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 2rem)'", "overflowY: 'auto'", 'data-kronox-market-modal-purchase', 'min-h-12'],
@@ -84,4 +99,11 @@ export const EXTRA_TESTS = [
     ['data-kronox-daily-wheel-modal-frame="mobile-safe"', "maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 1.5rem)'", "overflowY: 'auto'", 'effectSessionRef.current += 1', 'stopDailyWheelConfetti()', 'h-11 w-11'],
     'Daily Wheel modal bounds or close-effect cleanup contract is incomplete.',
   )),
+  makeCase('bottom_nav_exact_visible_tabs', 'BottomNav has exactly Ana Sayfa, Liderlik, and Profil', () => {
+    const labels = extractConstArrayLabels(bottomNavSource, 'TABS');
+    const expected = ['Ana Sayfa', 'Liderlik', 'Profil'];
+    return JSON.stringify(labels) === JSON.stringify(expected)
+      ? pass('The active BottomNav array contains exactly the three approved visible tabs.')
+      : fail('BottomNav visible items drifted.', { expected, actual: labels });
+  }),
 ];

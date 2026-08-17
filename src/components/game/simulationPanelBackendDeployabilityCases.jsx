@@ -78,6 +78,7 @@ const STATUS = {
 const ACTION_TYPES = {
   CODE_FIX: 'CODE_FIX',
   BACKEND_RUNTIME_PROBE: 'BACKEND_RUNTIME_PROBE',
+  PACKAGE_LAYER_CHECK: 'PACKAGE_LAYER_CHECK',
 };
 
 const SUITE_ID = 'backend_deployability_health';
@@ -227,7 +228,28 @@ export const EXTRA_TESTS = [
       });
     }),
 
-  makeCase('critical_base44_functions_have_no_shared_admin_auth_imports',
+  makeCase('base44_sdk_package_pin_is_exact',
+    'Frontend Base44 SDK package spec is exactly pinned',
+    () => {
+      const parsed = JSON.parse(text(packageJsonSource));
+      const actual = parsed?.dependencies?.['@base44/sdk'];
+      return actual === '0.8.34'
+        ? pass('package.json pins @base44/sdk exactly to 0.8.34.', { verification: 'EXECUTABLE', classification: 'RUNTIME_PATH_VERIFIED' })
+        : fail('package.json Base44 SDK spec drifted from the exact supported pin.', { verification: 'EXECUTABLE', expected: '0.8.34', actual });
+    }),
+
+  makeCase('base44_sdk_lockfile_proof_is_external',
+    'Package-lock SDK proof remains external when lockfile is unavailable in Base44',
+    () => notAutomatable('package.json is source-checked here, but this Base44 workspace does not expose package-lock.json; lockfile root/resolution proof must remain a package-layer check and must not be claimed by Health.', {
+      verification: 'NOT_AUTOMATABLE',
+      classification: 'STATIC_CHECK_LIMITATION',
+      actionType: ACTION_TYPES.PACKAGE_LAYER_CHECK,
+      expected: 'package-lock root and resolved @base44/sdk are exactly 0.8.34 when package-layer tooling is available',
+      actual: 'package-lock.json unavailable in this Base44 workspace',
+    }),
+    { critical: false, actionType: ACTION_TYPES.PACKAGE_LAYER_CHECK, runtimeProofRequired: true }),
+
+    makeCase('critical_base44_functions_have_no_shared_admin_auth_imports',
     'Critical Base44 functions have no deploy-risk shared adminAuth imports',
     () => {
       const offenders = DEPLOY_RISK_BASE44_FUNCTIONS

@@ -280,6 +280,10 @@ export const EXTRA_TESTS = [
         'invalidConfig: config.invalid',
         'return json({ ok: false, error: (error as Error)?.message',
       ]);
+      const unsafePrivateKeyLiteral = [
+        /(?:VAPID_PRIVATE_KEY|privateKey)\s*[:=]\s*['"][A-Za-z0-9_-]{40,}['"]/,
+        /Deno\.env\.get\([^)]*VAPID_PRIVATE_KEY[^)]*\)\s*\|\|\s*['"][^'"]+['"]/
+      ].some((pattern) => pattern.test(String(sendGameInvitePushSource || '')));
       const forbiddenFrontend = presentTokens(notificationApiSource, [
         'VAPID_PRIVATE_KEY',
         'VITE_KRONOX_VAPID_PRIVATE_KEY',
@@ -288,13 +292,13 @@ export const EXTRA_TESTS = [
         ...missingTokens(sendGameInvitePushSource, requiredBackend),
         ...missingTokens(notificationApiSource, requiredFrontend),
       ];
-      if (missing.length || forbiddenBackend.length || forbiddenFrontend.length) {
-        return fail('Game invite push can expose or mishandle VAPID config.', {
+      if (missing.length || forbiddenBackend.length || forbiddenFrontend.length || unsafePrivateKeyLiteral) {
+        return fail('Game invite push can expose, default, or mishandle VAPID config.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           files: ['base44/functions/sendGameInvitePush/entry.ts', 'src/lib/notificationApi.js'],
           expected: 'Backend-only VAPID_PRIVATE_KEY, public client key only, explicit safe push skip when config is missing, and env-sourced private-key findings classified as manual secret-manager verification',
-          actual: { missing, forbiddenBackend, forbiddenFrontend },
+          actual: { missing, forbiddenBackend, forbiddenFrontend, unsafePrivateKeyLiteral },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
@@ -793,8 +797,8 @@ export const EXTRA_TESTS = [
         'stack: error',
         'error.stack',
         'error: error.message',
-        'token',
-        'secret',
+        'return json({ error: String(error',
+        'return json({ error: error',
       ]);
       const missing = missingTokens(purchaseJokerWithDiamondsSource, required);
       if (missing.length || forbidden.length) {

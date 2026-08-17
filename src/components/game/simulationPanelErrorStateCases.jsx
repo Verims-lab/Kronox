@@ -11,6 +11,7 @@ import wheelSource from '../dailyWheel/DailyWheelCard.jsx?raw';
 import marketSource from '../../pages/MarketPage.jsx?raw';
 import profileSource from '../../pages/ProfilePage.jsx?raw';
 import dailySource from '../../pages/DailyPage.jsx?raw';
+import { auditSourceContracts, findRenderedSensitiveKeyHits } from '@/lib/health/sourceProof';
 
 const SUITE_ID = 'error_state_health';
 const SUITE_NAME = 'Error Empty Loading State Health Suite';
@@ -73,15 +74,24 @@ export const EXTRA_TESTS = [
     'Joker Çantası şu anda yüklenemedi.',
     'Profilinin diğer bölümlerini kullanmaya devam edebilirsin.',
   ], 'Inventory failure is contained to Joker Çantası while Profile identity and navigation remain available.')),
-  makeCase('no_private_identifiers_in_error_surfaces', 'State surfaces do not render private identifiers', () => {
-    const publicStates = `${statePanelSource}\n${onlineSource}\n${playerModalSource}\n${dailySource}\n${wheelSource}\n${marketSource}\n${profileSource}\n${incomingSource}`;
-    const forbidden = ['{guest_token}', '{owner_key}', '{actor_key_hash}', '{user_email}', '{provider_id}'].filter((token) => publicStates.includes(token));
-    return forbidden.length ? fail('A private identifier is interpolated into a state surface.', { forbidden }) : pass('Error, empty, and loading surfaces contain no private identifier interpolation.');
+  makeCase('no_private_identifiers_in_error_surfaces', 'State surfaces do not render or log private identifiers', () => {
+    const keys = ['guest_token', 'owner_key', 'actor_key_hash', 'user_email', 'provider_id', 'kronox_user_id'];
+    const sources = [
+      ['KronoxStatePanel.jsx', statePanelSource], ['OnlineChallengeScreen.jsx', onlineSource],
+      ['FriendSelectModal.jsx', playerModalSource], ['DailyPage.jsx', dailySource],
+      ['DailyWheelCard.jsx', wheelSource], ['MarketPage.jsx', marketSource],
+      ['ProfilePage.jsx', profileSource], ['IncomingRequestItem.jsx', incomingSource],
+    ];
+    const hits = sources.flatMap(([file, source]) => findRenderedSensitiveKeyHits(source, keys).map((key) => ({ file, key })));
+    return hits.length ? fail('A private identifier can reach JSX, aria/data attributes, or console output.', { hits }) : pass('Public A2 surfaces contain no rendered/logged private identifier expressions.');
   }),
-  makeCase('retry_buttons_are_scoped', 'Retry actions reload only their affected section', () => requireTokens(`${playerModalSource}\n${friendsSource}\n${dailySource}\n${profileSource}`, [
-    'loadOnlinePlayerSelection({ guestCredentials })',
-    'onAction={() => refresh(user.email)}',
-    'daily.refresh({ ignoreCache: true })',
-    'onAction={onRetry}',
-  ], 'Player list, Friends data, Daily tasks, and Profile inventory retries remain section-scoped.')),
+  makeCase('retry_buttons_are_scoped', 'Each retry reloads only its affected section', () => {
+    const violations = auditSourceContracts([
+      { file: 'FriendSelectModal.jsx', source: playerModalSource, required: ['actionLabel="Tekrar Dene"', 'setLoading(true)', 'loadOnlinePlayerSelection({ guestCredentials })', 'preserveSafeRowsOnTransientFailure(previousRows)'] },
+      { file: 'FriendsPage.jsx', source: friendsSource, required: ['onAction={() => refresh(user.email)}'] },
+      { file: 'DailyPage.jsx', source: dailySource, required: ['daily.refresh({ ignoreCache: true })'] },
+      { file: 'ProfilePage.jsx', source: profileSource, required: ['onAction={onRetry}', 'Joker Çantası şu anda yüklenemedi.'] },
+    ]);
+    return violations.length ? fail('A section retry lost its active local reload target.', { violations }) : pass('Player selection, Friends, Daily, and Profile inventory retries are independently source-bound.');
+  }),
 ];

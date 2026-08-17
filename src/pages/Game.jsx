@@ -114,8 +114,8 @@ import {
   QUESTION_ANALYTICS_EVENT_TYPES,
   QUESTION_ANALYTICS_SOURCES,
 } from '@/lib/questionAnalyticsContracts';
-// Codex128 — Online score/checkpoint system. Online winner kararlaştığında
-// her client kendi kullanıcısının puanını günceller (idempotent).
+// Online result is reported per client perspective; updateLobbyGameState remains
+// the backend authority for score, result, idempotency, and projection writes.
 import { applyOnlineMatchToCurrentUser } from '@/lib/applyOnlineResult';
 import { getLobbySnapshot } from '@/lib/dbGateway/lobbyGateway';
 // Codex477 — Player-own elapsed seconds is retained for Online audit/display.
@@ -1444,10 +1444,8 @@ export default function Game() {
     if (!isOnline) return;
     debugLog('[Game] online turn derived state:', { lobbyId, renderedPlayersCount: players.length, computedCurrentPlayerIndex: currentPlayerIndex, computedCurrentPlayerName: currentPlayer?.name || null, computedIsMyTurn: Boolean(isMyTurn), myPlayerName, currentQuestionId: lobbyData?.current_question_id || null, renderedTurnMessageText });
   }, [isOnline, lobbyId, currentPlayerIndex, currentPlayer?.name, currentPlayer?.email, isMyTurn, myPlayerName, lobbyData?.current_question_id, players, renderedTurnMessageText]);
-  // Codex128 — Apply Online score/checkpoint result for the local user
-  // exactly once per match. Runs on every client from its own perspective,
-  // so each player updates only their own User.online_progress. Idempotent
-  // via online_progress.lastMatchId == lobbyId guard inside the helper.
+  // Submit the local result perspective once; the client never writes score.
+  // updateLobbyGameState validates and commits the backend-owned result.
   //
   // Codex146 — `playerOwnElapsedRef` captures THIS client's own gameplay
   // timer the FIRST time we observe the match as finished. Subscription

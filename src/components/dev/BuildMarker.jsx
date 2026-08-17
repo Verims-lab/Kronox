@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex602 — A4 Health proof hardening: per-source A3 modal/route assertions, rendered-private-key false-positive control, independently scoped A2 retry checks, active Online all-category/shared-deck/join-code proof, exact BottomNav extraction, and current docs/mirror alignment. Product behavior is unchanged.
+//
 // Codex601 — A3 mobile safety pass: 320/360/390px width containment, BottomNav/safe-area clearance, short-height modal scrolling, reachable 44px actions, WebView 100dvh bounds, and source-connected mobile guards. Gameplay, scoring, economy, DB, Online/Daily behavior, Solo Streak, and BottomNav items are unchanged.
 //
 // Codex600 — A2 Health blocker repair: explicit local Tekrar Dene actions for Profile Joker Çantası and Online player selection, completed-guest-safe selection retry, safe fixed error copy, and explicit previous-row preservation during transient presence refresh failure. Gameplay, scoring, economy, DB, matching, Daily, Solo Streak, and BottomNav are unchanged.
@@ -177,7 +179,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex601';
+const BUILD_MARKER = 'Codex602';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
