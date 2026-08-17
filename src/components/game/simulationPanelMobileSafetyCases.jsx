@@ -6,7 +6,6 @@ import soloStreakSource from './SoloStreakHud.jsx?raw';
 import soloSuccessSource from './SoloSuccessPopup.jsx?raw';
 import soloFailureSource from './SoloFailureCard.jsx?raw';
 import soloTutorialSource from './SoloLevelStartTutorialPopup.jsx?raw';
-import onlineSource from '../lobby/OnlineChallengeScreen.jsx?raw';
 import waitingSource from '../lobby/PreGameHourglass.jsx?raw';
 import friendModalSource from '../lobby/FriendSelectModal.jsx?raw';
 import dailySource from '../../pages/DailyPage.jsx?raw';

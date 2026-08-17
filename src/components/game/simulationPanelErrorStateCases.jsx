@@ -4,6 +4,7 @@ import onlineSource from '../lobby/OnlineChallengeScreen.jsx?raw';
 import playerModalSource from '../lobby/FriendSelectModal.jsx?raw';
 import friendsSource from '../../pages/FriendsPage.jsx?raw';
 import incomingSource from '../friends/IncomingRequestItem.jsx?raw';
+import outgoingSource from '../friends/OutgoingRequestItem.jsx?raw';
 import leaderboardSource from '../../pages/LeaderboardPage.jsx?raw';
 import rankingSource from '../leaderboard/KronoxRankingSection.jsx?raw';
 import wheelHookSource from '../../hooks/useDailyWheel.js?raw';
@@ -27,7 +28,7 @@ export const EXTRA_SUITES = [{ id: SUITE_ID, name: SUITE_NAME, critical: false, 
 
 export const EXTRA_TESTS = [
   makeCase('no_raw_backend_errors_rendered', 'Public state surfaces use safe copy instead of raw backend errors', () => {
-    const sources = `${onlineSource}\n${playerModalSource}\n${dailySource}\n${wheelSource}\n${marketSource}\n${profileSource}\n${rankingSource}`;
+    const sources = `${onlineSource}\n${playerModalSource}\n${dailySource}\n${wheelSource}\n${marketSource}\n${profileSource}\n${rankingSource}\n${outgoingSource}`;
     const forbidden = ['AxiosError', 'Request failed with status code 500', '[object Object]', 'stack trace'].filter((token) => sources.includes(token));
     return forbidden.length ? fail('Raw backend error copy can reach a public state surface.', { forbidden }) : requireTokens(statePanelSource, ['title', 'message', 'actionLabel', 'break-words'], 'Shared state surfaces accept safe display copy only.');
   }),
@@ -49,6 +50,17 @@ export const EXTRA_TESTS = [
     'setBusy(null)',
     '{error &&',
   ], 'Failed friend acceptance stays on the existing row with safe retryable feedback.')),
+  makeCase('friend_cancel_failure_preserves_row', 'Friend cancel failure preserves the actionable row without raw backend copy', () => {
+    const violations = auditSourceContracts([{
+      file: 'OutgoingRequestItem.jsx',
+      source: outgoingSource,
+      required: ['await onCancel(request)', 'İstek iptal edilemedi. Lütfen tekrar dene.', 'setBusy(false)', '{error &&'],
+      forbidden: ['err.message', 'error.message'],
+    }]);
+    return violations.length
+      ? fail('Failed friend cancellation can lose its row or expose raw backend copy.', { violations })
+      : pass('Failed friend cancellation preserves the row and shows fixed retryable Turkish copy.');
+  }),
   makeCase('leaderboard_friend_hydration_failure_nonblocking', 'Leaderboard enrichment failure does not block ranking rows', () => requireTokens(`${leaderboardSource}\n${rankingSource}`, [
     'applySnapshot(snapshot)',
     'sanitized friend enrichment unavailable',
@@ -81,6 +93,7 @@ export const EXTRA_TESTS = [
       ['FriendSelectModal.jsx', playerModalSource], ['DailyPage.jsx', dailySource],
       ['DailyWheelCard.jsx', wheelSource], ['MarketPage.jsx', marketSource],
       ['ProfilePage.jsx', profileSource], ['IncomingRequestItem.jsx', incomingSource],
+      ['OutgoingRequestItem.jsx', outgoingSource],
     ];
     const hits = sources.flatMap(([file, source]) => findRenderedSensitiveKeyHits(source, keys).map((key) => ({ file, key })));
     return hits.length ? fail('A private identifier can reach JSX, aria/data attributes, or console output.', { hits }) : pass('Public A2 surfaces contain no rendered/logged private identifier expressions.');

@@ -101,6 +101,9 @@ at 50 Base44 function entry files, requires exactly 50 or fewer deployable
 entries, verifies the exact SDK pin in `package.json`, package-lock root spec,
 installed package metadata when available, and all Deno imports, and rejects
 the removed legacy/test/diagnostic function directories if reintroduced.
+The current repository has 51 entry files, so this gate correctly remains red
+until one function is explicitly approved for consolidation or removal. Do not
+weaken the ceiling or delete an active callable merely to make the check green.
 
 `@base44/vite-plugin` remains unchanged in this pass; it is build/runtime
 tooling, not the SDK auth/entity/function client.

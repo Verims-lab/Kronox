@@ -27,8 +27,8 @@ export default function OutgoingRequestItem({ request, onCancel }) {
     setError('');
     try {
       await onCancel(request);
-    } catch (err) {
-      setError(err.message || 'İptal başarısız.');
+    } catch {
+      setError('İstek iptal edilemedi. Lütfen tekrar dene.');
       setBusy(false);
     }
   };

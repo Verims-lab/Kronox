@@ -17,8 +17,11 @@ API client:
 * Frontend runtime code calls Base44 auth, entities, functions, subscriptions,
   and provider login paths directly from pages, hooks, and shared libs.
 * `base44/entities` defines 40 entity schemas.
-* `base44/functions` contains 50 function entry files; 29 currently have
+* `base44/functions` contains 51 function entry files; 29 currently have
   `function.jsonc` manifests in this repo.
+* The repository is one entry above the configured Base44 deployment ceiling.
+  No function was removed during Paket A because no entry was proven obsolete;
+  deployment remains blocked pending an explicit consolidation/removal decision.
 * Release docs assume Base44 for backend deploy proof, Android/iOS wrapper
   generation, App Store file generation, and some manual platform gates.
 
