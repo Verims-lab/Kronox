@@ -246,6 +246,7 @@ const AuthenticatedApp = () => {
                   <Route path="/friends" element={<FriendsPage />} />
                   <Route path="/leaderboard" element={<LeaderboardPage />} />
                   <Route path="/lobby" element={<LobbyRoom />} />
+                  <Route path="/LobbyRoom" element={<Navigate to="/lobby" replace />} />
                   <Route path="/test-suite" element={<TestSuite />} />
                   <Route path="/account-deletion" element={<AccountDeletionPage />} />
                   <Route path="/privacy" element={<PrivacyPolicy />} />

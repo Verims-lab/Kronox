@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex612 — Automated Online entry recovery: preserve the Daily Wheel dismissal fix and redirect the reported /LobbyRoom URL to the canonical /lobby route; multiplayer, scoring, and leaderboard logic are unchanged.
 // Codex611 — Daily Wheel modal dismissal: X/SONRA clear both the live auto-open state and per-day marker before unmount, preventing an immediate reopen that blocked Home navigation; reward and Daily task behavior are unchanged.
 // Codex610 — Paket B6 HealthCenter intelligence: retire obsolete/duplicate checks with stronger replacements, add grouped on-demand packs, executable catalog self-audit, proof/owner/action reporting, latest completed summaries, and run cleanup without product behavior changes.
 // Codex609 — Paket B5 closure: align SDK source policy while keeping lock proof external, remove stale preload/Online docs, harden public username fallback, add Paket B Closure Health, and preserve every manual release gate without product behavior changes.
@@ -188,7 +189,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex611';
+const BUILD_MARKER = 'Codex612';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
