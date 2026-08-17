@@ -76,6 +76,7 @@ export function useDailyQuests({ user, guestProfile, onUserUpdated } = {}) {
 
   const refresh = useCallback(async (options = {}) => {
     const ignoreCache = options?.ignoreCache === true;
+    const preserveState = options?.preserveState === true;
     const refreshVersion = refreshVersionRef.current + 1;
     refreshVersionRef.current = refreshVersion;
     setError('');
@@ -87,7 +88,7 @@ export function useDailyQuests({ user, guestProfile, onUserUpdated } = {}) {
     const cachedBody = ignoreCache ? null : dailyQuestStatusStore.read(dailyCacheKey);
     if (cachedBody) {
       applyDailyQuestStatusBody(cachedBody);
-    } else {
+    } else if (!preserveState) {
       setStatus('loading');
     }
     try {
@@ -97,7 +98,7 @@ export function useDailyQuests({ user, guestProfile, onUserUpdated } = {}) {
       return applyDailyQuestStatusBody(body);
     } catch (err) {
       if (refreshVersion !== refreshVersionRef.current) return null;
-      if (!cachedBody) {
+      if (!cachedBody && !preserveState) {
         setStatus('error');
         setState(buildEmptyCalendarState());
       }
@@ -158,7 +159,8 @@ export function useDailyQuests({ user, guestProfile, onUserUpdated } = {}) {
       });
       if (body?.userPatch && typeof onUserUpdated === 'function') onUserUpdated(body.userPatch);
       invalidateDailyQuestStatusCache(dailyCacheKey);
-      await refresh();
+      setState((current) => ({ ...current, streakRewardReady: false }));
+      refresh({ ignoreCache: true, preserveState: true }).catch(() => null);
       return body;
     } catch (err) {
       setClaimError(safeDailyRewardError(err, 'Günlük ödül alınamadı. Lütfen tekrar dene.'));

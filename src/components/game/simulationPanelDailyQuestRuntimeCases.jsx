@@ -194,7 +194,9 @@ export const EXTRA_TESTS = [
         'DAILY_STREAK_REWARD_DIAMONDS',
         'data-kronox-daily-streak-reward-amount="true"',
         '{DAILY_STREAK_REWARD_DIAMONDS} Elmas',
-        'daily.claim',
+        'DailyRewardClaimModal',
+        'onUserUpdated: handleUserUpdated',
+        'onClick={handleClaim}',
       ]);
       const forbidden = forbiddenTokens(dailyPageSource, [
         'Serini koru',

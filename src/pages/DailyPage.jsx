@@ -15,6 +15,7 @@ import { isGuestOnboardingComplete } from '@/lib/guestProfile';
 import { createParentRouteState } from '@/lib/NavigationStackContext';
 import { useDailyQuests } from '@/hooks/useDailyQuests';
 import KronoxStatePanel from '@/components/ui/KronoxStatePanel';
+import DailyRewardClaimModal from '@/components/daily/DailyRewardClaimModal';
 import {
   DAILY_CALENDAR_TASKS_PER_DAY,
   DAILY_STREAK_REWARD_DIAMONDS,
@@ -57,9 +58,19 @@ function taskIcon(task) {
 
 export default function DailyPage() {
   const navigate = useNavigate();
-  const { user, guestProfile } = useAuth();
+  const { user, guestProfile, setUser, setGuestProfile } = useAuth();
+  const [claimResult, setClaimResult] = React.useState(null);
   const completedGuestProfile = !user && isGuestOnboardingComplete(guestProfile) ? guestProfile : null;
-  const daily = useDailyQuests({ user, guestProfile: completedGuestProfile });
+  const handleUserUpdated = React.useCallback((patch) => {
+    if (!patch || typeof patch !== 'object') return;
+    if (user) setUser((current) => ({ ...(current || user), ...patch }));
+    else setGuestProfile((current) => ({ ...(current || completedGuestProfile || {}), ...patch }));
+  }, [completedGuestProfile, setGuestProfile, setUser, user]);
+  const daily = useDailyQuests({ user, guestProfile: completedGuestProfile, onUserUpdated: handleUserUpdated });
+  const handleClaim = async () => {
+    const result = await daily.claim();
+    if (result?.ok) setClaimResult(result);
+  };
   const diamonds = getLeaderboardDiamondValue(user || completedGuestProfile);
   const monthTitle = formatMonthTitle(daily.month);
   const streakProgress = Math.max(0, Math.min(DAILY_STREAK_REWARD_DAYS, Number(daily.streakRewardProgress) || 0));
@@ -263,7 +274,7 @@ export default function DailyPage() {
               )}
               <button
                 type="button"
-                onClick={daily.claim}
+                onClick={handleClaim}
                 disabled={!daily.streakRewardReady || Boolean(daily.claimingId)}
                 className="mt-3 h-9 w-full rounded-xl font-inter text-xs font-black active:scale-95 disabled:active:scale-100"
                 style={{
@@ -282,6 +293,7 @@ export default function DailyPage() {
           </div>
         </Panel>
       </section>
+      <DailyRewardClaimModal result={claimResult} onClose={() => setClaimResult(null)} />
     </main>
   );
 }

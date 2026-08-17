@@ -453,6 +453,7 @@ export const AuthProvider = ({ children }) => {
       guestProfile,
       isGuest: !isAuthenticated && Boolean(guestProfile),
       setUser,
+      setGuestProfile,
       refreshAdminStatus,
       logout,
       navigateToLogin,
