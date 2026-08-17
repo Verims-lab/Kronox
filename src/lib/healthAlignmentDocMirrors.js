@@ -595,6 +595,7 @@ Status: Active manual visual/platform release gate.
 - Pull-to-refresh/overscroll guards are scoped to the relevant container or active gameplay drag only.
 - Reduced motion keeps functional feedback without relying on long animations.
 - A1 visual polish uses shared navy/cyan/gold depth, tactile press states, and finite decorative motion only. Panels, cards, and modals remain readable, width-bounded, safe-area-aware, and free of new gesture-blocking overlays at 320/360/390px.
+- Liderlik keeps the exact root token className="leaderboard-page text-white". Scoped .leaderboard-page CSS owns the deep-navy background, radial blue glow, vertical dark-blue gradient, safe areas, centered trophy badge, and gold LİDERLİK title; A1 card polish stays inside that root.
 - The Solo-only streak HUD is pointer-events-none, compact at 320/360/390px, finite/cleanup-safe, and absent from Online. Training levels may show visual milestones without Diamond reward application.
 - Loading/error/retry states are local to the affected section when possible.
 - Health Center report actions, case details, copy buttons, clipboard fallback textarea, manual proof details, and raw JSON preview must fit narrow mobile widths without horizontal overflow.

@@ -34,6 +34,7 @@ checks that source code and static Health cannot honestly prove alone.
   and must never introduce horizontal overflow.
 * Reduced motion keeps functional feedback without relying on long animations.
 * A1 visual polish uses shared navy/cyan/gold depth, tactile press states, and finite decorative motion only. Panels, cards, and modals must remain readable, width-bounded, safe-area-aware, and free of new gesture-blocking overlays at 320/360/390px.
+* Liderlik keeps the exact root token `className="leaderboard-page text-white"`. The scoped `.leaderboard-page` CSS owns its deep-navy background, radial blue glow, vertical dark-blue gradient, safe areas, centered trophy badge, and gold `LİDERLİK` title; A1 card polish stays inside that root.
 * Loading/error/retry states must be local to the affected section when possible
   so one slow data source does not blank an entire screen.
 * Health Center report actions, case details, copy buttons, clipboard fallback

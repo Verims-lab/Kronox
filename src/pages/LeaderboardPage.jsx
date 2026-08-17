@@ -400,7 +400,7 @@ export default function LeaderboardPage() {
 
   return (
     <div
-      className="leaderboard-page kx-a1-screen text-white"
+      className="leaderboard-page text-white"
       style={{
         userSelect: 'none',
       }}

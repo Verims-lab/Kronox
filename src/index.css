@@ -592,13 +592,13 @@
     filter: brightness(0.96);
   }
 
-  .leaderboard-page.kx-a1-screen .leaderboard-panel,
-  .leaderboard-page.kx-a1-screen .leaderboard-row,
-  .leaderboard-page.kx-a1-screen .my-rank-card {
+  .leaderboard-page .leaderboard-panel,
+  .leaderboard-page .leaderboard-row,
+  .leaderboard-page .my-rank-card {
     box-shadow: var(--kx-a1-panel-shadow);
   }
 
-  .leaderboard-page.kx-a1-screen .leaderboard-row {
+  .leaderboard-page .leaderboard-row {
     border-color: rgba(125, 211, 252, 0.20);
   }
 
@@ -625,7 +625,7 @@
       border-radius: 1rem !important;
     }
 
-    .leaderboard-page.kx-a1-screen .leaderboard-heading {
+    .leaderboard-page .leaderboard-heading {
       padding-top: 0.8rem;
       padding-bottom: 0.75rem;
     }
