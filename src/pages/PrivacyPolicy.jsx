@@ -137,7 +137,7 @@ export default function PrivacyPolicy() {
 
   return (
     <main
-      className="min-h-screen bg-background text-foreground"
+      className="min-h-screen w-full max-w-full overflow-x-hidden bg-background text-foreground"
       style={{
         minHeight: '100dvh',
         paddingTop: 'calc(1.25rem + env(safe-area-inset-top))',
@@ -170,13 +170,13 @@ export default function PrivacyPolicy() {
           {supportEmail && supportMailto ? (
             <a
               href={supportMailto}
-              className="mt-5 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-2 font-inter text-sm font-bold text-primary hover:bg-primary/15"
+              className="mt-5 inline-flex min-h-11 max-w-full items-center gap-2 break-all rounded-full border border-primary/30 bg-primary/10 px-4 py-2 font-inter text-sm font-bold text-primary hover:bg-primary/15"
             >
               <Mail className="h-4 w-4" aria-hidden="true" />
               {supportEmail}
             </a>
           ) : (
-            <p className="mt-5 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-2 font-inter text-sm font-bold text-primary">
+            <p className="mt-5 inline-flex min-h-11 max-w-full items-center gap-2 break-words rounded-full border border-primary/30 bg-primary/10 px-4 py-2 font-inter text-sm font-bold text-primary">
               <Mail className="h-4 w-4" aria-hidden="true" />
               Destek e-posta adresi dağıtım yapılandırmasından sağlanır.
             </p>

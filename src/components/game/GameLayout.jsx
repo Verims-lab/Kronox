@@ -402,7 +402,7 @@ export default function GameLayout({
                     sounds.tap();
                     onSoloBack();
                   }}
-                  className="kronox-solo-back-button flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full transition-transform active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300/70"
+                  className="kronox-solo-back-button flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full transition-transform active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300/70"
                   style={{
                     background: 'rgba(6, 18, 37, 0.86)',
                     border: '1px solid rgba(167, 196, 229, 0.52)',
@@ -416,7 +416,7 @@ export default function GameLayout({
                   <ArrowLeft className="h-5 w-5" strokeWidth={2.4} aria-hidden="true" />
                 </button>
               ) : (
-                <span aria-hidden="true" className="h-9 w-9 flex-shrink-0" />
+                <span aria-hidden="true" className="h-11 w-11 flex-shrink-0" />
               )}
               <div className="w-28 max-w-[32vw]" data-kronox-solo-progress-under-timer="true">
                 <motion.div

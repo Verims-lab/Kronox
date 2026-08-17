@@ -1151,7 +1151,8 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
 function DailyWheelModalFrame({ children, onClose, disableClose = false }) {
   return (
     <div
-      className="fixed inset-0 z-[220] grid place-items-center px-3"
+      className="fixed inset-0 z-[220] grid place-items-center overflow-hidden px-3"
+      data-kronox-daily-wheel-modal-frame="mobile-safe"
       style={{
         background: 'rgba(0,0,0,.55)',
         backdropFilter: 'blur(8px)',
@@ -1171,8 +1172,11 @@ function DailyWheelModalFrame({ children, onClose, disableClose = false }) {
           width: 'min(92vw, 32rem)',
           maxWidth: '32rem',
           height: 'auto',
-          maxHeight: 'calc(100dvh - 1.5rem)',
+          maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 1.5rem)',
+          overflowX: 'hidden',
           overflowY: 'auto',
+          overscrollBehavior: 'contain',
+          WebkitOverflowScrolling: 'touch',
           padding: 'clamp(1rem, 4vw, 1.25rem)',
           border: '1px solid rgba(250,204,21,0.46)',
           background:
@@ -1185,7 +1189,7 @@ function DailyWheelModalFrame({ children, onClose, disableClose = false }) {
           type="button"
           onClick={disableClose ? undefined : onClose}
           disabled={disableClose}
-          className="absolute right-3 top-3 grid h-8 w-8 place-items-center rounded-full text-slate-200"
+          className="absolute right-2 top-2 grid h-11 w-11 place-items-center rounded-full text-slate-200"
           style={{
             background: 'rgba(255,255,255,0.08)',
             opacity: disableClose ? 0.38 : 1,

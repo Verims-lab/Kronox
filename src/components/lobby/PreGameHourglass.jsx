@@ -43,8 +43,15 @@ export default function PreGameHourglass({
 
   return (
     <div
-      className="kx-a1-screen kx-a1-online fixed inset-0 flex flex-col items-center justify-center px-6 text-white"
+      className="kx-a1-screen kx-a1-online fixed inset-0 flex w-full max-w-full flex-col items-center justify-center overflow-x-hidden overflow-y-auto px-4 text-white"
+      data-kronox-pre-game-hourglass="mobile-safe"
       style={{
+        minHeight: '100dvh',
+        maxHeight: '100dvh',
+        boxSizing: 'border-box',
+        paddingTop: 'calc(1rem + env(safe-area-inset-top))',
+        paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))',
+        overscrollBehavior: 'contain',
         background:
           'radial-gradient(ellipse at 50% 20%, rgba(59,130,246,0.30), transparent 48%), linear-gradient(180deg, #050b1c 0%, #0a1738 55%, #03060f 100%)',
       }}
@@ -77,7 +84,7 @@ export default function PreGameHourglass({
         <button
           type="button"
           onClick={onCancel}
-          className="kx-a1-pressable mt-9 flex items-center gap-2 rounded-2xl px-5 py-2.5 font-inter text-sm font-bold text-blue-100/80"
+          className="kx-a1-pressable mt-9 flex min-h-11 items-center gap-2 rounded-2xl px-5 py-2.5 font-inter text-sm font-bold text-blue-100/80"
           style={{ background: 'rgba(148,163,184,0.12)', boxShadow: 'inset 0 0 0 1px rgba(148,163,184,0.28)' }}
         >
           <X className="w-4 h-4" /> Vazgeç

@@ -305,7 +305,7 @@ export default function FriendsPage() {
 function PageShell({ children }) {
   return (
     <div
-      className="min-h-screen bg-background text-white"
+      className="min-h-screen w-full max-w-full overflow-x-hidden bg-background text-white"
       style={{
         paddingTop: 'calc(4rem + env(safe-area-inset-top))',
         paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))',

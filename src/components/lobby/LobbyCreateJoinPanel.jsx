@@ -38,10 +38,12 @@ export default function LobbyCreateJoinPanel({
 
   return (
     <div
-      className="kx-a1-screen kx-a1-online min-h-screen bg-background flex flex-col items-center justify-center px-6"
+      className="kx-a1-screen kx-a1-online flex min-h-screen w-full max-w-full flex-col items-center justify-center overflow-x-hidden overflow-y-auto px-4"
       style={{
+        minHeight: '100dvh',
         paddingTop: 'calc(5rem + env(safe-area-inset-top))',
         paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))',
+        overscrollBehavior: 'contain',
         background:
           'radial-gradient(ellipse at 50% 18%, rgba(59,130,246,0.34), transparent 42%), radial-gradient(ellipse at 50% 90%, rgba(34,211,238,0.14), transparent 50%), linear-gradient(180deg, #050b1c 0%, #0a1738 55%, #03060f 100%)',
       }}

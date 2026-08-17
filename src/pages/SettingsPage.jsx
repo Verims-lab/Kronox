@@ -66,7 +66,7 @@ export default function SettingsPage() {
 
   return (
     <div
-      className="min-h-screen bg-background"
+      className="min-h-screen w-full max-w-full overflow-x-hidden bg-background"
       style={{
         minHeight: '100dvh',
         boxSizing: 'border-box',
@@ -130,12 +130,12 @@ export default function SettingsPage() {
                   )}
                   <div className="flex gap-2">
                     <Button
-                      variant="outline" size="sm" className="flex-1"
+                      variant="outline" size="sm" className="min-h-11 flex-1"
                       onClick={() => { setConfirmDelete(false); setDeleteError(''); }} disabled={deleting}
                     >İptal</Button>
                     <Button
                       size="sm" disabled={deleting}
-                      className="flex-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                      className="min-h-11 flex-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground"
                       onClick={handleDeleteAccount}
                     >
                       {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Evet, Sil'}

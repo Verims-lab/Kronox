@@ -60,8 +60,11 @@ export default function SoloFailureCard({
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden px-3"
+      data-kronox-solo-result-modal="failure-mobile-safe"
       style={{
+        paddingTop: 'calc(0.75rem + env(safe-area-inset-top))',
+        paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))',
         background: 'radial-gradient(ellipse at 50% 35%, rgba(120,20,40,0.3) 0%, rgba(4,7,20,0.96) 62%)',
         backdropFilter: 'blur(8px)',
       }}
@@ -73,8 +76,11 @@ export default function SoloFailureCard({
         initial={panelInitial}
         animate={panelAnimate}
         transition={reduceMotion ? { duration: 0.2 } : { type: 'spring', stiffness: 280, damping: 24 }}
-        className="kx-a1-modal w-full max-w-sm rounded-[28px] overflow-hidden relative"
+        className="kx-a1-modal relative w-full max-w-sm overflow-x-hidden overflow-y-auto rounded-[28px]"
         style={{
+          maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 1.5rem)',
+          overscrollBehavior: 'contain',
+          WebkitOverflowScrolling: 'touch',
           background: 'linear-gradient(165deg, #0d1430 0%, #060a1e 100%)',
           boxShadow:
             'inset 0 0 0 1.5px rgba(248,113,113,0.3), 0 30px 60px rgba(0,0,0,0.6), 0 0 40px rgba(248,113,113,0.15)',

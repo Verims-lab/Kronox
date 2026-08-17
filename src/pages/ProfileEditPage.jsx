@@ -382,7 +382,7 @@ function GuestCategoryPreferenceNotice() {
 function ProfileEditShell({ children, onBack }) {
   return (
     <div
-      className="min-h-screen bg-background text-white"
+      className="min-h-screen w-full max-w-full overflow-x-hidden bg-background text-white"
       style={{
         minHeight: '100dvh',
         paddingTop: 'calc(4.75rem + env(safe-area-inset-top))',
@@ -502,8 +502,11 @@ function ProfileEditSheet({
     <AnimatePresence>
       {field && (
         <motion.div
-          className="fixed inset-0 z-[150] flex items-end justify-center bg-slate-950/70 px-3 pb-3 backdrop-blur-sm"
-          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.75rem)' }}
+          className="fixed inset-0 z-[150] flex items-end justify-center overflow-hidden bg-slate-950/70 px-3 backdrop-blur-sm"
+          style={{
+            paddingTop: 'calc(env(safe-area-inset-top) + 0.75rem)',
+            paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.75rem)',
+          }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -518,8 +521,11 @@ function ProfileEditSheet({
             aria-label="Düzenleme ekranını kapat"
           />
           <motion.div
-            className="relative w-full max-w-md rounded-[1.75rem] p-5"
+            className="relative w-full max-w-md overflow-x-hidden overflow-y-auto rounded-[1.75rem] p-5"
             style={{
+              maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 1.5rem)',
+              overscrollBehavior: 'contain',
+              WebkitOverflowScrolling: 'touch',
               background: 'linear-gradient(180deg, rgba(20,33,69,0.99), rgba(5,10,24,0.99))',
               boxShadow: 'inset 0 0 0 1px rgba(120,170,255,0.28), 0 24px 60px rgba(0,0,0,0.46)',
             }}
@@ -537,7 +543,7 @@ function ProfileEditSheet({
                 type="button"
                 onClick={onClose}
                 disabled={saving}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.08] text-white/70 disabled:opacity-60"
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-white/[0.08] text-white/70 disabled:opacity-60"
                 aria-label="Kapat"
               >
                 <X className="h-4 w-4" />

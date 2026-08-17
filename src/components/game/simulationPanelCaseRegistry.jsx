@@ -227,6 +227,8 @@ import * as onboardingGuestProfileCases from './simulationPanelOnboardingGuestPr
 import * as a11yQualityCases from './simulationPanelA11yQualityCases';
 // Codex599 — A2 local error, empty, loading, retry, and privacy-safe copy contracts.
 import * as errorStateCases from './simulationPanelErrorStateCases';
+// Codex601 — A3 narrow viewport, safe-area, modal, BottomNav, and touch contracts.
+import * as mobileSafetyCases from './simulationPanelMobileSafetyCases';
 // Health Center recent-contract update audit: Profile/Settings route ownership,
 // Leaderboard own row, presence/invite/admin reporting, performance/visual
 // guardrails, UX docs, and SDK pin Health coverage inventory.
@@ -313,6 +315,7 @@ const MODULES = [
   onboardingGuestProfileCases,
   a11yQualityCases,
   errorStateCases,
+  mobileSafetyCases,
   healthUpdateAuditCases,
   profileAvatarCases,
   startupStatusCacheCases,

@@ -225,7 +225,7 @@ export default function MainMenu() {
       />
 
       <section
-        className="absolute left-0 right-0 mx-auto flex w-full max-w-[28rem] flex-col items-center"
+        className="absolute left-0 right-0 mx-auto flex w-full min-w-0 max-w-[28rem] flex-col items-center overflow-x-hidden"
         style={{
           top: 'calc(env(safe-area-inset-top) + 4.1rem)',
           paddingLeft: 'calc(env(safe-area-inset-left) + 1.15rem)',

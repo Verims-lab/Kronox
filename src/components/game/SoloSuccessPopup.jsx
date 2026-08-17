@@ -88,8 +88,13 @@ export default function SoloSuccessPopup({
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md p-4"
-      style={{ background: 'rgba(3,8,22,0.94)' }}
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden px-3 backdrop-blur-md"
+      data-kronox-solo-result-modal="success-mobile-safe"
+      style={{
+        paddingTop: 'calc(0.75rem + env(safe-area-inset-top))',
+        paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))',
+        background: 'rgba(3,8,22,0.94)',
+      }}
       role="dialog"
       aria-modal="true"
       aria-label={`${levelNumber}. seviye tamamlandı, ${stars} yıldız`}
@@ -98,8 +103,11 @@ export default function SoloSuccessPopup({
         initial={panelInitial}
         animate={panelAnimate}
         transition={reduceMotion ? { duration: 0.2 } : { type: 'spring', stiffness: 280, damping: 24 }}
-        className="kx-a1-modal w-full max-w-sm rounded-[28px] overflow-hidden"
+        className="kx-a1-modal w-full max-w-sm overflow-x-hidden overflow-y-auto rounded-[28px]"
         style={{
+          maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 1.5rem)',
+          overscrollBehavior: 'contain',
+          WebkitOverflowScrolling: 'touch',
           background:
             'radial-gradient(ellipse at 50% 0%, rgba(250,204,21,0.14), transparent 60%), linear-gradient(180deg, #0a1c46 0%, #061332 100%)',
           boxShadow:

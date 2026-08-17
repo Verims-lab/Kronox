@@ -61,7 +61,7 @@ export default function SoloLevelStartTutorialPopup({
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-[88] flex items-center justify-center px-4 py-8"
+          className="fixed inset-0 z-[88] flex items-center justify-center overflow-hidden px-3"
           data-kronox-solo-level-start-tutorial-popup="true"
           data-kronox-solo-level-start-tutorial-key={config.key}
           role="dialog"
@@ -73,17 +73,22 @@ export default function SoloLevelStartTutorialPopup({
           transition={{ duration: 0.18 }}
           style={{
             background: 'radial-gradient(circle at 50% 34%, rgba(20,86,155,0.28), rgba(3,8,22,0.84) 58%, rgba(3,8,22,0.92) 100%)',
+            paddingTop: 'calc(0.75rem + env(safe-area-inset-top))',
+            paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))',
             backdropFilter: 'blur(7px)',
           }}
         >
           <motion.div
-            className="relative flex w-full max-w-[min(26rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-[28px] px-5 pb-5 pt-5"
+            className="relative flex w-full max-w-[min(26rem,calc(100vw-1.5rem))] flex-col overflow-x-hidden overflow-y-auto rounded-[28px] px-4 pb-5 pt-5"
             initial={{ opacity: 0, scale: 0.94, y: 16 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 10 }}
             transition={{ type: 'spring', stiffness: 250, damping: 24 }}
             style={{
               height: 'min(86dvh, 42rem)',
+              maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 1.5rem)',
+              overscrollBehavior: 'contain',
+              WebkitOverflowScrolling: 'touch',
               background: 'linear-gradient(180deg, rgba(9,31,66,0.98), rgba(5,14,34,0.98))',
               border: '1.5px solid rgba(255,201,40,0.86)',
               boxShadow: '0 22px 60px rgba(0,0,0,0.52), inset 0 1px 0 rgba(255,255,255,0.08), 0 0 22px rgba(56,189,248,0.20)',

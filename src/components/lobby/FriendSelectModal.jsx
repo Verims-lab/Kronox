@@ -157,7 +157,8 @@ export default function FriendSelectModal({
             transition={{ type: 'spring', stiffness: 360, damping: 30 }}
             className="relative w-full max-w-md rounded-3xl flex flex-col overflow-hidden"
             style={{
-              maxHeight: '88vh',
+              width: 'min(100%, 28rem)',
+              maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 1.5rem)',
               background: 'linear-gradient(180deg, rgba(20,32,68,0.98) 0%, rgba(10,18,42,0.99) 60%, rgba(6,10,24,1) 100%)',
               boxShadow: 'inset 0 0 0 1.5px rgba(250,204,21,0.40), inset 0 1px 0 rgba(255,255,255,0.10), 0 22px 44px rgba(2,6,23,0.65), 0 0 28px rgba(250,204,21,0.18)',
             }}
@@ -171,7 +172,7 @@ export default function FriendSelectModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="absolute top-4 right-4 flex h-9 w-9 items-center justify-center rounded-full text-blue-100/80"
+                className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full text-blue-100/80"
                 style={{
                   background: 'rgba(10,16,36,0.7)',
                   boxShadow: 'inset 0 0 0 1px rgba(120,170,255,0.30)',

@@ -433,7 +433,7 @@ function MarketProductCard({
             type="button"
             onClick={disabled ? undefined : onPurchase}
             disabled={disabled}
-            className="flex min-h-10 w-full min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 text-center transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-55 disabled:active:scale-100"
+            className="flex min-h-11 w-full min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 text-center transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-55 disabled:active:scale-100"
             style={{
               background: disabled ? 'rgba(148,163,184,0.70)' : 'linear-gradient(180deg, #FFD95A 0%, #FFB026 100%)',
               color: '#111111',
@@ -664,7 +664,7 @@ function StorePurchaseModal({
           <button
             type="button"
             onClick={onClose}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-white/85"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/10 text-white/85"
             aria-label="Kapat"
           >
             <X className="h-5 w-5" strokeWidth={2.3} />
