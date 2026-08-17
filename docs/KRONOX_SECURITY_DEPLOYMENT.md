@@ -1045,6 +1045,12 @@ Normal Home startup no longer imports the full Daily Wheel visual module or opt-
 
 This chunk split changes no authorization or public-data boundary. Lazy failures continue through the existing one-retry/stale-chunk recovery and route error boundary. B2 adds no backend function, secret, connector, schema, storage path, or public debug route.
 
+# Paket B3 — Question QA Security Boundary
+
+The Question Quality Snapshot is mounted only under guarded Admin Ekranı and calls the existing AdminUser-gated `adminDuplicateKeyReport` in `question_quality` mode. The response contains aggregate metrics and bounded irreversible duplicate fingerprints only. It does not return raw question lists, internal row IDs, user identity, secrets, request payloads, or backend errors.
+
+Normal and guest gameplay remain on the bounded `getQuestions` projection; direct `Question` reads remain admin-only. B3 adds no public route, function, entity, secret, connector, cleanup executor, or automatic content mutation.
+
 # 10. Health Coverage Expectations
 
 Health should cover:

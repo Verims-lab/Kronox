@@ -261,6 +261,8 @@ import * as soloStreakCases from './simulationPanelSoloStreakCases';
 import * as integrityProofCases from './simulationPanelIntegrityProofCases';
 // Paket B2 — lazy chunks, finite effects, polling cleanup, and mobile runtime guards.
 import * as performanceRuntimeCases from './simulationPanelPerformanceRuntimeCases';
+// Paket B3 — Admin-only question distribution, readiness, metadata, year, and duplicate QA.
+import * as questionQualityCases from './simulationPanelQuestionQualityCases';
 
 const MODULES = [
   soloProgressCases,
@@ -330,6 +332,7 @@ const MODULES = [
   soloStreakCases,
   integrityProofCases,
   performanceRuntimeCases,
+  questionQualityCases,
 ];
 
 function flatten(key) {

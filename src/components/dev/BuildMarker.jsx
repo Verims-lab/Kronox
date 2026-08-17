@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex607 — Paket B3 question quality: extend the existing Admin-only report with bounded category/difficulty/year/duplicate/metadata/readiness QA, add a compact read-only panel, Health proof, and docs alignment without question mutation or gameplay changes.
 // Codex606 — Paket B2 performance cleanup: demand-load diagnostics/wheel UI, dedupe Daily status reads, harden Online/Health async cleanup, scope tutorial media, and add source-connected performance Health without changing product behavior.
 // Codex605 — Paket B1 read-only integrity: extend the existing admin duplicate report with bounded economy/Daily/Solo/Online proof, add one guarded Integrity Snapshot, source-connected Health, and docs alignment without adding functions or changing product behavior.
 // Codex604 — Base44 deployability fix: consolidate exposure-stat reads into recordPlayerQuestionExposure/read_stats, retire the duplicate callable, preserve linked/guest response contracts, and align source-connected Health/docs at the 50-function ceiling. Gameplay, scoring, economy, DB schemas, Online/Daily rules, Solo Streak, and BottomNav are unchanged.
@@ -183,7 +184,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex606';
+const BUILD_MARKER = 'Codex607';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

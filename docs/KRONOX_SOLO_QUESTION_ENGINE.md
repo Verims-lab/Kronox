@@ -73,7 +73,7 @@ Levels 5, 6, and 8+ do not show this popup. Level 1 uses the local
 `/assets/tutorials/Seviye1tutorial.mp4` asset in the existing video slot, with
 title `Önce mi, Sonra mı` and subtitle `Kartı doğru tarafa sürükle` (no final
 period). The video occupies 70% of the popup height in a portrait slot,
-autoplays muted, loops, plays inline on mobile, preloads automatically, hides
+autoplays muted, loops, plays inline on mobile, preloads metadata only while the popup is open, hides
 native controls, resets to the beginning on open, and pauses/resets on close.
 `ANLADIM` is the primary bottom action. Other tutorial popup levels keep their
 existing copy/video config. The popup has a safe video/config slot, no remote
@@ -185,6 +185,8 @@ P1/P2 balancing applies during deck selection and deck ordering where the pool a
 - decade/era spread is preferred so the deck does not cluster around one narrow historical period
 
 The engine exposes safe diagnostics for Health/admin/debug only: eligible-pool and selected-deck category distribution, subcategory distribution, theme/sports distribution, decade/year-band distribution, first-5/first-7 distributions, max consecutive cluster counts, pool-proportional targets, and fallback tier. These diagnostics must not be shown to normal players or used to expose the protected question bank publicly.
+
+Paket B3 adds a separate Admin-only, read-only content readiness view for active easy-question volume, Solo-eligible pool size, missing/invalid years, dense same-year clusters, category underfill, metadata gaps, and duplicate risk. These signals require manual content review and never alter this engine's deck building, weighting, spacing, fallback, exposure, or level rules.
 
 The runtime may pass local recent-history exposure stats into the deck builder
 before the attempt starts. This is not a gameplay source of truth and must not

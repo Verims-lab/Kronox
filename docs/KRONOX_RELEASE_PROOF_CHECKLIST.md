@@ -1308,6 +1308,16 @@ verified against the deployed Base44 environment.
 * Run Performance Runtime Cleanup, Mobile Safety, Daily Wheel, Online, Solo Streak, Admin/Health, and deployability suites through the Testing Agent.
 * B2 adds no backend function and keeps the repository at the 50-function ceiling. Production device smoothness, network timing, memory, chunk-cache recovery, and native wrapper behavior remain manual proof.
 
+# Paket B3 — Question Quality Release Proof
+
+* Open Soru Kalite Raporu only from guarded Admin Ekranı and confirm non-admin/direct report calls are rejected.
+* Confirm active/passive totals, canonical category coverage, difficulty distribution, year risk, duplicate risk, metadata gaps, and readiness render without raw question dumps.
+* Require `readOnly: true`, `mutatesRows: false`, `destructiveCleanupImplemented: false`, bounded category/year/subcategory outputs, and fingerprint-only duplicate samples.
+* Review every underfilled/orphaned category, active missing-year record, dense same-year cluster, invalid difficulty/state, and duplicate-risk group manually before content release.
+* Confirm Online still uses all active categories randomly with no category selector, and Solo still receives the existing bounded backend candidate projection.
+* Run Question Quality, Admin Security, Question Data Model, Category, Solo Question Engine, Online shared-deck/no-category, and deployability Health suites through the Testing Agent.
+* B3 reuses the existing report and keeps the backend function count at 50.
+
 # 16. Manual Proof Recording
 
 For every manual test run, record:

@@ -1301,6 +1301,10 @@ are projections/audit/merge inputs. `UserJokerInventory` remains joker balance
 source, `JokerTransaction` remains ledger, and `User` remains authenticated
 account/progress source after linking.
 
+## Paket B3 — Read-Only Question QA Boundary
+
+B3 reuses the existing AdminUser-gated `adminDuplicateKeyReport`; it adds no backend function or entity. `question_quality` mode performs bounded `Question` and `Category` reads, returns aggregate distributions/readiness plus fingerprint-only duplicate samples, and declares no mutation or cleanup capability. It does not write Question, Category, projections, analytics, gameplay, score, economy, or Daily data.
+
 ## Player Question Exposure Projections
 
 `QuestionAttemptEvent` remains the append-only private analytics event log.

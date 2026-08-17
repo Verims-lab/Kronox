@@ -40,7 +40,7 @@ safely before spend; there is no raw client question list fallback.
 Onboarding level-start tutorial popups appear on levels 1, 2, 3, 4, and 7 every
 attempt. Level 1 uses local /assets/tutorials/Seviye1tutorial.mp4 in a portrait
 video area that occupies 70% of the popup height, autoplays muted, loops,
-playsInline, preload="auto", hides native controls, resets to 0 on open,
+playsInline, preload="metadata", hides native controls, resets to 0 on open,
 pauses/resets on close, and provides a bottom ANLADIM button. Levels 5, 6, and
 8+ have no level-start popup. Popup time is excluded from the effective Solo
 timer and popup close/skip analytics must stay privacy-safe.
@@ -193,6 +193,9 @@ metadata, insufficient unique years, and limited 18/21 deck readiness.
 Difficulty progression is readiness-oriented only and falls back safely when
 difficulty metadata is missing. Replay variety diagnostics and Kart Değiştir
 replacement diagnostics are helper-only and must not be exposed to normal UI.
+Paket B3 adds a separate Admin-only, read-only content readiness snapshot for
+category, difficulty, year, metadata, duplicate, and Solo/Online pool risks.
+It never changes Question rows, deck selection, weighting, spacing, or fallback.
 
 P3 question analytics writes best-effort QuestionAttemptEvent rows for Solo
 shown, answered, swapped_out, and replacement_shown events. Analytics writes

@@ -159,6 +159,10 @@ longer stored on the entity — they are derived at fetch time by
   category/subcategory/year-band distributions, projection limit, and seed.
 - Admin/Health diagnostics may expose aggregate projection counts and
   category/subcategory/year-band distributions, but never the full raw bank.
+- Paket B3 reuses the AdminUser-gated adminDuplicateKeyReport in bounded
+  question_quality mode for status/category/difficulty/subcategory/year,
+  metadata, exact/normalized duplicate, and Solo/Online readiness aggregates.
+  Samples are fingerprint-only; B3 never mutates Question or Category rows.
 - Private QuestionAttemptEvent analytics may store question id, answer year,
   category, subcategory, and tag metadata for admin reports only.
 - Admin question analytics reports label all-active question pool,
@@ -205,6 +209,10 @@ longer stored on the entity — they are derived at fetch time by
 
 This keeps the stored schema clean while gameplay keeps consuming runtime
 year/category/type values.
+
+## Paket B3 — Admin Question Quality Snapshot
+
+The guarded Admin Ekranı reuses adminDuplicateKeyReport in question_quality mode for bounded, read-only Question and canonical Category QA. It reports status/category/difficulty/subcategory/year distributions, missing metadata, exact/normalized duplicate groups, answer-year-category and ID duplicate risk, recent update counts, and Solo/Online readiness. Samples are fingerprint-only and bounded. B3 never writes, rewrites, activates, deactivates, rebalances, or deletes Question rows, and the public/full-bank boundary remains unchanged.
 
 ## 14. Per-Player Exposure Architecture
 

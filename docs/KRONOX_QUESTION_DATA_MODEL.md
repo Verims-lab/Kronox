@@ -562,6 +562,14 @@ Rules:
 
 ---
 
+# Paket B3 — Admin Question Quality Snapshot
+
+The guarded Admin Ekranı exposes a compact, read-only Question Quality Snapshot through the existing `adminDuplicateKeyReport` function in `question_quality` mode. It performs bounded reads of `Question` and canonical `Category` metadata and reports active/passive totals, category and difficulty distributions, subcategory coverage, year quality, metadata gaps, recent update counts, duplicate-risk groups, and Solo/Online readiness.
+
+Duplicate checks cover exact text, normalized text, answer/year/category combinations, and question IDs. Samples are limited to irreversible fingerprints and counts; no raw question-bank dump is returned. Readiness thresholds are diagnostic release signals only and do not alter question state, difficulty, taxonomy, selection, deck sizes, scoring, or gameplay.
+
+B3 never creates, rewrites, activates, deactivates, rebalances, or deletes questions. Manual content review remains required for reported risks. Raw `Question` stays admin-only and normal/guest gameplay continues through the bounded `getQuestions` projection.
+
 # 13. Not In Scope
 
 This document does not define:

@@ -201,6 +201,145 @@ function buildIntegritySnapshot(windows, checks) {
   };
 }
 
+function normalizeQuestionText(value) {
+  return String(value || '').trim().toLocaleLowerCase('tr-TR').normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9çğıöşü]+/gi, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function parseQuestionYear(value) {
+  const years = (String(value || '').match(/\d{4}/g) || []).map(Number).filter(Number.isFinite);
+  return years.length === 1 ? years[0] : null;
+}
+
+function incrementCount(target, key) {
+  const safeKey = String(key ?? 'missing');
+  target[safeKey] = (target[safeKey] || 0) + 1;
+}
+
+function boundedDuplicateSummary(groups, sampleLimit = 5) {
+  const duplicates = [...groups.entries()].filter(([key, count]) => Boolean(key) && count > 1).sort((a, b) => b[1] - a[1]);
+  return {
+    duplicateGroupCount: duplicates.length,
+    duplicateRowCount: duplicates.reduce((sum, [, count]) => sum + count - 1, 0),
+    samples: duplicates.slice(0, sampleLimit).map(([key, count]) => ({ fingerprint: keyFingerprint(key), count })),
+  };
+}
+
+function buildQuestionQualitySnapshot(questionRows, categoryRows, scanLimit, scanWindowComplete) {
+  const questions = Array.isArray(questionRows) ? questionRows : [];
+  const categories = (Array.isArray(categoryRows) ? categoryRows : []).filter((row) => Number(row?.category_id) > 0).map((row) => ({
+    categoryId: Number(row.category_id),
+    name: String(row?.name || `Kategori ${row.category_id}`).trim().slice(0, 80),
+    active: String(row?.status || 'a').toLowerCase() !== 'p',
+  }));
+  const categoryById = new Map(categories.map((row) => [row.categoryId, row]));
+  const categoryMetrics = new Map(categories.map((row) => [row.categoryId, {
+    categoryId: row.categoryId, name: row.name, categoryActive: row.active,
+    activeQuestions: 0, inactiveQuestions: 0,
+    difficulty: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }, onlineEligible: 0, soloEligible: 0,
+  }]));
+  const statusDistribution = {};
+  const difficultyDistribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, missing: 0, invalid: 0 };
+  const yearCounts = {};
+  const subcategoryCounts = {};
+  const exactTextGroups = new Map();
+  const normalizedTextGroups = new Map();
+  const answerYearCategoryGroups = new Map();
+  const idGroups = new Map();
+  const missingMetadata = { questionText: 0, answerText: 0, year: 0, category: 0, subcategory: 0, tag: 0, difficulty: 0, state: 0 };
+  let activeCount = 0; let inactiveCount = 0; let draftOrUnknownCount = 0;
+  let invalidYearCount = 0; let orphanedCategoryCount = 0; let invalidDifficultyCount = 0;
+  let onlineEligibleCount = 0; let soloEligibleCount = 0; let recentUpdatedCount = 0;
+  const now = Date.now();
+  const currentYear = new Date().getUTCFullYear();
+
+  for (const row of questions) {
+    const questionText = String(row?.question || '').trim();
+    const answerText = String(row?.answer || '').trim();
+    const normalizedText = normalizeQuestionText(questionText);
+    const state = String(row?.state || '').trim().toUpperCase();
+    const active = state === 'A';
+    const difficulty = Number(row?.difficulty);
+    const validDifficulty = Number.isInteger(difficulty) && difficulty >= 1 && difficulty <= 5;
+    const categoryId = Number(row?.main_category_id);
+    const validCategory = Number.isInteger(categoryId) && categoryId > 0 && categoryById.has(categoryId);
+    const year = parseQuestionYear(answerText);
+    const validYear = Number.isInteger(year) && year >= 1000 && year <= currentYear + 1;
+    incrementCount(statusDistribution, state || 'missing');
+    if (!row?.difficulty && row?.difficulty !== 0) difficultyDistribution.missing += 1;
+    else if (validDifficulty) difficultyDistribution[difficulty] += 1;
+    else { difficultyDistribution.invalid += 1; invalidDifficultyCount += 1; }
+    if (active) activeCount += 1; else if (state === 'P') inactiveCount += 1; else draftOrUnknownCount += 1;
+    if (!questionText) missingMetadata.questionText += 1;
+    if (!answerText) missingMetadata.answerText += 1;
+    if (!validYear) { missingMetadata.year += 1; invalidYearCount += 1; }
+    if (!validCategory) { missingMetadata.category += 1; orphanedCategoryCount += 1; }
+    if (!String(row?.sub_category || '').trim()) missingMetadata.subcategory += 1;
+    else incrementCount(subcategoryCounts, String(row.sub_category).trim().slice(0, 80));
+    if (!String(row?.tag || '').trim()) missingMetadata.tag += 1;
+    if (!validDifficulty) missingMetadata.difficulty += 1;
+    if (!state) missingMetadata.state += 1;
+    if (validYear) incrementCount(yearCounts, year);
+    const metric = categoryMetrics.get(categoryId);
+    if (metric) {
+      if (active) metric.activeQuestions += 1; else metric.inactiveQuestions += 1;
+      if (validDifficulty) metric.difficulty[difficulty] += 1;
+    }
+    const eligible = active && Boolean(questionText) && Boolean(answerText) && validYear && validCategory && validDifficulty;
+    const onlineEligible = eligible && [1, 2].includes(difficulty);
+    const soloEligible = eligible && [1, 2].includes(difficulty);
+    if (onlineEligible) { onlineEligibleCount += 1; if (metric) metric.onlineEligible += 1; }
+    if (soloEligible) { soloEligibleCount += 1; if (metric) metric.soloEligible += 1; }
+    const exactKey = questionText.toLocaleLowerCase('tr-TR');
+    if (exactKey) exactTextGroups.set(exactKey, (exactTextGroups.get(exactKey) || 0) + 1);
+    if (normalizedText) normalizedTextGroups.set(normalizedText, (normalizedTextGroups.get(normalizedText) || 0) + 1);
+    if (answerText && validYear && validCategory) {
+      const combination = `${normalizeQuestionText(answerText)}|${year}|${categoryId}`;
+      answerYearCategoryGroups.set(combination, (answerYearCategoryGroups.get(combination) || 0) + 1);
+    }
+    const questionId = String(row?.id ?? '').trim();
+    if (questionId) idGroups.set(questionId, (idGroups.get(questionId) || 0) + 1);
+    const updatedAt = Date.parse(String(row?.updated_date || row?.created_date || ''));
+    if (Number.isFinite(updatedAt) && now - updatedAt <= 30 * 86400000) recentUpdatedCount += 1;
+  }
+  const categoryCoverage = [...categoryMetrics.values()].sort((a, b) => b.activeQuestions - a.activeQuestions || a.categoryId - b.categoryId).slice(0, 100);
+  const yearDistribution = Object.entries(yearCounts).map(([year, count]) => ({ year: Number(year), count })).sort((a, b) => b.count - a.count || a.year - b.year).slice(0, 40);
+  const denseYearClusters = yearDistribution.filter((row) => row.count >= 4).slice(0, 20);
+  const activeEasyCount = questions.filter((row) => String(row?.state || '').toUpperCase() === 'A' && Number(row?.difficulty) === 1).length;
+  return {
+    reportVersion: 'b3-question-quality-v1', readOnly: true, scanLimit,
+    scannedQuestions: questions.length, scanWindowComplete,
+    totals: { total: questions.length, active: activeCount, inactive: inactiveCount, draftOrUnknown: draftOrUnknownCount, recentUpdated30Days: recentUpdatedCount },
+    statusDistribution, difficultyDistribution, categoryCoverage,
+    taxonomy: {
+      canonicalCategoryCount: categories.length, unknownOrOrphanedQuestionCount: orphanedCategoryCount,
+      categoriesWithZeroActive: categoryCoverage.filter((row) => row.categoryActive && row.activeQuestions === 0).length,
+      categoriesUnderfilled: categoryCoverage.filter((row) => row.categoryActive && row.activeQuestions > 0 && row.activeQuestions < 10).length,
+    },
+    subcategoryDistribution: Object.entries(subcategoryCounts).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 25),
+    yearQuality: {
+      invalidOrMissingYearCount: invalidYearCount,
+      sameYearRiskCount: denseYearClusters.reduce((sum, row) => sum + row.count, 0), denseYearClusters,
+      veryOldOrFutureOutlierCount: Object.entries(yearCounts).filter(([year]) => Number(year) < 1500 || Number(year) > currentYear).reduce((sum, [, count]) => sum + count, 0),
+      distribution: yearDistribution,
+    },
+    duplicateRisk: {
+      exactQuestionText: boundedDuplicateSummary(exactTextGroups),
+      normalizedQuestionText: boundedDuplicateSummary(normalizedTextGroups),
+      answerYearCategory: boundedDuplicateSummary(answerYearCategoryGroups),
+      duplicateQuestionId: boundedDuplicateSummary(idGroups),
+      sampleExposure: 'fingerprint_only', sampleLimitPerCheck: 5,
+    },
+    metadataCompleteness: { ...missingMetadata, invalidDifficulty: invalidDifficultyCount, totalMissingSignals: Object.values(missingMetadata).reduce((sum, count) => sum + count, 0) },
+    readiness: {
+      onlineEligibleCount, soloEligibleCount, activeEasyCount,
+      onboardingReady: activeEasyCount >= 18, soloPoolReady: soloEligibleCount >= 18, onlineSharedDeckReady: onlineEligibleCount >= 24,
+      allActiveCategoryPolicy: true, onlineCategorySelectorAllowed: false, fullQuestionBankPubliclyExposed: false,
+      highRiskActiveMissingYearCount: questions.filter((row) => String(row?.state || '').toUpperCase() === 'A' && !parseQuestionYear(row?.answer)).length,
+    },
+  };
+}
+
 export default async function adminDuplicateKeyReport(req) {
   try {
     if (req.method !== 'POST') return json({ ok: false, code: 'method_not_allowed', error: 'Bu işlem desteklenmiyor.' }, 405);
@@ -209,8 +348,33 @@ export default async function adminDuplicateKeyReport(req) {
     if (auth.response) return auth.response;
     const body = await req.json().catch(() => ({}));
     const requestedMode = String(body?.mode || 'dry_run').trim().toLowerCase();
-    const mode = requestedMode === 'prepare_cleanup_plan' ? 'prepare_cleanup_plan' : 'dry_run';
+    const mode = ['dry_run', 'prepare_cleanup_plan', 'question_quality'].includes(requestedMode) ? requestedMode : 'dry_run';
     const scanLimit = Math.max(PAGE_SIZE, Math.min(MAX_SCAN_LIMIT, Math.floor(Number(body?.scanLimit) || DEFAULT_SCAN_LIMIT)));
+    if (mode === 'question_quality') {
+      const [questionsWindow, categoriesWindow] = await Promise.all([
+        fetchWindow(base44, 'Question', scanLimit),
+        fetchWindow(base44, 'Category', 500),
+      ]);
+      const unavailable = !questionsWindow.entityAvailable || !categoriesWindow.entityAvailable;
+      return json({
+        ok: !unavailable,
+        reportVersion: 'b3-question-quality-v1',
+        mode,
+        dryRun: true,
+        readOnly: true,
+        mutatesRows: false,
+        mutatesBalances: false,
+        destructiveCleanupImplemented: false,
+        scannedAt: new Date().toISOString(),
+        error: unavailable ? 'question_quality_source_unavailable' : null,
+        questionQualitySnapshot: unavailable ? null : buildQuestionQualitySnapshot(
+          questionsWindow.rows,
+          categoriesWindow.rows,
+          scanLimit,
+          questionsWindow.scanWindowComplete,
+        ),
+      }, unavailable ? 503 : 200);
+    }
     const requestedCheckIds = Array.isArray(body?.checks) ? body.checks.map(String) : [];
     const activeChecks = requestedCheckIds.length ? DUPLICATE_KEY_CHECKS.filter((check) => requestedCheckIds.includes(check.id)) : DUPLICATE_KEY_CHECKS;
     const entityNames = [...new Set(activeChecks.map((check) => check.entity))];

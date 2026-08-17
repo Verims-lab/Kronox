@@ -46,6 +46,8 @@ Soft preferences:
 - P1/P2 balance distributes rich-pool decks across categories, subcategories, themes, and year bands using pool-proportional targets, not equal-count balancing; high/recent shown cards are downweighted softly; first 7 active cards avoid 4+ same category/subcategory/theme where alternatives exist
 - P2 diagnostics are Health/admin/helper-only and include deck quality, question pool health, difficulty-readiness, replay-variety, and Kart Değiştir replacement diagnostics
 
+Paket B3 adds an Admin-only, read-only content readiness view for active easy-question volume, Solo-eligible pool size, missing/invalid years, dense same-year clusters, category underfill, and duplicate metadata risk. These signals require manual content review and never alter this engine's deck building, weighting, spacing, fallback, exposure, or level rules.
+
 Exposure and diversity weighting are soft only and run before the attempt starts. Missing or corrupt local history and sparse metadata must be ignored safely and must not fetch questions or stats mid-attempt.
 
 Fallback may relax recently-seen avoidance, category/subcategory/theme balance, and era spread. It must not relax deck size, unique IDs, unique years, active question/category filtering, visible timeline spacing where a safe alternative exists, or the first 5 minimum 5-year spacing rule unless no valid spaced deck exists at all.

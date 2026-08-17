@@ -10,6 +10,7 @@ import InactiveGuestCleanupTool from '@/components/admin/InactiveGuestCleanupToo
 import AdminDiamondGrantTool from '@/components/admin/AdminDiamondGrantTool';
 import AdminDailyWheelResetTool from '@/components/admin/AdminDailyWheelResetTool';
 import IntegritySnapshotTool from '@/components/admin/IntegritySnapshotTool';
+import QuestionQualityTool from '@/components/admin/QuestionQualityTool';
 import StandardTopBar from '@/components/layout/StandardTopBar';
 import PullToRefresh from '@/components/mobile/PullToRefresh';
 import { AdminRefreshContext } from '@/lib/AdminRefreshContext';
@@ -184,6 +185,7 @@ export default function AdminPage() {
                 onClick={() => setShowSim(true)}
               />
               <IntegritySnapshotTool />
+              <QuestionQualityTool />
               <QuestionAnalyticsReportTool />
               <UserReportTool />
               <AdminDiamondGrantTool />

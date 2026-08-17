@@ -334,9 +334,9 @@ Question.state === "A"
 
 Online UI:
 
-* show active categories only
-* sort active categories by `category_id` ascending
-* preserve selected category IDs for online game start
+* has no category selection or category carousel
+* does not send selected category IDs for Online start
+* shows only the all-active random-category policy copy
 
 Solo deck:
 
@@ -346,11 +346,16 @@ Solo deck:
 
 Online start:
 
-* use selected active categories
-* do not silently fall back to all categories if selected categories have no questions
-* return clean content error if selected active categories cannot produce enough playable questions
+* uses all active categories randomly through backend-authoritative `startLobbyGame`
+* accepts current Online-eligible difficulty 1/2 questions only
+* persists one bounded shared deck for every participant
+* returns a clean content error when the all-active eligible pool cannot produce a valid deck
 
 ---
+
+# Paket B3 — Taxonomy QA
+
+The Admin-only, read-only Question Quality Snapshot joins `Question.main_category_id` to the current canonical `Category.category_id` rows. It reports active/passive counts, difficulty 1–5 counts, Solo/Online-eligible counts, orphaned references, active categories with zero questions, and underfilled categories. These are diagnostic metrics only: B3 does not create categories, change status, rewrite references, rebalance content, or restore Online category selection.
 
 # 9. Health Coverage Expectations
 
@@ -362,10 +367,10 @@ category_entity_declares_description_field
 category_seed_rows_all_active
 category_seed_rows_have_description
 category_seed_backfills_missing_status_and_description
-online_categories_active_only
-online_categories_sorted_by_category_id
+online_has_no_category_selector
+online_start_uses_all_active_categories_randomly
 solo_deck_uses_active_categories_only
-online_start_uses_active_selected_categories_only
+question_quality_reports_canonical_category_coverage
 categoryid_alias_normalized_at_import_boundary
 no_competing_live_categoryid_field
 ```
@@ -388,4 +393,4 @@ Do not change without explicit product decision:
 * `categoryid` as import-only alias
 * Kült excluding games
 * passive categories being excluded from playable decks
-* active category sort by category ID
+* Online all-active random category policy
