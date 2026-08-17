@@ -72,7 +72,11 @@ Online non-friend game invites use opaque `target_ref` values in the client.
 `createGameInvitesForTargets` resolves those refs backend-side to routable
 recipients. Public player-selection, lobby, invite, notification, and push
 payloads must use username-safe labels and must not expose target email,
-provider IDs, owner keys, raw guest IDs, or internal player keys.
+provider IDs, owner keys, raw guest IDs, or internal player keys. Completed
+guest proof remains a valid player-selection context. Selection/presence refresh
+failures use fixed Turkish copy, keep prior sanitized rows, and retry locally;
+they must not expose raw backend/Axios errors or turn an actual failure into an
+empty successful result.
 
 Online Lobby snapshots use opaque `public_ref` and `participant_ref` values.
 Backend-private email, `actor_key_hash`, guest proof, auth/internal row IDs,

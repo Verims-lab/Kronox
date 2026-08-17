@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex600 — A2 Health blocker repair: explicit local Tekrar Dene actions for Profile Joker Çantası and Online player selection, completed-guest-safe selection retry, safe fixed error copy, and explicit previous-row preservation during transient presence refresh failure. Gameplay, scoring, economy, DB, matching, Daily, Solo Streak, and BottomNav are unchanged.
+//
 // Codex599 — A2 error/empty/loading standardization: shared mobile-safe state panels, local scoped retries, safe Turkish action copy, cached-row preservation, nonblocking Online social and Leaderboard enrichment failures, and source-connected Health guards. Gameplay, scoring, economy, DB, Online/Daily rules, Solo Streak, and BottomNav are unchanged.
 //
 // Codex598 — Fix A1 Health regression: restore the exact Leaderboard root className="leaderboard-page text-white", keep A1 card polish scoped beneath .leaderboard-page, and restore package.json to exact @base44/sdk 0.8.34. Base44 still exposes no package-lock.json, so the lockfile half of the SDK Health gate remains unresolved; Leaderboard data/scoring/friend/avatar behavior is unchanged.
@@ -173,7 +175,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex599';
+const BUILD_MARKER = 'Codex600';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

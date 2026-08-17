@@ -404,8 +404,9 @@ function JokerPocketSection({ authLoading, loading, playerAvailable, balances, h
     return (
       <KronoxStatePanel
         compact
-        title="Joker ve İpucu bilgileri yüklenemedi."
+        title="Joker Çantası şu anda yüklenemedi."
         message="Profilinin diğer bölümlerini kullanmaya devam edebilirsin."
+        actionLabel="Tekrar Dene"
         onAction={onRetry}
       />
     );

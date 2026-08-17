@@ -831,6 +831,10 @@ Joker balance read-performance contract:
   `JokerTransaction` summed deltas and latest `balance_after`; it must report
   mismatches without auto-fixing.
 * Guest/no-login paths must not query user-owned joker inventory.
+* Profile `Joker Çantası` waits for auth/player readiness, keeps loading and real
+  load failures local to the inventory section, and exposes exact
+  `Joker Çantası şu anda yüklenemedi.` plus `Tekrar Dene` copy. Retry reloads
+  Joker/Hint inventory only and never mutates quantities by itself.
 * Live performance proof remains manual: login, open Profile, confirm Joker
   Çantası loads quickly, purchase/spend a joker, and confirm Profile/Solo counts
   refresh.

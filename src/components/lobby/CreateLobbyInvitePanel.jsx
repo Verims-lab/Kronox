@@ -16,6 +16,7 @@ import { loadOnlinePlayerSelection } from '@/lib/onlinePlayerSelection';
 import { PRESENCE_REFRESH_MS } from '@/lib/presence';
 import { getCompletedGuestCredentialsPayload } from '@/lib/guestProfile';
 import KronoxAvatar from '@/components/profile/KronoxAvatar';
+import { preserveSafeRowsOnTransientFailure } from '@/lib/transientRowState';
 
 /**
  * New create-lobby/invite screen shown when the user taps
@@ -90,8 +91,11 @@ export default function CreateLobbyInvitePanel({
       try {
         const rows = await loadOnlinePlayerSelection({ guestCredentials });
         if (!cancelled) setPlayers(rows || []);
-      } catch (err) {
-        if (!cancelled) setPlayersError(err?.message || 'Oyuncular yüklenemedi.');
+      } catch {
+        if (!cancelled) {
+          setPlayers((previousRows) => preserveSafeRowsOnTransientFailure(previousRows));
+          setPlayersError('Oyuncular yüklenemedi.');
+        }
       } finally {
         if (!cancelled && showLoading) setPlayersLoading(false);
       }
@@ -219,7 +223,10 @@ export default function CreateLobbyInvitePanel({
             setPlayersError('');
             loadOnlinePlayerSelection({ guestCredentials })
               .then((rows) => setPlayers(rows || []))
-              .catch((err) => setPlayersError(err?.message || 'Oyuncular yüklenemedi.'))
+              .catch(() => {
+                setPlayers((previousRows) => preserveSafeRowsOnTransientFailure(previousRows));
+                setPlayersError('Oyuncular yüklenemedi.');
+              })
               .finally(() => setPlayersLoading(false));
           }} />
         ) : players.length === 0 ? (

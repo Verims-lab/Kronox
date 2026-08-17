@@ -10,6 +10,7 @@ import {
 import { PRESENCE_REFRESH_MS } from '@/lib/presence';
 import { getCompletedGuestCredentialsPayload } from '@/lib/guestProfile';
 import KronoxAvatar from '@/components/profile/KronoxAvatar';
+import { preserveSafeRowsOnTransientFailure } from '@/lib/transientRowState';
 
 /**
  * Kronox Online — Friend Select Modal (Codex159 redesign).
@@ -74,8 +75,11 @@ export default function FriendSelectModal({
       try {
         const rows = await loadOnlinePlayerSelection({ guestCredentials });
         if (!cancelled) setPlayers(rows || []);
-      } catch (err) {
-        if (!cancelled) setError('Oyuncular yüklenemedi.');
+      } catch {
+        if (!cancelled) {
+          setPlayers((previousRows) => preserveSafeRowsOnTransientFailure(previousRows));
+          setError('Oyuncular yüklenemedi.');
+        }
       } finally {
         if (!cancelled && showLoading) setLoading(false);
       }
@@ -229,13 +233,17 @@ export default function FriendSelectModal({
                   compact
                   title="Oyuncular yüklenemedi."
                   message="Davet listesi şu anda güncellenemedi."
+                  actionLabel="Tekrar Dene"
                   onAction={() => {
                     sounds.tap();
                     setLoading(true);
                     setError('');
                     loadOnlinePlayerSelection({ guestCredentials })
                       .then((rows) => setPlayers(rows || []))
-                      .catch(() => setError('Oyuncular yüklenemedi.'))
+                      .catch(() => {
+                        setPlayers((previousRows) => preserveSafeRowsOnTransientFailure(previousRows));
+                        setError('Oyuncular yüklenemedi.');
+                      })
                       .finally(() => setLoading(false));
                   }}
                 />

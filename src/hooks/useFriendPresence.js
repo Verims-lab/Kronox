@@ -4,6 +4,7 @@ import {
   loadFriendPresence,
   PRESENCE_REFRESH_MS,
 } from '@/lib/presence';
+import { preserveSafeRowsOnTransientFailure } from '@/lib/transientRowState';
 
 export default function useFriendPresence(friends, { enabled = true, pollMs = PRESENCE_REFRESH_MS } = {}) {
   const [presenceByKey, setPresenceByKey] = useState({});
@@ -32,9 +33,10 @@ export default function useFriendPresence(friends, { enabled = true, pollMs = PR
       const next = await loadFriendPresence(friends);
       setPresenceByKey(next);
       return next;
-    } catch (err) {
-      setError(err?.message || 'Arkadaş durumu yüklenemedi.');
-      return {};
+    } catch {
+      setPresenceByKey((previousRows) => preserveSafeRowsOnTransientFailure(previousRows));
+      setError('Arkadaş durumu yüklenemedi.');
+      return null;
     } finally {
       setLoading(false);
     }

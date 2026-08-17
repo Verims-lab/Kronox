@@ -70,7 +70,7 @@ export const EXTRA_TESTS = [
   makeCase('profile_secondary_failure_local', 'Profile secondary inventory failure stays local', () => requireTokens(profileSource, [
     '<IdentityCard',
     '<JokerPocketSection',
-    'Joker ve İpucu bilgileri yüklenemedi.',
+    'Joker Çantası şu anda yüklenemedi.',
     'Profilinin diğer bölümlerini kullanmaya devam edebilirsin.',
   ], 'Inventory failure is contained to Joker Çantası while Profile identity and navigation remain available.')),
   makeCase('no_private_identifiers_in_error_surfaces', 'State surfaces do not render private identifiers', () => {

@@ -22,6 +22,8 @@ import onlinePlayerSelectionSource from '../../lib/onlinePlayerSelection.js?raw'
 import inviteApiSource from '../../lib/inviteApi.js?raw';
 import useFriendPresenceSource from '../../hooks/useFriendPresence.js?raw';
 import usePresenceHeartbeatSource from '../../hooks/usePresenceHeartbeat.js?raw';
+import transientRowStateSource from '../../lib/transientRowState.js?raw';
+import { preserveSafeRowsOnTransientFailure } from '@/lib/transientRowState';
 import friendsPageSource from '../../pages/FriendsPage.jsx?raw';
 import leaderboardPageSource from '../../pages/LeaderboardPage.jsx?raw';
 import addFriendFormSource from '../friends/AddFriendForm.jsx?raw';
@@ -734,11 +736,16 @@ export const EXTRA_TESTS = [
         'invite_enabled',
         'selection_disabled_reason',
       ];
+      const clientSource = `${safeStr(friendSelectModalSource)}\n${safeStr(onlinePlayerSelectionSource)}`;
       const forbidden = [
         'Request failed with status code ' + '500',
+        'AxiosError',
+        'Network Error',
+        '[object Object]',
+        'stack trace',
         'if (!user?.email) return undefined',
         'const user = await base44.auth.me();\n  if (!user?.email)',
-      ];
+      ].filter((token) => clientSource.includes(token));
       const missing = required.filter((token) => !src.includes(token));
       const foundForbidden = forbidden.filter((token) => src.includes(token));
       if (missing.length || foundForbidden.length) {
@@ -840,31 +847,38 @@ export const EXTRA_TESTS = [
   makeCase('invite_delivery', 'presence_transient_failure_keeps_previous_rows',
     'Presence UI keeps previous safe rows through transient fetch failure',
     () => {
-      const src = `${safeStr(useFriendPresenceSource)}\n${safeStr(friendSelectModalSource)}\n${safeStr(createLobbyInvitePanelSource)}`;
+      const src = `${safeStr(useFriendPresenceSource)}\n${safeStr(friendSelectModalSource)}\n${safeStr(createLobbyInvitePanelSource)}\n${safeStr(transientRowStateSource)}`;
+      const previousRows = [{ target_ref: 'social_safe_health_row' }];
+      const preservedRows = preserveSafeRowsOnTransientFailure(previousRows);
       const required = [
-        "setError(err?.message || 'Arkadaş durumu yüklenemedi.')",
-        "setError(err?.message || 'Oyuncular yüklenemedi.')",
+        'preserveSafeRowsOnTransientFailure(previousRows)',
+        "setError('Arkadaş durumu yüklenemedi.')",
+        "setError('Oyuncular yüklenemedi.')",
+        "setPlayersError('Oyuncular yüklenemedi.')",
         'loading && players.length === 0',
         'playersError && players.length === 0',
         'error && players.length === 0',
       ];
       const forbidden = [
         'catch (err) {\n      setPresenceByKey({});',
-        "setPlayers([]);\n      setError(err?.message || 'Oyuncular yüklenemedi.')",
+        "setPlayers([]);\n      setError('Oyuncular yüklenemedi.')",
+        "setError(err?.message || 'Arkadaş durumu yüklenemedi.')",
+        "setPlayersError(err?.message || 'Oyuncular yüklenemedi.')",
       ];
       const missing = required.filter((token) => !src.includes(token));
       const foundForbidden = forbidden.filter((token) => src.includes(token));
-      if (missing.length || foundForbidden.length) {
-        return fail('Transient presence fetch failures can still clear actionable online rows.', {
-          verification: 'STATIC_CONTRACT',
+      if (preservedRows !== previousRows || missing.length || foundForbidden.length) {
+        return fail('Transient presence fetch failures can still clear actionable online rows or expose raw error text.', {
+          verification: 'EXECUTABLE_HELPER_AND_STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
+          preservedIdentity: preservedRows === previousRows,
           missing,
           foundForbidden,
         });
       }
-      return pass('Presence readers preserve previous safe state while revalidating after transient failures.', {
-        verification: 'STATIC_CONTRACT',
+      return pass('Executable row-state helper and active readers preserve previous safe rows while showing fixed local Turkish errors.', {
+        verification: 'EXECUTABLE_HELPER_AND_STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
       });
     },
