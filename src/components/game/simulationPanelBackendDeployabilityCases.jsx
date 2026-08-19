@@ -25,6 +25,7 @@
 
 import deployedReportSource from '../../../base44/functions/sendQuestionAnalyticsReportEmail/entry.ts?raw';
 import packageJsonSource from '../../../package.json?raw';
+import packageLockJsonSource from '../../../package-lock.json?raw';
 import base44FunctionCompileScriptSource from '../../../scripts/checkBase44FunctionsCompile.mjs?raw';
 import adminResetUserProgressSource from '../../../base44/functions/adminResetUserProgress/entry.ts?raw';
 import adminResetDailyWheelStateSource from '../../../base44/functions/adminResetDailyWheelState/entry.ts?raw';
@@ -78,7 +79,6 @@ const STATUS = {
 const ACTION_TYPES = {
   CODE_FIX: 'CODE_FIX',
   BACKEND_RUNTIME_PROBE: 'BACKEND_RUNTIME_PROBE',
-  PACKAGE_LAYER_CHECK: 'PACKAGE_LAYER_CHECK',
 };
 
 const SUITE_ID = 'backend_deployability_health';
@@ -149,6 +149,14 @@ function missingTokens(source, tokens) {
 function forbiddenTokens(source, tokens) {
   const value = text(source);
   return tokens.filter((token) => value.includes(token));
+}
+
+function parseJsonSource(source) {
+  try {
+    return JSON.parse(text(source) || '{}');
+  } catch {
+    return {};
+  }
 }
 
 function pass(reason, extra = {}) { return { status: STATUS.PASS, reason, ...extra }; }
@@ -238,16 +246,20 @@ export const EXTRA_TESTS = [
         : fail('package.json Base44 SDK spec drifted from the exact supported pin.', { verification: 'EXECUTABLE', expected: '0.8.34', actual });
     }),
 
-  makeCase('base44_sdk_lockfile_proof_is_external',
-    'Package-lock SDK proof remains external when lockfile is unavailable in Base44',
-    () => notAutomatable('package.json is source-checked here, but this Base44 workspace does not expose package-lock.json; lockfile root/resolution proof must remain a package-layer check and must not be claimed by Health.', {
-      verification: 'NOT_AUTOMATABLE',
-      classification: 'STATIC_CHECK_LIMITATION',
-      actionType: ACTION_TYPES.PACKAGE_LAYER_CHECK,
-      expected: 'package-lock root and resolved @base44/sdk are exactly 0.8.34 when package-layer tooling is available',
-      actual: 'package-lock.json unavailable in this Base44 workspace',
+  makeCase('base44_sdk_lockfile_pin_is_exact',
+    'Package-lock root and resolved Base44 SDK are exactly pinned',
+    () => {
+      const parsed = parseJsonSource(packageLockJsonSource);
+      const rootPin = parsed?.packages?.['']?.dependencies?.['@base44/sdk'];
+      const resolvedVersion = parsed?.packages?.['node_modules/@base44/sdk']?.version;
+      return rootPin === '0.8.34' && resolvedVersion === '0.8.34'
+        ? pass('package-lock root and resolved @base44/sdk are exactly 0.8.34.', { verification: 'EXECUTABLE', classification: 'RUNTIME_PATH_VERIFIED' })
+        : fail('package-lock Base44 SDK root/resolved versions drifted from the exact supported pin.', {
+          verification: 'EXECUTABLE',
+          expected: { rootPin: '0.8.34', resolvedVersion: '0.8.34' },
+          actual: { rootPin, resolvedVersion },
+        });
     }),
-    { critical: false, actionType: ACTION_TYPES.PACKAGE_LAYER_CHECK, runtimeProofRequired: true }),
 
     makeCase('critical_base44_functions_have_no_shared_admin_auth_imports',
     'Critical Base44 functions have no deploy-risk shared adminAuth imports',

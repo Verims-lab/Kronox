@@ -1228,7 +1228,7 @@ The former frontend Admin `Yayın Hazırlığı / Release Readiness` checklist p
 
 ## Paket B5 — Closure Boundary
 
-Paket B closes with no entity, schema, migration, backend function, index, scheduler, cleanup, or persistence addition. The deploy checker validates exact editable SDK source and backend imports while treating unavailable package-lock resolution as external evidence rather than crashing. Platform uniqueness, live RLS/BOLA, deployment, secrets, devices, and parallel races remain manual.
+Paket B closes with no entity, schema, migration, backend function, index, scheduler, cleanup, or persistence addition. The deploy checker validates exact SDK source, committed lockfile root/resolution, and backend imports while retaining a safe missing-lock fallback for environments that omit the file. Platform uniqueness, live RLS/BOLA, deployment, secrets, devices, and parallel races remain manual.
 
 ## Future Health Coverage Recommendations
 

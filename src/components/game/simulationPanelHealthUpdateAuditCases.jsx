@@ -415,15 +415,17 @@ export const EXTRA_TESTS = [
       const required = [
         "const BASE44_SDK_VERSION = '0.8.34'",
         'packageJsonSource',
+        'packageLockJsonSource',
         'PACKAGE_LOCK_PROOF',
-        'packageLockAvailable: false',
-        "classification: 'MANUAL_EXTERNAL'",
+        'packageLockAvailable: true',
+        "classification: 'SOURCE_CONNECTED'",
         "fixOwner: 'Codex package / repo'",
         'const requiredPackage = `"@base44/sdk": "${BASE44_SDK_VERSION}"`',
         'const requiredDeno = `npm:@base44/sdk@${BASE44_SDK_VERSION}`',
         'CRITICAL_BASE44_FUNCTION_SDK_SOURCES',
         'package.json exact @base44/sdk pin',
-        'unavailable lockfile resolution remains external proof',
+        'package-lock.json root exact @base44/sdk pin',
+        'package-lock.json resolved @base44/sdk version',
         '"@base44/sdk": "^',
         'npm:@base44/sdk@0.8.25',
       ];
@@ -435,7 +437,7 @@ export const EXTRA_TESTS = [
           missing,
         });
       }
-      return pass('SDK exact-pin Health scans the accessible package.json and critical function imports while classifying unavailable package-lock proof as Codex package/repo manual-external evidence.', {
+      return pass('SDK exact-pin Health scans package.json, package-lock root/resolution, and critical function imports from active source files.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
