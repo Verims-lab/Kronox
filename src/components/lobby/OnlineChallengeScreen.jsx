@@ -171,6 +171,8 @@ export default function OnlineChallengeScreen({
   if (screen === 'invite-wait') {
     return (
       <PreGameHourglass
+        testId="online-invite-waiting-screen"
+        cancelTestId="online-invite-waiting-cancel"
         title="Arkadaşın Bekleniyor"
         subtitle="Davet ettiğin oyuncunun katılmasını bekliyoruz."
         durationMs={INVITE_WAIT_MS}
@@ -183,6 +185,8 @@ export default function OnlineChallengeScreen({
   if (screen === 'random-wait') {
     return (
       <PreGameHourglass
+        testId="online-waiting-screen"
+        cancelTestId="online-waiting-cancel"
         title="Rakip Aranıyor"
         subtitle="Rastgele bir oyuncuyla eşleştiriliyorsun."
         expiresAt={random.expiresAt}
@@ -197,6 +201,8 @@ export default function OnlineChallengeScreen({
   if (screen === 'duel-wait') {
     return (
       <PreGameHourglass
+        testId="duello-waiting-screen"
+        cancelTestId="duello-waiting-cancel"
         title={DUELLO_DISPLAY_NAME}
         subtitle="Rakip aranıyor. Aynı sorularla kapışmaya hazırlan."
         expiresAt={duel.expiresAt}
@@ -210,6 +216,7 @@ export default function OnlineChallengeScreen({
 
   return (
     <div
+      data-testid="online-screen"
       className="kx-a1-screen kx-a1-online fixed inset-0 flex flex-col text-white"
       style={{
         background:
@@ -249,6 +256,7 @@ export default function OnlineChallengeScreen({
 
         <div className="mt-5 space-y-3">
           <ModeButton
+            testId="online-invite-entry"
             icon={Users}
             label="Arkadaşını Davet Et"
             ariaLabel="Arkadaşını Davet Et"
@@ -257,6 +265,7 @@ export default function OnlineChallengeScreen({
             onClick={() => { sounds.tap(); setFriendModalOpen(true); }}
           />
           <ModeButton
+            testId="online-random-entry"
             icon={Shuffle}
             label="Rastgele Eşleş"
             ariaLabel="Rastgele Eşleş"
@@ -265,6 +274,7 @@ export default function OnlineChallengeScreen({
             onClick={handleStartRandom}
           />
           <ModeButton
+            testId="duello-entry"
             icon={Target}
             label={DUELLO_DISPLAY_NAME}
             ariaLabel="Duello — Duelloya Başla"
@@ -377,10 +387,11 @@ function DecorStar() {
 
 /* ----------------------------- Mode button ---------------------------- */
 
-function ModeButton({ icon: Icon, label, ariaLabel, hint, helper, action, disabled, onClick }) {
+function ModeButton({ icon: Icon, label, ariaLabel, hint, helper, action, disabled, onClick, testId }) {
   return (
     <motion.button
       type="button"
+      data-testid={testId}
       onClick={onClick}
       disabled={disabled}
       aria-label={ariaLabel || label}

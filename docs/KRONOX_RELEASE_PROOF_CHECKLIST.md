@@ -1532,3 +1532,27 @@ Manual release gates that source cannot prove:
 * Continue until one player reaches 10 backend-confirmed claims; verify terminal winner, loser, +15/-6 persistence, no duplicate score on refresh, and no Diamond/Daily/Store/Solo reward.
 * Confirm public UI and copied snapshots contain no email, guest token/id, owner/actor/internal player IDs, private row IDs, or remaining deck.
 * Run `Duello Health Suite` plus Online, shared-deck, result-authority, Privacy, BottomNav, build, lint, and Base44 function-count checks. Health PASS remains contract proof only.
+
+## Runtime E2E Automation V1
+
+* HealthCheck lists `Runtime E2E Automation Health Suite` as a separate,
+  expandable 10-scenario report. Full Run does not execute it, and its failures
+  do not alter core Health blocker/fail/warning counts.
+* Run `npm run health:e2e`; set `KRONOX_E2E_BASE_URL` for a deployed/staging
+  target or let the runner start local Vite. Use an isolated completed guest or
+  linked test storage state through `KRONOX_E2E_STORAGE_STATE`; never commit
+  credentials or storage-state files. Local backend-owned Solo proof also needs
+  `VITE_BASE44_APP_BASE_URL`; otherwise that scenario remains NOT_AUTOMATABLE.
+* Wheel spin, Diamond purchase, and matchmaking mutations stay disabled unless
+  the matching `KRONOX_E2E_ALLOW_*` gate is explicitly enabled for a resettable
+  non-production actor. Missing setup is NOT_AUTOMATABLE/NOT_RUN, not PASS.
+* Import `test-results/health-e2e/latest.json` into HealthCheck when the ignored
+  local public report is unavailable. Copy selected/all failures through the
+  redacted Automation Fail JSON controls. Inspect retained failure screenshot,
+  trace, console, and network evidence.
+* Duello requires two real isolated contexts, deterministic pairing, a
+  deterministic correct-claim fixture, one accepted backend claim, and
+  reconciled snapshots. Until those capabilities exist, its scenario remains
+  MANUAL_EXTERNAL. A route smoke must never be promoted to Duello PASS.
+* Runtime E2E improves repeatable screen proof but does not replace deployed
+  Base44, RLS/BOLA, real-device, store, push, race, or release evidence.

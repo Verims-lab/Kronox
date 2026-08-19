@@ -375,6 +375,7 @@ function CurrentSeviyeNode({ level, onSelect, laneSide }) {
     <div className="relative flex items-center" style={{ height: `${HERO_NODE_SIZE}px` }}>
       <motion.button
         type="button"
+        data-testid="solo-current-level-entry"
         onClick={onSelect}
         whileTap={{ scale: 0.96 }}
         animate={{ boxShadow: glowFrames }}

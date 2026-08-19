@@ -281,6 +281,7 @@ import * as paketBClosureCases from './simulationPanelPaketBClosureCases';
 import * as healthIntelligenceCases from './simulationPanelHealthIntelligenceCases';
 import * as automationHealthCases from './simulationPanelAutomationHealthCases';
 import * as healthProofIntegrityCases from './simulationPanelHealthProofIntegrityCases';
+import * as runtimeE2EAutomationCases from './simulationPanelRuntimeE2EAutomationCases';
 import { HEALTH_RETIRED_CASE_KEYS, HEALTH_RETIRED_SUITE_IDS } from './health/healthCatalog';
 
 const MODULES = [
@@ -364,6 +365,7 @@ const MODULES = [
   healthIntelligenceCases,
   automationHealthCases,
   healthProofIntegrityCases,
+  runtimeE2EAutomationCases,
 ];
 
 function flatten(key) {

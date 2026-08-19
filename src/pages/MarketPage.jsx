@@ -218,6 +218,7 @@ export default function MarketPage() {
 
   return (
     <main
+      data-testid="store-screen"
       className="kx-a1-screen kx-a1-market min-h-screen overflow-x-hidden overflow-y-auto text-white"
       style={{
         paddingTop: 'calc(4.25rem + env(safe-area-inset-top))',
@@ -484,6 +485,7 @@ function MarketProductCard({
 
   return (
     <motion.article
+      data-testid={product.priceType === MARKET_PRICE_TYPES.FUTURE_REAL_MONEY ? 'store-future-product' : undefined}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}

@@ -306,6 +306,7 @@ export default function GameLayout({
   return (
     <div
       ref={gameplayRootRef}
+      data-testid={isOnline ? 'online-game-screen' : 'solo-game-screen'}
       className={`kx-a1-screen kx-a1-game kx-viewport-lock kronox-gameplay-root flex flex-col ${isDragging ? 'kronox-game-drag-lock' : ''} ${showSoloQuestionSideRails ? 'kronox-solo-joker-right-layout' : ''}`}
       data-kronox-gameplay-root="true"
       data-kronox-solo-joker-right-layout={showSoloQuestionJokerRail ? 'true' : undefined}
@@ -400,6 +401,7 @@ export default function GameLayout({
               {onSoloBack ? (
                 <button
                   type="button"
+                  data-testid="solo-back-home"
                   aria-label="Geri dön"
                   onClick={() => {
                     sounds.tap();
@@ -582,6 +584,7 @@ export default function GameLayout({
 
         {currentQuestion && !winner ? (
           <div
+            data-testid={!isOnline ? 'solo-question-area' : undefined}
             className={showSoloQuestionSideRails ? 'grid w-full items-center' : 'flex w-full items-center justify-center'}
             data-kronox-solo-question-card-and-jokers={showSoloQuestionJokerRail ? 'true' : undefined}
             data-kronox-solo-question-card-and-hint={showSoloQuestionHintRail ? 'true' : undefined}

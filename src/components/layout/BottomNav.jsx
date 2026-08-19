@@ -59,6 +59,7 @@ export default function BottomNav() {
 
   return (
     <div
+      data-testid="bottom-nav"
       className="fixed bottom-0 left-0 right-0 z-[60] flex items-center justify-around"
       style={{
         paddingBottom: 'env(safe-area-inset-bottom)',
@@ -80,6 +81,7 @@ export default function BottomNav() {
         return (
           <button
             key={path}
+            data-testid={`bottom-nav-${path === '/' ? 'home' : path.slice(1)}`}
             onClick={() => handleTabClick(path)}
             className="kx-a1-pressable relative flex flex-col items-center justify-center gap-0.5 flex-1 h-full"
             style={{ touchAction: 'manipulation', minHeight: '56px' }}

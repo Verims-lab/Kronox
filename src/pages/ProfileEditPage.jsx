@@ -382,6 +382,7 @@ function GuestCategoryPreferenceNotice() {
 function ProfileEditShell({ children, onBack }) {
   return (
     <div
+      data-testid="profile-edit-screen"
       className="min-h-screen w-full max-w-full overflow-x-hidden bg-background text-white"
       style={{
         minHeight: '100dvh',
@@ -401,6 +402,7 @@ function ProfileEditShell({ children, onBack }) {
       >
         <button
           type="button"
+          data-testid="profile-edit-back"
           onClick={onBack}
           aria-label="Profile geri dön"
           className="absolute left-4 flex h-11 w-11 items-center justify-center rounded-full text-white active:scale-95"

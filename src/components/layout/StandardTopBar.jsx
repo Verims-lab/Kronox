@@ -89,6 +89,7 @@ export default function StandardTopBar({
       {!showBack && showMarket && (
         <button
           type="button"
+          data-testid="store-entry"
           onClick={handleMarket}
           aria-label="Mağaza"
           className="absolute flex h-10 w-10 items-center justify-center rounded-full active:scale-95 transition-transform"
