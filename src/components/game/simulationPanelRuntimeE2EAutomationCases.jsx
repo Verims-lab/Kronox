@@ -5,11 +5,15 @@ import harnessSource from '../../../tests/health-e2e/runtimeHarness.mjs?raw';
 import simulationPanelSource from './SimulationPanel.jsx?raw';
 import runtimePanelSource from './health/RuntimeE2EAutomationPanel.jsx?raw';
 import reportSource from '../../lib/health/runtimeE2EReport.js?raw';
+import capabilitySource from '../../lib/health/runtimeE2ECapabilities.js?raw';
 import scenarioRegistrySource from '../../lib/health/runtimeE2EScenarios.js?raw';
 import { HEALTH_GAP_ANALYSIS_DOC, RELEASE_PROOF_CHECKLIST_DOC } from '@/lib/healthAlignmentDocMirrors';
 import {
   AUTOMATION_STATUS,
+  BACKEND_PREFLIGHT_STATUS,
+  buildAllAutomationSetupGapsJson,
   buildAutomationFailureJson,
+  classifyRuntimeDiagnostic,
   createNotRunAutomationReport,
   normalizeRuntimeE2EReport,
 } from '@/lib/health/runtimeE2EReport';
@@ -58,10 +62,10 @@ export const EXTRA_TESTS = [
       : fail('Runtime E2E suite registration is missing or not display-only.', { suite: RUNTIME_E2E_SUITE });
   }),
 
-  makeCase('max_10_scenarios', 'Runtime E2E V1 registry contains exactly 10 and never more than 10 scenarios', () => (
+  makeCase('max_10_scenarios', 'Runtime E2E V2 registry contains exactly 10 and never more than 10 scenarios', () => (
     RUNTIME_E2E_SCENARIOS.length === 10
-      ? pass('The V1 registry contains exactly 10 scenarios.', { actual: RUNTIME_E2E_SCENARIOS.length })
-      : fail('Runtime E2E V1 must contain exactly 10 scenarios.', { actual: RUNTIME_E2E_SCENARIOS.length, maximum: 10 })
+      ? pass('The V2 registry contains exactly 10 scenarios.', { actual: RUNTIME_E2E_SCENARIOS.length })
+      : fail('Runtime E2E V2 must contain exactly 10 scenarios.', { actual: RUNTIME_E2E_SCENARIOS.length, maximum: 10 })
   )),
 
   makeCase('full_run_excludes_runtime_automation', 'Full Health Run cannot execute runtime browser automation', () => {
@@ -209,5 +213,191 @@ export const EXTRA_TESTS = [
     return absent.length
       ? fail('Failure artifact/log capture is incomplete.', { missing: absent })
       : pass('Failure-only screenshot/trace paths plus bounded console/network diagnostics are written to ignored test-results.');
+  }),
+
+  makeCase('preflight_exists', 'Runtime E2E V2 runs an explicit backend/app capability preflight', () => {
+    const absent = missing(`${runnerSource}\n${reportSource}`, [
+      'runRuntimePreflight',
+      'configuredBaseUrl',
+      'pageOrigin',
+      'appConfigAvailable',
+      'base44AppReachable',
+      'serviceSummary',
+    ]);
+    return absent.length
+      ? fail('Runtime E2E V2 preflight evidence is incomplete.', { missing: absent })
+      : pass('The runner records safe app-document, app-config, backend, origin, and service preflight evidence.');
+  }),
+
+  makeCase('scenario_capabilities_declared', 'Every Runtime E2E scenario declares explicit required capabilities', () => {
+    const missingDeclarations = RUNTIME_E2E_SCENARIOS
+      .filter((scenario) => !Array.isArray(scenario.requiredCapabilities) || scenario.requiredCapabilities.length < 3)
+      .map((scenario) => scenario.scenarioId);
+    const absent = missing(`${scenarioRegistrySource}\n${capabilitySource}`, [
+      'base44Backend',
+      'guestBootstrap',
+      'questionBootstrap',
+      'soloQuestionService',
+      'authenticatedStorage',
+      'safeMatchmakingQueue',
+      'deterministicTwoActorPairing',
+      'deterministicClaimFixture',
+    ]);
+    return !missingDeclarations.length && !absent.length
+      ? pass('All 10 scenarios declare capability-owned preflight requirements.', { scenarioCount: RUNTIME_E2E_SCENARIOS.length })
+      : fail('Scenario capability declarations are incomplete.', { missingDeclarations, missing: absent });
+  }),
+
+  makeCase('app_not_found_blocks_backend_pass', 'Base44 App not found can never produce a backend-dependent PASS', () => {
+    const definition = RUNTIME_E2E_SCENARIOS.find((item) => item.scenarioId === 'runtime_e2e.solo_gameplay_smoke');
+    const evidence = {
+      executionId: 'health-app-not-found',
+      browserName: 'chromium health',
+      pageOrigin: 'https://runtime.health.test',
+      backendPreflight: { status: BACKEND_PREFLIGHT_STATUS.APP_NOT_FOUND },
+    };
+    const normalized = normalizeRuntimeE2EReport({
+      runId: 'health-app-not-found',
+      startedAt: new Date().toISOString(),
+      finishedAt: new Date().toISOString(),
+      configuredBaseUrl: 'https://runtime.health.test',
+      pageOrigin: 'https://runtime.health.test',
+      preflight: { status: BACKEND_PREFLIGHT_STATUS.APP_NOT_FOUND },
+      executionEvidence: evidence,
+      scenarios: [{
+        scenarioId: definition.scenarioId,
+        status: AUTOMATION_STATUS.PASS,
+        executionEvidence: evidence,
+        consoleErrors: ['[Base44 SDK Error] 404: App not found'],
+        steps: definition.steps.map((step) => ({ ...step, status: AUTOMATION_STATUS.PASS, durationMs: 1 })),
+      }],
+    }, 'Health-test');
+    const result = normalized.scenarios.find((item) => item.scenarioId === definition.scenarioId);
+    return result?.status === AUTOMATION_STATUS.NOT_AUTOMATABLE
+      && result.failureCategory === 'BACKEND_PREFLIGHT_APP_NOT_FOUND'
+      && /configured Base44 app was not found/i.test(result.statusReason)
+      ? pass('A fabricated backend PASS is deterministically demoted to an App-not-found setup gap.')
+      : fail('Backend PASS survived an App-not-found diagnostic.', { result });
+  }),
+
+  makeCase('ui_only_pass_labeled_ui_only', 'UI-only PASS under a missing backend is explicitly browser-only', () => {
+    const definition = RUNTIME_E2E_SCENARIOS.find((item) => item.scenarioId === 'runtime_e2e.bottom_nav_route_sync');
+    const evidence = {
+      executionId: 'health-ui-only',
+      browserName: 'chromium health',
+      pageOrigin: 'https://runtime.health.test',
+      backendPreflight: { status: BACKEND_PREFLIGHT_STATUS.APP_NOT_FOUND },
+    };
+    const normalized = normalizeRuntimeE2EReport({
+      runId: 'health-ui-only',
+      startedAt: new Date().toISOString(),
+      finishedAt: new Date().toISOString(),
+      configuredBaseUrl: 'https://runtime.health.test',
+      pageOrigin: 'https://runtime.health.test',
+      preflight: { status: BACKEND_PREFLIGHT_STATUS.APP_NOT_FOUND },
+      executionEvidence: evidence,
+      scenarios: [{
+        scenarioId: definition.scenarioId,
+        status: AUTOMATION_STATUS.PASS,
+        executionEvidence: evidence,
+        steps: definition.steps.map((step) => ({ ...step, status: AUTOMATION_STATUS.PASS, durationMs: 1 })),
+      }],
+    }, 'Health-test');
+    const result = normalized.scenarios.find((item) => item.scenarioId === definition.scenarioId);
+    return result?.status === AUTOMATION_STATUS.PASS
+      && result.uiOnly === true
+      && result.backendDependent === false
+      && result.statusReason.includes('Browser-only')
+      ? pass('The UI-only PASS remains valid and explicitly disclaims backend proof.')
+      : fail('UI-only PASS labeling is ambiguous.', { result });
+  }),
+
+  makeCase('solo_requires_question_bootstrap', 'Solo automation requires backend and question bootstrap capabilities', () => {
+    const solo = RUNTIME_E2E_SCENARIOS.find((item) => item.scenarioId === 'runtime_e2e.solo_gameplay_smoke');
+    const required = ['base44Backend', 'questionBootstrap', 'soloQuestionService'];
+    const absent = required.filter((item) => !solo?.requiredCapabilities.includes(item));
+    const handlerMissing = missing(handlerSource, ['safeRecovery', 'Solo question bootstrap reached a safe recovery state', '35000']);
+    return !absent.length && !handlerMissing.length
+      ? pass('Solo is capability-gated and waits for gameplay, safe recovery, or a bounded diagnostic failure.')
+      : fail('Solo can still rely on a blind selector timeout.', { missingCapabilities: absent, missingHandlerTokens: handlerMissing });
+  }),
+
+  makeCase('online_requires_authenticated_storage_or_guest_policy', 'Online automation requires authenticated storage and an explicit safe queue gate', () => {
+    const online = RUNTIME_E2E_SCENARIOS.find((item) => item.scenarioId === 'runtime_e2e.online_random_waiting_cancel_smoke');
+    const required = ['authenticatedStorage', 'onlineMatchmaking', 'safeMatchmakingQueue'];
+    const absent = required.filter((item) => !online?.requiredCapabilities.includes(item));
+    return !absent.length && runnerSource.includes('KRONOX_E2E_ALLOW_MATCHMAKING')
+      ? pass('Online cannot run from labels alone; actor storage and queue mutation are explicit gates.')
+      : fail('Online actor/matchmaking setup gate drifted.', { missing: absent });
+  }),
+
+  makeCase('duello_two_context_requires_real_pairing', 'Duello two-context proof requires real pairing and claim fixtures', () => {
+    const duello = RUNTIME_E2E_SCENARIOS.find((item) => item.scenarioId === 'runtime_e2e.duello_two_context_runtime_sync');
+    const required = ['twoBrowserContexts', 'twoIsolatedActors', 'deterministicTwoActorPairing', 'deterministicClaimFixture'];
+    const absent = required.filter((item) => !duello?.requiredCapabilities.includes(item));
+    return !absent.length && handlerSource.includes('AUTOMATION_STATUS.MANUAL_EXTERNAL')
+      ? pass('Duello remains manual/external until two real actors, deterministic pairing, and claim proof exist.')
+      : fail('Duello can be promoted without real two-actor authority evidence.', { missing: absent });
+  }),
+
+  makeCase('console_error_classifier_exists', 'Critical Base44 console/config errors have a safe classifier', () => {
+    const classified = classifyRuntimeDiagnostic('User auth check failed: Base44Error: App not found');
+    const absent = missing(reportSource, ['RUNTIME_DIAGNOSTIC_CATEGORY', 'ACTOR_BOOTSTRAP_CONFIG_FAILURE', 'summarizeRuntimeConsoleErrors']);
+    return classified.critical === true && !absent.length
+      ? pass('App-not-found and actor-bootstrap config errors become critical safe summaries.')
+      : fail('Critical runtime diagnostic classification is incomplete.', { classified, missing: absent });
+  }),
+
+  makeCase('report_includes_preflight_and_capabilities', 'Runtime report V2 includes preflight and capability evidence', () => {
+    const report = createNotRunAutomationReport('Health-test');
+    const required = ['preflight', 'environment', 'capabilitySummary', 'configuredBaseUrl', 'pageOrigin', 'backendAvailable', 'appConfigAvailable', 'base44AppReachable'];
+    const absent = required.filter((key) => !(key in report));
+    const scenarioAbsent = ['requiredCapabilities', 'capabilityStatus', 'backendDependent', 'uiOnly', 'preflightDecision', 'statusReason', 'safeSetupInstructions']
+      .filter((key) => !(key in report.scenarios[0]));
+    return report.version === 2 && !absent.length && !scenarioAbsent.length
+      ? pass('Top-level and per-scenario V2 proof fields are present.')
+      : fail('Runtime report V2 schema is incomplete.', { missingTopLevel: absent, missingScenario: scenarioAbsent });
+  }),
+
+  makeCase('base_url_origin_is_meaningful', 'Runtime report records absolute configured URL and page origin', () => {
+    const normalized = normalizeRuntimeE2EReport({
+      configuredBaseUrl: 'https://runtime.health.test/app?private=value',
+      pageOrigin: 'https://runtime.health.test',
+    }, 'Health-test');
+    return normalized.configuredBaseUrl === 'https://runtime.health.test/app'
+      && normalized.pageOrigin === 'https://runtime.health.test/'
+      && normalized.pageOrigin !== '/'
+      ? pass('URL evidence preserves a meaningful sanitized origin/path instead of collapsing to slash.')
+      : fail('URL/origin evidence is not meaningful.', { configuredBaseUrl: normalized.configuredBaseUrl, pageOrigin: normalized.pageOrigin });
+  }),
+
+  makeCase('setup_gap_json_copy_exists', 'Setup-gap and failure JSON are copyable from Runtime E2E UI', () => {
+    const sample = createNotRunAutomationReport('Health-test');
+    sample.runId = 'health-setup-gap';
+    sample.scenarios[0] = {
+      ...sample.scenarios[0],
+      status: AUTOMATION_STATUS.NOT_AUTOMATABLE,
+      failureCategory: 'AUTOMATION_SETUP_GAP',
+    };
+    const payload = buildAllAutomationSetupGapsJson(sample);
+    const absent = missing(runtimePanelSource, [
+      'Copy JSON - Automation Fail',
+      'Copy JSON - Setup Gap',
+      'Copy JSON - Full Automation Report',
+    ]);
+    return payload.setupGaps.length === 1 && !absent.length
+      ? pass('Health UI exports selected failures/setup gaps, all setup gaps, and the full sanitized report.')
+      : fail('Setup-gap JSON copy contract is incomplete.', { missing: absent, payload });
+  }),
+
+  makeCase('full_run_still_excludes_e2e', 'Full Health Run still excludes Runtime E2E automation', () => {
+    const absent = missing(simulationPanelSource, [
+      'const DISPLAY_SUITES = [...SUITES, RUNTIME_E2E_SUITE]',
+      "const runAll = () => runPack('full')",
+      'if (runtimeAutomationSelected) return',
+    ]);
+    return RUNTIME_E2E_SUITE.fullRunExcluded === true && !absent.length
+      ? pass('Runtime browser automation remains a separate report and cannot enter Full Run counts.')
+      : fail('Full Run/E2E separation drifted.', { missing: absent });
   }),
 ];

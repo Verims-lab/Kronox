@@ -280,15 +280,34 @@ async function soloSmoke(runtime, config) {
     return 'Home OYNA opened the real Solo level map and the current playable level requested /game.';
   });
   await runtime.step('solo.root', async () => {
-    try {
-      await expectVisible(runtime.page, '[data-testid="solo-game-screen"]', 50000);
-    } catch (error) {
-      if (!config.hasBackendService) {
-        throw new AutomationSetupGap('Local Solo question preparation has no VITE_BASE44_APP_BASE_URL; rerun against a configured preview or deployed URL.');
+    requireCapability(
+      config.hasBackendService,
+      'Solo question bootstrap is unavailable because Base44 preflight did not reach the configured app.',
+    );
+    const gameplay = runtime.page.locator('[data-testid="solo-game-screen"]').first();
+    const safeRecovery = runtime.page.getByText(
+      /Sorular yüklenemedi|Şu anda aktif soru bulunamadı|İnternet bağlantısı yok|Oyun için en az 10 soru gerekli/i,
+    ).first();
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < 35000) {
+      if (await gameplay.isVisible().catch(() => false)) {
+        return 'Solo gameplay root rendered after real question preparation.';
       }
-      throw error;
+      if (await safeRecovery.isVisible().catch(() => false)) {
+        const blockingText = String(await safeRecovery.innerText().catch(() => 'Question bootstrap recovery state'))
+          .replace(/\s+/g, ' ')
+          .slice(0, 180);
+        throw new AutomationSetupGap(
+          `Solo question bootstrap reached a safe recovery state on ${runtime.safeRoute() || 'unknown route'}: ${blockingText}.`,
+        );
+      }
+      await runtime.page.waitForTimeout(250);
     }
-    return 'Solo gameplay root rendered after question preparation.';
+    const route = runtime.safeRoute() || 'unknown route';
+    const visibleText = String(await runtime.page.locator('body').innerText().catch(() => 'No visible blocking text.'))
+      .replace(/\s+/g, ' ')
+      .slice(0, 240);
+    throw new Error(`Solo gameplay root did not appear after bounded question preparation. Route: ${route}. Visible state: ${visibleText}`);
   });
   await runtime.step('solo.question', async () => {
     await expectVisible(runtime.page, '[data-testid="solo-question-area"]');

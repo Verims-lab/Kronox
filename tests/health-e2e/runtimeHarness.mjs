@@ -3,6 +3,7 @@ import path from 'node:path';
 import {
   AUTOMATION_STATUS,
   sanitizeAutomationValue,
+  summarizeRuntimeConsoleErrors,
 } from '../../src/lib/health/runtimeE2EReport.js';
 
 export class AutomationSetupGap extends Error {
@@ -37,15 +38,17 @@ export class RuntimeScenarioHarness {
     this.consoleErrors = [];
     this.networkErrors = [];
     this.failedStep = null;
+    this.setupStep = null;
     this.setupStatus = null;
     this.setupReason = '';
     this.tracePath = null;
     this.authorityEvidence = null;
 
     page.on('console', (message) => {
-      if (message.type() === 'error') this.consoleErrors.push(message.text());
+      if (message.type() === 'error' && this.consoleErrors.length < 50) this.consoleErrors.push(message.text());
     });
     page.on('requestfailed', (request) => {
+      if (this.networkErrors.length >= 50) return;
       this.networkErrors.push({
         method: request.method(),
         url: request.url(),
@@ -79,16 +82,27 @@ export class RuntimeScenarioHarness {
         const status = error instanceof AutomationSetupGap
           ? error.automationStatus
           : AUTOMATION_STATUS.NOT_AUTOMATABLE;
-        this.stepResults.push({
+        let screenshotPath = null;
+        if (error instanceof AutomationSetupGap && definition.required !== false && options.optional !== true) {
+          const setupScreenshotPath = path.join(this.artifactDir, `${this.definition.scenarioId.replace(/[^a-z0-9]+/gi, '-')}-setup-gap.png`);
+          try {
+            await this.page.screenshot({ path: setupScreenshotPath, fullPage: true });
+            screenshotPath = relativeArtifactPath(setupScreenshotPath);
+          } catch (_) {}
+        }
+        const setupStep = {
           ...definition,
           status,
           actual: error?.message || options.notAutomatableReason || 'Optional capability is unavailable.',
           route: this.safeRoute(),
           durationMs: Date.now() - startedMs,
-          screenshotPath: null,
+          failureCategory: 'AUTOMATION_SETUP_GAP',
+          screenshotPath,
           tracePath: null,
-        });
+        };
+        this.stepResults.push(setupStep);
         if (definition.required !== false && options.optional !== true) {
+          this.setupStep = setupStep;
           this.setupStatus = status;
           this.setupReason = error?.message || 'Required automation setup is unavailable.';
           throw error;
@@ -106,6 +120,7 @@ export class RuntimeScenarioHarness {
         actual: error?.message || 'Automation assertion failed.',
         route: this.safeRoute(),
         durationMs: Date.now() - startedMs,
+        failureCategory: this.definition.failureCategories[0],
         screenshotPath: relativeArtifactPath(screenshotPath),
         tracePath: null,
       };
@@ -132,6 +147,7 @@ export class RuntimeScenarioHarness {
         actual,
         route: this.safeRoute(),
         durationMs: null,
+        failureCategory: status === AUTOMATION_STATUS.NOT_RUN ? null : 'AUTOMATION_SETUP_GAP',
         screenshotPath: null,
         tracePath: this.tracePath,
       });
@@ -141,6 +157,7 @@ export class RuntimeScenarioHarness {
   attachTrace(tracePath) {
     this.tracePath = relativeArtifactPath(tracePath);
     if (this.failedStep) this.failedStep.tracePath = this.tracePath;
+    if (this.setupStep) this.setupStep.tracePath = this.tracePath;
   }
 
   result(error) {
@@ -160,6 +177,7 @@ export class RuntimeScenarioHarness {
       ? error.automationStatus
       : (error ? AUTOMATION_STATUS.FAIL : (allRequiredPassed ? AUTOMATION_STATUS.PASS : AUTOMATION_STATUS.NOT_AUTOMATABLE));
 
+    const consoleErrorSummary = summarizeRuntimeConsoleErrors(this.consoleErrors);
     return sanitizeAutomationValue({
       scenarioId: this.definition.scenarioId,
       scenarioTitle: this.definition.title,
@@ -180,12 +198,16 @@ export class RuntimeScenarioHarness {
       authorityEvidence: this.authorityEvidence,
       steps: this.stepResults,
       consoleErrors: this.consoleErrors,
+      consoleErrorSummary,
+      criticalConsoleErrors: consoleErrorSummary.items.filter((item) => item.critical),
       networkErrors: this.networkErrors,
       relatedFiles: [],
       safeReproductionSteps: this.definition.steps.map((item) => item.action),
       nextAction: status === AUTOMATION_STATUS.PASS
         ? 'Keep the scenario in the separate runtime automation gate.'
         : this.definition.manualFallback,
+      screenshotPath: this.failedStep?.screenshotPath || this.setupStep?.screenshotPath || null,
+      tracePath: this.failedStep?.tracePath || this.setupStep?.tracePath || null,
     });
   }
 }

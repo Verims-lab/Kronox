@@ -772,13 +772,13 @@ Status: Active product contract.
 - two-account preference RLS proof remains manual/NOT_AUTOMATABLE.
 - old UserSubCategoryPreference rows are retained but not used by the current Profile Info preference UI.
 
-## Runtime E2E Automation Health Suite V1
+## Runtime E2E Automation Health Suite V2
 - HealthCheck lists a display-only Runtime E2E Automation Health Suite with 10 registry-owned screen scenarios. Full Run does not execute it, and automation output never increments core Health blocker/fail/warning counts.
-- Run npm run health:e2e. The runner uses an isolated real Chromium context, writes an ignored test-results/health-e2e/latest.json report, and retains screenshot/trace plus bounded console/network diagnostics for real failures.
-- Use KRONOX_E2E_BASE_URL for a configured preview/deployment. Local backend-owned Solo question proof requires VITE_BASE44_APP_BASE_URL; without it the Solo scenario remains NOT_AUTOMATABLE.
-- HealthCheck shows separate automationPassed, automationFailed, automationNotRun, automationNotAutomatable, and automationManualExternal counters, expandable step evidence, report import, and redacted selected/all Automation Fail JSON copy controls.
+- Run npm run health:e2e. The runner uses isolated real Chromium contexts, writes an ignored test-results/health-e2e/latest.json report, and retains screenshot/trace plus bounded safe diagnostics for real failures.
+- Use KRONOX_E2E_BASE_URL for a preview/deployment. Base44 app identity requires VITE_BASE44_APP_ID or approved app_id bootstrap; VITE_BASE44_APP_BASE_URL/app_base_url selects the endpoint. An endpoint alone is not app identity. The current local setup has an app base URL but no app ID, so backend scenarios remain setup-gated.
+- V2 preflight records sanitized configured/page URL, origin/route, document load, app config, Base44 reachability, safe service summaries, actor/fixture presence, and mutation-gate booleans. HealthCheck shows separate automation counters, expandable capability/step evidence, report import, selected failure/setup-gap JSON, all setup-gap JSON, and full-report JSON.
 - Home-owned scenarios use an isolated completed guest or linked test actor supplied through KRONOX_E2E_STORAGE_STATE. Credentials are never hardcoded. Mutation-prone wheel, Diamond purchase, and matchmaking steps require explicit KRONOX_E2E_ALLOW_* gates.
-- Every scenario is explicitly UI_ONLY or BACKEND_DEPENDENT. The runner records a redacted Base44 preflight; App not found, missing configuration, unreachable, or unconfirmed Base44 state cannot PASS a backend-dependent scenario. Solo, Online, and Duello are backend-dependent. Missing browser, safe actor state, or deterministic fixture remains NOT_AUTOMATABLE/NOT_RUN. Duello stays MANUAL_EXTERNAL until two real contexts prove deterministic pairing, one accepted backend claim, and snapshot reconciliation. Health PASS is not release-ready proof while manual/external gates remain.
+- Every scenario declares required/optional capabilities and is UI_ONLY or BACKEND_DEPENDENT. App not found, missing app ID/configuration, unreachable, or unknown Base44 state cannot PASS a backend-dependent scenario. UI-only BottomNav/Store PASS is explicitly browser-only and not backend proof. Online needs KRONOX_E2E_STORAGE_STATE plus KRONOX_E2E_ALLOW_MATCHMAKING=true. Duello may declare A/B actor fixtures through KRONOX_E2E_STORAGE_STATE_A/B but stays MANUAL_EXTERNAL until deterministic pairing and correct-claim fixtures prove two contexts, one accepted claim, and reconciled snapshots.
 `;
 
 export const RELEASE_PROOF_CHECKLIST_DOC = `# Kronox Release Proof Checklist
@@ -1011,13 +1011,13 @@ The Profile Info Category preference surface is custom touch UI with no raw nati
 Mobile wrapping/long-name visual proof and two-account preference RLS proof
 remain manual/NOT_AUTOMATABLE.
 
-## Runtime E2E Automation V1
+## Runtime E2E Automation V2
 - Runtime E2E Automation Health Suite is a separate expandable 10-scenario report. Full Run does not execute it and its failures do not alter core blocker/fail/warning counts.
-- Run npm run health:e2e. KRONOX_E2E_BASE_URL may select staging; KRONOX_E2E_STORAGE_STATE supplies an isolated completed guest or linked test actor without committed credentials. Local Solo question proof also needs VITE_BASE44_APP_BASE_URL or remains NOT_AUTOMATABLE.
-- Scenarios declare UI_ONLY or BACKEND_DEPENDENT. A redacted preflight records app config and Base44 reachability; Base44 App not found, missing config, unreachable, or unknown backend status demotes backend-dependent execution to a setup gap and can never be PASS. Solo, Online, and Duello are backend-dependent.
+- Run npm run health:e2e. KRONOX_E2E_BASE_URL may select staging; KRONOX_E2E_STORAGE_STATE supplies an isolated completed guest or linked test actor without committed credentials. VITE_BASE44_APP_ID/app_id supplies app identity and VITE_BASE44_APP_BASE_URL/app_base_url selects the endpoint; an endpoint alone is not app identity.
+- Scenarios declare required/optional capabilities and UI_ONLY or BACKEND_DEPENDENT scope. A redacted V2 preflight records app document/config, URL/origin/route, Base44/service reachability, actor fixtures, and mutation gates. Base44 App not found, missing app ID/config, unreachable, or unknown backend status becomes AUTOMATION_SETUP_GAP and can never PASS a backend-dependent scenario. UI-only PASS explicitly disclaims backend proof.
 - Wheel, Diamond-purchase, and matchmaking mutations require their explicit KRONOX_E2E_ALLOW_* gate. Missing setup is NOT_AUTOMATABLE/NOT_RUN, never PASS.
-- Import test-results/health-e2e/latest.json into HealthCheck when needed. Selected/all failed scenarios expose redacted Automation Fail JSON and failure-only screenshot/trace evidence.
-- Duello remains MANUAL_EXTERNAL until deterministic two-context pairing and correct-claim fixtures prove one backend winner and reconciled snapshots. Runtime E2E does not replace Base44 deploy, RLS/BOLA, device, store, push, race, or release proof.
+- Import test-results/health-e2e/latest.json into HealthCheck when needed. Selected failure/setup-gap, all setup gaps, and the full sanitized report are copyable; real failures retain route/text plus screenshot/trace evidence.
+- Online requires KRONOX_E2E_STORAGE_STATE and KRONOX_E2E_ALLOW_MATCHMAKING=true. Duello A/B actor storage may be declared through KRONOX_E2E_STORAGE_STATE_A/B, but Duello remains MANUAL_EXTERNAL until deterministic pairing and correct-claim fixtures prove one backend winner and reconciled snapshots. Full Run does not execute E2E and E2E counters never alter Health blocker/fail/warning counts.
 `;
 
 export const CATEGORY_TAXONOMY_DOC = `# Kronox Category Taxonomy
