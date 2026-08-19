@@ -39,16 +39,21 @@ export function canonicalizeHealthCases(cases) {
   ));
 }
 
-export const HEALTH_RETIRED_CASE_KEYS = new Set([
-  'timeline_hit_testing.drop_zone_rects_measurable',
-  'timeline_hit_testing.drop_zone_rects_ordered',
-  'timeline_hit_testing.no_zero_width_drop_zones',
-  'timeline_hit_testing.timeline_scroll_no_page_scroll',
-  'visual_guardrails.no_subjective_beauty_pass',
-  'fantasy_visual_update.subjective_beauty',
-  'historical_kronox_regression.duplicate_lobby_title_contract',
-  'random_matchmaking_health.runtime_random_matchmaking_not_detected',
-]);
+export const HEALTH_RETIRED_CASES = [
+  { key: 'timeline_hit_testing.drop_zone_rects_measurable', replacementCaseKey: 'mobile_safety.timeline_geometry_runtime_manual', reason: 'Duplicate DOM-manual proof.' },
+  { key: 'timeline_hit_testing.drop_zone_rects_ordered', replacementCaseKey: 'mobile_safety.timeline_geometry_runtime_manual', reason: 'Duplicate DOM-manual proof.' },
+  { key: 'timeline_hit_testing.no_zero_width_drop_zones', replacementCaseKey: 'mobile_safety.timeline_geometry_runtime_manual', reason: 'Duplicate DOM-manual proof.' },
+  { key: 'timeline_hit_testing.timeline_scroll_no_page_scroll', replacementCaseKey: 'mobile_safety.timeline_geometry_runtime_manual', reason: 'Duplicate DOM-manual proof.' },
+  { key: 'visual_guardrails.no_subjective_beauty_pass', replacementCaseKey: 'visual_composition_regression.no_subjective_beauty_pass', reason: 'Duplicate subjective visual guard.' },
+  { key: 'fantasy_visual_update.subjective_beauty', replacementCaseKey: 'visual_composition_regression.no_subjective_beauty_pass', reason: 'Duplicate subjective visual guard.' },
+  { key: 'historical_kronox_regression.duplicate_lobby_title_contract', replacementCaseKey: 'online_challenge.current_lobby_copy', reason: 'Stale duplicate lobby-title check.' },
+  { key: 'random_matchmaking_health.runtime_random_matchmaking_not_detected', replacementCaseKey: 'random_matchmaking_health.runtime_random_matchmaking_detected', reason: 'Obsolete negative matchmaking warning.' },
+  { key: 'health_intelligence.catalog_ids_and_targets_valid', replacementCaseKey: 'health_proof_integrity.unique_suite_and_case_ids', reason: 'Consolidated into the dedicated proof-integrity suite.' },
+  { key: 'health_intelligence.retired_cases_are_absent', replacementCaseKey: 'health_proof_integrity.no_dead_string_proof', reason: 'Consolidated into the dedicated proof-integrity suite.' },
+  { key: 'health_intelligence.run_packs_have_cases', replacementCaseKey: 'health_proof_integrity.unique_suite_and_case_ids', reason: 'Pack emptiness is part of the catalog identity audit.' },
+];
+
+export const HEALTH_RETIRED_CASE_KEYS = new Set(HEALTH_RETIRED_CASES.map((item) => item.key));
 
 export const HEALTH_PACKS = [
   { id: 'quick_smoke', label: 'Quick Smoke', pattern: /environment|report_integrity|health_intelligence|paket_b_closure/ },
@@ -74,11 +79,25 @@ export function getHealthPackCases(tests, packId) {
 
 export function deriveProofQuality(item = {}) {
   const labels = [item.verification, item.classification, ...(item.verificationLabels || [])].join(' ').toUpperCase();
-  if (item.status === 'NOT_AUTOMATABLE' || /MANUAL|EXTERNAL|TWO_ACCOUNT|DEVICE/.test(labels)) return 'MANUAL_EXTERNAL';
+  if (['NOT_AUTOMATABLE', 'MANUAL_REQUIRED'].includes(item.status) || /MANUAL|EXTERNAL|TWO_ACCOUNT|DEVICE/.test(labels)) return 'MANUAL_EXTERNAL';
   if (/RUNTIME_VERIFIED|EXECUTABLE|SIMULATION/.test(labels)) return 'EXECUTABLE';
   if (/STATIC_CONTRACT|SOURCE/.test(labels) && deriveRelatedFiles(item).length) return 'SOURCE_CONNECTED';
   if (/STATIC/.test(labels)) return 'STATIC_ONLY';
   return 'UNCLASSIFIED';
+}
+
+export function deriveEvidenceClassification(item = {}, labels = [], relatedFiles = deriveRelatedFiles(item)) {
+  const normalized = labels.map((label) => String(label || '').toUpperCase());
+  const explicitClassification = String(item.classification || '').toUpperCase();
+  const joined = [...normalized, explicitClassification].join(' ');
+  if (['NOT_AUTOMATABLE', 'MANUAL_REQUIRED'].includes(item.status) || /MANUAL|EXTERNAL|TWO_ACCOUNT|DEVICE/.test(joined)) return 'MANUAL_EXTERNAL';
+  if (item.classification) return item.classification;
+  if (normalized.includes('STATIC_CHECK_LIMITATION')) return 'STATIC_CHECK_LIMITATION';
+  if (/RUNTIME_VERIFIED|EXECUTABLE|SIMULATION/.test(joined)) return 'RUNTIME_VERIFIED';
+  if (/SOURCE_CONNECTED|SOURCE/.test(joined)) return 'SOURCE_CONNECTED';
+  if (/STATIC_CONTRACT|STATIC_ONLY|STATIC/.test(joined)) return relatedFiles.length ? 'SOURCE_CONNECTED' : 'STATIC_CHECK_LIMITATION';
+  if (item.status === 'PASS') return relatedFiles.length ? 'SOURCE_CONNECTED' : 'STATIC_CHECK_LIMITATION';
+  return 'REAL_PRODUCT_RISK';
 }
 
 export function deriveRelatedFiles(item = {}) {
@@ -87,7 +106,7 @@ export function deriveRelatedFiles(item = {}) {
 }
 
 export function deriveFixOwner(item = {}) {
-  if (item.proofQuality === 'MANUAL_EXTERNAL' || item.status === 'NOT_AUTOMATABLE') return 'Manual / external';
+  if (item.proofQuality === 'MANUAL_EXTERNAL' || ['NOT_AUTOMATABLE', 'MANUAL_REQUIRED'].includes(item.status)) return 'Manual / external';
   const files = deriveRelatedFiles(item).join(' ').toLowerCase();
   const text = `${item.key || ''} ${item.actionType || ''} ${files}`.toLowerCase();
   if (/docs\/|mirror/.test(text)) return 'Docs / mirror';
@@ -134,20 +153,14 @@ export function auditHealthCatalog(suites, tests) {
 }
 
 export function createHealthCatalogAuditCases(suites, tests) {
-  const make = (id, name, run) => ({ key: `health_intelligence.${id}`, suiteId: 'health_intelligence', suiteName: 'HealthCenter Intelligence Suite', id, name, critical: true, actionType: 'CODE_FIX', relatedFiles: ['healthCatalog.js', 'simulationCases.jsx'], run });
+  const make = (id, name, run) => ({ key: `health_proof_integrity.${id}`, suiteId: 'health_proof_integrity', suiteName: 'Health Proof Integrity Suite', id, name, critical: true, actionType: 'CODE_FIX', relatedFiles: ['src/components/game/health/healthCatalog.js', 'src/components/game/health/simulationCases.jsx'], run });
   return [
-    make('catalog_ids_and_targets_valid', 'Health catalog has unique IDs, valid suites, and executable case definitions', () => {
+    make('unique_suite_and_case_ids', 'Health catalog has unique suite/case IDs, active targets, and non-empty packs', () => {
       const audit = auditHealthCatalog(suites, tests);
-      const issues = [...audit.duplicateSuiteIds, ...audit.duplicateCaseKeys, ...audit.orphanCases, ...audit.malformedCases];
-      return issues.length ? { status: 'FAIL', reason: 'Health catalog identity or target integrity failed.', verification: 'EXECUTABLE_SIMULATION', actual: audit } : { status: 'PASS', reason: 'Suite/case IDs are unique and every case targets a registered suite with an executable runner.', verification: 'EXECUTABLE_SIMULATION', actual: audit };
-    }),
-    make('retired_cases_are_absent', 'Retired stale/duplicate Health cases are absent from the active catalog', () => {
-      const active = tests.filter((item) => HEALTH_RETIRED_CASE_KEYS.has(item.key) || HEALTH_RETIRED_SUITE_IDS.has(item.suiteId)).map((item) => item.key);
-      return active.length ? { status: 'FAIL', reason: 'Retired Health coverage is still active.', verification: 'EXECUTABLE_SIMULATION', actual: active } : { status: 'PASS', reason: 'Obsolete comment-scan, duplicate visual, duplicate DOM, and stale matchmaking cases are removed or replaced.', verification: 'EXECUTABLE_SIMULATION' };
-    }),
-    make('run_packs_have_cases', 'Every grouped Health pack resolves to active cases', () => {
-      const empty = HEALTH_PACKS.filter((pack) => getHealthPackCases(tests, pack.id).length === 0).map((pack) => pack.id);
-      return empty.length ? { status: 'FAIL', reason: 'A Health run pack is empty.', verification: 'EXECUTABLE_SIMULATION', actual: empty } : { status: 'PASS', reason: 'Quick, release, domain, admin/proof, and full packs all resolve active cases.', verification: 'EXECUTABLE_SIMULATION' };
+      const issues = [...audit.duplicateSuiteIds, ...audit.duplicateCaseKeys, ...audit.orphanCases, ...audit.malformedCases, ...audit.retiredStillActive, ...audit.emptyPacks];
+      return issues.length
+        ? { status: 'FAIL', reason: 'Health catalog identity, target, retirement, or pack integrity failed.', verification: 'EXECUTABLE_SIMULATION', classification: 'EXECUTABLE', actual: audit }
+        : { status: 'PASS', reason: 'Suite/case IDs are unique; every case targets a registered suite with a runner; retired cases are absent; every pack resolves active cases.', verification: 'EXECUTABLE_SIMULATION', classification: 'EXECUTABLE', actual: audit };
     }),
   ];
 }

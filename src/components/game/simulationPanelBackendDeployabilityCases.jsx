@@ -69,6 +69,18 @@ import questionGatewaySource from '../../lib/dbGateway/questionGateway.js?raw';
 import categoryGatewaySource from '../../lib/dbGateway/categoryGateway.js?raw';
 import analyticsGatewaySource from '../../lib/dbGateway/analyticsGateway.js?raw';
 import jokerInventorySource from '../../lib/jokerInventory.js?raw';
+import { auditBase44AutomationSurface } from '../../lib/health/base44AutomationProof';
+
+const allFunctionManifestSources = import.meta.glob('../../../base44/functions/**/function.jsonc', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+});
+const allFunctionEntrySources = import.meta.glob('../../../base44/functions/**/entry.ts', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+});
 
 const STATUS = {
   PASS: 'PASS',
@@ -217,6 +229,8 @@ export const EXTRA_TESTS = [
         'MAX_BASE44_FUNCTIONS = 50',
         "BASE44_SDK_VERSION = '0.8.34'",
         'deploymentManifestDiagnostics(entryFiles)',
+        'auditBase44AutomationSurface',
+        'walkNamedFiles(functionsDir, \'function.jsonc\')',
       ]);
       if (missing.length) {
         return fail('Base44 function compile/deploy gate is missing or too weak to catch dashboard deploy blockers.', {
@@ -782,6 +796,34 @@ export const EXTRA_TESTS = [
       return pass('Daily Calendar runtime and legacy cleanup functions are registered callable Base44 functions with no broken local imports and Diamond-only claim source.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
+      });
+    }),
+
+  makeCase('function_count_with_automations_deployable',
+    'Function count and local automation manifests remain deployable together',
+    () => {
+      const audit = auditBase44AutomationSurface(allFunctionManifestSources, allFunctionEntrySources);
+      const issues = [
+        ...audit.manifestIssues,
+        ...audit.argumentIssues,
+        ...audit.cleanupAutomationIssues,
+        ...audit.waitUntilIssues,
+        ...audit.privateLogIssues,
+      ];
+      if (audit.entryCount > 50 || issues.length) {
+        return fail('Base44 function count or local automation/config safety blocks deployability.', {
+          verification: 'EXECUTABLE_SIMULATION',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: { maxFunctionEntries: 50, configIssues: 0 },
+          actual: { entryCount: audit.entryCount, manifestCount: audit.manifestCount, automationCount: audit.automationCount, issues },
+          files: ['base44/functions/**/entry.ts', 'base44/functions/**/function.jsonc', 'scripts/checkBase44FunctionsCompile.mjs'],
+        });
+      }
+      return pass(`The deploy surface has ${audit.entryCount}/50 function entries, ${audit.manifestCount} valid manifests, and ${audit.automationCount} local automations.`, {
+        verification: 'EXECUTABLE_SIMULATION',
+        classification: 'EXECUTABLE',
+        actual: { entryCount: audit.entryCount, manifestCount: audit.manifestCount, automationCount: audit.automationCount },
+        files: ['base44/functions/**/entry.ts', 'base44/functions/**/function.jsonc', 'scripts/checkBase44FunctionsCompile.mjs'],
       });
     }),
 

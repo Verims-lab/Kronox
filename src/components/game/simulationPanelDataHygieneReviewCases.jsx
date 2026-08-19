@@ -5,11 +5,18 @@ import reviewSource from '../admin/DuplicateEligibilityReview.jsx?raw';
 import docsMirrorSource from '../../lib/healthAlignmentDocMirrors.js?raw';
 
 const SUITE_ID = 'data_hygiene_review';
+const RELATED_FILES = [
+  'base44/functions/adminDuplicateKeyReport/entry.ts',
+  'src/components/admin/IntegritySnapshotTool.jsx',
+  'src/components/admin/DuplicateCleanupPlan.jsx',
+  'src/components/admin/DuplicateEligibilityReview.jsx',
+  'src/lib/healthAlignmentDocMirrors.js',
+];
 const pass = (reason) => ({ status: 'PASS', reason, verification: 'STATIC_CONTRACT' });
 const fail = (reason, actual) => ({ status: 'FAIL', reason, actual, verification: 'STATIC_CONTRACT' });
 const missing = (source, tokens) => tokens.filter((token) => !String(source).includes(token));
 const present = (source, tokens) => tokens.filter((token) => String(source).includes(token));
-const makeCase = (id, name, run) => ({ key: `${SUITE_ID}.${id}`, suiteId: SUITE_ID, suiteName: 'Data Hygiene Review Health Suite', id, name, critical: true, actionType: 'CODE_FIX', run });
+const makeCase = (id, name, run) => ({ key: `${SUITE_ID}.${id}`, suiteId: SUITE_ID, suiteName: 'Data Hygiene Review Health Suite', id, name, critical: true, actionType: 'CODE_FIX', relatedFiles: RELATED_FILES, run });
 const mutationCalls = () => present(reportSource, ['.create(', '.update(', '.delete(', '.deleteMany(', '.updateMany(', '.bulkCreate(', '.bulkUpdate(']);
 
 export const EXTRA_SUITES = [{ id: SUITE_ID, name: 'Data Hygiene Review Health Suite', critical: true, color: '#f59e0b' }];

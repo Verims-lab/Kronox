@@ -1008,7 +1008,11 @@ Production deployment, secret provisioning, push delivery, RLS/multi-account iso
 
 # Paket B6 — Health Intelligence Security Statement
 
-B6 Health automation remains inside guarded Admin and performs local source/executable checks only. Reports classify proof quality, redact blocker exports, and route failures by owner without reading production secrets, mutating RLS/indexes, or exposing private rows. React cleanup, Vite loading, MDN lifecycle/safe-area, OWASP secret-management, and official Base44 function-limit guidance inform these guards. Scheduled monitoring, production secret verification, deployed RLS/BOLA, and cross-account proof remain external/manual.
+B6 Health runs remain inside guarded Admin and perform local source/executable checks only. Reports classify proof quality, redact blocker exports, and route failures by owner without reading production secrets, mutating RLS/indexes, or exposing private rows. `STATIC_CONTRACT` with named active files is `SOURCE_CONNECTED`, not runtime proof; `NOT_AUTOMATABLE` always remains `MANUAL_EXTERNAL`.
+
+Base44 automation configuration is local-first: committed `function.jsonc` is the automation source of truth, automations deploy atomically with their function, dashboard changes are overwritten on the next local deploy, and there is no two-way sync. The current repository has 28 valid manifests and zero local automation declarations. Any future cleanup/integrity automation must be inactive or explicit dry-run/report-only, validate request-body `function_args`, avoid critical `waitUntil` work, and emit no secrets, private IDs, or raw payloads. Live dashboard/deploy status remains external/manual.
+
+VAPID secrets remain request-time `secrets.get()` values inside the active handler. `VAPID_PRIVATE_KEY` is never logged; `VITE_` is client-visible and cannot carry secrets. Backend logs are bounded status/reason diagnostics without raw payloads or private subscription/user identifiers. React effect cleanup, Vite environment exposure, MDN cancellation, OWASP logging, and official Base44 function/automation guidance inform these guards. Production secret verification, deployed RLS/BOLA, and cross-account proof remain external/manual.
 
 # 10. Health Coverage Expectations
 

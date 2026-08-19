@@ -405,7 +405,10 @@ async function writeAdminMaintenanceLog(base44: any, payload: Record<string, unk
   try {
     const entity = base44.asServiceRole.entities.AdminMaintenanceLog;
     if (!entity?.create) {
-      console.warn('[adminResetUserProgress] AdminMaintenanceLog entity unavailable', payload);
+      console.warn('[adminResetUserProgress] AdminMaintenanceLog entity unavailable', {
+        operation: 'admin_progress_reset',
+        persisted: false,
+      });
       return { available: false, created: false };
     }
     const created = await entity.create(payload);

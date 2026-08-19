@@ -17,11 +17,18 @@ import functionGateSource from '../../../scripts/checkBase44FunctionsCompile.mjs
 
 const SUITE_ID = 'integrity_proof_health';
 const SUITE_NAME = 'Integrity Proof Health Suite';
+const RELATED_FILES = [
+  'base44/functions/adminDuplicateKeyReport/entry.ts',
+  'base44/functions/claimDailyWheelReward/entry.ts',
+  'base44/functions/claimDailyQuestReward/entry.ts',
+  'base44/functions/startLobbyGame/entry.ts',
+  'base44/functions/updateLobbyGameState/entry.ts',
+];
 const pass = (reason) => ({ status: 'PASS', reason, verification: 'STATIC_CONTRACT' });
 const fail = (reason, actual) => ({ status: 'FAIL', reason, verification: 'STATIC_CONTRACT', actual });
 const missing = (source, tokens) => tokens.filter((token) => !String(source || '').includes(token));
 const present = (source, tokens) => tokens.filter((token) => String(source || '').includes(token));
-const makeCase = (id, name, run) => ({ key: `${SUITE_ID}.${id}`, suiteId: SUITE_ID, suiteName: SUITE_NAME, id, name, critical: true, actionType: 'CODE_FIX', run });
+const makeCase = (id, name, run) => ({ key: `${SUITE_ID}.${id}`, suiteId: SUITE_ID, suiteName: SUITE_NAME, id, name, critical: true, actionType: 'CODE_FIX', relatedFiles: RELATED_FILES, run });
 
 export const EXTRA_SUITES = [{ id: SUITE_ID, name: SUITE_NAME, critical: true, color: '#10b981' }];
 export const EXTRA_TESTS = [

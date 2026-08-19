@@ -17,11 +17,18 @@ import { DB_ARCHITECTURE_IMPLEMENTATION_MIRROR } from '@/lib/dbArchitectureMirro
 
 const SUITE_ID = 'paket_b_closure_health';
 const SUITE_NAME = 'Paket B Closure Health Suite';
+const RELATED_FILES = [
+  'base44/functions/adminDuplicateKeyReport/entry.ts',
+  'scripts/checkBase44FunctionsCompile.mjs',
+  'src/pages/AdminPage.jsx',
+  'src/components/admin/IntegritySnapshotTool.jsx',
+  'src/components/admin/QuestionQualityTool.jsx',
+];
 const pass = (reason) => ({ status: 'PASS', reason, verification: 'STATIC_CONTRACT' });
 const fail = (reason, actual) => ({ status: 'FAIL', reason, actual, verification: 'STATIC_CONTRACT' });
 const missing = (source, tokens) => tokens.filter((token) => !String(source || '').includes(token));
 const present = (source, tokens) => tokens.filter((token) => String(source || '').includes(token));
-const makeCase = (id, name, run) => ({ key: `${SUITE_ID}.${id}`, suiteId: SUITE_ID, suiteName: SUITE_NAME, id, name, critical: true, actionType: 'CODE_FIX', run });
+const makeCase = (id, name, run) => ({ key: `${SUITE_ID}.${id}`, suiteId: SUITE_ID, suiteName: SUITE_NAME, id, name, critical: true, actionType: 'CODE_FIX', relatedFiles: RELATED_FILES, run });
 const toolsSource = `${integrityToolSource}\n${integrityUiSource}\n${questionToolSource}\n${questionUiSource}`;
 
 export const EXTRA_SUITES = [{ id: SUITE_ID, name: SUITE_NAME, critical: true, color: '#f59e0b' }];

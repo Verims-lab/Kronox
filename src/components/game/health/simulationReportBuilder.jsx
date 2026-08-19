@@ -31,6 +31,7 @@ import {
 } from '../simulationPanelCaseRegistry';
 import {
   buildHealthInventory,
+  deriveEvidenceClassification,
   deriveFixOwner,
   HEALTH_RETIRED_SUITES,
   deriveProofQuality,
@@ -105,9 +106,9 @@ export function describeNextStep(item) {
 export function normalizeCaseResult(item) {
   const actionType = categorizeCase(item);
   const labels = normalizeLabels({ ...item, actionType });
-  const classification = item.classification || (labels.includes('STATIC_CHECK_LIMITATION') ? 'STATIC_CHECK_LIMITATION' : item.status === STATUS.PASS ? 'RUNTIME_VERIFIED' : 'REAL_PRODUCT_RISK');
-  const verificationLabels = Array.from(new Set([...labels, classification])).filter(Boolean);
   const relatedFiles = catalogRelatedFiles(item);
+  const classification = deriveEvidenceClassification(item, labels, relatedFiles);
+  const verificationLabels = Array.from(new Set([...labels, classification])).filter(Boolean);
   const proofQuality = deriveProofQuality({ ...item, classification, verificationLabels, relatedFiles });
   const fixOwner = deriveFixOwner({ ...item, actionType, proofQuality, relatedFiles });
   return {

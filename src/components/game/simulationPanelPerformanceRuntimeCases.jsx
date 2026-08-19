@@ -18,11 +18,18 @@ import functionGateSource from '../../../scripts/checkBase44FunctionsCompile.mjs
 
 const SUITE_ID = 'performance_health';
 const SUITE_NAME = 'Performance Runtime Cleanup Health Suite';
+const RELATED_FILES = [
+  'src/App.jsx',
+  'src/pages/MainMenu.jsx',
+  'src/components/dailyWheel/DailyWheelCard.jsx',
+  'src/hooks/useRandomMatchmaking.js',
+  'src/components/game/SoloLevelStartTutorialPopup.jsx',
+];
 const pass = (reason) => ({ status: 'PASS', reason, verification: 'STATIC_CONTRACT' });
 const fail = (reason, actual) => ({ status: 'FAIL', reason, actual, verification: 'STATIC_CONTRACT' });
 const missing = (source, tokens) => tokens.filter((token) => !String(source || '').includes(token));
 const present = (source, tokens) => tokens.filter((token) => String(source || '').includes(token));
-const makeCase = (id, name, run) => ({ key: `${SUITE_ID}.${id}`, suiteId: SUITE_ID, suiteName: SUITE_NAME, id, name, critical: true, actionType: 'CODE_FIX', run });
+const makeCase = (id, name, run) => ({ key: `${SUITE_ID}.${id}`, suiteId: SUITE_ID, suiteName: SUITE_NAME, id, name, critical: true, actionType: 'CODE_FIX', relatedFiles: RELATED_FILES, run });
 
 export const EXTRA_SUITES = [{ id: SUITE_ID, name: SUITE_NAME, critical: true, color: '#38bdf8' }];
 export const EXTRA_TESTS = [

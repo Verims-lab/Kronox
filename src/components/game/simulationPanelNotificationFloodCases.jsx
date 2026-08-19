@@ -14,7 +14,7 @@ import {
 
 const SUITE_ID = 'notification_flood_health';
 const pass = (reason, extra = {}) => ({ status: 'PASS', reason, verification: 'EXECUTABLE_SIMULATION', ...extra });
-const fail = (reason, actual) => ({ status: 'FAIL', reason, verification: 'EXECUTABLE_SIMULATION', actionType: 'CODE_FIX', actual });
+const fail = (reason, actual, extra = {}) => ({ status: 'FAIL', reason, verification: 'EXECUTABLE_SIMULATION', actionType: 'CODE_FIX', actual, ...extra });
 const makeCase = (id, name, run, relatedFiles) => ({ key: `${SUITE_ID}.${id}`, suiteId: SUITE_ID, suiteName: 'Notification Flood Health Suite', id, name, critical: true, actionType: 'CODE_FIX', relatedFiles, run });
 
 const now = Date.parse('2026-08-19T06:00:00.000Z');
@@ -69,7 +69,10 @@ export const EXTRA_TESTS = [
     const forbiddenMutation = ['.create(', '.update(', '.delete(', '.deleteMany(', '.updateMany(', '.bulkCreate(', '.bulkUpdate('].filter((token) => backendSource.includes(token));
     const actual = { missingBackend, missingUi, missingAdminGate, forbiddenExecution, forbiddenMutation };
     const ok = Object.values(actual).every((items) => items.length === 0);
-    return ok ? pass('Accepted/test artifacts remain terminal audit data and are exposed only as bounded counts/fingerprints through the guarded non-destructive Admin report.') : fail('Admin dry-run artifact visibility is incomplete.', actual);
+    const proof = { verification: 'SOURCE_CONNECTED', classification: 'SOURCE_CONNECTED' };
+    return ok
+      ? pass('Accepted/test artifacts remain terminal audit data and are exposed only as bounded counts/fingerprints through the guarded non-destructive Admin report.', proof)
+      : fail('Admin dry-run artifact visibility is incomplete.', actual, proof);
   }, ['src/pages/AdminPage.jsx', 'src/App.jsx', 'src/components/admin/IntegritySnapshotTool.jsx', 'src/components/admin/NotificationArtifactSummary.jsx', 'base44/functions/adminDuplicateKeyReport/entry.ts']),
 
   makeCase('notification_privacy_no_private_ids', 'Acceptance UI renders username-safe labels without private identifiers', () => {
