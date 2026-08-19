@@ -281,22 +281,44 @@ endpoint. An endpoint alone is not accepted as app identity. This workspace's
 current local setup has an app base URL but no app ID, so V2 reports the exact
 `VITE_BASE44_APP_ID`/`app_id` setup gap instead of accepting backend proof.
 
-V2 preflight records sanitized configured/page URLs, page origin/route, app
-document load, app-config presence, Base44 reachability, safe service-status
-counts, guest/auth bootstrap evidence, fixture presence, and mutation-gate
-booleans. Every scenario declares required/optional capabilities and is
-`UI_ONLY` or `BACKEND_DEPENDENT`. App-not-found, missing app ID/config,
-unreachable, or unknown Base44 state blocks backend-dependent PASS and becomes
-`AUTOMATION_NOT_AUTOMATABLE` with `AUTOMATION_SETUP_GAP`. BottomNav and Store
-are UI-only; PASS under backend outage explicitly says it is browser-only and
-not backend proof. Question and matchmaking availability remain runtime probes
-after the base app passes preflight.
+V2 classifies targets as `LOCAL_DEV`, `BASE44_PREVIEW`,
+`PRODUCTION_CUSTOM_DOMAIN`, or `UNKNOWN_EXTERNAL`. Local/preview targets can
+expose direct backend signals that a production custom domain may proxy through
+its own origin. The report therefore separates `directBackendPreflightStatus`
+from `runtimeBackendProbeStatus`. An observable direct success is `REACHABLE`;
+a custom-domain observation gap is
+`PROD_CUSTOM_DOMAIN_PREFLIGHT_UNSUPPORTED`, and a loaded Home with a restored
+actor may become `PROD_RUNTIME_PROBE_REQUIRED`. Production does not finish at a
+generic `UNKNOWN` when one of those specific states applies.
+
+Each scenario records a safe category/status service summary and its own
+`backendEvidence`. `UI_ONLY` proves only rendered browser behavior;
+`SESSION_RESTORED` proves Home plus a restored actor session but not backend
+behavior; `BACKEND_RUNTIME_PROBE` means a backend proof was attempted or is
+still owed; `BACKEND_CONNECTED` requires a successful classified response in
+the scenario's declared service category. A backend-dependent PASS without that
+evidence is demoted to `AUTOMATION_NOT_AUTOMATABLE`. App bootstrap alone may
+PASS at `SESSION_RESTORED`. BottomNav and Store remain `UI_ONLY`. If no backend
+traffic is classifiable, `serviceSummaryUnavailableReason` says so explicitly.
+Critical console output is reduced to safe categories, summaries, actions, and
+fingerprints; raw messages, query values, tokens, identities, and stack traces
+are not exported.
 
 Home-owned scenarios may use an isolated completed guest or linked actor from
-`KRONOX_E2E_STORAGE_STATE`; credentials are never hardcoded. Wheel, Diamond
-purchase, and matchmaking mutations require their explicit
+`KRONOX_E2E_STORAGE_STATE`; credentials are never hardcoded. Create a local
+fixture with `mkdir -p .auth` and
+`npx playwright codegen --save-storage=.auth/kronox-e2e-prod.json https://kronoxgame.com`,
+complete the isolated actor session interactively, then close the browser.
+`.auth/`, generated storage-state JSON, `.env.local`, reports, and traces are
+ignored and must never be committed or printed. A production run uses existing
+local environment values without echoing them, for example
+`KRONOX_E2E_BASE_URL=https://kronoxgame.com KRONOX_E2E_STORAGE_STATE=.auth/kronox-e2e-prod.json KRONOX_E2E_USE_GUEST=false KRONOX_E2E_ALLOW_MATCHMAKING=true npm run health:e2e`.
+
+Wheel, Diamond purchase, and matchmaking mutations require their explicit
 `KRONOX_E2E_ALLOW_*` gates. Online requires authenticated storage plus
-`KRONOX_E2E_ALLOW_MATCHMAKING=true`. Duello A/B actor fixtures may be declared
+`KRONOX_E2E_ALLOW_MATCHMAKING=true`; production direct-preflight limitations no
+longer block its safe waiting/cancel probe, but only observed matchmaking
+backend evidence can support PASS. Duello A/B actor fixtures may be declared
 through `KRONOX_E2E_STORAGE_STATE_A/B`, but the scenario remains
 `AUTOMATION_MANUAL_EXTERNAL` until deterministic pairing and correct-claim
 fixtures prove two real contexts, one accepted claim, and reconciled snapshots.

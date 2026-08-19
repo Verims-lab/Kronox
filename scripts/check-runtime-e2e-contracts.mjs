@@ -1,19 +1,29 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 
 import {
   AUTOMATION_STATUS,
   BACKEND_PREFLIGHT_STATUS,
+  RUNTIME_E2E_PREFLIGHT_DEPENDENCY,
+  RUNTIME_E2E_PROOF_LEVEL,
   buildAllAutomationFailuresJson,
   buildAllAutomationSetupGapsJson,
   buildAutomationFailureJson,
   classifyRuntimeDiagnostic,
+  classifyRuntimeServiceRequest,
   createNotRunAutomationReport,
   normalizeRuntimeE2EReport,
+  recordRuntimeServiceObservation,
+  resolveRuntimePreflightStatus,
+  runtimeServiceSummaryUnavailableReason,
   sanitizeAutomationValue,
 } from '../src/lib/health/runtimeE2EReport.js';
 import {
   buildRuntimeCapabilitySummary,
+  classifyRuntimeE2ETarget,
   evaluateScenarioCapabilities,
+  RUNTIME_E2E_CAPABILITY_STATUS,
+  RUNTIME_E2E_TARGET_KIND,
 } from '../src/lib/health/runtimeE2ECapabilities.js';
 import {
   RUNTIME_E2E_EXECUTION_SCOPE,
@@ -135,6 +145,149 @@ const capabilitySummary = buildRuntimeCapabilitySummary({
 assert.equal(evaluateScenarioCapabilities(backendDefinition, capabilitySummary).canRun, false);
 assert.equal(evaluateScenarioCapabilities(uiDefinition, capabilitySummary).canRun, true);
 
+assert.equal(
+  classifyRuntimeE2ETarget('https://kronoxgame.com/'),
+  RUNTIME_E2E_TARGET_KIND.PRODUCTION_CUSTOM_DOMAIN,
+);
+assert.equal(
+  classifyRuntimeE2ETarget('http://127.0.0.1:4174/'),
+  RUNTIME_E2E_TARGET_KIND.LOCAL_DEV,
+);
+assert.equal(resolveRuntimePreflightStatus({
+  productionCustomDomainMode: true,
+  directBackendPreflightStatus: BACKEND_PREFLIGHT_STATUS.UNKNOWN,
+  canRunRuntimeProbes: false,
+}), BACKEND_PREFLIGHT_STATUS.PROD_CUSTOM_DOMAIN_PREFLIGHT_UNSUPPORTED);
+assert.equal(resolveRuntimePreflightStatus({
+  productionCustomDomainMode: true,
+  directBackendPreflightStatus: BACKEND_PREFLIGHT_STATUS.UNKNOWN,
+  canRunRuntimeProbes: true,
+}), BACKEND_PREFLIGHT_STATUS.PROD_RUNTIME_PROBE_REQUIRED);
+
+const serviceSummary = {};
+const serviceCategory = classifyRuntimeServiceRequest(
+  'https://kronoxgame.com/api/functions/getUnifiedLeaderboard?token=never-report',
+  'https://kronoxgame.com',
+  'fetch',
+);
+recordRuntimeServiceObservation(serviceSummary, serviceCategory, 'REQUEST');
+recordRuntimeServiceObservation(serviceSummary, serviceCategory, 'RESPONSE', 200);
+assert.equal(serviceCategory, 'leaderboard');
+assert.equal(serviceSummary.leaderboard.statusClasses['2xx'], 1);
+assert.equal(runtimeServiceSummaryUnavailableReason(serviceSummary), null);
+assert.match(runtimeServiceSummaryUnavailableReason({}), /No classified backend requests observed/);
+
+const productionCapabilities = buildRuntimeCapabilitySummary({
+  browserAvailable: true,
+  preflight: {
+    status: BACKEND_PREFLIGHT_STATUS.PROD_RUNTIME_PROBE_REQUIRED,
+    documentLoaded: true,
+    appConfigAvailable: true,
+    guestBootstrapAvailable: true,
+    canRunRuntimeProbes: true,
+  },
+  environment: {
+    hasStorageState: true,
+    hasStorageStateA: false,
+    hasStorageStateB: false,
+    allowMatchmaking: true,
+    allowWheelSpin: false,
+    allowDiamondPurchase: false,
+  },
+});
+assert.equal(productionCapabilities.base44Backend.status, RUNTIME_E2E_CAPABILITY_STATUS.PROBE_REQUIRED);
+const onlineDefinition = RUNTIME_E2E_SCENARIOS.find((item) => item.scenarioId === 'runtime_e2e.online_random_waiting_cancel_smoke');
+assert.equal(evaluateScenarioCapabilities(onlineDefinition, productionCapabilities).canRun, true);
+assert.equal(evaluateScenarioCapabilities(onlineDefinition, productionCapabilities).decision, 'RUN_WITH_RUNTIME_PROBES');
+
+const productionEvidence = {
+  executionId: 'contract-production-runtime',
+  browserName: 'chromium contract',
+  configuredBaseUrl: 'https://kronoxgame.com',
+  pageOrigin: 'https://kronoxgame.com',
+  baseUrlOrigin: 'https://kronoxgame.com',
+  backendPreflight: { status: BACKEND_PREFLIGHT_STATUS.PROD_RUNTIME_PROBE_REQUIRED },
+};
+const productionReportInput = {
+  runId: 'contract-production-runtime',
+  startedAt: new Date().toISOString(),
+  finishedAt: new Date().toISOString(),
+  targetKind: RUNTIME_E2E_TARGET_KIND.PRODUCTION_CUSTOM_DOMAIN,
+  productionCustomDomainMode: true,
+  configuredBaseUrl: 'https://kronoxgame.com',
+  pageOrigin: 'https://kronoxgame.com',
+  homeVisible: true,
+  authenticatedOrStoredSession: true,
+  canRunRuntimeProbes: true,
+  preflight: {
+    status: BACKEND_PREFLIGHT_STATUS.PROD_RUNTIME_PROBE_REQUIRED,
+    directBackendPreflightStatus: BACKEND_PREFLIGHT_STATUS.PROD_CUSTOM_DOMAIN_PREFLIGHT_UNSUPPORTED,
+    canRunRuntimeProbes: true,
+    homeVisible: true,
+    authenticatedOrStoredSession: true,
+  },
+  executionEvidence: productionEvidence,
+};
+const runtimeProbePass = {
+  scenarioId: backendDefinition.scenarioId,
+  status: AUTOMATION_STATUS.PASS,
+  proofLevel: RUNTIME_E2E_PROOF_LEVEL.BACKEND_RUNTIME_PROBE,
+  preflightDependency: RUNTIME_E2E_PREFLIGHT_DEPENDENCY.RUNTIME_PROBE,
+  backendEvidence: {
+    observed: false,
+    successful: false,
+    category: null,
+    statusClass: null,
+    safeSummary: 'No classified backend response was observed.',
+  },
+  executionEvidence: productionEvidence,
+  steps: backendDefinition.steps.map((step) => ({ ...step, status: AUTOMATION_STATUS.PASS, durationMs: 1 })),
+};
+const missingRuntimeEvidenceReport = normalizeRuntimeE2EReport({
+  ...productionReportInput,
+  scenarios: [runtimeProbePass],
+}, 'contract-test');
+assert.equal(
+  missingRuntimeEvidenceReport.scenarios.find((item) => item.scenarioId === backendDefinition.scenarioId).status,
+  AUTOMATION_STATUS.NOT_AUTOMATABLE,
+);
+
+const connectedRuntimeReport = normalizeRuntimeE2EReport({
+  ...productionReportInput,
+  scenarios: [{
+    ...runtimeProbePass,
+    proofLevel: RUNTIME_E2E_PROOF_LEVEL.BACKEND_CONNECTED,
+    backendEvidence: {
+      observed: true,
+      successful: true,
+      category: 'question_service',
+      statusClass: '2xx',
+      safeSummary: 'Observed a successful question_service runtime response.',
+    },
+  }],
+}, 'contract-test');
+assert.equal(
+  connectedRuntimeReport.scenarios.find((item) => item.scenarioId === backendDefinition.scenarioId).status,
+  AUTOMATION_STATUS.PASS,
+);
+
+const appBootstrapDefinition = RUNTIME_E2E_SCENARIOS.find((item) => item.scenarioId === 'runtime_e2e.app_bootstrap_guest_home');
+const restoredSessionReport = normalizeRuntimeE2EReport({
+  ...productionReportInput,
+  scenarios: [{
+    scenarioId: appBootstrapDefinition.scenarioId,
+    status: AUTOMATION_STATUS.PASS,
+    proofLevel: RUNTIME_E2E_PROOF_LEVEL.SESSION_RESTORED,
+    preflightDependency: RUNTIME_E2E_PREFLIGHT_DEPENDENCY.RUNTIME_PROBE,
+    executionEvidence: productionEvidence,
+    steps: appBootstrapDefinition.steps.map((step) => ({ ...step, status: AUTOMATION_STATUS.PASS, durationMs: 1 })),
+  }],
+}, 'contract-test');
+assert.equal(
+  restoredSessionReport.scenarios.find((item) => item.scenarioId === appBootstrapDefinition.scenarioId).status,
+  AUTOMATION_STATUS.PASS,
+);
+
 const redacted = JSON.stringify(sanitizeAutomationValue({
   email: 'automation@example.com',
   url: 'https://example.test/path?token=secret-value',
@@ -144,6 +297,26 @@ assert.ok(!redacted.includes('automation@example.com'));
 assert.ok(!redacted.includes('secret-value'));
 assert.ok(!redacted.includes('eyJhbGciOiJIUzI1NiJ9'));
 
+const redactedBrowserFailure = String(sanitizeAutomationValue(
+  'Browser failed.\nBrowser logs:\n<launching> /Users/private/test-browser --user-data-dir=/private/var/tmp/private-profile\nCall log:\nraw launch details',
+));
+assert.ok(!redactedBrowserFailure.includes('Browser logs:'));
+assert.ok(!redactedBrowserFailure.includes('/Users/private'));
+assert.ok(!redactedBrowserFailure.includes('private-profile'));
+assert.match(redactedBrowserFailure, /\[BROWSER_DIAGNOSTIC_REDACTED\]/);
+
+const safeDiagnostic = classifyRuntimeDiagnostic('CORS blocked token=secret owner_key=private user@example.com');
+const serializedDiagnostic = JSON.stringify(safeDiagnostic);
+assert.equal(safeDiagnostic.category, 'BACKEND_CORS_BLOCKED');
+assert.match(safeDiagnostic.fingerprint, /^diag-[a-f0-9]{8}$/);
+assert.ok(!serializedDiagnostic.includes('secret'));
+assert.ok(!serializedDiagnostic.includes('user@example.com'));
+
+const gitignore = await readFile(new URL('../.gitignore', import.meta.url), 'utf8');
+assert.match(gitignore, /^\/\.auth\/$/m);
+assert.match(gitignore, /^\*\*\/\.auth\/$/m);
+assert.match(gitignore, /^\*\*\/\*storage-state\*\.json$/m);
+
 let duelloStatus = null;
 try {
   await RUNTIME_E2E_SCENARIO_HANDLERS['runtime_e2e.duello_two_context_runtime_sync']();
@@ -152,4 +325,4 @@ try {
 }
 assert.equal(duelloStatus, AUTOMATION_STATUS.MANUAL_EXTERNAL);
 
-process.stdout.write('Runtime E2E V2 contracts: PASS (10 scenarios, capability preflight, App-not-found rejection, UI-only labeling, setup-gap JSON, redaction, Duello manual gate).\n');
+process.stdout.write('Runtime E2E V2 contracts: PASS (10 scenarios, production target/preflight model, scenario backend-evidence gate, safe service/console summaries, auth-file ignores, UI/session proof levels, Online gate, Duello manual gate).\n');

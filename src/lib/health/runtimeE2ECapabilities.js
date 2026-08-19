@@ -26,6 +26,30 @@ export const RUNTIME_E2E_CAPABILITY_STATUS = Object.freeze({
   MANUAL_EXTERNAL: 'MANUAL_EXTERNAL',
 });
 
+export const RUNTIME_E2E_TARGET_KIND = Object.freeze({
+  LOCAL_DEV: 'LOCAL_DEV',
+  BASE44_PREVIEW: 'BASE44_PREVIEW',
+  PRODUCTION_CUSTOM_DOMAIN: 'PRODUCTION_CUSTOM_DOMAIN',
+  UNKNOWN_EXTERNAL: 'UNKNOWN_EXTERNAL',
+});
+
+export function classifyRuntimeE2ETarget(baseUrl) {
+  try {
+    const parsed = new URL(String(baseUrl));
+    const hostname = parsed.hostname.toLowerCase().replace(/^www\./, '');
+    if (hostname === 'localhost' || hostname === '0.0.0.0' || hostname === '::1' || /^127(?:\.\d{1,3}){3}$/.test(hostname)) {
+      return RUNTIME_E2E_TARGET_KIND.LOCAL_DEV;
+    }
+    if (/base44\.(?:app|com)$/.test(hostname) || hostname.endsWith('.base44.app')) {
+      return RUNTIME_E2E_TARGET_KIND.BASE44_PREVIEW;
+    }
+    if (parsed.protocol === 'https:') return RUNTIME_E2E_TARGET_KIND.PRODUCTION_CUSTOM_DOMAIN;
+    return RUNTIME_E2E_TARGET_KIND.UNKNOWN_EXTERNAL;
+  } catch (_) {
+    return RUNTIME_E2E_TARGET_KIND.UNKNOWN_EXTERNAL;
+  }
+}
+
 const capability = (status, reason, nextAction = null) => Object.freeze({
   status,
   reason,
@@ -39,6 +63,7 @@ export function buildRuntimeCapabilitySummary({
 }) {
   const documentLoaded = Boolean(preflight?.documentLoaded);
   const backendAvailable = preflight?.status === 'REACHABLE';
+  const runtimeProbeAllowed = Boolean(preflight?.canRunRuntimeProbes);
   const appConfigAvailable = Boolean(preflight?.appConfigAvailable);
   const hasStorageState = Boolean(environment?.hasStorageState);
   const hasTwoStorageStates = Boolean(environment?.hasStorageStateA && environment?.hasStorageStateB);
@@ -66,22 +91,30 @@ export function buildRuntimeCapabilitySummary({
       appConfigAvailable ? null : 'Set VITE_BASE44_APP_ID or supply app_id through the approved runtime bootstrap.',
     ),
     [RUNTIME_E2E_CAPABILITY.BASE44_BACKEND]: capability(
-      backendAvailable ? RUNTIME_E2E_CAPABILITY_STATUS.AVAILABLE : RUNTIME_E2E_CAPABILITY_STATUS.MISSING,
-      backendAvailable ? 'The configured Base44 app responded to preflight.' : `Base44 preflight is ${preflight?.status || 'UNKNOWN'}.`,
-      backendAvailable ? null : preflight?.nextAction || 'Repair Base44 app configuration/reachability and rerun preflight.',
+      backendAvailable
+        ? RUNTIME_E2E_CAPABILITY_STATUS.AVAILABLE
+        : runtimeProbeAllowed
+          ? RUNTIME_E2E_CAPABILITY_STATUS.PROBE_REQUIRED
+          : RUNTIME_E2E_CAPABILITY_STATUS.MISSING,
+      backendAvailable
+        ? 'The configured Base44 app responded to direct preflight.'
+        : runtimeProbeAllowed
+          ? 'Production custom-domain direct preflight is limited; scenario-level backend proof is required.'
+          : `Base44 preflight is ${preflight?.status || 'OBSERVATION_INCONCLUSIVE'}.`,
+      backendAvailable || runtimeProbeAllowed ? null : preflight?.nextAction || 'Repair Base44 app configuration/reachability and rerun preflight.',
     ),
     [RUNTIME_E2E_CAPABILITY.GUEST_BOOTSTRAP]: capability(
       preflight?.guestBootstrapAvailable
         ? RUNTIME_E2E_CAPABILITY_STATUS.AVAILABLE
-        : backendAvailable
+        : backendAvailable || runtimeProbeAllowed
           ? RUNTIME_E2E_CAPABILITY_STATUS.PROBE_REQUIRED
           : RUNTIME_E2E_CAPABILITY_STATUS.MISSING,
       preflight?.guestBootstrapAvailable
         ? 'Guest/auth bootstrap reached a usable actor surface.'
-        : backendAvailable
-          ? 'Backend is reachable; the scenario must prove guest/auth bootstrap at runtime.'
+        : backendAvailable || runtimeProbeAllowed
+          ? 'The scenario must prove guest/auth bootstrap or restored-session state at runtime.'
           : 'Guest/auth bootstrap cannot be proved while Base44 preflight is unavailable.',
-      preflight?.guestBootstrapAvailable || backendAvailable ? null : 'Fix app configuration before guest/auth scenarios run.',
+      preflight?.guestBootstrapAvailable || backendAvailable || runtimeProbeAllowed ? null : 'Fix app configuration before guest/auth scenarios run.',
     ),
     [RUNTIME_E2E_CAPABILITY.COMPLETED_ACTOR]: capability(
       hasStorageState
@@ -100,18 +133,18 @@ export function buildRuntimeCapabilitySummary({
       hasStorageState ? null : 'Provide a non-production KRONOX_E2E_STORAGE_STATE file.',
     ),
     [RUNTIME_E2E_CAPABILITY.QUESTION_BOOTSTRAP]: capability(
-      backendAvailable ? RUNTIME_E2E_CAPABILITY_STATUS.PROBE_REQUIRED : RUNTIME_E2E_CAPABILITY_STATUS.MISSING,
-      backendAvailable ? 'Question bootstrap must be proved by opening real Solo gameplay.' : 'Question bootstrap cannot run without the configured Base44 app.',
-      backendAvailable ? null : 'Fix Base44 app configuration and rerun the Solo scenario.',
+      backendAvailable || runtimeProbeAllowed ? RUNTIME_E2E_CAPABILITY_STATUS.PROBE_REQUIRED : RUNTIME_E2E_CAPABILITY_STATUS.MISSING,
+      backendAvailable || runtimeProbeAllowed ? 'Question bootstrap must be proved by opening real Solo gameplay.' : 'Question bootstrap cannot run without the configured Base44 app.',
+      backendAvailable || runtimeProbeAllowed ? null : 'Fix Base44 app configuration and rerun the Solo scenario.',
     ),
     [RUNTIME_E2E_CAPABILITY.SOLO_QUESTION_SERVICE]: capability(
-      backendAvailable ? RUNTIME_E2E_CAPABILITY_STATUS.PROBE_REQUIRED : RUNTIME_E2E_CAPABILITY_STATUS.MISSING,
-      backendAvailable ? 'The Solo scenario must prove the real question service response.' : 'The Solo question service cannot be probed while Base44 is unavailable.',
-      backendAvailable ? null : 'Run against a valid Base44 app with its question service deployed.',
+      backendAvailable || runtimeProbeAllowed ? RUNTIME_E2E_CAPABILITY_STATUS.PROBE_REQUIRED : RUNTIME_E2E_CAPABILITY_STATUS.MISSING,
+      backendAvailable || runtimeProbeAllowed ? 'The Solo scenario must prove the real question service response.' : 'The Solo question service cannot be probed while Base44 is unavailable.',
+      backendAvailable || runtimeProbeAllowed ? null : 'Run against a valid Base44 app with its question service deployed.',
     ),
     [RUNTIME_E2E_CAPABILITY.ONLINE_MATCHMAKING]: capability(
-      backendAvailable ? RUNTIME_E2E_CAPABILITY_STATUS.PROBE_REQUIRED : RUNTIME_E2E_CAPABILITY_STATUS.MISSING,
-      backendAvailable ? 'Online matchmaking must be proved by the gated scenario.' : 'Online matchmaking cannot be probed while Base44 is unavailable.',
+      backendAvailable || runtimeProbeAllowed ? RUNTIME_E2E_CAPABILITY_STATUS.PROBE_REQUIRED : RUNTIME_E2E_CAPABILITY_STATUS.MISSING,
+      backendAvailable || runtimeProbeAllowed ? 'Online matchmaking must be proved by the gated scenario.' : 'Online matchmaking cannot be probed while Base44 is unavailable.',
     ),
     [RUNTIME_E2E_CAPABILITY.SAFE_MATCHMAKING_QUEUE]: capability(
       environment?.allowMatchmaking ? RUNTIME_E2E_CAPABILITY_STATUS.AVAILABLE : RUNTIME_E2E_CAPABILITY_STATUS.MISSING,

@@ -4,6 +4,10 @@ import {
   RUNTIME_E2E_SUITE_ID,
   getRuntimeE2EScenario,
 } from './runtimeE2EScenarios.js';
+import {
+  classifyRuntimeE2ETarget,
+  RUNTIME_E2E_TARGET_KIND,
+} from './runtimeE2ECapabilities.js';
 
 export const AUTOMATION_STATUS = Object.freeze({
   PASS: 'AUTOMATION_PASS',
@@ -26,13 +30,89 @@ export const BACKEND_PREFLIGHT_STATUS = Object.freeze({
   APP_NOT_FOUND: 'APP_NOT_FOUND',
   NOT_CONFIGURED: 'NOT_CONFIGURED',
   UNREACHABLE: 'UNREACHABLE',
+  PROD_CUSTOM_DOMAIN_PREFLIGHT_UNSUPPORTED: 'PROD_CUSTOM_DOMAIN_PREFLIGHT_UNSUPPORTED',
+  PROD_RUNTIME_PROBE_REQUIRED: 'PROD_RUNTIME_PROBE_REQUIRED',
+  OBSERVATION_INCONCLUSIVE: 'OBSERVATION_INCONCLUSIVE',
   UNKNOWN: 'UNKNOWN',
 });
+
+export const RUNTIME_BACKEND_PROBE_STATUS = Object.freeze({
+  NOT_REQUIRED: 'NOT_REQUIRED',
+  NOT_RUN: 'NOT_RUN',
+  REQUIRED: 'REQUIRED',
+  CONNECTED: 'CONNECTED',
+  FAILED: 'FAILED',
+  NOT_OBSERVED: 'NOT_OBSERVED',
+});
+
+export const RUNTIME_E2E_PROOF_LEVEL = Object.freeze({
+  UI_ONLY: 'UI_ONLY',
+  SESSION_RESTORED: 'SESSION_RESTORED',
+  BACKEND_RUNTIME_PROBE: 'BACKEND_RUNTIME_PROBE',
+  BACKEND_CONNECTED: 'BACKEND_CONNECTED',
+  MANUAL_EXTERNAL: 'MANUAL_EXTERNAL',
+});
+
+export const RUNTIME_E2E_PREFLIGHT_DEPENDENCY = Object.freeze({
+  DIRECT: 'direct',
+  RUNTIME_PROBE: 'runtime_probe',
+  NOT_REQUIRED: 'not_required',
+});
+
+export const RUNTIME_SERVICE_CATEGORY = Object.freeze({
+  APP_DOCUMENT: 'app_document',
+  STATIC_ASSETS: 'static_assets',
+  BASE44_API: 'base44_api',
+  BASE44_FUNCTIONS: 'base44_functions',
+  AUTH_OR_USER_BOOTSTRAP: 'auth_or_user_bootstrap',
+  LEADERBOARD: 'leaderboard',
+  DAILY_STATUS: 'daily_status',
+  QUESTION_SERVICE: 'question_service',
+  ONLINE_MATCHMAKING: 'online_matchmaking',
+  UNKNOWN_EXTERNAL: 'unknown_external',
+});
+
+export function resolveRuntimePreflightStatus({
+  productionCustomDomainMode = false,
+  directBackendPreflightStatus = BACKEND_PREFLIGHT_STATUS.OBSERVATION_INCONCLUSIVE,
+  canRunRuntimeProbes = false,
+} = {}) {
+  if (!productionCustomDomainMode) {
+    return directBackendPreflightStatus === BACKEND_PREFLIGHT_STATUS.UNKNOWN
+      ? BACKEND_PREFLIGHT_STATUS.OBSERVATION_INCONCLUSIVE
+      : directBackendPreflightStatus;
+  }
+  if (
+    directBackendPreflightStatus === BACKEND_PREFLIGHT_STATUS.REACHABLE
+    || directBackendPreflightStatus === BACKEND_PREFLIGHT_STATUS.APP_NOT_FOUND
+    || directBackendPreflightStatus === BACKEND_PREFLIGHT_STATUS.NOT_CONFIGURED
+  ) {
+    return directBackendPreflightStatus;
+  }
+  if (canRunRuntimeProbes) return BACKEND_PREFLIGHT_STATUS.PROD_RUNTIME_PROBE_REQUIRED;
+  if (
+    directBackendPreflightStatus === BACKEND_PREFLIGHT_STATUS.UNKNOWN
+    || directBackendPreflightStatus === BACKEND_PREFLIGHT_STATUS.OBSERVATION_INCONCLUSIVE
+    || directBackendPreflightStatus === BACKEND_PREFLIGHT_STATUS.PROD_RUNTIME_PROBE_REQUIRED
+  ) {
+    return BACKEND_PREFLIGHT_STATUS.PROD_CUSTOM_DOMAIN_PREFLIGHT_UNSUPPORTED;
+  }
+  return directBackendPreflightStatus;
+}
 
 export const RUNTIME_DIAGNOSTIC_CATEGORY = Object.freeze({
   BASE44_APP_NOT_FOUND: 'BASE44_APP_NOT_FOUND',
   BASE44_APP_CONFIG_MISSING: 'BASE44_APP_CONFIG_MISSING',
+  BASE44_RUNTIME_ERROR: 'BASE44_RUNTIME_ERROR',
   ACTOR_BOOTSTRAP_CONFIG_FAILURE: 'ACTOR_BOOTSTRAP_CONFIG_FAILURE',
+  AUTH_OR_USER_BOOTSTRAP_FAILED: 'AUTH_OR_USER_BOOTSTRAP_FAILED',
+  BACKEND_5XX: 'BACKEND_5XX',
+  BACKEND_PERMISSION_DENIED: 'BACKEND_PERMISSION_DENIED',
+  BACKEND_CORS_BLOCKED: 'BACKEND_CORS_BLOCKED',
+  FUNCTION_CALL_FAILED: 'FUNCTION_CALL_FAILED',
+  UNHANDLED_PROMISE_REJECTION: 'UNHANDLED_PROMISE_REJECTION',
+  BROWSER_EXTENSION_NOISE: 'BROWSER_EXTENSION_NOISE',
+  BROWSER_RUNTIME_ERROR: 'BROWSER_RUNTIME_ERROR',
   NETWORK_REQUEST_FAILED: 'NETWORK_REQUEST_FAILED',
   BROWSER_CONSOLE_ERROR: 'BROWSER_CONSOLE_ERROR',
 });
@@ -45,9 +125,22 @@ const SETUP_GAP_STATUSES = new Set([
 const PRIVATE_KEY_PATTERN = /(?:password|secret|token|authorization|cookie|session|email|provider.?id|owner.?key|guest.?id|auth.?id|player.?key|actor.?key|storage.?state)/i;
 const PRIVATE_TEXT_PATTERN = /\b(?:owner_key|guest_token|guest_id|provider_id|auth_id|internal_player_key|player_key)\b|\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
 const STACK_TRACE_PATTERN = /(?:\n|^)\s*at\s+[\w.$<>]+\s*\([^\n]+:\d+:\d+\)/g;
+const STACK_TRACE_DETECT_PATTERN = /(?:\n|^)\s*at\s+[\w.$<>]+\s*\([^\n]+:\d+:\d+\)/;
+const BROWSER_DIAGNOSTIC_LOG_PATTERN = /(?:\n|^)(?:Browser logs:|Call log:)[\s\S]*/i;
+const LOCAL_PATH_PATTERN = /\/(?:Users|private\/var|var|tmp)\/[^\s"'<>]+/g;
 const APP_NOT_FOUND_PATTERN = /(?:Base44[^\n]{0,120})?App not found|backend app not found/i;
 const APP_CONFIG_PATTERN = /missing Base44 app (?:id|config)|VITE_BASE44_APP_ID[^\n]{0,80}(?:missing|required|undefined)|app[_ ]id[^\n]{0,80}(?:missing|required|undefined)/i;
 const ACTOR_BOOTSTRAP_PATTERN = /(?:User auth check failed|guest|auth|bootstrap)[^\n]{0,160}App not found/i;
+const BACKEND_SERVICE_CATEGORIES = new Set([
+  RUNTIME_SERVICE_CATEGORY.BASE44_API,
+  RUNTIME_SERVICE_CATEGORY.BASE44_FUNCTIONS,
+  RUNTIME_SERVICE_CATEGORY.AUTH_OR_USER_BOOTSTRAP,
+  RUNTIME_SERVICE_CATEGORY.LEADERBOARD,
+  RUNTIME_SERVICE_CATEGORY.DAILY_STATUS,
+  RUNTIME_SERVICE_CATEGORY.QUESTION_SERVICE,
+  RUNTIME_SERVICE_CATEGORY.ONLINE_MATCHMAKING,
+]);
+const STATIC_RESOURCE_TYPES = new Set(['stylesheet', 'script', 'image', 'media', 'font']);
 
 function nowIso() {
   return new Date().toISOString();
@@ -79,11 +172,14 @@ function sanitizeArtifactPath(value) {
 function sanitizeText(value) {
   return String(value || '')
     .replace(/\u001B\[[0-?]*[ -/]*[@-~]/g, '')
+    .replace(/\b(password|secret|token|authorization|cookie|session|email|provider.?id|owner.?key|guest.?id|auth.?id|player.?key|actor.?key|storage.?state)\s*[:=]\s*[^\s,;]+/gi, '$1=[REDACTED]')
     .replace(PRIVATE_TEXT_PATTERN, '[REDACTED]')
     .replace(/\bBearer\s+[A-Za-z0-9._~+/=-]+/gi, 'Bearer [REDACTED]')
     .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, '[JWT_REDACTED]')
     .replace(/([?&](?:token|access_token|refresh_token|auth|authorization|session|guest_token|guest_id|owner_key)=)[^&\s#]+/gi, '$1[REDACTED]')
     .replace(STACK_TRACE_PATTERN, '\n[STACK_REDACTED]')
+    .replace(BROWSER_DIAGNOSTIC_LOG_PATTERN, '\n[BROWSER_DIAGNOSTIC_REDACTED]')
+    .replace(LOCAL_PATH_PATTERN, '[LOCAL_PATH_REDACTED]')
     .slice(0, 4000);
 }
 
@@ -103,6 +199,125 @@ export function sanitizeAutomationValue(value, key = '') {
   return sanitizeText(value);
 }
 
+function diagnosticFingerprint(value) {
+  const normalized = sanitizeText(value).toLowerCase().replace(/\d+/g, '#').slice(0, 500);
+  let hash = 2166136261;
+  for (let index = 0; index < normalized.length; index += 1) {
+    hash ^= normalized.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `diag-${(hash >>> 0).toString(16).padStart(8, '0')}`;
+}
+
+export function classifyRuntimeServiceRequest(requestUrl, configuredBaseUrl, resourceType = '') {
+  try {
+    const request = new URL(String(requestUrl));
+    const configured = new URL(String(configuredBaseUrl));
+    const pathname = request.pathname.toLowerCase();
+    const type = String(resourceType || '').toLowerCase();
+    const sameOrigin = request.origin === configured.origin;
+
+    if (type === 'document') return RUNTIME_SERVICE_CATEGORY.APP_DOCUMENT;
+    if (STATIC_RESOURCE_TYPES.has(type) || /\.(?:css|js|mjs|png|jpe?g|gif|webp|svg|ico|woff2?|ttf|mp4|webm|mp3)(?:$|\/)/i.test(pathname)) {
+      return RUNTIME_SERVICE_CATEGORY.STATIC_ASSETS;
+    }
+    if (/getquestions|question(?:s|bootstrap)?/.test(pathname)) return RUNTIME_SERVICE_CATEGORY.QUESTION_SERVICE;
+    if (/randommatchmaking|matchmaking|matchmakingqueue|queue\/(?:join|leave)|findmatch/.test(pathname)) return RUNTIME_SERVICE_CATEGORY.ONLINE_MATCHMAKING;
+    if (/leaderboard|ranking/.test(pathname)) return RUNTIME_SERVICE_CATEGORY.LEADERBOARD;
+    if (/dailywheel|daily[-_/]?(?:status|calendar|quest|goal|streak)/.test(pathname)) return RUNTIME_SERVICE_CATEGORY.DAILY_STATUS;
+    if (/createguestprofile|guestprofile|playerprofile|userprofile|auth|currentuser|user\/me|\/me(?:\/|$)/.test(pathname)) {
+      return RUNTIME_SERVICE_CATEGORY.AUTH_OR_USER_BOOTSTRAP;
+    }
+    if (/\/functions?\//.test(pathname)) return RUNTIME_SERVICE_CATEGORY.BASE44_FUNCTIONS;
+    if (/\/api\//.test(pathname) || /base44/i.test(request.hostname)) return RUNTIME_SERVICE_CATEGORY.BASE44_API;
+    if (sameOrigin && (type === 'xhr' || type === 'fetch')) return RUNTIME_SERVICE_CATEGORY.BASE44_API;
+    return RUNTIME_SERVICE_CATEGORY.UNKNOWN_EXTERNAL;
+  } catch (_) {
+    return RUNTIME_SERVICE_CATEGORY.UNKNOWN_EXTERNAL;
+  }
+}
+
+export function isRuntimeBackendServiceCategory(category) {
+  return BACKEND_SERVICE_CATEGORIES.has(category);
+}
+
+export function recordRuntimeServiceObservation(summary, category, outcome, status = null) {
+  const current = summary[category] || { requests: 0, responses: 0, failures: 0, statusClasses: {} };
+  if (outcome === 'REQUEST') current.requests += 1;
+  if (outcome === 'RESPONSE') {
+    current.responses += 1;
+    if (Number.isFinite(Number(status))) {
+      const statusClass = `${Math.floor(Number(status) / 100)}xx`;
+      current.statusClasses[statusClass] = (current.statusClasses[statusClass] || 0) + 1;
+    }
+  }
+  if (outcome === 'FAILED') current.failures += 1;
+  summary[category] = current;
+  return summary;
+}
+
+export function runtimeServiceSummaryUnavailableReason(summary = {}) {
+  const backendObserved = Object.entries(summary).some(([category, value]) => (
+    isRuntimeBackendServiceCategory(category)
+    && ((value?.requests || 0) > 0 || (value?.responses || 0) > 0 || (value?.failures || 0) > 0)
+  ));
+  return backendObserved ? null : 'No classified backend requests observed during preflight window.';
+}
+
+const SERVICE_ALIASES = Object.freeze({
+  base_app: RUNTIME_SERVICE_CATEGORY.BASE44_API,
+  actor_bootstrap: RUNTIME_SERVICE_CATEGORY.AUTH_OR_USER_BOOTSTRAP,
+  profile: RUNTIME_SERVICE_CATEGORY.BASE44_API,
+  daily_wheel: RUNTIME_SERVICE_CATEGORY.DAILY_STATUS,
+});
+
+export function summarizeRuntimeBackendEvidence(summary = {}, preferredCategories = []) {
+  const preferred = [...new Set(preferredCategories.map((category) => SERVICE_ALIASES[category] || category))]
+    .filter((category) => isRuntimeBackendServiceCategory(category));
+  const specificPreferred = preferred.filter((category) => (
+    category !== RUNTIME_SERVICE_CATEGORY.BASE44_API
+    && category !== RUNTIME_SERVICE_CATEGORY.BASE44_FUNCTIONS
+  ));
+  const domainSpecificPreferred = specificPreferred.filter((category) => (
+    category !== RUNTIME_SERVICE_CATEGORY.AUTH_OR_USER_BOOTSTRAP
+  ));
+  const candidates = preferred.length
+    ? (domainSpecificPreferred.length ? domainSpecificPreferred : specificPreferred.length ? specificPreferred : preferred)
+    : Object.keys(summary).filter((category) => isRuntimeBackendServiceCategory(category));
+  let fallback = null;
+  for (const category of candidates) {
+    const entry = summary[category];
+    if (!entry) continue;
+    const successfulStatusClass = ['2xx', '3xx'].find((statusClass) => (entry.statusClasses?.[statusClass] || 0) > 0);
+    if (successfulStatusClass) {
+      return {
+        observed: true,
+        successful: true,
+        category,
+        statusClass: successfulStatusClass,
+        safeSummary: `Observed a successful ${category} runtime response.`,
+      };
+    }
+    if (!fallback && ((entry.responses || 0) > 0 || (entry.failures || 0) > 0)) {
+      const statusClass = Object.keys(entry.statusClasses || {})[0] || (entry.failures ? 'network_failure' : 'unknown');
+      fallback = {
+        observed: true,
+        successful: false,
+        category,
+        statusClass,
+        safeSummary: `Observed ${category} runtime traffic without a successful response.`,
+      };
+    }
+  }
+  return fallback || {
+    observed: false,
+    successful: false,
+    category: null,
+    statusClass: null,
+    safeSummary: 'No classified backend response was observed during this scenario.',
+  };
+}
+
 export function classifyRuntimeDiagnostic(value) {
   if (
     value
@@ -115,15 +330,20 @@ export function classifyRuntimeDiagnostic(value) {
       critical: value.critical,
       summary: sanitizeText(value.summary || 'A classified browser diagnostic was observed.'),
       nextAction: sanitizeText(value.nextAction || 'Inspect the affected runtime scenario.'),
+      fingerprint: sanitizeText(value.fingerprint || diagnosticFingerprint(value.summary || value.category)),
     };
   }
-  const text = sanitizeText(typeof value === 'string' ? value : value?.summary || value?.message || JSON.stringify(value || ''));
+  const rawText = typeof value === 'string' ? value : value?.summary || value?.message || JSON.stringify(value || '');
+  const hasRawStackTrace = STACK_TRACE_DETECT_PATTERN.test(String(rawText || ''));
+  const text = sanitizeText(rawText);
+  const fingerprint = diagnosticFingerprint(text);
   if (ACTOR_BOOTSTRAP_PATTERN.test(text)) {
     return {
       category: RUNTIME_DIAGNOSTIC_CATEGORY.ACTOR_BOOTSTRAP_CONFIG_FAILURE,
       critical: true,
       summary: 'Guest/auth bootstrap failed because the configured Base44 app was not found.',
       nextAction: 'Configure VITE_BASE44_APP_ID or approved app_id bootstrap and verify the target app.',
+      fingerprint,
     };
   }
   if (APP_NOT_FOUND_PATTERN.test(text)) {
@@ -132,6 +352,7 @@ export function classifyRuntimeDiagnostic(value) {
       critical: true,
       summary: 'The configured Base44 app was not found.',
       nextAction: 'Verify VITE_BASE44_APP_ID/app_id and the configured app base URL.',
+      fingerprint,
     };
   }
   if (APP_CONFIG_PATTERN.test(text)) {
@@ -140,6 +361,88 @@ export function classifyRuntimeDiagnostic(value) {
       critical: true,
       summary: 'Required Base44 app configuration is missing.',
       nextAction: 'Set VITE_BASE44_APP_ID or provide app_id through approved runtime bootstrap.',
+      fingerprint,
+    };
+  }
+  if (/User auth check failed|auth check failed|actor bootstrap failed/i.test(text)) {
+    return {
+      category: RUNTIME_DIAGNOSTIC_CATEGORY.AUTH_OR_USER_BOOTSTRAP_FAILED,
+      critical: true,
+      summary: 'The auth or user-bootstrap check failed.',
+      nextAction: 'Inspect the safe auth/bootstrap service category and isolated actor setup.',
+      fingerprint,
+    };
+  }
+  if (/\[Base44 SDK Error\]|Base44 SDK[^\n]{0,80}(?:error|failed)/i.test(text)) {
+    return {
+      category: RUNTIME_DIAGNOSTIC_CATEGORY.BASE44_RUNTIME_ERROR,
+      critical: true,
+      summary: 'The Base44 SDK reported a runtime failure.',
+      nextAction: 'Inspect the safe service category/status and deployed app configuration.',
+      fingerprint,
+    };
+  }
+  if (/unhandled (?:promise )?rejection|unhandledrejection/i.test(text)) {
+    return {
+      category: RUNTIME_DIAGNOSTIC_CATEGORY.UNHANDLED_PROMISE_REJECTION,
+      critical: true,
+      summary: 'An unhandled promise rejection was observed.',
+      nextAction: 'Inspect the retained trace and the affected runtime service category.',
+      fingerprint,
+    };
+  }
+  if (hasRawStackTrace) {
+    return {
+      category: RUNTIME_DIAGNOSTIC_CATEGORY.BROWSER_RUNTIME_ERROR,
+      critical: true,
+      summary: 'A browser runtime error with a stack trace was observed; the stack was removed.',
+      nextAction: 'Inspect the retained trace and reproduce the affected scenario without exposing the raw stack.',
+      fingerprint,
+    };
+  }
+  if (/cors|cross-origin request blocked|blocked by access-control-allow-origin/i.test(text)) {
+    return {
+      category: RUNTIME_DIAGNOSTIC_CATEGORY.BACKEND_CORS_BLOCKED,
+      critical: true,
+      summary: 'A backend request was blocked by the browser CORS policy.',
+      nextAction: 'Verify the production custom-domain API/CORS configuration.',
+      fingerprint,
+    };
+  }
+  if (/permission denied|forbidden|\b403\b|row.level security|rls/i.test(text)) {
+    return {
+      category: RUNTIME_DIAGNOSTIC_CATEGORY.BACKEND_PERMISSION_DENIED,
+      critical: true,
+      summary: 'A backend request was denied by authorization or data-access policy.',
+      nextAction: 'Verify the isolated actor permissions without exposing actor identity.',
+      fingerprint,
+    };
+  }
+  if (/function(?: call| invocation)? failed|failed to invoke|functions?\/[^\s]+[^\n]{0,80}(?:failed|error)/i.test(text)) {
+    return {
+      category: RUNTIME_DIAGNOSTIC_CATEGORY.FUNCTION_CALL_FAILED,
+      critical: true,
+      summary: 'A backend function call failed.',
+      nextAction: 'Inspect the safe function service category and retained trace.',
+      fingerprint,
+    };
+  }
+  if (/\b5\d\d\b|internal server error|bad gateway|service unavailable|gateway timeout/i.test(text)) {
+    return {
+      category: RUNTIME_DIAGNOSTIC_CATEGORY.BACKEND_5XX,
+      critical: true,
+      summary: 'A backend service returned a server-side failure.',
+      nextAction: 'Inspect the safe service/status summary and server-side logs.',
+      fingerprint,
+    };
+  }
+  if (/chrome-extension:|moz-extension:|devtools|favicon\.ico|resizeobserver loop/i.test(text)) {
+    return {
+      category: RUNTIME_DIAGNOSTIC_CATEGORY.BROWSER_EXTENSION_NOISE,
+      critical: false,
+      summary: 'Non-product browser or extension noise was observed.',
+      nextAction: 'No product action is required unless the message reproduces without browser extensions.',
+      fingerprint,
     };
   }
   if (/request failed|networkerror|failed to fetch|net::/i.test(text)) {
@@ -148,6 +451,7 @@ export function classifyRuntimeDiagnostic(value) {
       critical: false,
       summary: 'A browser network request failed.',
       nextAction: 'Inspect the redacted service summary and rerun against the intended environment.',
+      fingerprint,
     };
   }
   return {
@@ -155,6 +459,7 @@ export function classifyRuntimeDiagnostic(value) {
     critical: false,
     summary: 'A browser console error was observed.',
     nextAction: 'Inspect the affected scenario and its retained trace when available.',
+    fingerprint,
   };
 }
 
@@ -237,6 +542,14 @@ export function createNotRunAutomationReport(buildMarker = 'unknown') {
     uiOnly: scenario.executionScope === RUNTIME_E2E_EXECUTION_SCOPE.UI_ONLY,
     backendServices: scenario.backendServices,
     preflightDecision: 'NOT_RUN',
+    proofLevel: scenario.executionScope === RUNTIME_E2E_EXECUTION_SCOPE.UI_ONLY
+      ? RUNTIME_E2E_PROOF_LEVEL.UI_ONLY
+      : RUNTIME_E2E_PROOF_LEVEL.BACKEND_RUNTIME_PROBE,
+    backendEvidence: summarizeRuntimeBackendEvidence(),
+    preflightDependency: scenario.executionScope === RUNTIME_E2E_EXECUTION_SCOPE.UI_ONLY
+      ? RUNTIME_E2E_PREFLIGHT_DEPENDENCY.NOT_REQUIRED
+      : RUNTIME_E2E_PREFLIGHT_DEPENDENCY.DIRECT,
+    blockReason: 'No runtime automation report has been imported or executed.',
     status: AUTOMATION_STATUS.NOT_RUN,
     statusReason: 'No runtime automation report has been imported or executed.',
     durationMs: null,
@@ -263,11 +576,23 @@ export function createNotRunAutomationReport(buildMarker = 'unknown') {
     startedAt: null,
     finishedAt: null,
     buildMarker,
+    targetKind: null,
+    productionCustomDomainMode: false,
     configuredBaseUrl: null,
     pageUrl: null,
     pageOrigin: null,
     appRoute: null,
     preflight: null,
+    directBackendPreflightStatus: null,
+    runtimeBackendProbeStatus: RUNTIME_BACKEND_PROBE_STATUS.NOT_RUN,
+    preflightStatusReason: 'Runtime preflight has not run.',
+    serviceSummary: {},
+    serviceSummaryUnavailableReason: 'Runtime preflight has not run.',
+    backendProofLevel: RUNTIME_E2E_PROOF_LEVEL.UI_ONLY,
+    homeVisible: false,
+    authenticatedOrStoredSession: false,
+    canRunRuntimeProbes: false,
+    preflightLimitations: [],
     environment: null,
     capabilitySummary: {},
     criticalConsoleErrorCount: 0,
@@ -320,11 +645,18 @@ export function hasRealAutomationEvidence(report, result) {
     && completedRequiredSteps.length === requiredSteps.length,
   );
   if (!baseEvidence) return false;
-  if (
-    definition?.executionScope === RUNTIME_E2E_EXECUTION_SCOPE.BACKEND_DEPENDENT
-    && (report?.preflight?.status || evidence?.backendPreflight?.status) !== BACKEND_PREFLIGHT_STATUS.REACHABLE
-  ) return false;
-  if (result?.scenarioId !== 'runtime_e2e.duello_two_context_runtime_sync') return true;
+  if (definition?.executionScope !== RUNTIME_E2E_EXECUTION_SCOPE.BACKEND_DEPENDENT) return true;
+  if (result?.scenarioId === 'runtime_e2e.app_bootstrap_guest_home') {
+    const sessionRestored = result?.proofLevel === RUNTIME_E2E_PROOF_LEVEL.SESSION_RESTORED
+      && Boolean(report?.homeVisible || report?.preflight?.homeVisible)
+      && Boolean(report?.authenticatedOrStoredSession || report?.preflight?.authenticatedOrStoredSession);
+    if (sessionRestored) return true;
+  }
+  if (result?.scenarioId !== 'runtime_e2e.duello_two_context_runtime_sync') {
+    return result?.proofLevel === RUNTIME_E2E_PROOF_LEVEL.BACKEND_CONNECTED
+      && result?.backendEvidence?.observed === true
+      && result?.backendEvidence?.successful === true;
+  }
   return evidence?.contextCount >= 2
     && evidence?.deterministicPairing === true
     && evidence?.deterministicClaimFixture === true
@@ -353,11 +685,50 @@ export function backendPreflightBlock(report, result) {
       expected: 'A reachable configured Base44 app before backend-dependent browser steps run.',
     };
   }
-  if (preflightStatus && preflightStatus !== BACKEND_PREFLIGHT_STATUS.REACHABLE) {
+  if (preflightStatus === BACKEND_PREFLIGHT_STATUS.NOT_CONFIGURED) {
+    return {
+      category: 'BACKEND_PREFLIGHT_NOT_CONFIGURED',
+      actual: 'Backend-dependent scenario was not accepted: Base44 app configuration is missing.',
+      expected: 'Configured Base44 app identity before backend-dependent browser steps run.',
+    };
+  }
+  if (preflightStatus === BACKEND_PREFLIGHT_STATUS.UNREACHABLE) {
     return {
       category: `BACKEND_PREFLIGHT_${preflightStatus}`,
       actual: `Backend-dependent scenario was not accepted: backend preflight is ${preflightStatus}.`,
       expected: 'Backend preflight status REACHABLE before backend-dependent browser steps run.',
+    };
+  }
+  const sessionRestored = result?.scenarioId === 'runtime_e2e.app_bootstrap_guest_home'
+    && result?.proofLevel === RUNTIME_E2E_PROOF_LEVEL.SESSION_RESTORED
+    && Boolean(report?.homeVisible || report?.preflight?.homeVisible)
+    && Boolean(report?.authenticatedOrStoredSession || report?.preflight?.authenticatedOrStoredSession);
+  const backendConnected = result?.proofLevel === RUNTIME_E2E_PROOF_LEVEL.BACKEND_CONNECTED
+    && result?.backendEvidence?.observed === true
+    && result?.backendEvidence?.successful === true;
+  const runtimeProbeStatus = new Set([
+    BACKEND_PREFLIGHT_STATUS.PROD_CUSTOM_DOMAIN_PREFLIGHT_UNSUPPORTED,
+    BACKEND_PREFLIGHT_STATUS.PROD_RUNTIME_PROBE_REQUIRED,
+  ]);
+  if (runtimeProbeStatus.has(preflightStatus) && !sessionRestored && !backendConnected) {
+    return {
+      category: 'BACKEND_RUNTIME_PROBE_NOT_OBSERVED',
+      actual: 'Backend-dependent scenario was not accepted: production direct preflight is limited and no successful scenario backend response was observed.',
+      expected: 'Successful scenario-level backend evidence, or explicit SESSION_RESTORED proof for App bootstrap only.',
+    };
+  }
+  if (preflightStatus === BACKEND_PREFLIGHT_STATUS.REACHABLE && !sessionRestored && !backendConnected) {
+    return {
+      category: 'BACKEND_RUNTIME_EVIDENCE_MISSING',
+      actual: 'Backend-dependent scenario was not accepted: direct reachability does not replace scenario-level backend evidence.',
+      expected: 'A successful classified backend response during the scenario.',
+    };
+  }
+  if (preflightStatus && preflightStatus !== BACKEND_PREFLIGHT_STATUS.REACHABLE && !runtimeProbeStatus.has(preflightStatus)) {
+    return {
+      category: `BACKEND_PREFLIGHT_${preflightStatus}`,
+      actual: `Backend-dependent scenario was not accepted: backend preflight is ${preflightStatus}.`,
+      expected: 'A supported direct preflight or an allowed production scenario runtime probe.',
     };
   }
   return null;
@@ -377,6 +748,23 @@ function normalizeScenarioResult(report, result = {}) {
   let failedStepId = result.failedStepId || null;
   let failedStepTitle = result.failedStepTitle || null;
   let expected = result.expected || null;
+  const uiOnly = definition.executionScope === RUNTIME_E2E_EXECUTION_SCOPE.UI_ONLY;
+  const backendDependent = !uiOnly;
+  const proofLevel = Object.values(RUNTIME_E2E_PROOF_LEVEL).includes(result.proofLevel)
+    ? result.proofLevel
+    : uiOnly
+      ? RUNTIME_E2E_PROOF_LEVEL.UI_ONLY
+      : result.status === AUTOMATION_STATUS.MANUAL_EXTERNAL
+        ? RUNTIME_E2E_PROOF_LEVEL.MANUAL_EXTERNAL
+        : RUNTIME_E2E_PROOF_LEVEL.BACKEND_RUNTIME_PROBE;
+  const backendEvidence = result.backendEvidence || summarizeRuntimeBackendEvidence();
+  const preflightDependency = Object.values(RUNTIME_E2E_PREFLIGHT_DEPENDENCY).includes(result.preflightDependency)
+    ? result.preflightDependency
+    : uiOnly
+      ? RUNTIME_E2E_PREFLIGHT_DEPENDENCY.NOT_REQUIRED
+      : report.productionCustomDomainMode
+        ? RUNTIME_E2E_PREFLIGHT_DEPENDENCY.RUNTIME_PROBE
+        : RUNTIME_E2E_PREFLIGHT_DEPENDENCY.DIRECT;
   const backendBlock = backendPreflightBlock(report, result);
   if (status === AUTOMATION_STATUS.PASS && backendBlock) {
     status = AUTOMATION_STATUS.NOT_AUTOMATABLE;
@@ -404,8 +792,6 @@ function normalizeScenarioResult(report, result = {}) {
     ...(result.consoleErrors || []),
     ...(result.consoleErrorSummary?.items || []),
   ]);
-  const uiOnly = definition.executionScope === RUNTIME_E2E_EXECUTION_SCOPE.UI_ONLY;
-  const backendDependent = !uiOnly;
   const failedStep = steps.find((item) => item.status === AUTOMATION_STATUS.FAIL);
   const networkErrorSummary = summarizeRuntimeNetworkErrors(result.networkErrors || []);
   const screenshotPath = result.screenshotPath || failedStep?.screenshotPath || null;
@@ -430,6 +816,10 @@ function normalizeScenarioResult(report, result = {}) {
     uiOnly,
     backendServices: definition.backendServices,
     preflightDecision: result.preflightDecision || 'NOT_RECORDED',
+    proofLevel,
+    backendEvidence,
+    preflightDependency,
+    blockReason: status === AUTOMATION_STATUS.PASS ? null : (result.blockReason || actual || null),
     status,
     statusReason,
     durationMs: result.durationMs != null && Number.isFinite(Number(result.durationMs))
@@ -461,14 +851,68 @@ export function normalizeRuntimeE2EReport(input, buildMarker = 'unknown') {
   const evidence = input.executionEvidence || null;
   const rawPreflight = input.preflight || evidence?.backendPreflight || null;
   const preflightConsoleSummary = summarizeRuntimeConsoleErrors(rawPreflight?.consoleErrors || []);
-  const preflight = rawPreflight ? sanitizeAutomationValue({
+  const safePreflight = rawPreflight ? sanitizeAutomationValue({
     ...rawPreflight,
     consoleErrorSummary: preflightConsoleSummary,
     consoleErrors: preflightConsoleSummary.items,
   }) : null;
-  const backendAvailable = input.backendAvailable ?? preflight?.status === BACKEND_PREFLIGHT_STATUS.REACHABLE;
+  const configuredBaseUrl = input.configuredBaseUrl || evidence?.configuredBaseUrl || safePreflight?.configuredBaseUrl || null;
+  const targetKind = input.targetKind
+    || input.environment?.targetKind
+    || safePreflight?.targetKind
+    || (configuredBaseUrl ? classifyRuntimeE2ETarget(configuredBaseUrl) : null);
+  const explicitProductionMode = input.productionCustomDomainMode
+    ?? input.environment?.productionCustomDomainMode
+    ?? safePreflight?.productionCustomDomainMode;
+  const productionCustomDomainMode = explicitProductionMode == null
+    ? targetKind === RUNTIME_E2E_TARGET_KIND.PRODUCTION_CUSTOM_DOMAIN
+    : Boolean(explicitProductionMode);
+  const reportedDirectBackendPreflightStatus = input.directBackendPreflightStatus
+    || safePreflight?.directBackendPreflightStatus
+    || safePreflight?.status
+    || null;
+  const directBackendPreflightStatus = productionCustomDomainMode && (
+    reportedDirectBackendPreflightStatus === BACKEND_PREFLIGHT_STATUS.UNKNOWN
+    || reportedDirectBackendPreflightStatus === BACKEND_PREFLIGHT_STATUS.OBSERVATION_INCONCLUSIVE
+  )
+    ? BACKEND_PREFLIGHT_STATUS.PROD_CUSTOM_DOMAIN_PREFLIGHT_UNSUPPORTED
+    : reportedDirectBackendPreflightStatus;
+  const resolvedPreflightStatus = resolveRuntimePreflightStatus({
+    productionCustomDomainMode,
+    directBackendPreflightStatus,
+    canRunRuntimeProbes: Boolean(input.canRunRuntimeProbes ?? safePreflight?.canRunRuntimeProbes),
+  });
+  const preflight = safePreflight ? {
+    ...safePreflight,
+    status: resolvedPreflightStatus,
+    targetKind,
+    productionCustomDomainMode,
+    directBackendPreflightStatus,
+  } : null;
+  const runtimeBackendProbeStatus = input.runtimeBackendProbeStatus
+    || preflight?.runtimeBackendProbeStatus
+    || RUNTIME_BACKEND_PROBE_STATUS.NOT_RUN;
+  const backendAvailable = input.backendAvailable ?? (
+    directBackendPreflightStatus === BACKEND_PREFLIGHT_STATUS.REACHABLE
+    || runtimeBackendProbeStatus === RUNTIME_BACKEND_PROBE_STATUS.CONNECTED
+  );
   const appConfigAvailable = input.appConfigAvailable ?? Boolean(preflight?.appConfigAvailable);
-  const base44AppReachable = input.base44AppReachable ?? Boolean(preflight?.base44AppReachable);
+  const base44AppReachable = input.base44AppReachable ?? (
+    Boolean(preflight?.base44AppReachable)
+    || runtimeBackendProbeStatus === RUNTIME_BACKEND_PROBE_STATUS.CONNECTED
+  );
+  const serviceSummary = input.serviceSummary || preflight?.serviceSummary || {};
+  const serviceSummaryUnavailableReason = input.serviceSummaryUnavailableReason
+    || preflight?.serviceSummaryUnavailableReason
+    || runtimeServiceSummaryUnavailableReason(serviceSummary);
+  const homeVisible = Boolean(input.homeVisible ?? preflight?.homeVisible);
+  const authenticatedOrStoredSession = Boolean(
+    input.authenticatedOrStoredSession ?? preflight?.authenticatedOrStoredSession,
+  );
+  const canRunRuntimeProbes = Boolean(input.canRunRuntimeProbes ?? preflight?.canRunRuntimeProbes);
+  const backendProofLevel = input.backendProofLevel
+    || preflight?.backendProofLevel
+    || (backendAvailable ? RUNTIME_E2E_PROOF_LEVEL.BACKEND_CONNECTED : RUNTIME_E2E_PROOF_LEVEL.UI_ONLY);
   const safeEvidence = evidence ? {
     ...evidence,
     preflight,
@@ -482,11 +926,23 @@ export function normalizeRuntimeE2EReport(input, buildMarker = 'unknown') {
     version: 2,
     suiteId: RUNTIME_E2E_SUITE_ID,
     buildMarker: input.buildMarker || buildMarker,
-    configuredBaseUrl: input.configuredBaseUrl || evidence?.configuredBaseUrl || null,
+    targetKind,
+    productionCustomDomainMode,
+    configuredBaseUrl,
     pageUrl: input.pageUrl || preflight?.pageUrl || evidence?.pageUrl || null,
     pageOrigin: input.pageOrigin || preflight?.pageOrigin || evidence?.pageOrigin || null,
     appRoute: input.appRoute || preflight?.appRoute || evidence?.appRoute || null,
     preflight,
+    directBackendPreflightStatus,
+    runtimeBackendProbeStatus,
+    preflightStatusReason: input.preflightStatusReason || preflight?.preflightStatusReason || null,
+    serviceSummary,
+    serviceSummaryUnavailableReason,
+    backendProofLevel,
+    homeVisible,
+    authenticatedOrStoredSession,
+    canRunRuntimeProbes,
+    preflightLimitations: input.preflightLimitations || preflight?.preflightLimitations || [],
     environment: input.environment || evidence?.environment || null,
     capabilitySummary: input.capabilitySummary || evidence?.capabilitySummary || {},
     backendAvailable,
@@ -542,6 +998,10 @@ function buildAutomationIssueJson(report, scenarioId, setupGapOnly = false) {
     requiredCapabilities: result.requiredCapabilities,
     capabilityStatus: result.capabilityStatus,
     preflightDecision: result.preflightDecision,
+    proofLevel: result.proofLevel,
+    backendEvidence: result.backendEvidence,
+    preflightDependency: result.preflightDependency,
+    blockReason: result.blockReason,
     failedStepId: issueStep?.id || result.failedStepId || null,
     failedStepTitle: issueStep?.title || result.failedStepTitle || null,
     failureCategory: result.failureCategory || (isSetupGap ? 'AUTOMATION_SETUP_GAP' : 'UNCLASSIFIED_AUTOMATION_FAILURE'),

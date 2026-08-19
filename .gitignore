@@ -36,3 +36,9 @@ base44/.app.jsonc
 /test-results/
 /playwright-report/
 /public/health-e2e/latest.json
+
+# Local Runtime E2E authentication fixtures. These may contain cookies or
+# session state and must never enter source control.
+/.auth/
+**/.auth/
+**/*storage-state*.json

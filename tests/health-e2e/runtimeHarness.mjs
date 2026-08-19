@@ -2,7 +2,10 @@ import path from 'node:path';
 
 import {
   AUTOMATION_STATUS,
+  classifyRuntimeServiceRequest,
+  recordRuntimeServiceObservation,
   sanitizeAutomationValue,
+  summarizeRuntimeBackendEvidence,
   summarizeRuntimeConsoleErrors,
 } from '../../src/lib/health/runtimeE2EReport.js';
 
@@ -37,6 +40,7 @@ export class RuntimeScenarioHarness {
     this.stepResults = [];
     this.consoleErrors = [];
     this.networkErrors = [];
+    this.serviceSummary = {};
     this.failedStep = null;
     this.setupStep = null;
     this.setupStatus = null;
@@ -47,12 +51,40 @@ export class RuntimeScenarioHarness {
     page.on('console', (message) => {
       if (message.type() === 'error' && this.consoleErrors.length < 50) this.consoleErrors.push(message.text());
     });
+    page.on('pageerror', (error) => {
+      if (this.consoleErrors.length < 50) {
+        this.consoleErrors.push(`Unhandled promise rejection or page error: ${error?.message || 'Unknown browser error'}`);
+      }
+    });
+    page.on('request', (request) => {
+      const category = classifyRuntimeServiceRequest(
+        request.url(),
+        this.reportEvidence?.configuredBaseUrl,
+        request.resourceType(),
+      );
+      recordRuntimeServiceObservation(this.serviceSummary, category, 'REQUEST');
+    });
+    page.on('response', (response) => {
+      const request = response.request();
+      const category = classifyRuntimeServiceRequest(
+        request.url(),
+        this.reportEvidence?.configuredBaseUrl,
+        request.resourceType(),
+      );
+      recordRuntimeServiceObservation(this.serviceSummary, category, 'RESPONSE', response.status());
+    });
     page.on('requestfailed', (request) => {
+      const category = classifyRuntimeServiceRequest(
+        request.url(),
+        this.reportEvidence?.configuredBaseUrl,
+        request.resourceType(),
+      );
+      recordRuntimeServiceObservation(this.serviceSummary, category, 'FAILED');
       if (this.networkErrors.length >= 50) return;
       this.networkErrors.push({
         method: request.method(),
-        url: request.url(),
-        error: request.failure()?.errorText || 'Request failed',
+        category,
+        summary: 'A browser request failed; URL and raw error details were omitted.',
       });
     });
   }
@@ -178,6 +210,10 @@ export class RuntimeScenarioHarness {
       : (error ? AUTOMATION_STATUS.FAIL : (allRequiredPassed ? AUTOMATION_STATUS.PASS : AUTOMATION_STATUS.NOT_AUTOMATABLE));
 
     const consoleErrorSummary = summarizeRuntimeConsoleErrors(this.consoleErrors);
+    const backendEvidence = summarizeRuntimeBackendEvidence(
+      this.serviceSummary,
+      this.definition.backendServices,
+    );
     return sanitizeAutomationValue({
       scenarioId: this.definition.scenarioId,
       scenarioTitle: this.definition.title,
@@ -196,6 +232,11 @@ export class RuntimeScenarioHarness {
         || (status === AUTOMATION_STATUS.PASS ? 'All required steps passed in a real browser context.' : 'Required scenario steps did not execute.'),
       executionEvidence: this.reportEvidence,
       authorityEvidence: this.authorityEvidence,
+      backendEvidence,
+      serviceSummary: this.serviceSummary,
+      serviceSummaryUnavailableReason: backendEvidence.observed
+        ? null
+        : 'No classified backend requests observed during this scenario.',
       steps: this.stepResults,
       consoleErrors: this.consoleErrors,
       consoleErrorSummary,

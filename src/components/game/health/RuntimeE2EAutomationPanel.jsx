@@ -252,13 +252,29 @@ export default function RuntimeE2EAutomationPanel() {
           </span>
         </div>
         <dl className="mt-2 grid gap-1 sm:grid-cols-2">
+          <div><dt className="inline font-semibold text-white/80">Target: </dt><dd className="inline">{report.targetKind || 'NOT RECORDED'}</dd></div>
+          <div><dt className="inline font-semibold text-white/80">Production custom domain: </dt><dd className="inline">{report.productionCustomDomainMode ? 'YES' : 'NO'}</dd></div>
+          <div><dt className="inline font-semibold text-white/80">Direct backend: </dt><dd className="inline">{report.directBackendPreflightStatus || 'NOT RUN'}</dd></div>
+          <div><dt className="inline font-semibold text-white/80">Runtime probe: </dt><dd className="inline">{report.runtimeBackendProbeStatus || 'NOT RUN'}</dd></div>
+          <div><dt className="inline font-semibold text-white/80">Proof level: </dt><dd className="inline">{report.backendProofLevel || 'UI_ONLY'}</dd></div>
+          <div><dt className="inline font-semibold text-white/80">Runtime probes allowed: </dt><dd className="inline">{report.canRunRuntimeProbes ? 'YES' : 'NO'}</dd></div>
+          <div><dt className="inline font-semibold text-white/80">Home visible: </dt><dd className="inline">{report.homeVisible ? 'YES' : 'NO'}</dd></div>
+          <div><dt className="inline font-semibold text-white/80">Stored/auth session: </dt><dd className="inline">{report.authenticatedOrStoredSession ? 'YES' : 'NO'}</dd></div>
           <div><dt className="inline font-semibold text-white/80">App config: </dt><dd className="inline">{report.appConfigAvailable ? 'AVAILABLE' : 'MISSING'}</dd></div>
           <div><dt className="inline font-semibold text-white/80">Backend: </dt><dd className="inline">{report.backendAvailable ? 'AVAILABLE' : 'UNAVAILABLE'}</dd></div>
           <div className="break-all"><dt className="inline font-semibold text-white/80">Base URL: </dt><dd className="inline">{report.configuredBaseUrl || 'not recorded'}</dd></div>
           <div className="break-all"><dt className="inline font-semibold text-white/80">Page origin: </dt><dd className="inline">{report.pageOrigin || 'not recorded'}</dd></div>
           <div><dt className="inline font-semibold text-white/80">Critical console summaries: </dt><dd className="inline">{report.criticalConsoleErrorCount || 0}</dd></div>
           <div><dt className="inline font-semibold text-white/80">Route: </dt><dd className="inline">{report.appRoute || 'not recorded'}</dd></div>
+          <div className="sm:col-span-2"><dt className="inline font-semibold text-white/80">Service categories: </dt><dd className="inline">{Object.keys(report.serviceSummary || {}).join(', ') || 'none observed'}</dd></div>
+          {report.serviceSummaryUnavailableReason && (
+            <div className="sm:col-span-2"><dt className="inline font-semibold text-white/80">Backend observation: </dt><dd className="inline">{report.serviceSummaryUnavailableReason}</dd></div>
+          )}
         </dl>
+        {report.preflightStatusReason && <p className="mt-2 text-white/55">{report.preflightStatusReason}</p>}
+        {(report.preflightLimitations || []).map((limitation) => (
+          <p key={limitation} className="mt-1 text-white/45">{limitation}</p>
+        ))}
         {report.preflight?.nextAction && (
           <p className="mt-2 rounded-md border border-amber-300/20 bg-amber-300/[0.06] p-2 text-amber-100/80">
             {report.preflight.nextAction}
@@ -285,7 +301,7 @@ export default function RuntimeE2EAutomationPanel() {
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-semibold leading-tight text-white">{scenario.title}</span>
                   <span className="mt-1 block text-[10px] text-white/50">
-                    {result?.uiOnly ? 'UI ONLY' : 'BACKEND DEPENDENT'} · {result?.preflightDecision || 'NOT RECORDED'} · {durationLabel(result?.durationMs)}{failedStep ? ` · Hata: ${failedStep.title}` : ''}
+                    {result?.proofLevel || (result?.uiOnly ? 'UI_ONLY' : 'BACKEND_RUNTIME_PROBE')} · {result?.preflightDependency || 'not recorded'} · {result?.preflightDecision || 'NOT RECORDED'} · {durationLabel(result?.durationMs)}{failedStep ? ` · Hata: ${failedStep.title}` : ''}
                   </span>
                 </span>
                 <StatusBadge status={result?.status} />
@@ -299,6 +315,8 @@ export default function RuntimeE2EAutomationPanel() {
                   <span>Maksimum: {durationLabel(scenario.maxExpectedDuration)}</span>
                   <span className="sm:col-span-2">Test kullanıcısı: {scenario.testUserStrategy}</span>
                   <span className="sm:col-span-2">Status reason: {result?.statusReason || result?.actual || 'Not recorded.'}</span>
+                  <span className="sm:col-span-2">Backend evidence: {result?.backendEvidence?.safeSummary || 'No backend evidence recorded.'}</span>
+                  {result?.blockReason && <span className="sm:col-span-2">Block reason: {result.blockReason}</span>}
                 </div>
 
                 <div

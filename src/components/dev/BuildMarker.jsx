@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex634 — Production custom-domain Runtime E2E target classification, direct-vs-runtime backend proof, safe service/console evidence, targeted Health, and docs without product or backend-function changes.
 // Codex633 — Runtime E2E V2 capability preflight, honest App-not-found/setup-gap classification, diagnostic Solo probing, report/UI exports, targeted Health, and docs without gameplay or backend-function changes.
 // Codex632 — Repair shared Online/Duello queue lock starvation and poll reconciliation, add timeout-safe matched handoff, App-not-found E2E preflight, targeted Health, and docs without changing gameplay or scoring.
 // Codex631 — Add the separate Runtime E2E Automation Health Suite, real browser harness, evidence-safe reporting, and 10 screen scenarios.
@@ -210,7 +211,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex633';
+const BUILD_MARKER = 'Codex634';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

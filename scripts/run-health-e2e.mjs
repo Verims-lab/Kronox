@@ -9,13 +9,25 @@ import { chromium } from '@playwright/test';
 import {
   AUTOMATION_STATUS,
   BACKEND_PREFLIGHT_STATUS,
+  RUNTIME_BACKEND_PROBE_STATUS,
+  RUNTIME_E2E_PREFLIGHT_DEPENDENCY,
+  RUNTIME_E2E_PROOF_LEVEL,
   buildAutomationCounters,
+  classifyRuntimeDiagnostic,
+  classifyRuntimeServiceRequest,
+  isRuntimeBackendServiceCategory,
   normalizeRuntimeE2EReport,
+  recordRuntimeServiceObservation,
+  resolveRuntimePreflightStatus,
+  runtimeServiceSummaryUnavailableReason,
+  summarizeRuntimeBackendEvidence,
   summarizeRuntimeConsoleErrors,
 } from '../src/lib/health/runtimeE2EReport.js';
 import {
   buildRuntimeCapabilitySummary,
+  classifyRuntimeE2ETarget,
   evaluateScenarioCapabilities,
+  RUNTIME_E2E_TARGET_KIND,
 } from '../src/lib/health/runtimeE2ECapabilities.js';
 import {
   RUNTIME_E2E_EXECUTION_SCOPE,
@@ -121,39 +133,6 @@ async function launchBrowser() {
   }
 }
 
-function isBase44Request(requestUrl, baseUrl) {
-  try {
-    const request = new URL(requestUrl);
-    const local = new URL(baseUrl);
-    if (request.origin === local.origin) return false;
-    return /base44/i.test(request.hostname) || /(?:\/api\/apps\/|\/functions\/|\/auth\/)/i.test(request.pathname);
-  } catch (_) {
-    return false;
-  }
-}
-
-function serviceCategory(requestUrl) {
-  const value = String(requestUrl || '').toLowerCase();
-  if (/getquestions/.test(value)) return 'question_service';
-  if (/randommatchmaking/.test(value)) return 'online_matchmaking';
-  if (/createguestprofile|\/auth\//.test(value)) return 'actor_bootstrap';
-  if (/dailywheel/.test(value)) return 'daily_wheel';
-  if (/leaderboard/.test(value)) return 'leaderboard';
-  return 'base_app';
-}
-
-function serviceSummaryEntry(summary, category, outcome) {
-  const current = summary[category] || { requests: 0, responses: 0, failures: 0, statusClasses: {} };
-  current.requests += outcome === 'REQUEST' ? 1 : 0;
-  current.responses += typeof outcome === 'number' ? 1 : 0;
-  current.failures += outcome === 'FAILED' ? 1 : 0;
-  if (typeof outcome === 'number') {
-    const statusClass = `${Math.floor(outcome / 100)}xx`;
-    current.statusClasses[statusClass] = (current.statusClasses[statusClass] || 0) + 1;
-  }
-  summary[category] = current;
-}
-
 function preflightNextAction(status) {
   if (status === BACKEND_PREFLIGHT_STATUS.APP_NOT_FOUND) {
     return 'Set the correct VITE_BASE44_APP_ID or approved app_id bootstrap and verify VITE_BASE44_APP_BASE_URL for this target.';
@@ -164,7 +143,13 @@ function preflightNextAction(status) {
   if (status === BACKEND_PREFLIGHT_STATUS.UNREACHABLE) {
     return 'Verify network access and the deployed Base44 app endpoint, then rerun preflight.';
   }
-  return 'Inspect the safe preflight service summary and provide a valid app configuration.';
+  if (
+    status === BACKEND_PREFLIGHT_STATUS.PROD_CUSTOM_DOMAIN_PREFLIGHT_UNSUPPORTED
+    || status === BACKEND_PREFLIGHT_STATUS.PROD_RUNTIME_PROBE_REQUIRED
+  ) {
+    return 'Run the safe scenario-level probes; direct custom-domain preflight is not treated as backend proof.';
+  }
+  return 'Inspect the safe preflight service summary; direct observation was inconclusive.';
 }
 
 async function runRuntimePreflight(browser, baseUrl, environment) {
@@ -182,30 +167,39 @@ async function runRuntimePreflight(browser, baseUrl, environment) {
   let appNotFound = false;
   let backendRequestObserved = false;
   let backendRequestFailed = false;
-  let backendValidResponseObserved = false;
+  let backendSuccessfulResponseObserved = false;
+
+  const observeRequest = (request, outcome, status = null) => {
+    const category = classifyRuntimeServiceRequest(request.url(), baseUrl, request.resourceType());
+    recordRuntimeServiceObservation(serviceSummary, category, outcome, status);
+    if (!isRuntimeBackendServiceCategory(category)) return category;
+    backendRequestObserved = true;
+    if (outcome === 'FAILED' || (outcome === 'RESPONSE' && Number(status) >= 400)) {
+      backendRequestFailed = true;
+    }
+    if (outcome === 'RESPONSE' && Number(status) >= 200 && Number(status) < 400) {
+      backendSuccessfulResponseObserved = true;
+    }
+    return category;
+  };
 
   page.on('console', (message) => {
     if (message.type() !== 'error') return;
     consoleErrors.push(message.text());
     if (/App not found/i.test(message.text())) appNotFound = true;
   });
+  page.on('pageerror', (error) => {
+    consoleErrors.push(`Unhandled promise rejection or page error: ${error?.message || 'Unknown browser error'}`);
+  });
   page.on('request', (request) => {
-    if (!isBase44Request(request.url(), baseUrl)) return;
-    backendRequestObserved = true;
-    serviceSummaryEntry(serviceSummary, serviceCategory(request.url()), 'REQUEST');
+    observeRequest(request, 'REQUEST');
   });
   page.on('requestfailed', (request) => {
-    if (!isBase44Request(request.url(), baseUrl)) return;
-    backendRequestObserved = true;
-    backendRequestFailed = true;
-    serviceSummaryEntry(serviceSummary, serviceCategory(request.url()), 'FAILED');
+    observeRequest(request, 'FAILED');
   });
   page.on('response', (response) => {
-    if (!isBase44Request(response.url(), baseUrl)) return;
-    backendRequestObserved = true;
-    serviceSummaryEntry(serviceSummary, serviceCategory(response.url()), response.status());
-    if (response.status() !== 404 && response.status() < 500) backendValidResponseObserved = true;
-    if (response.status() === 404) {
+    const category = observeRequest(response.request(), 'RESPONSE', response.status());
+    if (isRuntimeBackendServiceCategory(category) && response.status() === 404) {
       responseInspections.push(response.text()
         .then((body) => {
           if (/App not found/i.test(body)) appNotFound = true;
@@ -219,9 +213,7 @@ async function runRuntimePreflight(browser, baseUrl, environment) {
     await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
     documentLoaded = true;
     await page.waitForTimeout(4000);
-  } catch (_) {
-    backendRequestFailed = true;
-  }
+  } catch (_) {}
   await Promise.allSettled(responseInspections);
 
   const pageState = await page.evaluate(() => ({
@@ -244,23 +236,77 @@ async function runRuntimePreflight(browser, baseUrl, environment) {
     guestCredentialPairInStorage: false,
     homeVisible: false,
   }));
+  const authenticatedOrStoredSession = Boolean(
+    environment.hasStorageState || pageState.guestCredentialPairInStorage,
+  );
   const appIdConfigured = environment.appIdEnvConfigured || pageState.appIdInRuntimeStorage;
   const appBaseUrlConfigured = environment.appBaseUrlEnvConfigured || pageState.appBaseUrlInRuntimeStorage;
-  const appConfigAvailable = appIdConfigured;
-  const status = appNotFound
+  const runtimeConfiguredProduction = environment.productionCustomDomainMode
+    && pageState.homeVisible
+    && authenticatedOrStoredSession;
+  const appConfigAvailable = appIdConfigured || runtimeConfiguredProduction;
+  const consoleErrorSummary = summarizeRuntimeConsoleErrors(consoleErrors);
+  const hasCriticalAppDiagnostic = consoleErrorSummary.items.some((item) => (
+    item.category === 'BASE44_APP_NOT_FOUND'
+    || item.category === 'BASE44_APP_CONFIG_MISSING'
+    || item.category === 'ACTOR_BOOTSTRAP_CONFIG_FAILURE'
+  ));
+  const directBackendPreflightStatus = appNotFound
     ? BACKEND_PREFLIGHT_STATUS.APP_NOT_FOUND
     : !appConfigAvailable
       ? BACKEND_PREFLIGHT_STATUS.NOT_CONFIGURED
-      : backendValidResponseObserved
+      : backendSuccessfulResponseObserved
         ? BACKEND_PREFLIGHT_STATUS.REACHABLE
-        : backendRequestObserved || backendRequestFailed
+        : backendRequestObserved && backendRequestFailed
           ? BACKEND_PREFLIGHT_STATUS.UNREACHABLE
-          : BACKEND_PREFLIGHT_STATUS.UNKNOWN;
-  const consoleErrorSummary = summarizeRuntimeConsoleErrors(consoleErrors);
+          : environment.productionCustomDomainMode && documentLoaded
+            ? BACKEND_PREFLIGHT_STATUS.PROD_CUSTOM_DOMAIN_PREFLIGHT_UNSUPPORTED
+            : documentLoaded
+              ? BACKEND_PREFLIGHT_STATUS.OBSERVATION_INCONCLUSIVE
+              : BACKEND_PREFLIGHT_STATUS.UNREACHABLE;
+  const canRunRuntimeProbes = Boolean(
+    environment.productionCustomDomainMode
+    && documentLoaded
+    && appConfigAvailable
+    && pageState.homeVisible
+    && authenticatedOrStoredSession
+    && !appNotFound
+    && !hasCriticalAppDiagnostic,
+  );
+  const status = resolveRuntimePreflightStatus({
+    productionCustomDomainMode: environment.productionCustomDomainMode,
+    directBackendPreflightStatus,
+    canRunRuntimeProbes,
+  });
+  const runtimeBackendProbeStatus = directBackendPreflightStatus === BACKEND_PREFLIGHT_STATUS.REACHABLE
+    ? RUNTIME_BACKEND_PROBE_STATUS.NOT_REQUIRED
+    : canRunRuntimeProbes
+      ? RUNTIME_BACKEND_PROBE_STATUS.REQUIRED
+      : RUNTIME_BACKEND_PROBE_STATUS.NOT_RUN;
+  const preflightStatusReason = directBackendPreflightStatus === BACKEND_PREFLIGHT_STATUS.REACHABLE
+    ? 'A successful classified backend response was observed during direct preflight.'
+    : canRunRuntimeProbes
+      ? 'The production custom domain loaded Home with a restored actor session; direct backend observation is limited, so scenario-level runtime evidence is required.'
+      : directBackendPreflightStatus === BACKEND_PREFLIGHT_STATUS.PROD_CUSTOM_DOMAIN_PREFLIGHT_UNSUPPORTED
+        ? 'The production document loaded, but direct backend traffic was not observable and the actor/session prerequisites for safe runtime probes were incomplete.'
+        : `Direct backend preflight resolved to ${directBackendPreflightStatus}.`;
+  const preflightLimitations = environment.productionCustomDomainMode
+    ? ['Production custom domains may proxy backend traffic through the app origin, so direct preflight is not treated as scenario backend proof.']
+    : [];
+  const backendProofLevel = directBackendPreflightStatus === BACKEND_PREFLIGHT_STATUS.REACHABLE
+    ? RUNTIME_E2E_PROOF_LEVEL.BACKEND_CONNECTED
+    : pageState.homeVisible && authenticatedOrStoredSession
+      ? RUNTIME_E2E_PROOF_LEVEL.SESSION_RESTORED
+      : RUNTIME_E2E_PROOF_LEVEL.UI_ONLY;
   await context.close();
 
   return {
     status,
+    targetKind: environment.targetKind,
+    productionCustomDomainMode: environment.productionCustomDomainMode,
+    directBackendPreflightStatus,
+    runtimeBackendProbeStatus,
+    preflightStatusReason,
     documentLoaded,
     configuredBaseUrl: baseUrl,
     pageUrl: pageState.pageUrl,
@@ -269,16 +315,28 @@ async function runRuntimePreflight(browser, baseUrl, environment) {
     appIdConfigured,
     appBaseUrlConfigured,
     appConfigAvailable,
-    base44AppReachable: status === BACKEND_PREFLIGHT_STATUS.REACHABLE,
-    guestBootstrapAvailable: status === BACKEND_PREFLIGHT_STATUS.REACHABLE
-      && (pageState.homeVisible || pageState.guestCredentialPairInStorage || environment.hasStorageState),
-    actorBootstrapStatus: status === BACKEND_PREFLIGHT_STATUS.REACHABLE ? 'RUNTIME_PROBE_REQUIRED' : 'NOT_AVAILABLE',
-    questionBootstrapStatus: status === BACKEND_PREFLIGHT_STATUS.REACHABLE ? 'RUNTIME_PROBE_REQUIRED' : 'NOT_AVAILABLE',
-    onlineMatchmakingStatus: status === BACKEND_PREFLIGHT_STATUS.REACHABLE ? 'RUNTIME_PROBE_REQUIRED' : 'NOT_AVAILABLE',
+    base44AppReachable: directBackendPreflightStatus === BACKEND_PREFLIGHT_STATUS.REACHABLE,
+    guestBootstrapAvailable: pageState.homeVisible && authenticatedOrStoredSession,
+    actorBootstrapStatus: directBackendPreflightStatus === BACKEND_PREFLIGHT_STATUS.REACHABLE || canRunRuntimeProbes
+      ? 'RUNTIME_PROBE_REQUIRED'
+      : 'NOT_AVAILABLE',
+    questionBootstrapStatus: directBackendPreflightStatus === BACKEND_PREFLIGHT_STATUS.REACHABLE || canRunRuntimeProbes
+      ? 'RUNTIME_PROBE_REQUIRED'
+      : 'NOT_AVAILABLE',
+    onlineMatchmakingStatus: directBackendPreflightStatus === BACKEND_PREFLIGHT_STATUS.REACHABLE || canRunRuntimeProbes
+      ? 'RUNTIME_PROBE_REQUIRED'
+      : 'NOT_AVAILABLE',
+    backendProofLevel,
+    homeVisible: pageState.homeVisible,
+    authenticatedOrStoredSession,
+    bootstrapProofLevel: backendProofLevel,
+    canRunRuntimeProbes,
+    preflightLimitations,
     serviceSummary,
+    serviceSummaryUnavailableReason: runtimeServiceSummaryUnavailableReason(serviceSummary),
     consoleErrors,
     consoleErrorSummary,
-    nextAction: status === BACKEND_PREFLIGHT_STATUS.REACHABLE ? null : preflightNextAction(status),
+    nextAction: directBackendPreflightStatus === BACKEND_PREFLIGHT_STATUS.REACHABLE ? null : preflightNextAction(status),
   };
 }
 
@@ -289,6 +347,12 @@ function unavailableResult(definition, decision, evidence) {
   const failureCategory = decision.decision === 'MANUAL_EXTERNAL_REQUIRED'
     ? 'MANUAL_EXTERNAL_SETUP_GAP'
     : 'AUTOMATION_SETUP_GAP';
+  const uiOnly = definition.executionScope === RUNTIME_E2E_EXECUTION_SCOPE.UI_ONLY;
+  const proofLevel = status === AUTOMATION_STATUS.MANUAL_EXTERNAL
+    ? RUNTIME_E2E_PROOF_LEVEL.MANUAL_EXTERNAL
+    : uiOnly
+      ? RUNTIME_E2E_PROOF_LEVEL.UI_ONLY
+      : RUNTIME_E2E_PROOF_LEVEL.BACKEND_RUNTIME_PROBE;
   return {
     scenarioId: definition.scenarioId,
     scenarioTitle: definition.title,
@@ -301,6 +365,14 @@ function unavailableResult(definition, decision, evidence) {
     optionalCapabilities: definition.optionalCapabilities,
     capabilityStatus: [...decision.required, ...decision.optional],
     preflightDecision: decision.decision,
+    proofLevel,
+    backendEvidence: summarizeRuntimeBackendEvidence(),
+    preflightDependency: uiOnly
+      ? RUNTIME_E2E_PREFLIGHT_DEPENDENCY.NOT_REQUIRED
+      : evidence?.preflight?.productionCustomDomainMode
+        ? RUNTIME_E2E_PREFLIGHT_DEPENDENCY.RUNTIME_PROBE
+        : RUNTIME_E2E_PREFLIGHT_DEPENDENCY.DIRECT,
+    blockReason: decision.reason,
     steps: definition.steps.map((step) => ({
       ...step,
       status,
@@ -336,6 +408,56 @@ function unavailableResults(reason) {
     optional: [],
     nextAction: definition.manualFallback,
   }, null));
+}
+
+function unavailablePreflight(baseUrl, environment, error) {
+  const diagnostic = classifyRuntimeDiagnostic(error);
+  const directBackendPreflightStatus = environment.productionCustomDomainMode
+    ? BACKEND_PREFLIGHT_STATUS.PROD_CUSTOM_DOMAIN_PREFLIGHT_UNSUPPORTED
+    : BACKEND_PREFLIGHT_STATUS.OBSERVATION_INCONCLUSIVE;
+  const preflightStatusReason = `Browser/server preflight could not run (${diagnostic.category}); no backend reachability claim was made.`;
+  const serviceSummary = {};
+  const preflightLimitations = ['A compatible headless browser was unavailable in this execution environment.'];
+  if (environment.productionCustomDomainMode) {
+    preflightLimitations.push('Production custom-domain runtime probes require a working browser session.');
+  }
+  return {
+    status: resolveRuntimePreflightStatus({
+      productionCustomDomainMode: environment.productionCustomDomainMode,
+      directBackendPreflightStatus,
+      canRunRuntimeProbes: false,
+    }),
+    targetKind: environment.targetKind,
+    productionCustomDomainMode: environment.productionCustomDomainMode,
+    directBackendPreflightStatus,
+    runtimeBackendProbeStatus: RUNTIME_BACKEND_PROBE_STATUS.NOT_RUN,
+    preflightStatusReason,
+    documentLoaded: false,
+    configuredBaseUrl: baseUrl,
+    pageUrl: null,
+    pageOrigin: null,
+    appRoute: null,
+    appIdConfigured: environment.appIdEnvConfigured,
+    appBaseUrlConfigured: environment.appBaseUrlEnvConfigured,
+    appConfigAvailable: environment.appIdEnvConfigured && environment.appBaseUrlEnvConfigured,
+    base44AppReachable: false,
+    guestBootstrapAvailable: false,
+    actorBootstrapStatus: 'NOT_AVAILABLE',
+    questionBootstrapStatus: 'NOT_AVAILABLE',
+    onlineMatchmakingStatus: 'NOT_AVAILABLE',
+    backendProofLevel: RUNTIME_E2E_PROOF_LEVEL.UI_ONLY,
+    homeVisible: false,
+    authenticatedOrStoredSession: false,
+    bootstrapProofLevel: RUNTIME_E2E_PROOF_LEVEL.UI_ONLY,
+    canRunRuntimeProbes: false,
+    preflightLimitations,
+    serviceSummary,
+    serviceSummaryUnavailableReason: runtimeServiceSummaryUnavailableReason(serviceSummary),
+    consoleErrors: [diagnostic],
+    consoleErrorSummary: summarizeRuntimeConsoleErrors([diagnostic]),
+    nextAction: 'Make a compatible headless browser available, then rerun Runtime E2E.',
+    backendAvailable: false,
+  };
 }
 
 async function runScenario(browser, definition, config, evidence, decision, runArtifactDir) {
@@ -378,18 +500,104 @@ async function runScenario(browser, definition, config, evidence, decision, runA
     } catch (_) {}
   }
   await context.close();
-  const uiOnlyWithoutBackend = definition.executionScope === RUNTIME_E2E_EXECUTION_SCOPE.UI_ONLY
-    && evidence.preflight.status !== BACKEND_PREFLIGHT_STATUS.REACHABLE;
+  const uiOnly = definition.executionScope === RUNTIME_E2E_EXECUTION_SCOPE.UI_ONLY;
+  const backendConnected = result.backendEvidence?.observed === true
+    && result.backendEvidence?.successful === true;
+  const sessionRestored = definition.scenarioId === 'runtime_e2e.app_bootstrap_guest_home'
+    && result.status === AUTOMATION_STATUS.PASS
+    && evidence.preflight.homeVisible
+    && evidence.preflight.authenticatedOrStoredSession;
+  const proofLevel = uiOnly
+    ? RUNTIME_E2E_PROOF_LEVEL.UI_ONLY
+    : result.status === AUTOMATION_STATUS.MANUAL_EXTERNAL
+      ? RUNTIME_E2E_PROOF_LEVEL.MANUAL_EXTERNAL
+      : backendConnected
+        ? RUNTIME_E2E_PROOF_LEVEL.BACKEND_CONNECTED
+        : sessionRestored
+          ? RUNTIME_E2E_PROOF_LEVEL.SESSION_RESTORED
+          : RUNTIME_E2E_PROOF_LEVEL.BACKEND_RUNTIME_PROBE;
+  const preflightDependency = uiOnly
+    ? RUNTIME_E2E_PREFLIGHT_DEPENDENCY.NOT_REQUIRED
+    : evidence.preflight.directBackendPreflightStatus === BACKEND_PREFLIGHT_STATUS.REACHABLE
+      ? RUNTIME_E2E_PREFLIGHT_DEPENDENCY.DIRECT
+      : RUNTIME_E2E_PREFLIGHT_DEPENDENCY.RUNTIME_PROBE;
+  const passReason = uiOnly
+    ? 'Browser-only UI assertions passed with UI_ONLY proof; this is not backend proof.'
+    : proofLevel === RUNTIME_E2E_PROOF_LEVEL.SESSION_RESTORED
+      ? 'Home and the stored actor session were restored; this SESSION_RESTORED result is not full backend proof.'
+      : proofLevel === RUNTIME_E2E_PROOF_LEVEL.BACKEND_CONNECTED
+        ? `Scenario assertions passed with a successful ${result.backendEvidence.category} runtime response.`
+        : result.actual;
   return {
     ...result,
     requiredCapabilities: definition.requiredCapabilities,
     optionalCapabilities: definition.optionalCapabilities,
     capabilityStatus: [...decision.required, ...decision.optional],
     preflightDecision: decision.decision,
-    statusReason: result.status === AUTOMATION_STATUS.PASS && uiOnlyWithoutBackend
-      ? 'Browser-only UI assertions passed; backend preflight was unavailable, so this is explicitly not backend proof.'
-      : result.actual,
+    proofLevel,
+    preflightDependency,
+    blockReason: result.status === AUTOMATION_STATUS.PASS ? null : result.actual,
+    statusReason: result.status === AUTOMATION_STATUS.PASS ? passReason : result.actual,
     safeSetupInstructions: decision.nextAction || definition.manualFallback,
+  };
+}
+
+function mergeServiceSummaries(...summaries) {
+  const merged = {};
+  for (const summary of summaries) {
+    for (const [category, entry] of Object.entries(summary || {})) {
+      const current = merged[category] || { requests: 0, responses: 0, failures: 0, statusClasses: {} };
+      current.requests += Number(entry?.requests || 0);
+      current.responses += Number(entry?.responses || 0);
+      current.failures += Number(entry?.failures || 0);
+      for (const [statusClass, count] of Object.entries(entry?.statusClasses || {})) {
+        current.statusClasses[statusClass] = (current.statusClasses[statusClass] || 0) + Number(count || 0);
+      }
+      merged[category] = current;
+    }
+  }
+  return merged;
+}
+
+function finalizeRuntimeProbe(preflight, scenarios) {
+  const scenarioSummaries = scenarios.map((scenario) => scenario?.serviceSummary || {});
+  const serviceSummary = mergeServiceSummaries(preflight?.serviceSummary || {}, ...scenarioSummaries);
+  const backendScenarios = scenarios.filter((scenario) => (
+    scenario?.proofLevel !== RUNTIME_E2E_PROOF_LEVEL.UI_ONLY
+    && scenario?.proofLevel !== RUNTIME_E2E_PROOF_LEVEL.MANUAL_EXTERNAL
+  ));
+  const connected = backendScenarios.some((scenario) => (
+    scenario?.backendEvidence?.observed === true && scenario?.backendEvidence?.successful === true
+  ));
+  const failed = backendScenarios.some((scenario) => (
+    scenario?.backendEvidence?.observed === true && scenario?.backendEvidence?.successful === false
+  ));
+  const attempted = backendScenarios.some((scenario) => scenario?.preflightDependency === RUNTIME_E2E_PREFLIGHT_DEPENDENCY.RUNTIME_PROBE);
+  const runtimeBackendProbeStatus = connected
+    ? RUNTIME_BACKEND_PROBE_STATUS.CONNECTED
+    : failed
+      ? RUNTIME_BACKEND_PROBE_STATUS.FAILED
+      : attempted
+        ? RUNTIME_BACKEND_PROBE_STATUS.NOT_OBSERVED
+        : preflight?.directBackendPreflightStatus === BACKEND_PREFLIGHT_STATUS.REACHABLE
+          ? RUNTIME_BACKEND_PROBE_STATUS.NOT_REQUIRED
+          : preflight?.canRunRuntimeProbes
+            ? RUNTIME_BACKEND_PROBE_STATUS.REQUIRED
+            : RUNTIME_BACKEND_PROBE_STATUS.NOT_RUN;
+  const backendAvailable = preflight?.directBackendPreflightStatus === BACKEND_PREFLIGHT_STATUS.REACHABLE || connected;
+  const backendProofLevel = connected || preflight?.directBackendPreflightStatus === BACKEND_PREFLIGHT_STATUS.REACHABLE
+    ? RUNTIME_E2E_PROOF_LEVEL.BACKEND_CONNECTED
+    : preflight?.homeVisible && preflight?.authenticatedOrStoredSession
+      ? RUNTIME_E2E_PROOF_LEVEL.SESSION_RESTORED
+      : RUNTIME_E2E_PROOF_LEVEL.UI_ONLY;
+  return {
+    ...preflight,
+    runtimeBackendProbeStatus,
+    serviceSummary,
+    serviceSummaryUnavailableReason: runtimeServiceSummaryUnavailableReason(serviceSummary),
+    backendProofLevel,
+    base44AppReachable: backendAvailable,
+    backendAvailable,
   };
 }
 
@@ -403,8 +611,10 @@ async function persistReport(report, runArtifactDir) {
 }
 
 async function buildEnvironment(baseUrl) {
+  const targetKind = classifyRuntimeE2ETarget(baseUrl);
   return {
-    targetKind: process.env.KRONOX_E2E_BASE_URL ? 'configured' : 'local-vite',
+    targetKind,
+    productionCustomDomainMode: targetKind === RUNTIME_E2E_TARGET_KIND.PRODUCTION_CUSTOM_DOMAIN,
     configuredBaseUrl: baseUrl,
     appIdEnvConfigured: await envKeyHasValue('VITE_BASE44_APP_ID'),
     appBaseUrlEnvConfigured: await envKeyHasValue('VITE_BASE44_APP_BASE_URL'),
@@ -428,6 +638,7 @@ async function main() {
     baseUrl,
     hasStorageState: environment.hasStorageState,
     hasBackendService: false,
+    canRunBackendProbe: false,
     allowWheelSpin: environment.allowWheelSpin,
     allowDiamondPurchase: environment.allowDiamondPurchase,
     allowMatchmaking: environment.allowMatchmaking,
@@ -454,7 +665,8 @@ async function main() {
       preflight,
       environment,
     });
-    config.hasBackendService = preflight.status === BACKEND_PREFLIGHT_STATUS.REACHABLE;
+    config.hasBackendService = preflight.directBackendPreflightStatus === BACKEND_PREFLIGHT_STATUS.REACHABLE;
+    config.canRunBackendProbe = config.hasBackendService || preflight.canRunRuntimeProbes;
     evidence = {
       executionId: runId,
       browserName: `chromium ${browser.version()}`,
@@ -481,9 +693,18 @@ async function main() {
       }
       scenarios.push(await runScenario(browser, definition, config, evidence, decision, runArtifactDir));
     }
+    preflight = finalizeRuntimeProbe(preflight, scenarios);
+    evidence.preflight = preflight;
+    evidence.backendPreflight = preflight;
   } catch (error) {
     setupError = error;
-    scenarios = unavailableResults(`Browser/server preflight unavailable: ${error?.message || error}`);
+    preflight = unavailablePreflight(baseUrl, environment, error);
+    capabilitySummary = buildRuntimeCapabilitySummary({
+      browserAvailable: false,
+      preflight,
+      environment,
+    });
+    scenarios = unavailableResults(preflight.preflightStatusReason);
   } finally {
     if (browser) await browser.close();
     stopLocalServer(server);
@@ -498,14 +719,26 @@ async function main() {
     startedAt,
     finishedAt: new Date().toISOString(),
     buildMarker,
+    targetKind: environment.targetKind,
+    productionCustomDomainMode: environment.productionCustomDomainMode,
     configuredBaseUrl: baseUrl,
     pageUrl: preflight?.pageUrl || null,
     pageOrigin: preflight?.pageOrigin || null,
     appRoute: preflight?.appRoute || null,
     preflight,
+    directBackendPreflightStatus: preflight?.directBackendPreflightStatus || null,
+    runtimeBackendProbeStatus: preflight?.runtimeBackendProbeStatus || RUNTIME_BACKEND_PROBE_STATUS.NOT_RUN,
+    preflightStatusReason: preflight?.preflightStatusReason || null,
+    serviceSummary: preflight?.serviceSummary || {},
+    serviceSummaryUnavailableReason: preflight?.serviceSummaryUnavailableReason || null,
+    backendProofLevel: preflight?.backendProofLevel || RUNTIME_E2E_PROOF_LEVEL.UI_ONLY,
+    homeVisible: Boolean(preflight?.homeVisible),
+    authenticatedOrStoredSession: Boolean(preflight?.authenticatedOrStoredSession),
+    canRunRuntimeProbes: Boolean(preflight?.canRunRuntimeProbes),
+    preflightLimitations: preflight?.preflightLimitations || [],
     environment,
     capabilitySummary,
-    backendAvailable: preflight?.status === BACKEND_PREFLIGHT_STATUS.REACHABLE,
+    backendAvailable: Boolean(preflight?.backendAvailable),
     appConfigAvailable: Boolean(preflight?.appConfigAvailable),
     base44AppReachable: Boolean(preflight?.base44AppReachable),
     executionEvidence: setupError ? null : evidence,
