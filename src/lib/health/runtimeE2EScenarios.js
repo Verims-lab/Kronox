@@ -2,6 +2,10 @@ export const RUNTIME_E2E_SUITE_ID = 'runtime_e2e_automation_health';
 export const RUNTIME_E2E_RUN_COMMAND = 'npm run health:e2e';
 export const RUNTIME_E2E_REPORT_URL = '/health-e2e/latest.json';
 export const RUNTIME_E2E_REPORT_STORAGE_KEY = 'kronox_runtime_e2e_last_report_v1';
+export const RUNTIME_E2E_EXECUTION_SCOPE = Object.freeze({
+  UI_ONLY: 'UI_ONLY',
+  BACKEND_DEPENDENT: 'BACKEND_DEPENDENT',
+});
 
 function step(id, title, action, expected, options = {}) {
   return Object.freeze({
@@ -21,6 +25,8 @@ function scenario({
   riskArea,
   maxExpectedDuration,
   requiredCapabilities,
+  executionScope,
+  backendServices = [],
   testUserStrategy,
   steps,
   successCriteria,
@@ -34,6 +40,8 @@ function scenario({
     riskArea,
     maxExpectedDuration,
     requiredCapabilities: Object.freeze(requiredCapabilities),
+    executionScope,
+    backendServices: Object.freeze(backendServices),
     testUserStrategy,
     steps: Object.freeze(steps),
     successCriteria: Object.freeze(successCriteria),
@@ -50,6 +58,8 @@ export const RUNTIME_E2E_SCENARIOS = Object.freeze([
     riskArea: 'startup_privacy',
     maxExpectedDuration: 45000,
     requiredCapabilities: ['browser', 'base_url', 'completed_guest_or_test_storage_state'],
+    executionScope: RUNTIME_E2E_EXECUTION_SCOPE.BACKEND_DEPENDENT,
+    backendServices: ['base_app', 'actor_bootstrap'],
     testUserStrategy: 'A fresh browser context uses KRONOX_E2E_STORAGE_STATE when supplied. A first-launch onboarding-only context is reported as a setup gap, never a fake Home PASS.',
     steps: [
       step('bootstrap.open', 'Open a fresh browser context', 'Navigate to the configured Kronox base URL.', 'The app document loads within the bounded timeout.', { selector: 'body' }),
@@ -71,6 +81,7 @@ export const RUNTIME_E2E_SCENARIOS = Object.freeze([
     riskArea: 'navigation',
     maxExpectedDuration: 45000,
     requiredCapabilities: ['browser', 'completed_guest_or_test_storage_state'],
+    executionScope: RUNTIME_E2E_EXECUTION_SCOPE.UI_ONLY,
     testUserStrategy: 'Uses the same isolated completed guest or authenticated storage state; it performs navigation only.',
     steps: [
       step('nav.home_active', 'Home tab is active', 'Start at Home and inspect aria-current.', 'Ana Sayfa is the only active tab.', { selector: '[data-testid="bottom-nav-home"]' }),
@@ -93,6 +104,8 @@ export const RUNTIME_E2E_SCENARIOS = Object.freeze([
     riskArea: 'profile_privacy',
     maxExpectedDuration: 45000,
     requiredCapabilities: ['browser', 'completed_guest_or_test_storage_state'],
+    executionScope: RUNTIME_E2E_EXECUTION_SCOPE.BACKEND_DEPENDENT,
+    backendServices: ['base_app', 'actor_bootstrap', 'profile'],
     testUserStrategy: 'Uses an isolated completed guest where possible. No profile value is changed or saved.',
     steps: [
       step('profile.open', 'Open Profile root', 'Tap the Profil BottomNav item.', 'The Profile screen root is visible.', { selector: '[data-testid="profile-screen"]' }),
@@ -114,6 +127,8 @@ export const RUNTIME_E2E_SCENARIOS = Object.freeze([
     riskArea: 'leaderboard_privacy',
     maxExpectedDuration: 45000,
     requiredCapabilities: ['browser', 'completed_guest_or_test_storage_state'],
+    executionScope: RUNTIME_E2E_EXECUTION_SCOPE.BACKEND_DEPENDENT,
+    backendServices: ['base_app', 'leaderboard'],
     testUserStrategy: 'Read-only with a completed guest/test actor; it does not alter score or friendship.',
     steps: [
       step('leaderboard.open', 'Open Leaderboard', 'Tap Liderlik.', 'The Leaderboard screen root and heading are visible.', { selector: '[data-testid="leaderboard-screen"]' }),
@@ -133,6 +148,8 @@ export const RUNTIME_E2E_SCENARIOS = Object.freeze([
     riskArea: 'daily_non_mutating',
     maxExpectedDuration: 45000,
     requiredCapabilities: ['browser', 'completed_guest_or_test_storage_state'],
+    executionScope: RUNTIME_E2E_EXECUTION_SCOPE.BACKEND_DEPENDENT,
+    backendServices: ['base_app', 'daily_status'],
     testUserStrategy: 'Read-only completed guest/test actor. The scenario never taps a claim or task-completion action.',
     steps: [
       step('daily.open', 'Open Daily', 'Tap the Home GÜNLÜK shortcut.', 'The /daily screen root appears.', { selector: '[data-testid="daily-screen-entry"]' }),
@@ -153,6 +170,8 @@ export const RUNTIME_E2E_SCENARIOS = Object.freeze([
     riskArea: 'daily_wheel_overlay_economy',
     maxExpectedDuration: 60000,
     requiredCapabilities: ['browser', 'completed_guest_or_test_storage_state', 'optional_safe_wheel_spin'],
+    executionScope: RUNTIME_E2E_EXECUTION_SCOPE.BACKEND_DEPENDENT,
+    backendServices: ['base_app', 'daily_wheel'],
     testUserStrategy: 'Open/close is non-mutating. Spin requires an isolated resettable actor plus KRONOX_E2E_ALLOW_WHEEL_SPIN=true.',
     steps: [
       step('wheel.balance_before', 'Capture visible Diamonds', 'Read the Home Diamond chip when available.', 'A numeric pre-action balance or an explicit unavailable value is recorded.'),
@@ -175,6 +194,7 @@ export const RUNTIME_E2E_SCENARIOS = Object.freeze([
     riskArea: 'store_payment_safety',
     maxExpectedDuration: 50000,
     requiredCapabilities: ['browser', 'completed_guest_or_test_storage_state', 'optional_safe_diamond_purchase'],
+    executionScope: RUNTIME_E2E_EXECUTION_SCOPE.UI_ONLY,
     testUserStrategy: 'Real-money controls are inspected only. Diamond purchase requires KRONOX_E2E_ALLOW_DIAMOND_PURCHASE=true and an isolated funded actor.',
     steps: [
       step('store.open', 'Open Store from Home', 'Use the Home Mağaza top-bar button.', 'The /market Store route opens.', { selector: '[data-testid="store-entry"]' }),
@@ -196,6 +216,8 @@ export const RUNTIME_E2E_SCENARIOS = Object.freeze([
     riskArea: 'solo_start_exit',
     maxExpectedDuration: 70000,
     requiredCapabilities: ['browser', 'completed_guest_or_test_storage_state', 'question_service'],
+    executionScope: RUNTIME_E2E_EXECUTION_SCOPE.BACKEND_DEPENDENT,
+    backendServices: ['base_app', 'actor_bootstrap', 'question_service'],
     testUserStrategy: 'Uses the actor current level and performs no evaluated placement. Tutorial acknowledgment is allowed; no reward is claimed.',
     steps: [
       step('solo.start', 'Start current Solo level', 'Tap Home OYNA, wait for the actual /solo level map, then tap the current playable level.', 'The selected level opens /game and Solo question preparation starts.', { selector: '[data-testid="home-solo-entry"], [data-testid="solo-current-level-entry"]' }),
@@ -218,6 +240,8 @@ export const RUNTIME_E2E_SCENARIOS = Object.freeze([
     riskArea: 'online_wait_cancel',
     maxExpectedDuration: 60000,
     requiredCapabilities: ['browser', 'authenticated_storage_state', 'safe_matchmaking_queue'],
+    executionScope: RUNTIME_E2E_EXECUTION_SCOPE.BACKEND_DEPENDENT,
+    backendServices: ['base_app', 'actor_bootstrap', 'online_matchmaking'],
     testUserStrategy: 'Current Home Online CTA requires a linked user. Use KRONOX_E2E_STORAGE_STATE and KRONOX_E2E_ALLOW_MATCHMAKING=true; no credentials are hardcoded.',
     steps: [
       step('online.open', 'Open Online', 'Tap the actual Home ONLINE KAPIŞ CTA.', 'The Online root opens for an authenticated test actor.', { selector: '[data-testid="home-online-entry"]' }),
@@ -240,6 +264,8 @@ export const RUNTIME_E2E_SCENARIOS = Object.freeze([
     riskArea: 'duello_authority_fairness',
     maxExpectedDuration: 180000,
     requiredCapabilities: ['two_browser_contexts', 'two_isolated_actors', 'deterministic_duello_pairing', 'deterministic_correct_claim_fixture'],
+    executionScope: RUNTIME_E2E_EXECUTION_SCOPE.BACKEND_DEPENDENT,
+    backendServices: ['base_app', 'actor_bootstrap', 'online_matchmaking'],
     testUserStrategy: 'Uses KRONOX_E2E_STORAGE_STATE_A/B only in an approved non-production environment. Missing two-actor or answer fixtures return MANUAL_EXTERNAL.',
     steps: [
       step('duello.contexts', 'Open two isolated contexts', 'Create contexts A and B with separate test actors.', 'Both actors independently reach Home.'),

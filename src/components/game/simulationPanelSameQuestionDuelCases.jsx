@@ -7,6 +7,7 @@ import duelResult from '@/components/duel/DuelResult.jsx?raw';
 import waitingRoom from '@/components/lobby/WaitingRoomPanel.jsx?raw';
 import randomHook from '@/hooks/useRandomMatchmaking.js?raw';
 import randomBackend from '../../../base44/functions/randomMatchmaking/entry.ts?raw';
+import randomPolicy from '../../../base44/shared/randomMatchmakingPolicy.js?raw';
 import startBackend from '../../../base44/functions/startLobbyGame/entry.ts?raw';
 import updateBackend from '../../../base44/functions/updateLobbyGameState/entry.ts?raw';
 import findBackend from '../../../base44/functions/findLobbyByCode/entry.ts?raw';
@@ -66,12 +67,19 @@ export const EXTRA_TESTS = [
     ...required(updateBackend, ['players.length !== 2 || Number(lobby?.max_players) !== 2', 'same_question_duel_requires_two_players']),
   ], 'Matchmaking, start, and claim authority all enforce the two-player boundary.'), ['randomMatchmaking/entry.ts', 'startLobbyGame/entry.ts', 'updateLobbyGameState/entry.ts']),
 
-  make('random_matchmaking_mode_scoped', 'Duello queue cannot mix with normal random Online', () => sourceResult(required(randomBackend, [
-    'MATCHMAKING_MODES',
-    'normalizeMode(row?.mode) === mode',
-    'random_matchmaking:pair:${mode}',
-    'game_mode: mode',
-  ]), 'Random matchmaking pairing and active-row lookup are partitioned by mode.'), ['randomMatchmaking/entry.ts']),
+  make('random_matchmaking_mode_scoped', 'Duello queue cannot mix with normal random Online', () => sourceResult([
+    ...required(randomBackend, [
+      'MATCHMAKING_MODES',
+      '{ actor_key_hash: actorKeyHash, mode }',
+      'selectOwnActiveQueueRow(rows, actorKeyHash, mode)',
+      'random_matchmaking:pair:${mode}',
+      'game_mode: mode',
+    ]),
+    ...required(randomPolicy, [
+      'normalizeMatchmakingMode(row?.mode) === canonicalMode',
+      "row?.status === 'waiting'",
+    ]),
+  ], 'Random matchmaking pairing and active-row lookup are partitioned by the canonical mode policy.'), ['randomMatchmakingPolicy.js', 'randomMatchmaking/entry.ts']),
 
   make('server_authored_shared_deck', 'Backend authors the Duello shared deck and opening anchors', () => sourceResult(required(startBackend, [
     "source: 'same_question_duel_server_shared_deck_v1'",
@@ -182,15 +190,15 @@ export const EXTRA_TESTS = [
   ], 'The shared poller prevents overlap and all Duello-owned timers/listeners stop on unmount.'), ['adaptivePoller.js', 'useSameQuestionDuel.js']),
 
   make('waiting_cancel_timeout_cleanup', 'Duello cancel and timeout close waiting state', () => sourceResult([
-    ...required(onlineScreen, ['handleDuelCancel', 'handleDuelTimeout', 'void duel.cancel()']),
-    ...required(randomHook, ['stopPolling()', 'window.clearInterval(pollRef.current)']),
+    ...required(onlineScreen, ['handleDuelCancel', 'handleDuelTimeout', 'void duel.cancel()', 'duel.resolveTimeout()']),
+    ...required(randomHook, ['stopPolling()', 'window.clearInterval(pollRef.current)', 'await pollRandomMatchmaking(mode)', 'await cancelRandomMatchmaking(mode)']),
     ...required(randomBackend, ["status: 'cancelled'", "status: 'expired'", "action === 'cancel'"]),
-  ], 'Both explicit cancel and timeout stop client polling and settle the backend waiting row.'), ['OnlineChallengeScreen.jsx', 'useRandomMatchmaking.js', 'randomMatchmaking/entry.ts']),
+  ], 'Explicit cancel settles immediately; timeout first checks the backend once more, then settles the waiting row when no match exists.'), ['OnlineChallengeScreen.jsx', 'useRandomMatchmaking.js', 'randomMatchmaking/entry.ts']),
 
   make('existing_online_modes_unchanged', 'Invite and normal random Online entries remain active', () => sourceResult(required(onlineScreen, [
     'Arkadaşını Davet Et',
     'Rastgele Eşleş',
-    "useRandomMatchmaking('random_online')",
+    'useRandomMatchmaking(STANDARD_RANDOM_MODE)',
     'useRandomMatchmaking(SAME_QUESTION_DUEL_MODE)',
   ]), 'Existing invite and normal random modes remain beside the isolated Duello path.'), ['OnlineChallengeScreen.jsx']),
 

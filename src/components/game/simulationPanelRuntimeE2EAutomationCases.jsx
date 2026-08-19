@@ -80,7 +80,7 @@ export const EXTRA_TESTS = [
   }),
 
   makeCase('separate_run_control_exists', 'Runtime E2E exposes an honest separate CLI run control', () => {
-    const absent = missing(`${runtimePanelSource}\n${packageSource}`, [
+    const absent = missing(`${runtimePanelSource}\n${scenarioRegistrySource}\n${packageSource}`, [
       'Otomasyonu Çalıştır',
       'CLI\'dan Çalıştır',
       'Komutu Kopyala',

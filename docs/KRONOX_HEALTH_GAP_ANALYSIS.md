@@ -278,6 +278,12 @@ parameters, or absolute local paths.
 Set `KRONOX_E2E_BASE_URL` for a configured preview/deployment. A local Vite run
 needs `VITE_BASE44_APP_BASE_URL` for backend-owned Solo question preparation;
 without it, the Solo scenario reports `AUTOMATION_NOT_AUTOMATABLE`.
+The runner performs a redacted Base44 reachability preflight before scenarios.
+Scenarios explicitly declare `UI_ONLY` or `BACKEND_DEPENDENT`; App-not-found,
+missing configuration, unreachable, or unconfirmed Base44 state blocks backend-
+dependent PASS and is reported as a setup gap. Solo, Online, and Duello are
+backend-dependent. Question and matchmaking service availability is still
+confirmed by the scenario that invokes each service.
 
 Use guest automation where the current route permits it. Home-owned scenarios
 may use an isolated completed guest or linked test actor supplied through
@@ -291,8 +297,20 @@ two-actor pairing and correct-claim fixtures prove one backend winner and
 snapshot reconciliation in two real contexts. Health PASS remains contract
 proof, not release-ready proof while manual/external gates remain.
 
+`Online Matchmaking Runtime Health Suite` adds executable/source-connected
+coverage for canonical mode keys, Duello/normal lane isolation, two-actor
+selection, no self-match, guest/linked compatibility, backend poll
+reconciliation, final timeout poll plus cancel cleanup, safe Turkish UI, the
+two-phone manual gate, App-not-found rejection, and non-fake Duello two-context
+evidence. This suite guards the repaired contract but does not replace two real
+phones against the deployed `randomMatchmaking` function.
+
 ## Manual / Live Probe Checklist
 
+- Two-phone matchmaking: use distinct actors, enter Duello within 30 seconds,
+  confirm both receive the same exactly-two-player Lobby and leave waiting;
+  repeat through normal `Rastgele Eşleş`, then verify timeout/retry/cancel and
+  a second attempt leave no active ghost row.
 - Two-account Online: host creates 4-player lobby, three recipients join by
   code/invite, host starts, every player lands on the same question.
 - Realtime miss: block or delay subscription event for one non-host, confirm

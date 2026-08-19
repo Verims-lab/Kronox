@@ -32,6 +32,10 @@
       "type": "string",
       "description": "Private immutable player reference when available."
     },
+    "public_username": {
+      "type": "string",
+      "description": "Sanitized username copied by the backend for matched Lobby display. Never accepts email or private identity fields."
+    },
     "status": {
       "type": "string",
       "enum": [

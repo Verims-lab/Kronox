@@ -1523,6 +1523,9 @@ Manual release gates that source cannot prove:
 ## Duello V1 Manual Proof
 
 * User A and User B enter `Duello` through the stable internal `same_question_duel` lane; normal random players do not pair into this queue.
+* Use two physical phones with distinct actors and enter within the same 30-second window. Confirm both clients leave `Rakip aranıyor`, fetch the same backend Lobby snapshot, and show the same opaque Lobby/session handoff. Repeat guest/guest and guest/linked where staging data permits.
+* Cancel one attempt, let one attempt time out, then retry. Confirm `Eşleşme bulunamadı, tekrar dene` and `Vazgeç` remain usable, no raw backend detail appears, and neither stale row blocks the next pair.
+* Repeat with normal `Rastgele Eşleş` to prove the repaired shared infrastructure still pairs `random_online` actors without crossing into `same_question_duel`.
 * The matched lobby contains exactly two players, no invite/category selector, and no third/fourth join path.
 * Both clients receive identical two-card opening context and the same active shared card.
 * Submit near-simultaneous correct placements; backend order awards exactly one claim and reconnect preserves it.
@@ -1543,6 +1546,10 @@ Manual release gates that source cannot prove:
   linked test storage state through `KRONOX_E2E_STORAGE_STATE`; never commit
   credentials or storage-state files. Local backend-owned Solo proof also needs
   `VITE_BASE44_APP_BASE_URL`; otherwise that scenario remains NOT_AUTOMATABLE.
+* The runner records a safe backend preflight. A Base44 `App not found`, missing
+  app configuration, unreachable backend, or unconfirmed backend state cannot
+  yield PASS for a `BACKEND_DEPENDENT` scenario. Only scenarios explicitly
+  marked `UI_ONLY` may retain browser-only PASS under that setup gap.
 * Wheel spin, Diamond purchase, and matchmaking mutations stay disabled unless
   the matching `KRONOX_E2E_ALLOW_*` gate is explicitly enabled for a resettable
   non-production actor. Missing setup is NOT_AUTOMATABLE/NOT_RUN, not PASS.

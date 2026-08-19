@@ -1,5 +1,6 @@
 import {
   RUNTIME_E2E_SCENARIOS,
+  RUNTIME_E2E_EXECUTION_SCOPE,
   RUNTIME_E2E_SUITE_ID,
   getRuntimeE2EScenario,
 } from './runtimeE2EScenarios.js';
@@ -24,6 +25,15 @@ const AUTOMATION_STATUSES = new Set(Object.values(AUTOMATION_STATUS));
 const PRIVATE_KEY_PATTERN = /(?:password|secret|token|authorization|cookie|session|email|provider.?id|owner.?key|guest.?id|auth.?id|player.?key|actor.?key|storage.?state)/i;
 const PRIVATE_TEXT_PATTERN = /\b(?:owner_key|guest_token|guest_id|provider_id|auth_id|internal_player_key|player_key)\b|\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
 const STACK_TRACE_PATTERN = /(?:\n|^)\s*at\s+[\w.$<>]+\s*\([^\n]+:\d+:\d+\)/g;
+const APP_NOT_FOUND_PATTERN = /(?:Base44[^\n]{0,120})?App not found/i;
+
+export const BACKEND_PREFLIGHT_STATUS = Object.freeze({
+  REACHABLE: 'REACHABLE',
+  APP_NOT_FOUND: 'APP_NOT_FOUND',
+  NOT_CONFIGURED: 'NOT_CONFIGURED',
+  UNREACHABLE: 'UNREACHABLE',
+  UNKNOWN: 'UNKNOWN',
+});
 
 function nowIso() {
   return new Date().toISOString();
@@ -105,6 +115,8 @@ export function createNotRunAutomationReport(buildMarker = 'unknown') {
   const scenarios = RUNTIME_E2E_SCENARIOS.map((scenario) => ({
     scenarioId: scenario.scenarioId,
     scenarioTitle: scenario.title,
+    executionScope: scenario.executionScope,
+    backendServices: scenario.backendServices,
     status: AUTOMATION_STATUS.NOT_RUN,
     durationMs: null,
     failureCategory: null,
@@ -147,7 +159,8 @@ function normalizeStep(step, definition) {
 
 export function hasRealAutomationEvidence(report, result) {
   const evidence = result?.executionEvidence || report?.executionEvidence;
-  const requiredSteps = (getRuntimeE2EScenario(result?.scenarioId)?.steps || []).filter((item) => item.required !== false);
+  const definition = getRuntimeE2EScenario(result?.scenarioId);
+  const requiredSteps = (definition?.steps || []).filter((item) => item.required !== false);
   const completedRequiredSteps = (result?.steps || []).filter((item) => (
     requiredSteps.some((required) => required.id === item.id)
     && item.status === AUTOMATION_STATUS.PASS
@@ -163,6 +176,10 @@ export function hasRealAutomationEvidence(report, result) {
     && completedRequiredSteps.length === requiredSteps.length,
   );
   if (!baseEvidence) return false;
+  if (
+    definition?.executionScope === RUNTIME_E2E_EXECUTION_SCOPE.BACKEND_DEPENDENT
+    && evidence?.backendPreflight?.status !== BACKEND_PREFLIGHT_STATUS.REACHABLE
+  ) return false;
   if (result?.scenarioId !== 'runtime_e2e.duello_two_context_runtime_sync') return true;
   return evidence?.contextCount >= 2
     && evidence?.deterministicPairing === true
@@ -171,11 +188,39 @@ export function hasRealAutomationEvidence(report, result) {
     && result?.authorityEvidence?.snapshotReconciled === true;
 }
 
+export function backendPreflightBlock(report, result) {
+  const definition = getRuntimeE2EScenario(result?.scenarioId);
+  if (definition?.executionScope !== RUNTIME_E2E_EXECUTION_SCOPE.BACKEND_DEPENDENT) return null;
+  const evidence = result?.executionEvidence || report?.executionEvidence;
+  const preflightStatus = evidence?.backendPreflight?.status;
+  const diagnosticText = JSON.stringify([
+    result?.actual,
+    result?.consoleErrors,
+    result?.networkErrors,
+    evidence?.backendPreflight,
+  ]);
+  if (preflightStatus === BACKEND_PREFLIGHT_STATUS.APP_NOT_FOUND || APP_NOT_FOUND_PATTERN.test(diagnosticText)) {
+    return {
+      category: 'BACKEND_PREFLIGHT_APP_NOT_FOUND',
+      actual: 'Backend-dependent scenario was not accepted: the configured Base44 app was not found.',
+      expected: 'A reachable configured Base44 app before backend-dependent browser steps run.',
+    };
+  }
+  if (preflightStatus && preflightStatus !== BACKEND_PREFLIGHT_STATUS.REACHABLE) {
+    return {
+      category: `BACKEND_PREFLIGHT_${preflightStatus}`,
+      actual: `Backend-dependent scenario was not accepted: backend preflight is ${preflightStatus}.`,
+      expected: 'Backend preflight status REACHABLE before backend-dependent browser steps run.',
+    };
+  }
+  return null;
+}
+
 function normalizeScenarioResult(report, result = {}) {
   const definition = getRuntimeE2EScenario(result.scenarioId);
   if (!definition) return null;
   const suppliedSteps = Array.isArray(result.steps) ? result.steps : [];
-  const steps = definition.steps.map((item) => normalizeStep(
+  let steps = definition.steps.map((item) => normalizeStep(
     suppliedSteps.find((step) => step?.id === item.id),
     item,
   ));
@@ -185,6 +230,20 @@ function normalizeScenarioResult(report, result = {}) {
   let failedStepId = result.failedStepId || null;
   let failedStepTitle = result.failedStepTitle || null;
   let expected = result.expected || null;
+  const backendBlock = backendPreflightBlock(report, result);
+  if (status === AUTOMATION_STATUS.PASS && backendBlock) {
+    status = AUTOMATION_STATUS.NOT_AUTOMATABLE;
+    actual = backendBlock.actual;
+    failureCategory = backendBlock.category;
+    failedStepId = 'backend-preflight';
+    failedStepTitle = 'Backend reachability preflight';
+    expected = backendBlock.expected;
+    steps = steps.map((item) => ({
+      ...item,
+      status: AUTOMATION_STATUS.NOT_AUTOMATABLE,
+      actual: backendBlock.actual,
+    }));
+  }
   if (status === AUTOMATION_STATUS.PASS && !hasRealAutomationEvidence(report, { ...result, steps })) {
     status = AUTOMATION_STATUS.FAIL;
     actual = 'PASS rejected: real browser execution evidence is incomplete.';
@@ -197,6 +256,8 @@ function normalizeScenarioResult(report, result = {}) {
     ...result,
     scenarioId: definition.scenarioId,
     scenarioTitle: definition.title,
+    executionScope: definition.executionScope,
+    backendServices: definition.backendServices,
     status,
     durationMs: result.durationMs != null && Number.isFinite(Number(result.durationMs))
       ? Number(result.durationMs)

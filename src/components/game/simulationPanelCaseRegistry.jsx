@@ -80,6 +80,7 @@ import * as uiConsolidationCases from './simulationPanelUiConsolidationCases';
 // kategori carousel + arkadaş popup + tek adımda lobi + davet.
 import * as onlineChallengeCases from './simulationPanelOnlineChallengeCases';
 import * as sameQuestionDuelCases from './simulationPanelSameQuestionDuelCases';
+import * as onlineMatchmakingRuntimeCases from './simulationPanelOnlineMatchmakingRuntimeCases';
 // Codex128 — Online score/checkpoint system: win/loss only, no draw
 // scoring, no speed bonus, checkpoint floor + idempotent match write contracts.
 import * as onlineRankingCases from './simulationPanelOnlineRankingCases';
@@ -297,6 +298,7 @@ const MODULES = [
   uiConsolidationCases,
   onlineChallengeCases,
   sameQuestionDuelCases,
+  onlineMatchmakingRuntimeCases,
   onlineRankingCases,
   inviteDeliveryCases,
   inviteLifecycleCases,
