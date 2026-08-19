@@ -40,12 +40,14 @@ packs and canonical proof docs. B1 Integrity remains available, no ledger or bal
 behavior changes, and platform uniqueness plus two-device races stay manual/external.
 Paket B5 changes no economy behavior. B1 remains the read-only source, while
 platform uniqueness and live parallel two-device proof remain manual/external.
-Data Hygiene P0 uses the same AdminUser-gated report for a dry-run plan only.
-Inventory candidates follow current runtime effective quantity plus ledger review;
-transaction candidates prefer the earliest valid receipt and conflicting amount,
-type, or balance groups are DO_NOT_AUTOMATE. No balance, quantity, ledger, reward,
-score, or row is changed. Cleanup requires a separate explicit admin/user-approved
-task, and duplicate checks remain FAIL until execution and a fresh verification.
+Data Hygiene P0 uses the same AdminUser-gated report for a three-stage boundary:
+dry-run duplicate report, deep execution eligibility review, then a separate
+explicitly approved cleanup task. Inventory candidates compare current runtime
+quantity with latest ledger balance_after and distinct receipt deltas; conflicting
+transaction material remains DO_NOT_AUTOMATE. The review returns fingerprint-only
+confidence/conflict/reviewer decisions and changes no balance, quantity, ledger,
+reward, score, Daily, leaderboard, or row. Duplicate checks remain FAIL until
+approved execution and a fresh verification.
 
 ## Active sources
 - starter_bonus (one-time, guarded by User.starter_bonus_granted_at)

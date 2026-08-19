@@ -16,7 +16,7 @@ const noMutationCalls = () => present(reportSource, ['.create(', '.update(', '.d
 export const EXTRA_SUITES = [{ id: SUITE_ID, name: 'Data Hygiene Dry Run Health Suite', critical: true, color: '#f59e0b' }];
 export const EXTRA_TESTS = [
   makeCase('report_is_admin_only', 'Cleanup plan is Admin-only', () => {
-    const absent = missing(`${reportSource}\n${adminPageSource}\n${appSource}\n${integrityToolSource}`, ['requireAdmin', 'AdminUser', '<AdminRoute><AdminPage', '<IntegritySnapshotTool />', "mode: 'dry_run'"]);
+    const absent = missing(`${reportSource}\n${adminPageSource}\n${appSource}\n${integrityToolSource}`, ['requireAdmin', 'AdminUser', '<AdminRoute><AdminPage', '<IntegritySnapshotTool />', "mode: 'prepare_cleanup_plan'"]);
     return absent.length ? fail('Admin boundary drifted.', { missing: absent }) : pass('The plan is produced by the AdminUser-gated report and rendered only inside guarded Admin Integrity Snapshot.');
   }),
   makeCase('report_is_read_only', 'Cleanup plan is read-only', () => {
@@ -47,7 +47,7 @@ export const EXTRA_TESTS = [
     return absent.length || noMutationCalls().length ? fail('Inventory dry-run boundary drifted.', { missing: absent }) : pass('Joker and Hint inventory groups are review-only recommendations with no mutation.');
   }),
   makeCase('transaction_duplicates_not_auto_cleaned', 'Transaction duplicates are not auto-cleaned', () => {
-    const absent = missing(reportSource, ['joker_transaction_idempotency_key', 'hint_transaction_idempotency_key', "return 'DO_NOT_AUTOMATE'", 'never delete ledger rows blindly']);
+    const absent = missing(reportSource, ['joker_transaction_idempotency_key', 'hint_transaction_idempotency_key', "classification = conflictReasons.length ? 'DO_NOT_AUTOMATE'", 'never delete ledger rows blindly']);
     return absent.length || noMutationCalls().length ? fail('Ledger dry-run boundary drifted.', { missing: absent }) : pass('Conflicting ledger groups become DO_NOT_AUTOMATE and no transaction row is changed.');
   }),
   makeCase('daily_progress_duplicates_not_auto_cleaned', 'Daily duplicates are not auto-cleaned', () => {
@@ -63,7 +63,7 @@ export const EXTRA_TESTS = [
     return absent.length || noMutationCalls().length ? fail('Social dry-run boundary drifted.', { missing: absent }) : pass('Friend and invite lifecycle groups remain review-only and unchanged.');
   }),
   makeCase('cleanup_execution_deferred_to_separate_approval', 'Execution is deferred to separate approval', () => {
-    const absent = missing(`${reportSource}\n${cleanupPlanSource}\n${docsMirrorSource}`, ['Cleanup execution is separate and blocked until explicit admin/user approval.', 'explicitly approved task', 'Duplicate checks remain FAIL']);
+    const absent = missing(`${reportSource}\n${cleanupPlanSource}\n${docsMirrorSource}`, ['Cleanup execution is separate and blocked until explicit admin/user approval.', 'separate explicitly approved cleanup execution task', 'Duplicate checks remain FAIL']);
     return absent.length ? fail('Separate-approval boundary is not aligned.', { missing: absent }) : pass('Runtime plan, Admin UI, and active docs mirror all defer execution to a separate explicit approval.');
   }),
 ];

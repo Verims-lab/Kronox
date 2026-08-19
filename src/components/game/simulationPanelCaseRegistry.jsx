@@ -267,6 +267,7 @@ import * as soloStreakCases from './simulationPanelSoloStreakCases';
 import * as integrityProofCases from './simulationPanelIntegrityProofCases';
 // Data Hygiene P0 — Admin-only duplicate cleanup planning; analysis and fingerprints only.
 import * as dataHygieneDryRunCases from './simulationPanelDataHygieneDryRunCases';
+import * as dataHygieneReviewCases from './simulationPanelDataHygieneReviewCases';
 // Paket B2 — lazy chunks, finite effects, polling cleanup, and mobile runtime guards.
 import * as performanceRuntimeCases from './simulationPanelPerformanceRuntimeCases';
 // Paket B3 — Admin-only question distribution, readiness, metadata, year, and duplicate QA.
@@ -351,6 +352,7 @@ const MODULES = [
   soloStreakCases,
   integrityProofCases,
   dataHygieneDryRunCases,
+  dataHygieneReviewCases,
   performanceRuntimeCases,
   questionQualityCases,
   releaseReadinessCases,

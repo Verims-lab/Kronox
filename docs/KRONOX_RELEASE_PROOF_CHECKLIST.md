@@ -1280,12 +1280,13 @@ verified against the deployed Base44 environment.
 * Production deployment, real RLS/multi-account probes, real devices, Base44 unique indexes, production secrets, and parallel race behavior remain manual.
 * Package-layer boundary: `package.json`, the committed `package-lock.json` root spec/resolved package, the deploy gate, and backend imports all pin `@base44/sdk` exactly to `0.8.34`. Source-connected Health verifies the committed package files; live Base44 deployment remains external proof.
 
-## Data Hygiene Dry-Run Release Boundary
+## Data Hygiene Execution Eligibility Review Boundary
 
-* Open guarded Admin Ekranı > Integrity Snapshot and confirm `Veri Temizliği Planı — Dry Run` renders current FAIL/INCOMPLETE checks, group/row counts, P0/P1 risk, canonical strategy, eligibility, runtime risk, and at most three irreversible fingerprints per check.
-* Require response flags `dryRun: true`, `readOnly: true`, `mutationOperationsEnabled: false`, `cleanupExecutionAvailable: false`, and `explicitApprovalRequired: true`.
-* Confirm no cleanup function is invoked from this UI and no execute CTA is present. The visible plan states `Yürütme engelli`; review is step one, and execution is a separate task requiring explicit admin/user approval.
-* Duplicate FAILs must remain FAIL until separately approved cleanup runs and a fresh report verifies the data. Static Data Hygiene Health PASS proves only the dry-run contract, not cleaned production data.
+* Open guarded Admin Ekranı > Integrity Snapshot and confirm `Veri Temizliği İncelemesi` renders the current P0/P1 FAIL/INCOMPLETE counts, `AUTO_SAFE_CANDIDATE`, `REVIEW_REQUIRED`, and `DO_NOT_AUTOMATE` totals, plus fingerprint-only canonical candidates, confidence, conflict reasons, reviewer decisions, and future actions.
+* Require response flags `dryRun: true`, `readOnly: true`, `reviewOnly: true`, `mutationOperationsEnabled: false`, `cleanupExecutionAvailable: false`, `executionEligibilityReviewOnly: true`, and `explicitApprovalRequired: true`.
+* Confirm no cleanup function is invoked and no mutation CTA exists. The UI states `Yürütme engelli`, `Temizlik ayrı onaylı görev gerektirir.`, and `Bu ekran veri silmez, birleştirmez veya güncellemez.`
+* Preserve the three-step process: dry-run duplicate report, deep eligibility review, then a separate explicitly approved cleanup execution task. `AUTO_SAFE_CANDIDATE` is not execution approval.
+* Duplicate FAILs remain FAIL until approved cleanup actually runs and a fresh report verifies the data. Data Hygiene Review Health PASS proves review safeguards only, not cleaned production data.
 * Confirm no raw duplicate row, row ID, email, owner/player/actor key, raw guest ID/token, private payload, secret, or stack trace appears in UI/export.
 
 # Paket B2 — Performance / Runtime Cleanup Proof

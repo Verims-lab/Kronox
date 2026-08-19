@@ -94,6 +94,15 @@ const DUPLICATE_CLEANUP_PLANS = {
 
 const CLEANUP_PLAN_SAMPLE_LIMIT = 3;
 const CLEANUP_APPROVAL_BOUNDARY = 'Cleanup execution is separate and blocked until explicit admin/user approval.';
+const ELIGIBILITY_REVIEW_BOUNDARY = 'Deep eligibility review is read-only; every cleanup requires a separate explicitly approved execution task.';
+const P0_REVIEW_CHECK_IDS = new Set([
+  'user_joker_inventory_actor_type',
+  'joker_transaction_idempotency_key',
+  'user_daily_quest_progress_idempotency_key',
+  'user_daily_quest_progress_user_day_task',
+  'solo_leaderboard_entry_owner_key',
+]);
+const VALID_JOKER_TYPES = new Set(['mistake_shield', 'card_swap', 'time_freeze']);
 
 const DAILY_SOURCE_PROOF = [
   { taskType: 'daily_wheel_claim', title: 'Çark çevir', proofSource: 'DailyWheelSpin', receiptField: 'idempotency_key' },
@@ -174,6 +183,12 @@ function keyFingerprint(value) {
   return `key_${(hash >>> 0).toString(36)}`;
 }
 
+function ownerKeyFromText(prefix, value) {
+  const text = String(value || '').trim().toLowerCase();
+  if (!text) return '';
+  return `${prefix}_${keyFingerprint(text).slice(4)}`;
+}
+
 function groupDuplicateRows(rows, fields, filter) {
   const groups = new Map();
   const relevant = rows.filter((row) => matchesFilter(row, filter));
@@ -217,7 +232,7 @@ function rowTime(row, fields = ['created_at', 'created_date', 'updated_at', 'upd
   return 0;
 }
 
-function pickCanonicalCandidate(checkId, group) {
+function pickCanonicalCandidate(checkId, group, windows = {}) {
   const rows = [...group];
   if (checkId.startsWith('user_daily_quest_progress_')) {
     return rows.sort((a, b) => {
@@ -229,7 +244,17 @@ function pickCanonicalCandidate(checkId, group) {
     return rows.sort((a, b) => Number(b?.quantity || 0) - Number(a?.quantity || 0) || rowTime(b, ['updated_at', 'updated_date']) - rowTime(a, ['updated_at', 'updated_date']))[0];
   }
   if (checkId === 'solo_leaderboard_entry_owner_key') {
-    return rows.sort((a, b) => Number(b?.total_kronox_score || 0) - Number(a?.total_kronox_score || 0) || rowTime(b, ['updated_at', 'updated_date']) - rowTime(a, ['updated_at', 'updated_date']))[0];
+    const ownerKey = String(rows[0]?.owner_key || '');
+    const profileRows = [...(windows.User?.rows || []), ...(windows.GuestProfile?.rows || [])];
+    const scoreSignals = profileRows.filter((row) => {
+      const key = row?.email || row?.user_email
+        ? ownerKeyFromText('u', row?.email || row?.user_email)
+        : ownerKeyFromText('g', row?.guest_id);
+      return key === ownerKey && Number.isFinite(Number(row?.kronox_puan_total));
+    }).map((row) => Number(row.kronox_puan_total));
+    const matching = rows.filter((row) => scoreSignals.includes(Number(row?.total_kronox_score)));
+    const candidates = matching.length ? matching : rows;
+    return candidates.sort((a, b) => Number(b?.total_kronox_score || 0) - Number(a?.total_kronox_score || 0) || rowTime(b, ['updated_at', 'updated_date']) - rowTime(a, ['updated_at', 'updated_date']))[0];
   }
   if (checkId === 'friend_request_sender_recipient_status') {
     return rows.sort((a, b) => rowTime(b, ['accepted_at', 'created_date']) - rowTime(a, ['accepted_at', 'created_date']))[0];
@@ -244,39 +269,129 @@ function conflictingFields(group, fields = []) {
   return fields.filter((field) => new Set(group.map((row) => JSON.stringify(row?.[field] ?? null))).size > 1);
 }
 
-function groupSafety(plan, conflicts) {
-  if (['joker_transaction_idempotency_key', 'hint_transaction_idempotency_key'].includes(plan.checkId) && conflicts.length) return 'DO_NOT_AUTOMATE';
-  if (plan.checkId === 'game_invite_sender_recipient_status' && conflicts.includes('lobby_id')) return 'DO_NOT_AUTOMATE';
-  return plan.automationSafetyLevel;
+function normalizedSourceProof(row) {
+  return String(row?.last_event_key || row?.metadata?.source_receipt || row?.metadata?.last_event_key || '').trim();
 }
 
-function buildCleanupCheckPlan(check, rows, report, status) {
+function inventoryLedgerSignals(group, windows) {
+  const actor = String(group[0]?.user_email || '').trim();
+  const jokerType = String(group[0]?.joker_type || '').trim();
+  const transactions = (windows.JokerTransaction?.rows || [])
+    .filter((row) => String(row?.user_email || '').trim() === actor && String(row?.joker_type || '').trim() === jokerType)
+    .sort((a, b) => rowTime(b, ['created_at', 'created_date']) - rowTime(a, ['created_at', 'created_date']));
+  const receiptGroups = groupDuplicateRows(transactions, ['idempotency_key']);
+  const conflictingReceiptCount = receiptGroups.filter(([, rows]) => conflictingFields(rows, [
+    'user_email', 'joker_type', 'quantity_delta', 'reason', 'source', 'balance_before', 'balance_after',
+  ]).length > 0).length;
+  const distinctReceipts = new Map();
+  transactions.forEach((row) => {
+    const receipt = String(row?.idempotency_key || '').trim();
+    if (receipt && !distinctReceipts.has(receipt)) distinctReceipts.set(receipt, row);
+  });
+  return {
+    latest: transactions[0] || null,
+    distinctDeltaSum: [...distinctReceipts.values()].reduce((sum, row) => sum + (Number(row?.quantity_delta) || 0), 0),
+    receiptCount: distinctReceipts.size,
+    conflictingReceiptCount,
+  };
+}
+
+function leaderboardScoreSignals(group, windows) {
+  const ownerKey = String(group[0]?.owner_key || '').trim();
+  return [...(windows.User?.rows || []), ...(windows.GuestProfile?.rows || [])]
+    .filter((row) => {
+      const key = row?.email || row?.user_email
+        ? ownerKeyFromText('u', row?.email || row?.user_email)
+        : ownerKeyFromText('g', row?.guest_id);
+      return key === ownerKey && Number.isFinite(Number(row?.kronox_puan_total));
+    })
+    .map((row) => Number(row.kronox_puan_total));
+}
+
+function reviewGroup(check, metadata, key, group, windows) {
+  const canonical = pickCanonicalCandidate(check.id, group, windows);
+  const conflictReasons = [];
+  let classification = metadata.automationSafetyLevel;
+  let canonicalConfidence = 'MEDIUM';
+
+  if (check.id === 'user_joker_inventory_actor_type') {
+    const ledger = inventoryLedgerSignals(group, windows);
+    const quantities = group.map((row) => Number(row?.quantity));
+    const maxQuantity = Math.max(...quantities.filter(Number.isFinite));
+    if (!String(group[0]?.user_email || '').trim() || !VALID_JOKER_TYPES.has(String(group[0]?.joker_type || ''))) conflictReasons.push('MISSING_OR_INVALID_ACTOR_TYPE');
+    if (quantities.some((value) => !Number.isFinite(value) || value < 0)) conflictReasons.push('INVALID_QUANTITY');
+    if (new Set(quantities).size > 1) conflictReasons.push('INVENTORY_QUANTITY_CONFLICT');
+    const tied = group.filter((row) => Number(row?.quantity) === maxQuantity);
+    if (tied.length > 1 && new Set(tied.map((row) => rowTime(row, ['updated_at', 'updated_date']))).size < tied.length) conflictReasons.push('CANONICAL_TIE');
+    if (!ledger.latest) conflictReasons.push('LEDGER_SIGNAL_MISSING');
+    else if (Number(canonical?.quantity) !== Number(ledger.latest?.balance_after)) conflictReasons.push('LATEST_LEDGER_BALANCE_MISMATCH');
+    if (ledger.conflictingReceiptCount > 0) conflictReasons.push('LEDGER_RECEIPT_CONFLICT');
+    if (ledger.receiptCount > 0 && Number(canonical?.quantity) !== ledger.distinctDeltaSum) conflictReasons.push('DISTINCT_RECEIPT_DELTA_MISMATCH');
+    classification = conflictReasons.length ? 'REVIEW_REQUIRED' : 'AUTO_SAFE_CANDIDATE';
+    canonicalConfidence = conflictReasons.length ? 'LOW' : 'HIGH';
+  } else if (check.id === 'joker_transaction_idempotency_key') {
+    const material = conflictingFields(group, ['user_email', 'joker_type', 'quantity_delta', 'reason', 'source', 'status', 'balance_before', 'balance_after']);
+    conflictReasons.push(...material.map((field) => `MATERIAL_CONFLICT_${field.toUpperCase()}`));
+    if (group.some((row) => !String(row?.user_email || '').trim() || !VALID_JOKER_TYPES.has(String(row?.joker_type || '')) || !Number.isFinite(Number(row?.quantity_delta)) || !Number.isFinite(Number(row?.balance_after)))) conflictReasons.push('INVALID_OR_INCOMPLETE_LEDGER_ROW');
+    classification = conflictReasons.length ? 'DO_NOT_AUTOMATE' : 'AUTO_SAFE_CANDIDATE';
+    canonicalConfidence = conflictReasons.length ? 'BLOCKED' : 'HIGH';
+  } else if (check.id.startsWith('user_daily_quest_progress_')) {
+    const material = conflictingFields(group, ['status', 'progress_value', 'target_value', 'last_event_key', 'daily_calendar_current_streak', 'daily_calendar_streak_anchor_date', 'daily_calendar_streak_reward_claim_count']);
+    conflictReasons.push(...material.map((field) => `DAILY_CONFLICT_${field.toUpperCase()}`));
+    const proofs = new Set(group.map(normalizedSourceProof).filter(Boolean));
+    if (proofs.size > 1) conflictReasons.push('SOURCE_PROOF_CONFLICT');
+    classification = conflictReasons.length ? 'REVIEW_REQUIRED' : 'AUTO_SAFE_CANDIDATE';
+    canonicalConfidence = conflictReasons.length ? 'MEDIUM' : 'HIGH';
+  } else if (check.id === 'solo_leaderboard_entry_owner_key') {
+    const material = conflictingFields(group, ['total_kronox_score', 'total_solo_score', 'online_score', 'username', 'avatar_type', 'avatar_icon_id', 'avatar_url', 'avatar_color_id']);
+    conflictReasons.push(...material.map((field) => `PROJECTION_CONFLICT_${field.toUpperCase()}`));
+    const scoreSignals = leaderboardScoreSignals(group, windows);
+    if (!scoreSignals.length) conflictReasons.push('MATERIALIZED_SCORE_SIGNAL_UNAVAILABLE');
+    else if (!scoreSignals.includes(Number(canonical?.total_kronox_score))) conflictReasons.push('VISIBLE_SCORE_POLICY_MISMATCH');
+    classification = conflictReasons.length ? 'REVIEW_REQUIRED' : 'AUTO_SAFE_CANDIDATE';
+    canonicalConfidence = conflictReasons.length ? 'MEDIUM' : 'HIGH';
+  } else {
+    const conflicts = conflictingFields(group, metadata.conflictFields);
+    conflictReasons.push(...conflicts.map((field) => `CONFLICT_${field.toUpperCase()}`));
+    if (check.id === 'game_invite_sender_recipient_status' && conflicts.includes('lobby_id')) classification = 'DO_NOT_AUTOMATE';
+  }
+
+  const canonicalIdentity = String(canonical?.id || canonical?._id || `${rowTime(canonical)}|${group.length}`);
+  const memberIdentitySet = group
+    .map((row) => String(row?.id || row?._id || `${rowTime(row)}|${JSON.stringify(row)}`))
+    .sort()
+    .join('|');
+  return {
+    entity: check.entity,
+    duplicateKeyType: check.fields.join(' + '),
+    fingerprintKey: keyFingerprint(key),
+    logicalGroupFingerprint: keyFingerprint(`members|${check.entity}|${memberIdentitySet}`),
+    rowCount: group.length,
+    extraRowCount: group.length - 1,
+    riskLevel: metadata.riskLevel,
+    currentClassification: classification,
+    proposedCanonicalRowFingerprint: keyFingerprint(`canonical|${key}|${canonicalIdentity}`),
+    canonicalConfidence,
+    conflictReasons,
+    requiredReviewerDecision: classification === 'AUTO_SAFE_CANDIDATE' ? 'Confirm exact-duplicate semantics and approve a separate cleanup task.' : 'Resolve every conflict against runtime-visible state before any cleanup approval.',
+    recommendedFutureAction: metadata.recommendedAction,
+    executionBlockedReason: ELIGIBILITY_REVIEW_BOUNDARY,
+    futureCleanupAutomatableAfterApproval: classification === 'AUTO_SAFE_CANDIDATE' ? 'EXACT_DUPLICATE_ONLY' : 'NO_UNTIL_REVIEW_RESOLVED',
+  };
+}
+
+function buildCleanupCheckPlan(check, rows, report, status, windows) {
   const metadata = DUPLICATE_CLEANUP_PLANS[check.id];
   if (!metadata) return null;
   const groups = groupDuplicateRows(rows, check.fields, check.filter);
-  const safetyCounts = { AUTO_SAFE_CANDIDATE: 0, REVIEW_REQUIRED: 0, MANUAL_ONLY: 0, DO_NOT_AUTOMATE: 0 };
-  const analyzed = groups.map(([key, group]) => {
-    const conflicts = conflictingFields(group, metadata.conflictFields);
-    const plan = { ...metadata, checkId: check.id };
-    const automationSafetyLevel = groupSafety(plan, conflicts);
-    safetyCounts[automationSafetyLevel] += 1;
-    const canonical = pickCanonicalCandidate(check.id, group);
-    const rowIdentity = String(canonical?.id || canonical?._id || `${rowTime(canonical)}|${group.length}`);
-    return {
-      fingerprint: keyFingerprint(key),
-      rowCount: group.length,
-      duplicateRowCount: group.length - 1,
-      canonicalCandidateFingerprint: keyFingerprint(`canonical|${key}|${rowIdentity}`),
-      automationSafetyLevel,
-      riskLevel: metadata.riskLevel,
-      conflictFields: conflicts,
-      executeBlocked: true,
-    };
-  });
+  const reviews = groups.map(([key, group]) => reviewGroup(check, metadata, key, group, windows));
+  const safetyCounts = { AUTO_SAFE_CANDIDATE: 0, REVIEW_REQUIRED: 0, DO_NOT_AUTOMATE: 0 };
+  reviews.forEach((review) => { safetyCounts[review.currentClassification] += 1; });
   return {
     checkId: check.id,
     entity: check.entity,
     duplicateKeyName: check.id,
+    duplicateKeyType: check.fields.join(' + '),
     status,
     duplicateGroupCount: report.duplicateKeyCount,
     duplicateRowCount: report.duplicateRowCount,
@@ -288,7 +403,17 @@ function buildCleanupCheckPlan(check, rows, report, status) {
     rationale: metadata.rationale,
     relatedRuntimeRisk: metadata.relatedRuntimeRisk,
     cleanupEligibilityCounts: safetyCounts,
-    samples: analyzed.slice(0, CLEANUP_PLAN_SAMPLE_LIMIT),
+    groupReviews: P0_REVIEW_CHECK_IDS.has(check.id) ? reviews : reviews.slice(0, CLEANUP_PLAN_SAMPLE_LIMIT),
+    samples: reviews.slice(0, CLEANUP_PLAN_SAMPLE_LIMIT).map((review) => ({
+      fingerprint: review.fingerprintKey,
+      rowCount: review.rowCount,
+      duplicateRowCount: review.extraRowCount,
+      canonicalCandidateFingerprint: review.proposedCanonicalRowFingerprint,
+      automationSafetyLevel: review.currentClassification,
+      canonicalConfidence: review.canonicalConfidence,
+      conflictReasons: review.conflictReasons,
+      executeBlocked: true,
+    })),
     sampleLimit: CLEANUP_PLAN_SAMPLE_LIMIT,
     samplesFingerprintOnly: true,
     executeBlocked: true,
@@ -299,27 +424,56 @@ function buildCleanupCheckPlan(check, rows, report, status) {
 function buildCleanupPlan(checkPlans) {
   const plans = checkPlans.filter(Boolean);
   const failing = plans.filter((plan) => plan.status === 'FAIL');
+  const p0 = failing.filter((plan) => plan.riskLevel === 'P0');
+  const p1 = failing.filter((plan) => plan.riskLevel === 'P1');
+  const uniqueReviewGroups = (plans) => [...new Map(plans
+    .flatMap((plan) => plan.groupReviews || [])
+    .map((review) => [`${review.entity}|${review.logicalGroupFingerprint}`, review])).values()];
+  const eligibilityFromReviews = (reviews) => ({
+    AUTO_SAFE_CANDIDATE: reviews.filter((review) => review.currentClassification === 'AUTO_SAFE_CANDIDATE').length,
+    REVIEW_REQUIRED: reviews.filter((review) => review.currentClassification === 'REVIEW_REQUIRED').length,
+    DO_NOT_AUTOMATE: reviews.filter((review) => review.currentClassification === 'DO_NOT_AUTOMATE').length,
+  });
+  const eligibilityFromPlans = (plans) => ({
+    AUTO_SAFE_CANDIDATE: plans.reduce((sum, plan) => sum + plan.cleanupEligibilityCounts.AUTO_SAFE_CANDIDATE, 0),
+    REVIEW_REQUIRED: plans.reduce((sum, plan) => sum + plan.cleanupEligibilityCounts.REVIEW_REQUIRED, 0),
+    DO_NOT_AUTOMATE: plans.reduce((sum, plan) => sum + plan.cleanupEligibilityCounts.DO_NOT_AUTOMATE, 0),
+  });
+  const p0Reviews = uniqueReviewGroups(p0);
+  const p0Eligibility = eligibilityFromReviews(p0Reviews);
+  const p1Eligibility = eligibilityFromPlans(p1);
+  const combinedEligibility = {
+    AUTO_SAFE_CANDIDATE: p0Eligibility.AUTO_SAFE_CANDIDATE + p1Eligibility.AUTO_SAFE_CANDIDATE,
+    REVIEW_REQUIRED: p0Eligibility.REVIEW_REQUIRED + p1Eligibility.REVIEW_REQUIRED,
+    DO_NOT_AUTOMATE: p0Eligibility.DO_NOT_AUTOMATE + p1Eligibility.DO_NOT_AUTOMATE,
+  };
   const summary = {
     failingChecks: failing.length,
-    totalDuplicateGroups: failing.reduce((sum, plan) => sum + plan.duplicateGroupCount, 0),
-    totalDuplicateRows: failing.reduce((sum, plan) => sum + plan.duplicateRowCount, 0),
-    p0DuplicateGroups: failing.filter((plan) => plan.riskLevel === 'P0').reduce((sum, plan) => sum + plan.duplicateGroupCount, 0),
-    p1DuplicateGroups: failing.filter((plan) => plan.riskLevel === 'P1').reduce((sum, plan) => sum + plan.duplicateGroupCount, 0),
-    AUTO_SAFE_CANDIDATE: failing.reduce((sum, plan) => sum + plan.cleanupEligibilityCounts.AUTO_SAFE_CANDIDATE, 0),
-    REVIEW_REQUIRED: failing.reduce((sum, plan) => sum + plan.cleanupEligibilityCounts.REVIEW_REQUIRED, 0),
-    MANUAL_ONLY: failing.reduce((sum, plan) => sum + plan.cleanupEligibilityCounts.MANUAL_ONLY, 0),
-    DO_NOT_AUTOMATE: failing.reduce((sum, plan) => sum + plan.cleanupEligibilityCounts.DO_NOT_AUTOMATE, 0),
+    totalDuplicateGroups: p0Reviews.length + p1.reduce((sum, plan) => sum + plan.duplicateGroupCount, 0),
+    totalDuplicateRows: p0Reviews.reduce((sum, review) => sum + review.extraRowCount, 0) + p1.reduce((sum, plan) => sum + plan.duplicateRowCount, 0),
+    p0DuplicateGroups: p0Reviews.length,
+    p1DuplicateGroups: p1.reduce((sum, plan) => sum + plan.duplicateGroupCount, 0),
+    ...combinedEligibility,
+    p0Eligibility,
+    p1Eligibility,
   };
   const byEntity = new Map();
-  failing.forEach((plan) => {
-    const current = byEntity.get(plan.entity) || { entity: plan.entity, duplicateGroupCount: 0, duplicateRowCount: 0, highestRisk: plan.riskLevel };
+  p0Reviews.forEach((review) => {
+    const current = byEntity.get(review.entity) || { entity: review.entity, duplicateGroupCount: 0, duplicateRowCount: 0, highestRisk: 'P0' };
+    current.duplicateGroupCount += 1;
+    current.duplicateRowCount += review.extraRowCount;
+    byEntity.set(review.entity, current);
+  });
+  p1.forEach((plan) => {
+    const current = byEntity.get(plan.entity) || { entity: plan.entity, duplicateGroupCount: 0, duplicateRowCount: 0, highestRisk: 'P1' };
     current.duplicateGroupCount += plan.duplicateGroupCount;
     current.duplicateRowCount += plan.duplicateRowCount;
-    if (plan.riskLevel === 'P0') current.highestRisk = 'P0';
     byEntity.set(plan.entity, current);
   });
   return {
-    planVersion: 'data-hygiene-dry-run-v1',
+    planVersion: 'data-hygiene-eligibility-review-v2',
+    reviewStage: 'deep_execution_eligibility',
+    reviewOnly: true,
     dryRun: true,
     readOnly: true,
     mutationOperationsEnabled: false,
@@ -328,7 +482,9 @@ function buildCleanupPlan(checkPlans) {
     samplesFingerprintOnly: true,
     sampleLimitPerCheck: CLEANUP_PLAN_SAMPLE_LIMIT,
     approvalBoundary: CLEANUP_APPROVAL_BOUNDARY,
-    nextRecommendedAction: 'Review P0 groups and conflict fingerprints; cleanup execution requires a separate explicitly approved task.',
+    eligibilityReviewBoundary: ELIGIBILITY_REVIEW_BOUNDARY,
+    processStages: ['dry_run_duplicate_report', 'deep_execution_eligibility_review', 'separate_explicitly_approved_cleanup_execution'],
+    nextRecommendedAction: 'Review every P0 conflict and exact-duplicate candidate; cleanup execution remains blocked and requires a separate explicitly approved task.',
     summary,
     topEntities: [...byEntity.values()].sort((a, b) => b.duplicateRowCount - a.duplicateRowCount).slice(0, 5),
     checks: plans,
@@ -617,14 +773,15 @@ export default async function adminDuplicateKeyReport(req) {
     const requestedCheckIds = Array.isArray(body?.checks) ? body.checks.map(String) : [];
     const activeChecks = requestedCheckIds.length ? DUPLICATE_KEY_CHECKS.filter((check) => requestedCheckIds.includes(check.id)) : DUPLICATE_KEY_CHECKS;
     const entityNames = [...new Set(activeChecks.map((check) => check.entity))];
+    if (mode === 'prepare_cleanup_plan') entityNames.push('User', 'GuestProfile');
     const windows = {};
-    for (const entityName of entityNames) windows[entityName] = await fetchWindow(base44, entityName, scanLimit);
+    for (const entityName of [...new Set(entityNames)]) windows[entityName] = await fetchWindow(base44, entityName, scanLimit);
     const cleanupCheckPlans = [];
     const checks = activeChecks.map((check) => {
       const window = windows[check.entity] || { rows: [], entityAvailable: false, scanWindowComplete: false };
       const report = duplicateReport(window.rows, check.fields, check.filter);
       const status = !window.entityAvailable || !window.scanWindowComplete ? 'INCOMPLETE' : report.duplicateKeyCount > 0 ? 'FAIL' : 'PASS';
-      cleanupCheckPlans.push(buildCleanupCheckPlan(check, window.rows, report, status));
+      cleanupCheckPlans.push(buildCleanupCheckPlan(check, window.rows, report, status, windows));
       return {
         id: check.id,
         entity: check.entity,
@@ -641,7 +798,7 @@ export default async function adminDuplicateKeyReport(req) {
     const cleanupPlan = buildCleanupPlan(cleanupCheckPlans);
     return json({
       ok: true,
-      reportVersion: 'b1-read-only-integrity-v1',
+      reportVersion: mode === 'prepare_cleanup_plan' ? 'data-hygiene-eligibility-review-v2' : 'b1-read-only-integrity-v1',
       mode,
       dryRun: true,
       readOnly: true,
@@ -652,6 +809,7 @@ export default async function adminDuplicateKeyReport(req) {
       indexSupportModel: 'platform_manual_only',
       cleanupPlanDryRunOnly: true,
       cleanupExecutionDeferred: true,
+      executionEligibilityReviewOnly: true,
       explicitApprovalRequired: true,
       scanLimit,
       scannedAt: new Date().toISOString(),

@@ -4,14 +4,14 @@ const number = (value) => Math.max(0, Number(value) || 0).toLocaleString('tr-TR'
 
 export default function DuplicateCleanupPlanSummary({ plan = {} }) {
   const summary = plan.summary || {};
+  const p0 = summary.p0Eligibility || {};
   const metrics = [
-    ['FAIL kontrol', summary.failingChecks],
-    ['Duplicate grup', summary.totalDuplicateGroups],
-    ['Fazla satır', summary.totalDuplicateRows],
     ['P0 grup', summary.p0DuplicateGroups],
+    ['AUTO SAFE', p0.AUTO_SAFE_CANDIDATE],
+    ['REVIEW REQUIRED', p0.REVIEW_REQUIRED],
+    ['DO NOT AUTOMATE', p0.DO_NOT_AUTOMATE],
     ['P1 grup', summary.p1DuplicateGroups],
-    ['Review', summary.REVIEW_REQUIRED],
-    ['Do not automate', summary.DO_NOT_AUTOMATE],
+    ['Fazla satır', summary.totalDuplicateRows],
   ];
   return (
     <section className="rounded-xl border border-amber-300/20 bg-amber-400/5 p-3" aria-label="Duplicate cleanup dry-run özeti">

@@ -782,19 +782,7 @@ Mandatory sequence — index before duplicate cleanup is not allowed:
 3. Only zero-duplicate keys (re-verified by a fresh dry-run) may be configured
    as platform unique keys, then recorded as release proof.
 
-Cleanup status (2026-07-06, admin approved and executed): the
-`adminDuplicateKeyCleanup` executor (AdminUser-gated; `dry_run` default,
-`execute` requires `confirm: 'DELETE_DUPLICATES'`) deleted 959 redundant
-duplicate rows using the approved canonical-row semantics — earliest ledger
-row kept for `DiamondTransaction`/`JokerTransaction` idempotency keys, newest
-updated row kept for `UserJokerInventory` (user + joker_type) and
-`SoloLeaderboardEntry` (owner_key), and best row (completed → highest
-progress → earliest created) kept for `UserDailyQuestProgress`
-(user + quest_date + quest_key). No player balance, score, streak, or reward
-was mutated. A fresh `adminDuplicateKeyReport` dry-run then verified ZERO
-duplicates across all P0/P1 keys, so platform unique-key configuration is
-unblocked for every documented key (re-verify with a fresh dry-run at
-configuration time).
+Historical cleanup status (2026-07-06): an explicitly approved cleanup run was recorded at that time, followed by a zero-duplicate verification. That historical snapshot is not current proof. The latest dry-run supersedes it and reports new P0/P1 duplicate groups; platform unique-key configuration is blocked again for affected keys. The current Data Hygiene task performs eligibility review only and does not invoke `adminDuplicateKeyCleanup`, delete rows, or change player balance, score, streak, reward, Daily, social, or leaderboard state.
 
 Permanent code-level logical unique guards: Base44 has no repo-level unique
 index support, so duplicate cleanup is not enough by itself — logical
@@ -1211,11 +1199,11 @@ Admin Ekranı exposes one compact `Integrity Snapshot` that summarizes economy s
 
 B1 reuses the existing report function at the 50-entry deploy ceiling. No backend function was added.
 
-### Data Hygiene P0 — Duplicate Cleanup Dry-Run Plan
+### Data Hygiene P0 — Duplicate Execution Eligibility Review
 
-Duplicate cleanup is a two-step process: (1) an AdminUser-gated dry-run plan and review, then (2) a separate cleanup execution task requiring explicit admin/user approval. The current `adminDuplicateKeyReport` `prepare_cleanup_plan` mode performs bounded reads only, selects proposed canonical candidates in memory, returns counts/risk/eligibility plus at most three irreversible fingerprint samples per check, and enables no create/update/delete/archive/merge/repair operation. Canonical rules are proposals, not executed decisions.
+Duplicate cleanup is a three-step process: (1) the AdminUser-gated dry-run duplicate report, (2) this deep execution eligibility review, and (3) a separate explicitly approved cleanup execution task. `adminDuplicateKeyReport` `prepare_cleanup_plan` performs bounded reads only, compares P0 runtime-visible inventory, ledger, Daily progress, and materialized leaderboard signals in memory, and returns fingerprint-only group reviews with canonical confidence, conflict reasons, reviewer decisions, and future-action eligibility. It enables no create/update/delete/archive/merge/repair operation; canonical rows remain proposals.
 
-The latest production scan supersedes older zero-duplicate snapshots and currently leaves the affected `UserDailyQuestProgress`, `JokerTransaction`, `HintTransaction`, `UserJokerInventory`, `UserHintInventory`, `SoloLeaderboardEntry`, `FriendRequest`, and `GameInvite` checks at FAIL. Inventory, ledger, Daily, leaderboard, friend, and invite groups require review; conflicting ledger or cross-lobby groups are `DO_NOT_AUTOMATE`. Duplicate checks remain FAIL until a separately approved cleanup is executed and a fresh report verifies the result. Raw rows, raw IDs, email, owner/player/actor keys, guest proof, and private payloads are never returned; Admin UI receives bounded fingerprints and counts only.
+`AUTO_SAFE_CANDIDATE` means only that an exact-duplicate group may be proposed for a future separately approved task. `REVIEW_REQUIRED` means runtime-visible state or source proof conflicts must be resolved by a reviewer. `DO_NOT_AUTOMATE` blocks automation, especially for conflicting ledger material fields. P1 Hint, FriendRequest, and GameInvite groups remain summarized without execution planning. Duplicate checks remain FAIL until approved cleanup actually executes and a fresh report verifies zero duplicates. Raw rows, raw IDs, email, owner/player/actor keys, guest proof, and private payloads are never returned; Admin UI receives irreversible group/canonical fingerprints and bounded counts only.
 
 ## Paket B2 — Frontend Runtime Boundaries
 

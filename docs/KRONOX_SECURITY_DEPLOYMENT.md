@@ -978,7 +978,7 @@ Both supported report modes are dry-run/read-only. B1 introduces no cleanup acti
 
 The cleanup plan is step one of a two-step process and remains inside guarded Admin Ekranı / Integrity Snapshot. `adminDuplicateKeyReport` authorizes the current caller through active AdminUser owner/admin state, performs bounded service-role reads, and returns aggregate counts plus irreversible fingerprints only. It exposes no raw duplicate rows, internal row IDs, email, owner/player/actor keys, raw guest ID/token, provider/auth IDs, secrets, private payloads, or stack traces.
 
-The report enables no mutation or execution path. Canonical candidates, risk, and eligibility are recommendations only; step two is a separate explicitly approved cleanup task. Duplicate checks remain FAIL until that task runs and a fresh report verifies them. Existing cleanup-capable maintenance code is not invoked or exposed by this dry-run UI.
+The report enables no mutation or execution path. Cleanup uses three explicit stages: dry-run duplicate report, deep execution eligibility review, and a separate explicitly approved cleanup task. Canonical candidates, confidence, conflict reasons, and eligibility are recommendations only; `AUTO_SAFE_CANDIDATE` is not approval. `REVIEW_REQUIRED` and `DO_NOT_AUTOMATE` remain blocked. Duplicate checks remain FAIL until approved execution runs and a fresh report verifies them. Existing cleanup-capable maintenance code is not invoked or exposed by this review UI.
 
 # Paket B2 — Lazy Runtime Boundary
 

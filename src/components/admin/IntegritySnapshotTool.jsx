@@ -17,7 +17,7 @@ export default function IntegritySnapshotTool() {
     if (loading) return;
     setLoading(true); setError('');
     try {
-      const response = await base44.functions.invoke('adminDuplicateKeyReport', { mode: 'dry_run', scanLimit: 5000 });
+      const response = await base44.functions.invoke('adminDuplicateKeyReport', { mode: 'prepare_cleanup_plan', scanLimit: 5000 });
       const body = response?.data?.data || response?.data || {};
       if (!body?.ok || body?.readOnly !== true) throw new Error('integrity_report_unavailable');
       setReport(body);
