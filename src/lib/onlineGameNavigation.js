@@ -36,7 +36,11 @@ export function buildOnlineGameState(lobby, { currentUser, playerName } = {}) {
 export function navigateToOnlineGame(navigate, lobby, options = {}) {
   if (!lobby?.id && !lobby?.code) return false;
   navigate(buildOnlineGamePath(lobby), {
-    state: buildOnlineGameState(lobby, options),
+    replace: Boolean(options.replace),
+    state: {
+      ...buildOnlineGameState(lobby, options),
+      directMatchHandoff: options.handoffEvidence || null,
+    },
   });
   return true;
 }

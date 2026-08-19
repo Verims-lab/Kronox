@@ -41,6 +41,7 @@
       "enum": [
         "waiting",
         "matched",
+        "consumed",
         "cancelled",
         "expired"
       ],
@@ -79,6 +80,10 @@
       "format": "date-time"
     },
     "cancelled_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "consumed_at": {
       "type": "string",
       "format": "date-time"
     },

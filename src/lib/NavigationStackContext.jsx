@@ -55,12 +55,12 @@ function routeKeyFromLocation(locationLike) {
 export function getTabRootForPathname(pathname = '/') {
   if (pathname === '/game') return null;
   if (pathname === '/privacy') return null;
-  if (pathname === '/lobby') return TAB_ROOTS.home;
+  if (pathname === '/online' || pathname === '/lobby') return TAB_ROOTS.home;
   if (pathname === '/leaderboard') return TAB_ROOTS.leaderboard;
   if (['/profile', '/profile/edit', '/friends', '/settings', '/admin', '/test-suite', '/account-deletion'].includes(pathname)) {
     return TAB_ROOTS.profile;
   }
-  if (['/', '/market', '/solo', '/setup'].includes(pathname)) return TAB_ROOTS.home;
+  if (['/', '/market', '/solo', '/setup', '/online'].includes(pathname)) return TAB_ROOTS.home;
   return TAB_ROOTS.home;
 }
 

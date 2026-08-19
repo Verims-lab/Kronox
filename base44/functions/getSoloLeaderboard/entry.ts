@@ -866,6 +866,21 @@ Deno.serve(async (req) => {
     });
     if (!actor.ok) return actor.response;
 
+    if (body?.action === 'sync_current_projection') {
+      if (actor.type !== 'registered') {
+        return json({ ok: false, error: 'Registered actor required' }, 403);
+      }
+      const projectionRow = toLeaderboardRow(actor.user, 0);
+      if (!projectionRow) return json({ ok: false, error: 'Projection unavailable' }, 422);
+      const projectionSyncResult = await upsertSoloLeaderboardProjection(base44, projectionRow);
+      return json({
+        ok: true,
+        source: 'authenticated_user_service_role_projection_sync',
+        projectionSyncAccepted: true,
+        projectionSyncResult,
+      });
+    }
+
     const limit = Math.min(
       MAX_LIMIT,
       Math.max(1, Math.floor(finiteNumber(body?.limit, DEFAULT_LIMIT))),

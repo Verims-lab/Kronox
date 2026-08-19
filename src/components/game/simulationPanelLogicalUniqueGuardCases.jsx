@@ -16,6 +16,7 @@ import ensureJokerFnSource from '../../../base44/functions/ensureUserJokerInvent
 import questProgressFnSource from '../../../base44/functions/recordDailyQuestProgress/entry.ts?raw';
 import questClaimFnSource from '../../../base44/functions/claimDailyQuestReward/entry.ts?raw';
 import refreshProjectionFnSource from '../../../base44/functions/refreshLeaderboardProjection/entry.ts?raw';
+import getSoloLeaderboardFnSource from '../../../base44/functions/getSoloLeaderboard/entry.ts?raw';
 import duplicateReportFnSource from '../../../base44/functions/adminDuplicateKeyReport/entry.ts?raw';
 import loginBonusFnSource from '../../../base44/functions/claimLoginBonuses/entry.ts?raw';
 import leaderboardLibSource from '../../lib/leaderboard.js?raw';
@@ -215,13 +216,15 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('leaderboard_owner_key_guard',
-    'SoloLeaderboardEntry.owner_key publishes are query-before-create with post-create canonical re-read',
+    'SoloLeaderboardEntry.owner_key publishes are backend-owned query-before-create upserts',
     () => {
       const missing = [
-        ...missingTokens(leaderboardLibSource, [
-          '{ owner_key: payload.owner_key }',
-          'ownRow?.id',
-          'const confirmed = await base44.entities.SoloLeaderboardEntry.filter',
+        ...missingTokens(`${leaderboardLibSource}\n${getSoloLeaderboardFnSource}`, [
+          "action: 'sync_current_projection'",
+          'upsertSoloLeaderboardProjection',
+          'entity.filter({ owner_key: ownerKey }',
+          'entity.update(existingId, payload)',
+          'entity.create(payload)',
         ]).map((t) => `leaderboard:${t}`),
         ...missingTokens(refreshProjectionFnSource, [
           'upsertByFilter',
@@ -229,12 +232,12 @@ export const EXTRA_TESTS = [
         ]).map((t) => `refreshLeaderboardProjection:${t}`),
       ];
       if (missing.length) {
-        return fail('A leaderboard projection write path lost its owner_key query-before-create / re-read guard.', {
+        return fail('A leaderboard projection write path lost its backend-owned owner_key query-before-create guard.', {
           verification: 'STATIC_CONTRACT',
           missing,
         });
       }
-      return pass('Client publish and admin refresh both filter owner_key before update/create; publish re-reads the canonical row after create.', {
+      return pass('Frontend publish delegates to the existing backend function; service-role publish and admin refresh both filter owner_key before update/create.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

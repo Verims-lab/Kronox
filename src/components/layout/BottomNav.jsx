@@ -19,10 +19,8 @@ const TABS = [
   { label: 'Profil', icon: UserRound, path: '/profile' },
 ];
 
-// Codex103 — Only fully-immersive / commitment-critical flows hide the bar by
-// route alone. /lobby is NOT here anymore because its visibility depends on
-// the in-page mode/state (see lib/bottomNavVisibility.js). LobbyRoom toggles
-// the runtime override when entering create/join/waiting sub-flows.
+// Only fully immersive gameplay hides the bar by route. The /online page owns
+// its temporary direct-start visibility override through bottomNavVisibility.
 const HIDDEN_ROUTES = ['/game'];
 const ADDITIONAL_IMMERSIVE_ROUTES = ['/duel'];
 

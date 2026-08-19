@@ -25,7 +25,7 @@ const DailyPage = lazyWithRetry(() => import('./pages/DailyPage'), 'DailyPage');
 const SoloChallenge = lazyWithRetry(() => import('./pages/SoloChallenge'), 'SoloChallenge');
 const Game = lazyWithRetry(() => import('./pages/Game'), 'Game');
 const SameQuestionDuelPage = lazyWithRetry(() => import('./pages/SameQuestionDuelPage'), 'SameQuestionDuelPage');
-const LobbyRoom = lazyWithRetry(() => import('./pages/LobbyRoom'), 'LobbyRoom');
+const OnlinePage = lazyWithRetry(() => import('./pages/OnlinePage'), 'OnlinePage');
 const SettingsPage = lazyWithRetry(() => import('./pages/SettingsPage'), 'SettingsPage');
 const ProfilePage = lazyWithRetry(() => import('./pages/ProfilePage'), 'ProfilePage');
 const ProfileEditPage = lazyWithRetry(() => import('./pages/ProfileEditPage'), 'ProfileEditPage');
@@ -41,6 +41,17 @@ const CategoryPreferenceOnboardingModal = lazyWithRetry(() => import('./componen
 
 function PageLoader() {
   return <SplashScreen />;
+}
+
+function LegacyLobbyRedirect() {
+  const location = useLocation();
+  return (
+    <Navigate
+      to={{ pathname: '/online', search: location.search }}
+      state={location.state}
+      replace
+    />
+  );
 }
 
 function AdminRoute({ children }) {
@@ -206,7 +217,7 @@ const AuthenticatedApp = () => {
             <Route path="/daily" element={<DailyPage />} />
             <Route path="/solo" element={<SoloChallenge />} />
             <Route path="/SoloChallenge" element={<Navigate to="/solo" replace />} />
-            <Route path="/Game" element={<Navigate to="/solo" replace />} />
+            <Route caseSensitive path="/Game" element={<Navigate to="/solo" replace />} />
             <Route path="/setup" element={<Navigate to="/solo" replace />} />
             <Route path="/game" element={<Game />} />
             <Route path="/duel" element={<SameQuestionDuelPage />} />
@@ -217,8 +228,9 @@ const AuthenticatedApp = () => {
             <Route path="/AdminPage" element={<Navigate to="/admin" replace />} />
             <Route path="/friends" element={<FriendsPage />} />
             <Route path="/leaderboard" element={<LeaderboardPage />} />
-            <Route path="/lobby" element={<LobbyRoom />} />
-            <Route path="/LobbyRoom" element={<Navigate to="/lobby" replace />} />
+            <Route path="/online" element={<OnlinePage />} />
+            <Route path="/lobby" element={<LegacyLobbyRedirect />} />
+            <Route path="/LobbyRoom" element={<LegacyLobbyRedirect />} />
             <Route path="/test-suite" element={<TestSuite />} />
             <Route path="/TestSuite" element={<Navigate to="/test-suite" replace />} />
             <Route path="/account-deletion" element={<AccountDeletionPage />} />

@@ -12,7 +12,7 @@ import { getSafeBackRoute } from '@/lib/NavigationStackContext';
 //   this file can be safely deleted. DO NOT add new features to it.
 
 // Root screens: show brand title, no back button
-const ROOT_ROUTES = ['/', '/lobby', '/profile', '/settings'];
+const ROOT_ROUTES = ['/', '/online', '/profile', '/settings'];
 
 export default function AppHeader({ onBack } = {}) {
   const location = useLocation();
@@ -22,7 +22,7 @@ export default function AppHeader({ onBack } = {}) {
   if (location.pathname === '/game') return null;
 
   const isRoot = ROOT_ROUTES.includes(location.pathname);
-  const isLobbyRoute = location.pathname === '/lobby';
+  const isLobbyRoute = location.pathname === '/online';
   const titleClassName = isLobbyRoute
     ? 'absolute left-1/2 -translate-x-1/2 font-cinzel text-2xl font-black tracking-[0.18em]'
     : 'absolute left-1/2 -translate-x-1/2 font-bangers text-2xl text-primary tracking-widest';

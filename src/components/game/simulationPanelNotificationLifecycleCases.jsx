@@ -17,6 +17,7 @@ import gameInviteNotifierSource from '../invites/GameInviteNotifier.jsx?raw';
 import incomingRequestItemSource from '../friends/IncomingRequestItem.jsx?raw';
 import notificationIdentitySource from '../../lib/notificationIdentity.js?raw';
 import lobbyRoomSource from '../../pages/LobbyRoom.jsx?raw';
+import onlinePageSource from '../../pages/OnlinePage.jsx?raw';
 import {
   acceptGameInviteFnSource,
   sendFriendRequestEmailFnSource,
@@ -544,32 +545,41 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('lobby_join_does_not_flash_expired_for_fresh_invite',
-    'Fresh accepted invite route does not show expired state during first verification',
+    'Fresh accepted invite seeds Online direct handoff without an expired-state flash',
     () => {
-      const m = missing(lobbyRoomSource, ['initialJoinedLobby', 'useLobbyRoomState(initialJoinedLobby)', 'route joined lobby used as initial authoritative lobby']);
+      const m = missing(onlinePageSource, [
+        'location.state?.verifiedLobby || location.state?.joinedLobby || null',
+        'joined?.id && !isLobbyStale(joined)',
+        'const [match, setMatch] = useState(initialMatch)',
+      ]);
       if (m.length) {
-        return fail('LobbyRoom can still render empty/expired fallback before applying a fresh accepted lobby.', {
+        return fail('OnlinePage can render setup/error before applying a fresh accepted backend session.', {
           verification: 'STATIC_CONTRACT',
           actionType: ACTION_TYPES.CODE_FIX,
           missing: m,
         });
       }
-      return pass('Fresh joinedLobby route state seeds LobbyRoom before fallback UI can flash.',
+      return pass('Fresh verified route state seeds the direct handoff before fallback UI can flash.',
         { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('lobby_route_state_used_as_initial_authoritative_lobby',
-    'Returned verified lobby is used to stabilize first lobby render',
+    'Returned verified backend session stabilizes the first direct-start render',
     () => {
-      const m = missing(lobbyRoomSource, ['location.state?.joinedLobby', 'isLobbyStale(joined) ? null : joined', 'debugLog']);
+      const m = missing(`${onlinePageSource}\n${lobbyRoomSource}`, [
+        'location.state?.verifiedLobby || location.state?.joinedLobby || null',
+        'initialLobby: joined',
+        'match={match}',
+        "navigate('/online'",
+      ]);
       if (m.length) {
-        return fail('Accepted lobby route state is not treated as the initial authoritative lobby.', {
+        return fail('Accepted backend session is not treated as initial direct-handoff authority.', {
           verification: 'STATIC_CONTRACT',
           actionType: ACTION_TYPES.CODE_FIX,
           missing: m,
         });
       }
-      return pass('Route joinedLobby is accepted as initial authoritative lobby when fresh.',
+      return pass('Fresh verified session state is passed directly into the Online handoff owner.',
         { verification: 'STATIC_CONTRACT' });
     }),
 

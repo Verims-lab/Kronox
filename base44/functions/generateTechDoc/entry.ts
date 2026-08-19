@@ -331,7 +331,8 @@ Deno.serve(async (req) => {
       '/                   MainMenu             Home/ana giris (1080x1920 stage)',
       '/solo               SoloChallenge        Solo kategori + zorluk secimi',
       '/setup              PlayerSetup          (LEGACY) tek-cihaz isim kurulumu',
-      '/lobby              LobbyRoom            Online lobi olustur/katil + waiting room',
+      '/online             OnlinePage           Online secim + arama + dogrudan oyun gecisi',
+      '/lobby              Legacy redirect      Yalnizca /online uyumluluk yonlendirmesi',
       '/game               Game                 Aktif oyun sahnesi (solo + online ayni shell)',
       '/settings           SettingsPage         Hesap ayarlari + admin araclari',
       '/test-suite         TestSuite            SimulationPanel host - admin-only',
@@ -348,7 +349,8 @@ Deno.serve(async (req) => {
     subTitle('Pages');
     bullet('pages/MainMenu.jsx -- Home. 1080x1920 stage koordinat sistemi. Mode kartlari ("SOLO MEYDAN OKUMA" / "ONLINE BATTLE"), profil cubugu, ayarlar girisi. Hicbir scroll yok.');
     bullet('pages/SoloChallenge.jsx -- Kategori (genel/tarih/spor/sanat/bilim vb.) ve zorluk secimi. Secim sonrasi /game?mode=solo... ile yonlendirir.');
-    bullet('pages/LobbyRoom.jsx -- INCE orkestrator. Identity ve form state useLobbyRoomState hook\'una; UI LobbyCreateJoinPanel + WaitingRoomPanel\'e devredilmistir.');
+    bullet('pages/OnlinePage.jsx -- Online Kapis/Duello secimi, 30 saniyelik arama, ayni ekranda Rakip bulundu ve backend-otoriteli dogrudan /game veya /duel gecisini orkestre eder.');
+    bullet('pages/LobbyRoom.jsx -- Yalnizca eski baglantilari /online rotasina yonlendiren uyumluluk bilesenidir; aktif oyun akisinda kullanilmaz.');
     bullet('pages/Game.jsx -- Solo ve online oyunun ortak shellidir. useGameState (ViewModel), useGameActions (domain), useLobbySync (online sync), useOfflineQuestions (solo) hooklarini birlestirir.');
     bullet('pages/SettingsPage.jsx -- Hesap silme, en iyi 5 rekor, ogretici, admin araclari (soru yonetimi, doc indirme, regresyon paneli).');
     bullet('pages/TestSuite.jsx -- Admin-only sayfa; SimulationPanel\'i barindirir. isAdminUser disindaki kullanicilar engellenir.');
@@ -357,24 +359,25 @@ Deno.serve(async (req) => {
     bullet('hooks/useGameState.js -- Tum oyun-sahnesi UI durumu (lobbyData, feedback, winner, drag, zone, timer key). Refler placement-lock ve toplam sure icin tutulur.');
     bullet('hooks/useGameActions.js -- Domain/use-case katmani. doPlacement, advanceTurn, skipCurrentQuestion ve pickQuestion. Online icinde tum DB yazimi updateLobbyGameState servis fonksiyonundan gecer.');
     bullet('hooks/useLobbySync.js -- Online oyunun TEK senkronizasyon otoritesi. Initial fetch, subscription ve poll fallback ile lobbyData\'yi gunceller.');
-    bullet('hooks/useLobbyRoomState.js -- LobbyRoom sayfasi icin identity (user, playerName), form ve modal state.');
-    bullet('hooks/useWaitingRoomSync.js -- Bekleme odasi icin subscription + polling fallback; status==="in_game" gecislerinde tum oyunculari /game\'e yonlendirir.');
+    bullet('hooks/useDirectOnlineGameHandoff.js -- Katilimciya ozel GAME snapshot\'ini yoklar; yalniz backend hostu start cagirir ve tam otoriter oyun payload\'i hazir olmadan rota degistirmez.');
+    bullet('hooks/useWaitingRoomSync.js -- Eski uyumluluk bilesenleri icin korunur; aktif Online/Duello urun akisinin state sahibi degildir.');
     bullet('hooks/useOfflineQuestions.js -- Solo modda soru havuzunu yukler ve onbellekler (lib/questionCache.js ile birlikte calisir).');
     bullet('hooks/usePullToRefresh.js -- Mobil dokunmatik pull-to-refresh.');
 
     subTitle('Lib (saf yardimcilar)');
     bullet('lib/gameRules.js -- Saf kart kurali yardimcilari: isCorrectPlacement, getNextPlayerIndex, hasPlayerWon, getTimelineYears, selectNextQuestion, getQuestionSelectionPool.');
     bullet('lib/lobbyUtils.js -- normalizeCode, summarizePlayers, isHost, canJoinLobby, removePlayerByIdentity, buildLobbyStartPayload vb.');
-    bullet('lib/onlineGameStart.js -- filterQuestionsForLobbySettings, shuffleQuestions ve buildInitialOnlineGameState. WaitingRoom oyunu baslatirken bu helperi cagirir.');
+    bullet('lib/onlineGameStart.js -- filterQuestionsForLobbySettings, shuffleQuestions ve buildInitialOnlineGameState. Backend startLobbyGame otoriter oyun durumunu kurarken bu helperi kullanir.');
     bullet('lib/admin.js -- isAdminUser. Admin gorunurlugu role/is_admin/permissions alanlarindan gelir; UI hicbir yerde manuel email kiyaslamasi yapmaz.');
     bullet('lib/AuthContext.jsx -- base44.auth.me / isAuthenticated, public settings yuklemesi, hata tiplemesi.');
     bullet('lib/NavigationStackContext.jsx -- Sayfa transition yonu (push/pop) yardimcisi.');
     bullet('lib/debugLog.js -- Production-gated debug log; release derlemelerinde sessizlestirilir.');
     bullet('lib/questionHistory.js, lib/questionCache.js -- Solo mod icin cross-game soru tekrarini onleyen kucuk LRU.');
 
-    subTitle('Lobby Components');
-    bullet('components/lobby/LobbyCreateJoinPanel.jsx -- Modlar arasinda secim, isim girisi, kod girisi, hata gosterimi.');
-    bullet('components/lobby/WaitingRoomPanel.jsx -- Host/non-host bekleme odasi. Host buradan buildInitialOnlineGameState ile online oyunu baslatir.');
+    subTitle('Online Components');
+    bullet('components/lobby/OnlineChallengeScreen.jsx -- Online Kapis, Duello ve tek arkadas daveti secimi; 30 saniyelik arama/cancel/timeout durumlari.');
+    bullet('components/online/DirectOnlineMatchScreen.jsx -- Ayni /online yuzeyinde Rakip bulundu/Oyun basliyor durumunu gosterir; manuel hazir/baslat adimi yoktur.');
+    bullet('components/lobby/LobbyCreateJoinPanel.jsx + WaitingRoomPanel.jsx -- Eski uyumluluk kaynaklaridir; aktif Online/Duello rotasinda mount edilmez.');
 
     subTitle('Game Components');
     bullet('components/game/GameLayout.jsx -- Oyun sahnesi shell: ust durum cubugu, TurnTimer, QuestionCard, Timeline, CTA buton.');
@@ -579,13 +582,14 @@ Deno.serve(async (req) => {
 
     subTitle('Akis');
     codeBlock([
-      'MainMenu (Online Battle) -> /lobby',
-      '  LobbyCreateJoinPanel (isim + kod) -> Lobby.create veya findLobbyByCode',
-      '-> WaitingRoomPanel (host: ayarlar; non-host: refresh)',
-      '   Host "OYUNU BASLAT" -> buildInitialOnlineGameState(...)',
-      '   -> Lobby.update({ players (kartlar dahil), status:"in_game",',
-      '                    current_question_id, used_question_ids, current_player_index:0 })',
-      '-> tum oyuncular subscription+poll ile status="in_game" gorur, /game\'e gider',
+      'MainMenu (Online Kapis) -> /online',
+      '  Online Kapis veya Duello -> randomMatchmaking join/poll (en fazla 30 sn)',
+      '-> backend iki oyuncu icin ayni private match/session kaydini olusturur',
+      '-> ayni /online yuzeyinde "Rakip bulundu" / "Oyun basliyor"',
+      '-> backend-recognized host startLobbyGame ile tek otoriter oyun durumunu kurar',
+      '-> iki oyuncu participant-scoped GAME snapshot ile hazir durumu gorur',
+      '-> normal Online dogrudan /game, Duello dogrudan /duel rotasina gider',
+      '-> /lobby yalniz legacy /online redirectidir; waiting/ready/manual start UI yoktur',
     ]);
 
     subTitle('Oyun ici dongu');

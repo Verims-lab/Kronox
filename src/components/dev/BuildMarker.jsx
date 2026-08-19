@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex637 — Remove the active Online/Duello lobby journey, add backend-authoritative same-screen match-found direct start, and align focused Health, Runtime E2E, docs, and mirrors without scoring changes.
+// Codex636 — Fix the legacy /Game versus canonical /game route collision,
+// move protected profile/leaderboard access behind authorized backend paths,
+// and add action-scoped bounded Runtime E2E response/permission evidence.
 // Codex635 — Repair Solo direct/map Runtime E2E entry proof, preserve request-only Online evidence, add safe critical permission correlation, restore exact Base44 SDK 0.8.34, and align targeted Health/docs without gameplay, scoring, or backend-function changes.
 // Codex634 — Production custom-domain Runtime E2E target classification, direct-vs-runtime backend proof, safe service/console evidence, targeted Health, and docs without product or backend-function changes.
 // Codex633 — Runtime E2E V2 capability preflight, honest App-not-found/setup-gap classification, diagnostic Solo probing, report/UI exports, targeted Health, and docs without gameplay or backend-function changes.
@@ -212,7 +216,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex635';
+const BUILD_MARKER = 'Codex637';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

@@ -3235,9 +3235,9 @@ export default function Game() {
     <div className="min-h-screen flex items-center justify-center bg-background p-6">
       <div className="text-center space-y-4">
         <p className="font-inter text-foreground font-semibold">Oyun sorusu yüklenemedi.</p>
-        <p className="font-inter text-sm text-muted-foreground">Lobi durumu geldi ama aktif soru bulunamadı. Tekrar dene.</p>
+        <p className="font-inter text-sm text-muted-foreground">Oyun durumu geldi ama aktif soru bulunamadı. Tekrar dene.</p>
         <Button onClick={handleQuestionBootstrapRetry} className="w-full">Soruları Yenile</Button>
-        <Button onClick={() => navigate('/lobby')} variant="outline" className="w-full">Lobiye Dön</Button>
+        <Button onClick={() => navigate('/online')} variant="outline" className="w-full">Online Ekranına Dön</Button>
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-// Kronox Health Center — GameInvite "Aç" opens Lobby regression suite.
+// Kronox Health Center — GameInvite "Aç" enters Online direct-start regression suite.
 //
 // Locks the Codex140 fix for the real video bug:
 // recipient taps the top banner "Aç", acceptGameInvite succeeds, but the
@@ -12,6 +12,7 @@ import incomingInvitesPanelSource from '../invites/IncomingInvitesPanel.jsx?raw'
 import inviteApiSource from '../../lib/inviteApi.js?raw';
 import gameInviteSelectorsSource from '../../lib/gameInviteSelectors.js?raw';
 import lobbyRoomSource from '../../pages/LobbyRoom.jsx?raw';
+import onlinePageSource from '../../pages/OnlinePage.jsx?raw';
 import {
   acceptGameInviteFnSource,
   findLobbyByCodeFnSource,
@@ -27,7 +28,7 @@ import {
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL' };
 const ACTION_TYPES = { CODE_FIX: 'CODE_FIX', MANUAL_VERIFICATION: 'MANUAL_VERIFICATION' };
 const SUITE_ID = 'game_invite_open_to_lobby_health';
-const SUITE_NAME = 'GameInvite Open-To-Lobby Health Suite';
+const SUITE_NAME = 'GameInvite Direct-Start Health Suite';
 
 function safeStr(src) {
   if (src == null) return '';
@@ -93,36 +94,40 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('push_payload_contains_invite_and_lobby_identifiers',
-    'Push/in-app notification payload carries invite and lobby identifiers',
+    'Push/in-app notification payload carries invite and backend session identifiers to /online',
     () => {
       const src = `${safeStr(sendGameInvitePushFnSource)}\n${safeStr(kronoxServiceWorkerSource)}`;
-      const m = missing(src, ['inviteId', 'lobbyId', 'lobbyCode', 'targetUrl', '/lobby']);
-      if (m.length) {
-        return fail('Push notification click may not be able to reopen the exact invite/lobby.', {
+      const m = missing(src, ['inviteId', 'lobbyId', 'lobbyCode', 'targetUrl', '/online']);
+      const forbidden = ['/lobby'].filter((token) => src.includes(token));
+      if (m.length || forbidden.length) {
+        return fail('Push notification click may bypass the direct Online handoff.', {
           verification: 'STATIC_CONTRACT',
           actionType: ACTION_TYPES.CODE_FIX,
           missing: m,
+          forbidden,
           file: 'sendGameInvitePush + public/kronox-sw.js',
         });
       }
-      return pass('Push/click payload includes inviteId, lobbyId/lobbyCode, and a /lobby target.',
+      return pass('Push/click payload includes invite/session refs and targets /online.',
         { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('accept_game_invite_returns_lobby_navigation_target',
-    'Successful accept returns a verified lobby payload and the client navigates with joinedLobby state',
+    'Successful accept returns a verified backend session and navigates to /online direct handoff',
     () => {
       const src = `${safeStr(acceptGameInviteFnSource)}\n${safeStr(inviteApiSource)}`;
-      const m = missing(src, ['verifiedLobby', "navigate('/lobby'", 'joinedLobby']);
-      if (m.length) {
-        return fail('Accept success does not provide or consume a verified lobby navigation target.', {
+      const m = missing(src, ['verifiedLobby', "navigate('/online'", 'joinedLobby']);
+      const forbidden = ["navigate('/lobby'"].filter((token) => src.includes(token));
+      if (m.length || forbidden.length) {
+        return fail('Accept success does not provide or consume the verified direct-start target.', {
           verification: 'STATIC_CONTRACT',
           actionType: ACTION_TYPES.CODE_FIX,
           missing: m,
+          forbidden,
           file: 'acceptGameInvite + lib/inviteApi.js',
         });
       }
-      return pass('Accept returns the verified/joined lobby and the client routes to /lobby with joinedLobby.',
+      return pass('Accept returns verified/joined backend state and routes to /online for direct start.',
         { verification: 'STATIC_CONTRACT' });
     }),
 
@@ -166,27 +171,30 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('invite_open_navigates_lobby_not_online_setup',
-    'Successful invite open routes to lobby/waiting room, not Online setup or /game',
+    'Successful invite open routes to the Online direct-start owner, never lobby or client-created game',
     () => {
-      const src = `${safeStr(inviteApiSource)}\n${safeStr(lobbyRoomSource)}`;
-      const hasLobby = [
-        "navigate('/lobby'",
+      const src = `${safeStr(inviteApiSource)}\n${safeStr(onlinePageSource)}`;
+      const hasDirectStart = [
+        "navigate('/online'",
         'joinedLobby',
         'verifiedLobby',
         'lobbyId',
-        'setLobby(joined)',
+        'routeMatch(location)',
+        'setMatch({ lobbyRef: joined.id',
+        '<DirectOnlineMatchScreen',
       ].every((token) => src.includes(token));
       const badGame = src.includes("navigate('/game'");
-      if (!hasLobby || badGame) {
-        return fail('Invite open does not clearly land in the lobby-first waiting room path.', {
+      const badLobby = src.includes("navigate('/lobby'");
+      if (!hasDirectStart || badGame || badLobby) {
+        return fail('Invite open does not clearly land in the backend-authoritative direct-start path.', {
           verification: 'STATIC_CONTRACT',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'openGameInvite navigates to /lobby with joinedLobby/verifiedLobby state and LobbyRoom seeds that verified lobby into setLobby(joined)',
-          actual: { hasLobby, badGame },
-          file: 'lib/inviteApi.js + pages/LobbyRoom.jsx',
+          expected: 'openGameInvite navigates to /online with verified state; OnlinePage hands the backend session to DirectOnlineMatchScreen',
+          actual: { hasDirectStart, badGame, badLobby },
+          file: 'lib/inviteApi.js + pages/OnlinePage.jsx',
         });
       }
-      return pass('Invite open uses the lobby-first path and does not navigate directly to game.',
+      return pass('Invite open uses /online direct handoff and never invents a client game or opens /lobby.',
         { verification: 'STATIC_CONTRACT' });
     }),
 

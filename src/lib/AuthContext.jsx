@@ -143,9 +143,9 @@ export const AuthProvider = ({ children }) => {
         warnMaintenanceSkipped('[appActivity] app-open tracking skipped', activityError, 'record_app_open_failed');
       });
 
-      const hydrateAndPatch = async (candidate) => {
+      const hydrateAndPatch = async (candidate, trustedStoredUser = null) => {
         if (!candidate || !isCurrentAuthRun(runId)) return null;
-        const hydrated = await hydrateAuthenticatedUserProfile(base44, candidate);
+        const hydrated = await hydrateAuthenticatedUserProfile(base44, candidate, trustedStoredUser);
         if (!isCurrentAuthRun(runId)) return null;
         workingUser = hydrated || candidate;
         patchAuthenticatedUser(runId, workingUser);
@@ -162,7 +162,7 @@ export const AuthProvider = ({ children }) => {
         const kronoxIdentity = await ensureKronoxUserIdForCurrentActor();
         if (!isCurrentAuthRun(runId)) return;
         if (kronoxIdentity?.user) {
-          await hydrateAndPatch(kronoxIdentity.user);
+          await hydrateAndPatch(workingUser, kronoxIdentity.user);
         } else if (kronoxIdentity?.kronox_user_id) {
           workingUser = { ...workingUser, kronox_user_id: kronoxIdentity.kronox_user_id };
           patchAuthenticatedUser(runId, workingUser);

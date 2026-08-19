@@ -46,17 +46,12 @@ export function mergeAuthenticatedUserProfile(authUser, storedUser) {
   return merged;
 }
 
-export async function hydrateAuthenticatedUserProfile(base44Client, authUser) {
-  const email = normalizeUserProfileEmail(authUser?.email || authUser?.user_email);
-  if (!authUser || !email) return authUser || null;
+export async function hydrateAuthenticatedUserProfile(_base44Client, authUser, trustedStoredUser = null) {
+  if (!authUser || typeof authUser !== 'object') return authUser || null;
 
-  const userEntity = base44Client?.entities?.User;
-  if (!userEntity?.filter) return mergeAuthenticatedUserProfile(authUser, null);
-
-  let rows = await userEntity.filter({ email }, '-updated_date', 5).catch(() => []);
-  if (!Array.isArray(rows) || rows.length === 0) {
-    rows = await userEntity.filter({ user_email: email }, '-updated_date', 5).catch(() => []);
-  }
-  const storedUser = selectStoredUserProfile(rows, email);
+  const email = normalizeUserProfileEmail(authUser.email || authUser.user_email);
+  const storedUser = Array.isArray(trustedStoredUser)
+    ? selectStoredUserProfile(trustedStoredUser, email)
+    : trustedStoredUser;
   return mergeAuthenticatedUserProfile(authUser, storedUser);
 }

@@ -371,15 +371,37 @@ async function handlePoll(base44: any, actor: any, mode: string) {
 }
 
 async function handleCancel(base44: any, actor: any, mode: string) {
+  let result = { ok: true, cancelled: true };
   await withPairingLock(base44, mode, async () => {
     const row = await findOwnActiveRow(base44, actor.actorKeyHash, mode);
-    if (!row || row.status !== 'waiting') return;
+    if (!row) return;
+    if (row.status === 'matched' && !isExpired(row, Date.now())) {
+      result = { ok: true, cancelled: false, ...publicQueueState(row) };
+      return;
+    }
+    if (row.status === 'matched') {
+      await queueStore(base44).update(rowId(row), { status: 'expired' });
+      return;
+    }
+    if (row.status !== 'waiting') return;
     await queueStore(base44).update(rowId(row), {
       status: 'cancelled',
       cancelled_at: new Date().toISOString(),
     });
   });
-  return json({ ok: true, cancelled: true });
+  return json(result);
+}
+
+async function handleConsume(base44: any, actor: any, mode: string) {
+  await withPairingLock(base44, mode, async () => {
+    const row = await findOwnActiveRow(base44, actor.actorKeyHash, mode);
+    if (!row || row.status !== 'matched') return;
+    await queueStore(base44).update(rowId(row), {
+      status: 'consumed',
+      consumed_at: new Date().toISOString(),
+    });
+  });
+  return json({ ok: true, consumed: true });
 }
 
 Deno.serve(async (req) => {
@@ -400,6 +422,7 @@ Deno.serve(async (req) => {
     if (action === 'join') return await handleJoin(base44, actor, mode);
     if (action === 'poll') return await handlePoll(base44, actor, mode);
     if (action === 'cancel') return await handleCancel(base44, actor, mode);
+    if (action === 'consume') return await handleConsume(base44, actor, mode);
     return json({ error: 'Geçersiz işlem.' }, 400);
   } catch (error) {
     console.error('[randomMatchmaking] failed:', error);

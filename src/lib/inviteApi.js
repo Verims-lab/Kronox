@@ -214,7 +214,7 @@ export async function createGameInvites({ host, lobby, toEmails, inviteTargets, 
     ? { player_type: 'guest', guest_id: guest.guest_id, guest_token: guest.guest_token }
     : {};
   if (!fromEmail && !guestProof.guest_id) throw new Error('Oyuncu profili doğrulanamadı.');
-  if (!lobby?.id) throw new Error('Lobi eksik.');
+  if (!lobby?.id) throw new Error('Eşleşme bilgisi eksik.');
 
   const unique = normalizeInviteTargets(inviteTargets);
   if (unique.length) {
@@ -288,7 +288,7 @@ export async function openGameInvite(invite, {
   });
 
   if (reason === 'expired') throw new Error('Davetin süresi doldu.');
-  if (reason === 'missing_lobby') throw new Error('Lobi artık mevcut değil.');
+  if (reason === 'missing_lobby') throw new Error('Eşleşme artık mevcut değil.');
   if (reason === 'recipient_mismatch') throw new Error('Bu davet sana ait değil');
   if (!reason.startsWith('active')) throw new Error('Bu davet artık geçerli değil.');
 
@@ -303,12 +303,12 @@ export async function openGameInvite(invite, {
     const verifiedLobby = res?.verifiedLobby || res?.joinedLobby || res?.lobby;
     const joinedLobby = verifiedLobby;
     if (joinedLobby?.id) {
-      traceGameInviteLifecycle('lobby_navigation_started', invite, {
+      traceGameInviteLifecycle('direct_match_navigation_started', invite, {
         source,
         userEmail,
         reason: res?.verifiedLobby ? 'accepted_verified_lobby_payload' : 'accepted_lobby_payload',
       });
-      navigate('/lobby', {
+      navigate('/online', {
         state: {
           joinedLobby,
           verifiedLobby,
@@ -317,12 +317,12 @@ export async function openGameInvite(invite, {
         },
       });
     } else {
-      traceGameInviteLifecycle('lobby_navigation_started', invite, {
+      traceGameInviteLifecycle('direct_match_navigation_started', invite, {
         source,
         userEmail,
         reason: 'accepted_without_lobby_payload',
       });
-      navigate('/lobby');
+      navigate('/online');
     }
   }
   const verifiedLobby = res?.verifiedLobby || res?.joinedLobby || res?.lobby || null;

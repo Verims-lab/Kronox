@@ -22,7 +22,7 @@ function buildInviteTarget(invite) {
   if (invite?.lobby_id) params.set('lobbyId', invite.lobby_id);
   if (invite?.lobby_code) params.set('lobbyCode', invite.lobby_code);
   const query = params.toString();
-  return query ? `/lobby?${query}` : '/lobby';
+  return query ? `/online?${query}` : '/online';
 }
 
 export default function GameInviteNotifier() {
@@ -191,11 +191,11 @@ export default function GameInviteNotifier() {
     const summary = collapseLobbyAcceptanceNotifications(unseen);
     if (!summary) return;
 
-    if (summary.sameLobby && pathnameRef.current !== '/game' && pathnameRef.current !== '/lobby' && summary.lobbyRef) {
+    if (summary.sameLobby && pathnameRef.current !== '/game' && pathnameRef.current !== '/duel' && pathnameRef.current !== '/online' && summary.lobbyRef) {
       getLobbySnapshot({ lobbyId: summary.lobbyRef })
         .then((response) => {
           const acceptedLobby = response?.data?.lobby;
-          if (acceptedLobby?.id) navigate('/lobby', { state: { joinedLobby: acceptedLobby } });
+          if (acceptedLobby?.id) navigate('/online', { state: { joinedLobby: acceptedLobby } });
         })
         .catch(() => null);
     }
@@ -204,9 +204,9 @@ export default function GameInviteNotifier() {
     toast({
       title: summary.count === 1 ? 'Davet kabul edildi' : `${summary.count} davet kabul edildi`,
       description: summary.count === 1
-        ? `${getSafeNotificationActorName(first?.to_name, 'Arkadaşın')} lobiye katıldı.`
+        ? `${getSafeNotificationActorName(first?.to_name, 'Arkadaşın')} eşleşmeye katıldı.`
         : summary.sameLobby
-          ? `${summary.count} oyuncu lobiye katıldı.`
+          ? `${summary.count} oyuncu eşleşmeye katıldı.`
           : `${summary.count} oyuncu davetini kabul etti.`,
       duration: 5000,
     });

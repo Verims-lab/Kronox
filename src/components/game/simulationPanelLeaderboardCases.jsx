@@ -326,7 +326,7 @@ export const EXTRA_TESTS = [
         '"role": "admin"',
         'function toPublicLeaderboardRow',
         'leaderboard_id: leaderboardId',
-        'base44.entities.SoloLeaderboardEntry',
+        'base44?.asServiceRole?.entities?.SoloLeaderboardEntry',
         "base44.functions.invoke('getSoloLeaderboard'",
         'solo_leaderboard_entry_projection',
         'solo_leaderboard_entry_total_kronox_score_projection',
@@ -355,9 +355,9 @@ export const EXTRA_TESTS = [
   makeCase('leaderboard_health', 'leaderboard_entity_schema_exists',
     'SoloLeaderboardEntry schema exists when entity publishing references it',
     () => {
-      const required = missingTokens(`${soloLeaderboardEntitySource}\n${leaderboardLibSource}`, [
+      const required = missingTokens(`${soloLeaderboardEntitySource}\n${leaderboardLibSource}\n${getSoloLeaderboardFunctionSource}`, [
         '"name": "SoloLeaderboardEntry"',
-        'base44.entities.SoloLeaderboardEntry',
+        'base44?.asServiceRole?.entities?.SoloLeaderboardEntry',
         '"owner_key"',
         '"display_name"',
         '"total_kronox_score"',
@@ -388,10 +388,11 @@ export const EXTRA_TESTS = [
         'owner_key is the logical unique key',
         'total_kronox_score desc is the hot leaderboard sort',
         'publishSoloLeaderboardEntry',
-        '{ owner_key: payload.owner_key }',
+        "action: 'sync_current_projection'",
+        "entity.filter({ owner_key: ownerKey }",
         'dedupeProjectionRows',
         'byOwnerKey',
-        'SoloLeaderboardEntry.filter',
+        'upsertSoloLeaderboardProjection',
         "projectionEntity.list('-total_kronox_score', limit)",
       ]);
       if (required.length) {
@@ -474,7 +475,7 @@ export const EXTRA_TESTS = [
       const required = missingTokens(`${soloLeaderboardEntitySource}\n${leaderboardLibSource}\n${getSoloLeaderboardFunctionSource}`, [
         '"name": "SoloLeaderboardEntry"',
         'const SOLO_LEADERBOARD_ENTITY = \'SoloLeaderboardEntry\'',
-        'base44.entities.SoloLeaderboardEntry',
+        'base44?.asServiceRole?.entities?.SoloLeaderboardEntry',
         "base44.functions.invoke('getSoloLeaderboard'",
       ]);
       if (required.length) {
@@ -529,23 +530,29 @@ export const EXTRA_TESTS = [
   makeCase('leaderboard_health', 'leaderboard_current_user_entry_upsert',
     'Current user leaderboard entry is updated or created without duplicates when the entity is available',
     () => {
-      const required = missingTokens(leaderboardLibSource, [
-        'SoloLeaderboardEntry.filter',
-        '{ owner_key: payload.owner_key }',
-        'SoloLeaderboardEntry.update',
-        'SoloLeaderboardEntry.create',
-        'isMissingSoloLeaderboardEntityError',
+      const required = missingTokens(`${leaderboardLibSource}\n${getSoloLeaderboardFunctionSource}`, [
+        "action: 'sync_current_projection'",
+        'upsertSoloLeaderboardProjection',
+        'entity.filter({ owner_key: ownerKey }',
+        'entity.update(existingId, payload)',
+        'entity.create(payload)',
       ]);
-      if (required.length) {
-        return fail('Current-user leaderboard publishing no longer has a safe update/create path.', {
+      const forbidden = forbiddenTokensFound(leaderboardLibSource, [
+        'base44.entities.SoloLeaderboardEntry.filter',
+        'base44.entities.SoloLeaderboardEntry.update',
+        'base44.entities.SoloLeaderboardEntry.create',
+        'base44.entities.SoloLeaderboardEntry.list',
+      ]);
+      if (required.length || forbidden.length) {
+        return fail('Current-user leaderboard publishing no longer has a backend-owned update/create path.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'filter by owner_key, update existing row, create only when missing, tolerate missing runtime schema',
-          actual: { required },
+          expected: 'frontend invokes sync_current_projection; service role filters owner_key, updates existing, and creates only when missing',
+          actual: { required, forbidden },
         });
       }
-      return pass('Current-user leaderboard publishing upserts by owner_key and avoids duplicate rows when the entity is available.', {
+      return pass('Current-user leaderboard publishing invokes a backend-owned service-role upsert by owner_key and exposes no direct client entity write.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,

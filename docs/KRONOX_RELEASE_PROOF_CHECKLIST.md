@@ -110,7 +110,7 @@ Checklist:
 * User A can start the accepted lobby without a 400.
 * Both users navigate to game.
 * Host and guest see synchronized game state.
-* Opening the app after Testing Agent invite/lobby runs does not replay historical `Davet kabul edildi` rows.
+* Opening the app after Testing Agent invite/session runs does not replay historical `Davet kabul edildi` rows.
 * Multiple fresh accepts for one lobby collapse into one bounded summary; the global visible toast stack never exceeds four.
 * Explicit test-run markers are suppressed, dismissed/handled acceptance events do not replay after route changes, and notification copy contains username only.
 * Admin Integrity Snapshot reports stale/test-marked/repeated accepted artifacts as a dry-run with bounded fingerprints; it never auto-deletes rows.
@@ -1496,12 +1496,12 @@ Automated/source-connected gates:
   accept/decline preserves rows and safe Turkish errors; confirmed terminal
   state removes/closes them.
 * BottomNav still exposes only `Ana Sayfa`, `Liderlik`, and `Profil`.
-* Lobby route snapshots are bootstrap-only; sanitized `getLobbySnapshot`
-  polling through the cleanup-safe adaptive fallback poller plus focus/visibility
-  refresh wins over stale route state. Once the backend snapshot confirms start,
-  the shared navigation helper builds canonical standard Online
-  `/game?online=1&lobbyId=...` routing (with safe optional lobby code). Host start
-  re-fetches the authoritative sanitized Lobby after start.
+* The `Lobby` entity remains a private backend session implementation detail,
+  but no active Online/Duello route renders a lobby. Matched clients poll a
+  participant-scoped `GAME` snapshot; only the backend-recognized host may
+  idempotently start the shared session. Both clients then enter canonical
+  `/game?online=1&lobbyId=...` or `/duel` directly from the same `/online`
+  match-found surface.
 * FriendRequest/GameInvite direct entity reads are admin-only. Social snapshots
   scope private service-role queries to the resolved actor and expose only
   opaque public refs and username-safe DTO fields.
@@ -1523,10 +1523,10 @@ Manual release gates that source cannot prove:
 ## Duello V1 Manual Proof
 
 * User A and User B enter `Duello` through the stable internal `same_question_duel` lane; normal random players do not pair into this queue.
-* Use two physical phones with distinct actors and enter within the same 30-second window. Confirm both clients leave `Rakip aranıyor`, fetch the same backend Lobby snapshot, and show the same opaque Lobby/session handoff. Repeat guest/guest and guest/linked where staging data permits.
-* Cancel one attempt, let one attempt time out, then retry. Confirm `Eşleşme bulunamadı, tekrar dene` and `Vazgeç` remain usable, no raw backend detail appears, and neither stale row blocks the next pair.
-* Repeat with normal `Rastgele Eşleş` to prove the repaired shared infrastructure still pairs `random_online` actors without crossing into `same_question_duel`.
-* The matched lobby contains exactly two players, no invite/category selector, and no third/fourth join path.
+* Use two physical phones with distinct actors and enter within the same 30-second window. Confirm both clients leave `Rakip aranıyor`, show `Rakip bulundu` on the same `/online` surface, and enter `/duel` directly from the same backend session without `/lobby`. Repeat guest/guest and guest/linked where staging data permits.
+* Cancel one attempt, let one attempt time out, then retry. Confirm `Rakip bulunamadı`, `Tekrar dene`, and `Vazgeç` remain usable, no raw backend detail appears, and neither stale row blocks the next pair.
+* Repeat with `Online Kapış` to prove the repaired shared infrastructure still pairs `random_online` actors without crossing into `same_question_duel`.
+* The private matched session contains exactly two players; no lobby/ready UI, category selector, or third/fourth join path appears.
 * Both clients receive identical two-card opening context and the same active shared card.
 * Submit near-simultaneous correct placements; backend order awards exactly one claim and reconnect preserves it.
 * Verify the pre-claim payload contains the same sequence/prompt on both clients but no answer year, raw Question id, used-question ids, opponent card rows, or remaining deck.
@@ -1563,17 +1563,32 @@ Manual release gates that source cannot prove:
   directly or open the map, but a runtime PASS requires committed `/game`, the
   dedicated Solo root, question/card area, and interaction target. A safe
   question bootstrap recovery is NOT_AUTOMATABLE with its precise reason.
-* Online `/lobby` or waiting UI alone is not matchmaking proof. The harness
-  waits for a classified matchmaking outcome and distinguishes no request,
-  request-without-response, rejected response, and network failure. The
-  explicit mutation gate authorizes the probe but never substitutes for a
-  successful backend response.
-* Permission/RLS denial stays critical. Reports retain only scenario, service,
-  4xx status class, sanitized endpoint category, safe action label, and a
-  redacted fingerprint; raw URLs, credentials, actor identifiers, and raw
-  permission messages remain excluded. `APP_NOT_FOUND` cannot yield a
-  backend-dependent PASS. Keep `@base44/sdk` exactly `0.8.34` in package,
-  lockfile root/resolution, and critical function imports.
+* Codex635 passed core Health but its production Runtime E2E report was not
+  release-green. Codex636 makes the legacy `/Game` redirect case-sensitive so
+  it cannot capture canonical `/game`; the current Solo level must commit the
+  gameplay route and still satisfy the real gameplay/question evidence gate.
+* Leaderboard, Daily Calendar, Daily Wheel, Solo question, and Online
+  matchmaking proof is action-scoped from a scenario baseline. Each lifecycle
+  records safe action/category, request and completion timestamps, status
+  class, abort/cancel state, or a bounded no-response timeout. A visible route
+  or safe UI state without the required successful response is a precise setup
+  gap, never backend-connected PASS.
+* Active Online/Duello flow is `/online` search, same-screen `Rakip bulundu`,
+  then direct `/game` or `/duel`; `/lobby` is redirect-only compatibility and
+  is never release proof. Runtime E2E records lobby route/screen observations
+  and fails `LOBBY_STILL_PRESENT`. Without two actors or a completed backend
+  handoff it reports `TWO_ACTOR_REQUIRED`,
+  `MATCH_FOUND_DIRECT_GAME_PENDING`, or the precise backend/permission gap.
+* Permission/RLS denial stays critical. The only non-blocking 401/403 exception
+  is the exact bundled page-activity endpoint, proven fire-and-forget and
+  reported separately; it cannot count as backend proof. Protected profile and
+  leaderboard projection access uses authorized identity/function paths rather
+  than direct client entity reads. Reports retain only scenario, service, 4xx
+  status class, sanitized endpoint category, safe action label, and a redacted
+  fingerprint; raw URLs, credentials, actor identifiers, and raw permission
+  messages remain excluded. `APP_NOT_FOUND` cannot yield a backend-dependent
+  PASS. Keep `@base44/sdk` exactly `0.8.34` in package, lockfile root/resolution,
+  and critical function imports.
 * Create storage state only under ignored `.auth/`, for example with
   `mkdir -p .auth` and
   `npx playwright codegen --save-storage=.auth/kronox-e2e-prod.json https://kronoxgame.com`;
@@ -1590,9 +1605,9 @@ Manual release gates that source cannot prove:
   Setup gaps name missing capabilities and safe next actions. Real failures
   retain route/visible-state, screenshot, trace, and safe console/network
   summaries.
-* Online production waiting/cancel may run when authenticated storage and the
-  explicit matchmaking gate are present, but it still requires observed
-  matchmaking backend evidence. Duello requires two real isolated contexts, deterministic pairing, a
+* Online production search/cancel may run when a completed linked or
+  token-proven guest actor and the explicit matchmaking gate are present, but
+  it still requires observed matchmaking backend evidence. Duello requires two real isolated contexts, deterministic pairing, a
   deterministic correct-claim fixture, one accepted backend claim, and
   reconciled snapshots. Until those capabilities exist, its scenario remains
   MANUAL_EXTERNAL. A route smoke must never be promoted to Duello PASS.
@@ -1600,3 +1615,24 @@ Manual release gates that source cannot prove:
   replace deterministic pairing or correct-claim proof.
 * Runtime E2E improves repeatable screen proof but does not replace deployed
   Base44, RLS/BOLA, real-device, store, push, race, or release evidence.
+
+## Online / Duello Direct-Start Gate (Codex637)
+
+* Product flow is exactly: choose `Online Kapış` or `Duello`, search for at
+  most 30 seconds, show `Rakip bulundu` / `Oyun başlıyor` on the same screen for
+  800-1500ms, then enter the canonical game route on both clients.
+* No active CTA, accepted invite, push click, retry, or result-return path uses
+  `/lobby`; legacy `/lobby` and `/LobbyRoom` redirect to `/online` and cannot
+  satisfy Runtime E2E.
+* Queue cancel, timeout, and matched consumption are backend-owned,
+  mode-scoped, idempotent terminal transitions. The client never invents a
+  session, writes final score, or receives a pre-game question bank.
+* Online scoring remains backend winner `+15`, loser `-6`, with no speed bonus.
+  Duello remains exactly two players, same active backend card, first confirmed
+  correct claim, first to 10, winner `+15`, loser `-6`, and no speed bonus.
+* Public match-found state contains fixed Turkish copy only; username/avatar
+  may be public, while email, provider/owner/raw guest/auth/internal actor
+  identifiers, tokens, answer data, raw errors, and stacks remain forbidden.
+* The 25 direct-start Health cases are source/executable contract proof. Duello
+  stays `MANUAL_EXTERNAL` until two isolated actors, deterministic pairing,
+  deterministic correct-claim input, and reconciled backend snapshots exist.

@@ -19,7 +19,7 @@ export default function DuelResult({ duel }) {
         </div>
         <p className="mt-4 font-inter text-sm font-black text-primary">{delta} Kronox Puan</p>
         <p className="mt-1 min-h-5 font-inter text-xs text-muted-foreground">{scoreResult?.message || 'Sonuç sunucu tarafından doğrulandı.'}</p>
-        <button type="button" onClick={() => navigate('/lobby')} className="mt-5 h-12 w-full rounded-2xl bg-primary font-inter font-black text-primary-foreground">Online Ekranına Dön</button>
+        <button type="button" onClick={() => navigate('/online')} className="mt-5 h-12 w-full rounded-2xl bg-primary font-inter font-black text-primary-foreground">Online Ekranına Dön</button>
       </section>
     </main>
   );
