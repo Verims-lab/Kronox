@@ -707,3 +707,7 @@ username affects public identity display; public leaderboard payloads must not
 return `display_name`.
 Age and gender must not affect scoring, level unlocks, matchmaking, leaderboard
 rank, Solo question weighting, or Online question selection.
+
+## Same Question Duel V1
+
+`same_question_duel` / `Aynı Soru ile Kapış` is a random-opponent, exactly two-player Online mode. The backend-authored shared card sequence and first-correct claim arbitration determine the winner; the first player to reach 10 claimed cards wins. Result persistence reuses `updateLobbyGameState:commit_result`, so winner +15 and loser -6 with checkpoint protection remain unchanged. The client cannot write result, score, profile, or leaderboard state. The mode grants no Diamonds, Daily progress, Store reward, Solo score, or Solo Streak reward.

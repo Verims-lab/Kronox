@@ -10,7 +10,7 @@ import {
 // Hourglass screen only needs to render the current phase.
 const POLL_INTERVAL_MS = 1500;
 
-export default function useRandomMatchmaking() {
+export default function useRandomMatchmaking(mode = 'random_online') {
   const [phase, setPhase] = useState('idle'); // idle | queuing | matched | timeout | error
   const [expiresAt, setExpiresAt] = useState(null);
   const [lobbyRef, setLobbyRef] = useState('');
@@ -56,7 +56,7 @@ export default function useRandomMatchmaking() {
     setLobbyRef('');
     setLobbyCode('');
     try {
-      const data = await joinRandomMatchmaking();
+      const data = await joinRandomMatchmaking(mode);
       if (!isActiveSession()) return;
       applyState(data);
       if (data.status === 'waiting') {
@@ -64,7 +64,7 @@ export default function useRandomMatchmaking() {
           if (!isActiveSession() || pollPendingRef.current) return;
           pollPendingRef.current = true;
           try {
-            const polled = await pollRandomMatchmaking();
+            const polled = await pollRandomMatchmaking(mode);
             if (isActiveSession()) applyState(polled);
           } catch {
             if (isActiveSession()) setErrorMessage('Bağlantı kurulamadı. Lütfen tekrar dene.');
@@ -78,13 +78,13 @@ export default function useRandomMatchmaking() {
       setPhase('error');
       setErrorMessage('Rastgele eşleşme başlatılamadı. Lütfen tekrar dene.');
     }
-  }, [applyState, stopPolling]);
+  }, [applyState, mode, stopPolling]);
 
   const cancel = useCallback(async () => {
     stopPolling();
     setPhase('idle');
-    await cancelRandomMatchmaking().catch(() => null);
-  }, [stopPolling]);
+    await cancelRandomMatchmaking(mode).catch(() => null);
+  }, [mode, stopPolling]);
 
   useEffect(() => {
     mountedRef.current = true;

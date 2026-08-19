@@ -1505,3 +1505,14 @@ Manual release gates that source cannot prove:
   Daily assignment/reward, wheel/store spend, and Joker/Hint spend.
 * Verify deployed Base44 RLS/BOLA and completed-guest token behavior with
   separate accounts. Static Health PASS is not release proof.
+
+## Same Question Duel V1 Manual Proof
+
+* User A and User B enter `Aynı Soru ile Kapış`; normal random players do not pair into this queue.
+* The matched lobby contains exactly two players, no invite/category selector, and no third/fourth join path.
+* Both clients receive identical two-card opening context and the same active shared card.
+* Submit near-simultaneous correct placements; backend order awards exactly one claim and reconnect preserves it.
+* A wrong answer locks only that player for the current card; if both are wrong, the backend releases the next shared card.
+* Continue until one player reaches 10 backend-confirmed claims; verify terminal winner, loser, +15/-6 persistence, no duplicate score on refresh, and no Diamond/Daily/Store/Solo reward.
+* Confirm public UI and copied snapshots contain no email, guest token/id, owner/actor/internal player IDs, private row IDs, or remaining deck.
+* Run `Same Question Duel Health Suite` plus Online, shared-deck, result-authority, Privacy, BottomNav, build, lint, and Base44 function-count checks. Health PASS remains contract proof only.

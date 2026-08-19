@@ -183,6 +183,7 @@ Implemented now:
 Scaffolded now:
 - Online gameplay analytics write coverage is documented/scaffolded only; no Online runtime QuestionAttemptEvent write point is enabled yet.
 - Platform unique indexes and live runtime proof are tracked as manual deployment proof, not repo-enforced Health PASS.
+- Same Question Duel V1 reuses RandomMatchQueue, Lobby, startLobbyGame, updateLobbyGameState, and OnlineMatchResult at the 50-function ceiling. Queue pairing is mode-scoped; Lobby game_mode same_question_duel requires exactly two players, stores one private bounded server deck, identical two-card opening anchors, per-player claimed_count, shared sequence, private wrong-attempt/idempotency state, safe recent claim, and first-to-10 terminal winner. Public snapshots expose one active shared card only; scoring remains backend +15/-6.
 
 Deferred/manual proof:
 - Online gameplay analytics write coverage remains future work.

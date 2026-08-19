@@ -18,6 +18,7 @@ import { getLobbySnapshot, startLobbyGame } from '@/lib/dbGateway/lobbyGateway';
 //   game config (year window, turn duration, win card count) reuses the lobby's
 //   existing values or backend defaults — there is no in-lobby edit UI.
 export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, isHost, canStart, onLeave, onCopyCode, copied, navigate }) {
+  const isSameQuestionDuel = lobby?.game_mode === 'same_question_duel';
   const {
     startDebug,
     lobbyPhaseState,
@@ -212,7 +213,7 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
               textShadow: '0 0 14px rgba(250,204,21,0.55), 0 2px 4px rgba(0,0,0,0.7)',
             }}
           >
-            Lobi
+            {isSameQuestionDuel ? 'Aynı Soru ile Kapış' : 'Lobi'}
           </h1>
           <button
             onClick={onLeave}
@@ -223,35 +224,23 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
           </button>
         </div>
 
-        {/* Invitations are the primary join path; the lobby code is the fallback. */}
-        <div className="text-center">
-          <p className="mb-2 font-inter text-[11px] uppercase tracking-widest text-blue-100/70 font-semibold">
-            Davet edilen arkadaşların
-          </p>
-          <button
-            onClick={onCopyCode}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 mx-auto min-h-[36px] justify-center"
-            style={{
-              borderRadius: 10,
-              background: 'linear-gradient(180deg, rgba(30,41,75,0.75), rgba(10,18,38,0.85))',
-              boxShadow:
-                'inset 0 0 0 1px rgba(250,204,21,0.35), inset 0 1px 0 rgba(255,236,140,0.18)',
-            }}
-            aria-label="Yedek lobi kodunu kopyala"
-          >
-            <span className="font-inter text-[10px] uppercase tracking-widest text-blue-100/55">Yedek kod</span>
-            <span
-              className="font-cinzel text-sm font-black tracking-[0.2em]"
-              style={{ color: '#facc15' }}
-            >
-              {lobby.code}
-            </span>
-            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-amber-200/80" />}
-          </button>
-          <p className="mt-2 font-inter text-[11px] text-blue-100/45">
-            Daveti kabul eden arkadaşların buraya katılır.
-          </p>
-        </div>
+        {/* Duel V1 is random-only; standard Online keeps invite/code fallback. */}
+        {isSameQuestionDuel ? (
+          <div className="rounded-2xl border border-cyan-300/20 bg-cyan-400/5 px-4 py-3 text-center">
+            <p className="font-inter text-xs font-black text-cyan-100">2 oyuncu · Aynı ortak kart · 10 kart hedefi</p>
+            <p className="mt-1 font-inter text-[11px] text-blue-100/55">Eşleşme tamamlandı. Host ortak desteyi hazırlayacak.</p>
+          </div>
+        ) : (
+          <div className="text-center">
+            <p className="mb-2 font-inter text-[11px] uppercase tracking-widest text-blue-100/70 font-semibold">Davet edilen arkadaşların</p>
+            <button onClick={onCopyCode} className="inline-flex min-h-[36px] items-center justify-center gap-1.5 px-3 py-1.5 mx-auto" style={{ borderRadius: 10, background: 'linear-gradient(180deg, rgba(30,41,75,0.75), rgba(10,18,38,0.85))', boxShadow: 'inset 0 0 0 1px rgba(250,204,21,0.35), inset 0 1px 0 rgba(255,236,140,0.18)' }} aria-label="Yedek lobi kodunu kopyala">
+              <span className="font-inter text-[10px] uppercase tracking-widest text-blue-100/55">Yedek kod</span>
+              <span className="font-cinzel text-sm font-black tracking-[0.2em]" style={{ color: '#facc15' }}>{lobby.code}</span>
+              {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-amber-200/80" />}
+            </button>
+            <p className="mt-2 font-inter text-[11px] text-blue-100/45">Daveti kabul eden arkadaşların buraya katılır.</p>
+          </div>
+        )}
 
         {/* Players panel */}
         <StonePanel glow="portal" padding="p-4" className="space-y-3">
@@ -307,7 +296,9 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
             boxShadow: 'inset 0 0 0 1px rgba(120,170,255,0.18)',
           }}
         >
-          Sorular rastgele gelir — hız ve bilgi kadar şans da oyunun parçasıdır.
+          {isSameQuestionDuel
+            ? 'Aynı ortak kart iki oyuncuya da açılır; ilk doğru yerleştirme kartı kazanır.'
+            : 'Sorular rastgele gelir — hız ve bilgi kadar şans da oyunun parçasıdır.'}
         </p>
 
         {/* Codex131 — In-lobby "Oyun Ayarları" panel removed.
@@ -373,7 +364,9 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
                 <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
                 BAŞLATILIYOR
               </span>
-            ) : `OYUNU BAŞLAT (${lobby.players?.length || 0} oyuncu)`}
+            ) : isSameQuestionDuel
+              ? 'KAPIŞMAYI BAŞLAT (2 oyuncu)'
+              : `OYUNU BAŞLAT (${lobby.players?.length || 0} oyuncu)`}
           </GoldButton>
         </div>
       )}

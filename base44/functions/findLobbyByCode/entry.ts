@@ -11,6 +11,7 @@ const AVATAR_ICON_IDS = new Set([
   'moon', 'sun', 'star',
 ]);
 const AVATAR_COLOR_IDS = new Set(['gold', 'cyan', 'violet', 'emerald', 'rose', 'blue']);
+const SAME_QUESTION_DUEL_MODE = 'same_question_duel';
 
 const json = (body: unknown, status = 200) => Response.json(body, { status });
 const normalizeEmail = (value: unknown) => String(value || '').trim().toLowerCase();
@@ -188,6 +189,7 @@ function internalPlayer(actor: any, existing: any = {}) {
     name: actor.username,
     ...actor.avatar,
     ready: existing?.ready ?? true,
+    claimed_count: Math.max(0, Math.trunc(Number(existing?.claimed_count) || 0)),
     cards: Array.isArray(existing?.cards) ? existing.cards : [],
   };
 }
@@ -204,6 +206,7 @@ function mergePlayers(players: any[] = [], additions: any[] = []) {
       participant_ref: String(player?.participant_ref || '') || randomRef('player'),
       name: safeUsername(player?.name, key),
       ready: player?.ready ?? true,
+      claimed_count: Math.max(0, Math.trunc(Number(player?.claimed_count) || 0)),
       cards: Array.isArray(player?.cards) ? player.cards : [],
       ...publicAvatar(player),
     });
@@ -218,6 +221,7 @@ function publicPlayer(player: any, actor: any, hostActorKey: string, { includeCa
     name: safeUsername(player?.name, player?.participant_ref),
     ...publicAvatar(player),
     ready: Boolean(player?.ready),
+    claimed_count: Math.max(0, Math.trunc(Number(player?.claimed_count) || 0)),
     is_self: actorMatchesPlayer(actor, player),
     is_host: Boolean(hostActorKey && hostActorKey === String(player?.actor_key_hash || '')),
   };
@@ -233,13 +237,21 @@ function publicLobby(lobby: any, actor: any, { summaryOnly = false, snapshotScop
   const players = Array.isArray(lobby?.players) ? lobby.players : [];
   const hostActorKey = String(lobby?.host_actor_key_hash || players[0]?.actor_key_hash || '');
   const scope = normalizeSnapshotScope(snapshotScope);
+  const gameMode = String(lobby?.game_mode || 'random_online');
+  const duelAttempts = Array.isArray(lobby?.duel_round_attempts) ? lobby.duel_round_attempts : [];
+  const activeQuestion = gameMode === SAME_QUESTION_DUEL_MODE
+    ? (lobby?.online_question_deck || []).find((question: any) => String(question?.id || '') === String(lobby?.current_question_id || ''))
+    : null;
   const base = {
     id: String(lobby?.public_ref || ''),
     code: String(lobby?.code || ''),
     status: String(lobby?.status || 'waiting'),
+    game_mode: gameMode,
     host_name: safeUsername(lobby?.host_name || players[0]?.name, lobby?.public_ref || lobby?.code),
     player_count: players.length,
-    max_players: Math.max(2, Math.min(4, Number(lobby?.max_players) || 4)),
+    max_players: gameMode === SAME_QUESTION_DUEL_MODE
+      ? 2
+      : Math.max(2, Math.min(4, Number(lobby?.max_players) || 4)),
     current_actor_is_host: actor ? actorIsHost(actor, lobby) : false,
     state_revision: readRevision(lobby?.state_revision),
     last_activity_at: lobby?.last_activity_at || null,
@@ -254,7 +266,7 @@ function publicLobby(lobby: any, actor: any, { summaryOnly = false, snapshotScop
     selected_category_ids: Array.isArray(lobby?.selected_category_ids) ? lobby.selected_category_ids : [],
     year_start: Number(lobby?.year_start) || 1900,
     year_end: Number(lobby?.year_end) || new Date().getUTCFullYear(),
-    turn_duration: Number(lobby?.turn_duration) || 60,
+    turn_duration: Number.isFinite(Number(lobby?.turn_duration)) ? Number(lobby.turn_duration) : 60,
     win_card_count: Number(lobby?.win_card_count) || 10,
     started_at: lobby?.started_at || null,
     completed_at: lobby?.completed_at || null,
@@ -265,8 +277,27 @@ function publicLobby(lobby: any, actor: any, { summaryOnly = false, snapshotScop
     current_player_index: Number(lobby?.current_player_index) || 0,
     current_question_id: lobby?.current_question_id || null,
     used_question_ids: Array.isArray(lobby?.used_question_ids) ? lobby.used_question_ids : [],
-    online_question_deck: Array.isArray(lobby?.online_question_deck) ? lobby.online_question_deck : [],
+    online_question_deck: gameMode === SAME_QUESTION_DUEL_MODE
+      ? (activeQuestion ? [activeQuestion] : [])
+      : (Array.isArray(lobby?.online_question_deck) ? lobby.online_question_deck : []),
     online_deck_meta: lobby?.online_deck_meta || null,
+    active_shared_card: activeQuestion ? {
+      id: String(activeQuestion.id),
+      year: Number(activeQuestion.year),
+      question: String(activeQuestion.question || ''),
+      type: activeQuestion.type || 'metin',
+      media_url: activeQuestion.media_url || '',
+      sequence_id: Math.max(1, Math.trunc(Number(lobby?.duel_sequence) || 1)),
+      can_attempt: !duelAttempts.includes(actor?.actorKeyHash),
+    } : null,
+    recent_claim: gameMode === SAME_QUESTION_DUEL_MODE && lobby?.recent_claim ? {
+      participant_ref: lobby.recent_claim.participant_ref || null,
+      sequence_id: Number(lobby.recent_claim.sequence_id) || null,
+      claimed_at: lobby.recent_claim.claimed_at || null,
+      skipped: Boolean(lobby.recent_claim.skipped),
+      claimed_by_self: Boolean(lobby.recent_claim.participant_ref && players.some((player: any) =>
+        actorMatchesPlayer(actor, player) && player.participant_ref === lobby.recent_claim.participant_ref)),
+    } : null,
     winner: lobby?.winner ? safeUsername(lobby.winner, lobby?.winner_participant_ref) : null,
     winner_participant_ref: lobby?.winner_participant_ref || null,
   };
@@ -397,7 +428,7 @@ Deno.serve(async (req) => {
       return json({
         ok: true,
         found: Boolean(lobby),
-        joinable: Boolean(lobby && lobby.status === 'waiting' && !lobbyIsStale(lobby)),
+        joinable: Boolean(lobby && lobby.status === 'waiting' && !lobbyIsStale(lobby) && String(lobby?.game_mode || 'random_online') !== SAME_QUESTION_DUEL_MODE),
         lobby: lobby ? publicLobby(lobby, null, { summaryOnly: true }) : null,
       });
     }
@@ -430,6 +461,7 @@ Deno.serve(async (req) => {
           host_email: actor.email,
           host_kronox_user_id: actor.kronoxUserId,
           host_name: actor.username,
+          game_mode: 'random_online',
           players: [hostPlayer],
           status: 'waiting',
           category: 'karisik',
@@ -475,6 +507,9 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'join') {
+      if (String(lobby?.game_mode || 'random_online') === SAME_QUESTION_DUEL_MODE) {
+        return json({ ok: false, found: true, joinable: false, code: 'duel_random_only', error: 'Bu mod yalnızca rastgele eşleşme ile başlatılır.' }, 403);
+      }
       if (lobby.status !== 'waiting' || lobbyIsStale(lobby)) {
         return json({ ok: false, found: true, joinable: false, code: 'lobby_not_joinable', error: 'Bu lobi artık katılıma kapalı.' }, 409);
       }

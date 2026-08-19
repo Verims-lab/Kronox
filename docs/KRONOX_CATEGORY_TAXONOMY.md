@@ -394,3 +394,4 @@ Do not change without explicit product decision:
 * Kült excluding games
 * passive categories being excluded from playable decks
 * Online all-active random category policy
+* `same_question_duel` uses the same all-active random policy, has no category selector, and does not read Solo preferences.

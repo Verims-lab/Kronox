@@ -6,7 +6,9 @@ const ONLINE_CHECKPOINTS = [0, 100, 250, 500, 1000, 1500, 2000, 3000];
 const LOCK_TTL_MS = 12 * 1000;
 const LOCK_SETTLE_MS = 90;
 const KRONOX_ID_PATTERN = /^KX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
-const VALID_ACTIONS = new Set(['place_card', 'advance_turn', 'skip_question']);
+const VALID_ACTIONS = new Set(['place_card', 'advance_turn', 'skip_question', 'claim_shared_card']);
+const SAME_QUESTION_DUEL_MODE = 'same_question_duel';
+const SAME_QUESTION_DUEL_TARGET = 10;
 
 const json = (body: unknown, status = 200) => Response.json(body, { status });
 const rowId = (row: any) => row?.id || row?._id || '';
@@ -136,10 +138,16 @@ function actorMatchesPlayer(actor: any, player: any) {
 function publicLobby(lobby: any, actor: any) {
   const players = Array.isArray(lobby?.players) ? lobby.players : [];
   const hostActorKey = String(lobby?.host_actor_key_hash || players[0]?.actor_key_hash || '');
+  const gameMode = String(lobby?.game_mode || 'random_online');
+  const duelAttempts = Array.isArray(lobby?.duel_round_attempts) ? lobby.duel_round_attempts : [];
+  const activeQuestion = gameMode === SAME_QUESTION_DUEL_MODE
+    ? (lobby?.online_question_deck || []).find((question: any) => String(question?.id || '') === String(lobby?.current_question_id || ''))
+    : null;
   return {
     id: String(lobby?.public_ref || ''),
     code: String(lobby?.code || ''),
     status: String(lobby?.status || 'waiting'),
+    game_mode: gameMode,
     host_name: safeUsername(lobby?.host_name || players[0]?.name, lobby?.public_ref || lobby?.code),
     current_actor_is_host: actor?.actorKeyHash === hostActorKey,
     players: players.map((player: any) => ({
@@ -148,6 +156,7 @@ function publicLobby(lobby: any, actor: any) {
       name: safeUsername(player?.name, player?.participant_ref),
       ...safeAvatar(player),
       ready: Boolean(player?.ready),
+      claimed_count: Math.max(0, Math.trunc(Number(player?.claimed_count) || 0)),
       cards: Array.isArray(player?.cards) ? player.cards : [],
       is_self: actorMatchesPlayer(actor, player),
       is_host: Boolean(hostActorKey && hostActorKey === String(player?.actor_key_hash || '')),
@@ -163,8 +172,27 @@ function publicLobby(lobby: any, actor: any) {
     current_player_index: lobby?.current_player_index ?? 0,
     current_question_id: lobby?.current_question_id || null,
     used_question_ids: Array.isArray(lobby?.used_question_ids) ? lobby.used_question_ids : [],
-    online_question_deck: Array.isArray(lobby?.online_question_deck) ? lobby.online_question_deck : [],
+    online_question_deck: gameMode === SAME_QUESTION_DUEL_MODE
+      ? (activeQuestion ? [activeQuestion] : [])
+      : (Array.isArray(lobby?.online_question_deck) ? lobby.online_question_deck : []),
     online_deck_meta: lobby?.online_deck_meta || null,
+    active_shared_card: activeQuestion ? {
+      id: String(activeQuestion.id),
+      year: Number(activeQuestion.year),
+      question: String(activeQuestion.question || ''),
+      type: activeQuestion.type || 'metin',
+      media_url: activeQuestion.media_url || '',
+      sequence_id: Math.max(1, Math.trunc(Number(lobby?.duel_sequence) || 1)),
+      can_attempt: !duelAttempts.includes(actor?.actorKeyHash),
+    } : null,
+    recent_claim: gameMode === SAME_QUESTION_DUEL_MODE && lobby?.recent_claim ? {
+      participant_ref: lobby.recent_claim.participant_ref || null,
+      sequence_id: Number(lobby.recent_claim.sequence_id) || null,
+      claimed_at: lobby.recent_claim.claimed_at || null,
+      skipped: Boolean(lobby.recent_claim.skipped),
+      claimed_by_self: Boolean(lobby.recent_claim.participant_ref && players.some((player: any) =>
+        actorMatchesPlayer(actor, player) && player.participant_ref === lobby.recent_claim.participant_ref)),
+    } : null,
     winner: lobby?.winner || null,
     winner_participant_ref: lobby?.winner_participant_ref || null,
     started_at: lobby?.started_at || null,
@@ -478,6 +506,178 @@ async function commitOnlineResult(base44: any, lobby: any, actor: any, body: any
   }
 }
 
+async function claimSameQuestionDuelCard(base44: any, lobby: any, actor: any, body: any) {
+  if (String(lobby?.game_mode || '') !== SAME_QUESTION_DUEL_MODE) {
+    return json({ ok: false, code: 'wrong_game_mode', error: 'Bu işlem bu Online modu için kullanılamaz.' }, 400);
+  }
+  const players = Array.isArray(lobby?.players) ? lobby.players : [];
+  if (players.length !== 2 || Number(lobby?.max_players) !== 2) {
+    return json({ ok: false, code: 'same_question_duel_requires_two_players', error: 'Aynı Soru ile Kapış tam olarak 2 oyuncu gerektirir.' }, 409);
+  }
+  const actorIndex = players.findIndex((player: any) => actorMatchesPlayer(actor, player));
+  if (actorIndex < 0) return json({ ok: false, code: 'not_lobby_participant', error: 'Bu maçın oyuncusu değilsin.' }, 403);
+
+  const requestedSequence = Math.max(1, Math.trunc(safeNumber(body?.sequence_id, 0)));
+  const clientOperationKey = String(body?.operation_key || `sequence:${requestedSequence}`)
+    .replace(/[^A-Za-z0-9:_-]/g, '')
+    .slice(0, 160);
+  const operationKey = `duel_claim:${rowId(lobby)}:${requestedSequence}:${actor.actorKeyHash}:${clientOperationKey}`;
+  const processed = Array.isArray(lobby?.duel_processed_operation_keys) ? lobby.duel_processed_operation_keys : [];
+  if (processed.includes(operationKey)) {
+    return json({ success: true, idempotent: true, claim_result: 'already_processed', lobby: publicLobby(lobby, actor) });
+  }
+
+  const lock = await acquireLock(
+    base44,
+    `same-question-duel:${rowId(lobby)}:${requestedSequence}`,
+    actor,
+    'lobby_turn',
+    operationKey,
+  );
+  if (!lock.ok) return lock.response;
+
+  try {
+    const fresh = await base44.asServiceRole.entities.Lobby.get(rowId(lobby));
+    if (!fresh || String(fresh?.game_mode || '') !== SAME_QUESTION_DUEL_MODE) {
+      return json({ ok: false, code: 'wrong_game_mode', error: 'Düello durumu doğrulanamadı.' }, 409);
+    }
+    if (!['starting', 'in_game'].includes(String(fresh?.status || ''))) {
+      return json({ ok: false, code: 'invalid_lobby_status', error: 'Oyun aktif değil.' }, 409);
+    }
+    const freshProcessed = Array.isArray(fresh?.duel_processed_operation_keys) ? fresh.duel_processed_operation_keys : [];
+    if (freshProcessed.includes(operationKey)) {
+      return json({ success: true, idempotent: true, claim_result: 'already_processed', lobby: publicLobby(fresh, actor) });
+    }
+    const currentSequence = Math.max(1, Math.trunc(safeNumber(fresh?.duel_sequence, 1)));
+    if (requestedSequence !== currentSequence) {
+      return json({
+        success: true,
+        idempotent: true,
+        claim_result: 'card_already_resolved',
+        lobby: publicLobby(fresh, actor),
+      });
+    }
+
+    const storedPlayers = Array.isArray(fresh?.players) ? fresh.players : [];
+    if (storedPlayers.length !== 2 || Number(fresh?.max_players) !== 2) {
+      return json({ ok: false, code: 'same_question_duel_requires_two_players', error: 'Aynı Soru ile Kapış tam olarak 2 oyuncu gerektirir.' }, 409);
+    }
+    const freshActorIndex = storedPlayers.findIndex((player: any) => actorMatchesPlayer(actor, player));
+    if (freshActorIndex < 0) return json({ ok: false, code: 'not_lobby_participant', error: 'Bu maçın oyuncusu değilsin.' }, 403);
+    const attempts = Array.isArray(fresh?.duel_round_attempts) ? fresh.duel_round_attempts : [];
+    if (attempts.includes(actor.actorKeyHash)) {
+      return json({ success: true, idempotent: true, claim_result: 'already_attempted', lobby: publicLobby(fresh, actor) });
+    }
+
+    const deck = Array.isArray(fresh?.online_question_deck) ? fresh.online_question_deck : [];
+    const currentQuestion = deck.find((question: any) => String(question?.id || '') === String(fresh?.current_question_id || ''));
+    if (!currentQuestion) return json({ ok: false, code: 'question_not_in_deck', error: 'Aktif soru doğrulanamadı.' }, 409);
+    const playerCards = Array.isArray(storedPlayers[freshActorIndex]?.cards) ? storedPlayers[freshActorIndex].cards : [];
+    const placementZone = Math.trunc(Number(body?.placement_zone));
+    const correct = isCorrectPlacement(playerCards, Number(currentQuestion.year), placementZone);
+    const nextProcessed = [...freshProcessed, operationKey].slice(-80);
+    const timestamp = new Date().toISOString();
+    const nextRevision = readRevision(fresh?.state_revision) + 1;
+
+    if (correct) {
+      const claimedCard = {
+        id: String(currentQuestion.id),
+        year: Number(currentQuestion.year),
+        question: String(currentQuestion.question || ''),
+        type: currentQuestion.type || 'metin',
+        media_url: currentQuestion.media_url || '',
+      };
+      const nextPlayers = storedPlayers.map((player: any, index: number) => index === freshActorIndex ? {
+        ...player,
+        cards: [...playerCards, claimedCard],
+        claimed_count: Math.max(0, Math.trunc(safeNumber(player?.claimed_count, 0))) + 1,
+      } : player);
+      const winnerPlayer = nextPlayers[freshActorIndex];
+      const hasWon = Number(winnerPlayer.claimed_count) >= SAME_QUESTION_DUEL_TARGET;
+      const used = new Set((fresh?.used_question_ids || []).map(String));
+      used.add(String(currentQuestion.id));
+      const nextQuestion = hasWon ? null : deck.find((question: any) => !used.has(String(question?.id || '')));
+      if (!hasWon && !nextQuestion) {
+        return json({ ok: false, code: 'duel_deck_exhausted', error: 'Yeni ortak kart hazırlanamadı.' }, 409);
+      }
+      if (nextQuestion) used.add(String(nextQuestion.id));
+      const updateData: Record<string, unknown> = {
+        players: nextPlayers,
+        status: hasWon ? 'finished' : 'in_game',
+        current_question_id: hasWon ? String(currentQuestion.id) : String(nextQuestion.id),
+        used_question_ids: Array.from(used),
+        duel_sequence: hasWon ? currentSequence : currentSequence + 1,
+        duel_round_attempts: [],
+        duel_processed_operation_keys: nextProcessed,
+        recent_claim: {
+          participant_ref: winnerPlayer.participant_ref,
+          sequence_id: currentSequence,
+          claimed_at: timestamp,
+          skipped: false,
+        },
+        last_operation_key: operationKey,
+        last_activity_at: timestamp,
+        state_revision: nextRevision,
+      };
+      if (hasWon) {
+        updateData.winner = safeUsername(winnerPlayer?.name, winnerPlayer?.participant_ref);
+        updateData.winner_participant_ref = winnerPlayer?.participant_ref || null;
+        updateData.winner_actor_key_hash = winnerPlayer?.actor_key_hash || actor.actorKeyHash;
+        updateData.winner_email = winnerPlayer?.email || null;
+        updateData.winner_kronox_user_id = winnerPlayer?.kronox_user_id || null;
+        updateData.completed_at = timestamp;
+      }
+      await base44.asServiceRole.entities.Lobby.update(rowId(fresh), updateData);
+      const updated = await base44.asServiceRole.entities.Lobby.get(rowId(fresh));
+      return json({
+        success: true,
+        claim_result: 'claimed',
+        correct: true,
+        completed: hasWon,
+        lobby: publicLobby(updated, actor),
+      });
+    }
+
+    const nextAttempts = [...attempts, actor.actorKeyHash];
+    const bothAnsweredWrong = nextAttempts.length >= 2;
+    const used = new Set((fresh?.used_question_ids || []).map(String));
+    used.add(String(currentQuestion.id));
+    const nextQuestion = bothAnsweredWrong
+      ? deck.find((question: any) => !used.has(String(question?.id || '')))
+      : null;
+    if (bothAnsweredWrong && !nextQuestion) {
+      return json({ ok: false, code: 'duel_deck_exhausted', error: 'Yeni ortak kart hazırlanamadı.' }, 409);
+    }
+    if (nextQuestion) used.add(String(nextQuestion.id));
+    await base44.asServiceRole.entities.Lobby.update(rowId(fresh), {
+      status: 'in_game',
+      current_question_id: nextQuestion ? String(nextQuestion.id) : String(currentQuestion.id),
+      used_question_ids: Array.from(used),
+      duel_sequence: nextQuestion ? currentSequence + 1 : currentSequence,
+      duel_round_attempts: nextQuestion ? [] : nextAttempts,
+      duel_processed_operation_keys: nextProcessed,
+      recent_claim: nextQuestion ? {
+        participant_ref: null,
+        sequence_id: currentSequence,
+        claimed_at: timestamp,
+        skipped: true,
+      } : fresh?.recent_claim || null,
+      last_operation_key: operationKey,
+      last_activity_at: timestamp,
+      state_revision: nextRevision,
+    });
+    const updated = await base44.asServiceRole.entities.Lobby.get(rowId(fresh));
+    return json({
+      success: true,
+      claim_result: nextQuestion ? 'both_wrong_next_card' : 'wrong',
+      correct: false,
+      lobby: publicLobby(updated, actor),
+    });
+  } finally {
+    await releaseLock(base44, lock.lock);
+  }
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -498,6 +698,10 @@ Deno.serve(async (req) => {
     if (!VALID_ACTIONS.has(String(body?.action || ''))) return json({ ok: false, code: 'invalid_action', error: 'Geçersiz oyun aksiyonu.' }, 400);
     if (!['starting', 'in_game'].includes(String(lobby?.status || ''))) {
       return json({ ok: false, code: 'invalid_lobby_status', error: 'Oyun aktif değil.' }, 409);
+    }
+
+    if (body?.action === 'claim_shared_card') {
+      return claimSameQuestionDuelCard(base44, lobby, actor, body);
     }
 
     const expectedRevision = readRevision(body?.expected_state_revision);

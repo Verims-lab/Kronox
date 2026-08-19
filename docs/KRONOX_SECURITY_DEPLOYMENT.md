@@ -1170,3 +1170,7 @@ print `player_key`, `owner_key`, email, provider ids, raw guest id, raw guest
 token, or username in that subsection. Production release proof should verify
 the projection entities are deployed and RLS/admin access does not make these
 rows public.
+
+## Same Question Duel V1 Security Boundary
+
+`same_question_duel` is isolated from normal random matchmaking by a backend-validated mode lane and creates exactly two-player lobbies. `startLobbyGame` authors one shared deck and identical two-card opening context. `updateLobbyGameState:claim_shared_card` serializes each shared sequence under a backend lock, evaluates placement against server state, records one wrong attempt per actor, and awards at most one claim. Client time does not decide races. Repeated actor/sequence operations are idempotent. Public snapshots expose username, sanitized avatar, opaque participant ref, claimed count, one active shared card, safe recent-claim state, and terminal winner only; they omit email, guest proof, actor/owner/internal IDs, the remaining deck, and raw errors. V1 disables Joker/Hint. Real simultaneous arbitration, reconnect, RLS/BOLA, and score persistence require two-device deployed-runtime proof.

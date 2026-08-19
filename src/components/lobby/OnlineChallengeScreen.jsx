@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Swords, Users, Shuffle } from 'lucide-react';
+import { Swords, Users, Shuffle, Target } from 'lucide-react';
 import StandardTopBar from '@/components/layout/StandardTopBar';
 import FriendSelectModal from '@/components/lobby/FriendSelectModal';
 import IncomingInvitesPanel from '@/components/invites/IncomingInvitesPanel';
@@ -41,12 +41,13 @@ export default function OnlineChallengeScreen({
   isActiveLobbyHost,
   onResumeActiveLobby,
 }) {
-  const [screen, setScreen] = useState('select'); // 'select' | 'invite-wait' | 'random-wait'
+  const [screen, setScreen] = useState('select'); // select | invite-wait | random-wait | duel-wait
   const [friendModalOpen, setFriendModalOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [screenError, setScreenError] = useState('');
   const [inviteLobby, setInviteLobby] = useState(null);
-  const random = useRandomMatchmaking();
+  const random = useRandomMatchmaking('random_online');
+  const duel = useRandomMatchmaking('same_question_duel');
 
   const handleConfirmInvite = async (targets) => {
     setScreenError('');
@@ -98,6 +99,13 @@ export default function OnlineChallengeScreen({
     random.start();
   };
 
+  const handleStartDuel = () => {
+    sounds.tap();
+    setScreenError('');
+    setScreen('duel-wait');
+    duel.start();
+  };
+
   // Random mode: once matched, fetch the full lobby snapshot and enter it.
   useEffect(() => {
     if (screen !== 'random-wait' || random.phase !== 'matched' || !random.lobbyRef) return;
@@ -111,8 +119,28 @@ export default function OnlineChallengeScreen({
     return () => { cancelled = true; };
   }, [screen, random.phase, random.lobbyRef, onEnterLobby]);
 
+  // Same Question Duel has its own mode-scoped queue and cannot pair with the
+  // existing random Online lane. The matched lobby remains the shared backend
+  // authority and is entered through the same sanitized waiting-room snapshot.
+  useEffect(() => {
+    if (screen !== 'duel-wait' || duel.phase !== 'matched' || !duel.lobbyRef) return;
+    let cancelled = false;
+    getLobbySnapshot({ lobbyId: duel.lobbyRef, scope: LOBBY_SNAPSHOT_SCOPES.WAITING_ROOM })
+      .then((res) => {
+        const fresh = res?.data?.lobby;
+        if (!cancelled && fresh) onEnterLobby?.(fresh);
+      })
+      .catch(() => { if (!cancelled) setScreenError('Düello bağlantısı kurulamadı. Lütfen tekrar dene.'); });
+    return () => { cancelled = true; };
+  }, [screen, duel.phase, duel.lobbyRef, onEnterLobby]);
+
   const handleRandomCancel = () => {
     random.cancel();
+    setScreen('select');
+  };
+
+  const handleDuelCancel = () => {
+    duel.cancel();
     setScreen('select');
   };
 
@@ -123,12 +151,20 @@ export default function OnlineChallengeScreen({
     }
   };
 
+  const handleDuelTimeout = () => {
+    if (duel.phase !== 'matched') {
+      setScreenError('Düello eşleşmesi bulunamadı.');
+      setScreen('select');
+    }
+  };
+
   // Codex593 — Named ctaDisabled state per CTA. Neither button is ever
   // gated by social/friend/player-list load state — only by an in-flight
   // lobby-create/invite action, so "Rastgele Eşleş" always stays available
   // even if the manual invite player list failed to load.
   const ctaDisabledInvite = loading || creating;
   const ctaDisabledRandom = loading || creating;
+  const ctaDisabledDuel = loading || creating;
 
   if (screen === 'invite-wait') {
     return (
@@ -152,6 +188,20 @@ export default function OnlineChallengeScreen({
         errorMessage={random.errorMessage}
         onTimeout={handleRandomTimeout}
         onCancel={handleRandomCancel}
+      />
+    );
+  }
+
+  if (screen === 'duel-wait') {
+    return (
+      <PreGameHourglass
+        title="Aynı Soru ile Kapış"
+        subtitle="Rakip aranıyor · 2 oyuncu · 10 kart hedefi"
+        expiresAt={duel.expiresAt}
+        durationMs={30 * 1000}
+        errorMessage={duel.errorMessage}
+        onTimeout={handleDuelTimeout}
+        onCancel={handleDuelCancel}
       />
     );
   }
@@ -212,6 +262,16 @@ export default function OnlineChallengeScreen({
             disabled={ctaDisabledRandom}
             onClick={handleStartRandom}
           />
+          <ModeButton
+            icon={Target}
+            label="Aynı Soru ile Kapış"
+            ariaLabel="Aynı Soru ile Kapış — Kapışmaya Başla"
+            hint="Aynı soruya aynı anda cevap ver; kartı önce doğru yerleştiren alsın."
+            helper="2 oyuncu · 10 kart hedefi · Rastgele rakip"
+            action="Kapışmaya Başla"
+            disabled={ctaDisabledDuel}
+            onClick={handleStartDuel}
+          />
         </div>
 
         {screenError && (
@@ -222,7 +282,9 @@ export default function OnlineChallengeScreen({
               message="Diğer Online seçeneklerini kullanmaya devam edebilirsin."
               onAction={screenError === 'Eşleşme bulunamadı.'
                 ? handleStartRandom
-                : () => { setScreenError(''); setFriendModalOpen(true); }}
+                : screenError === 'Düello eşleşmesi bulunamadı.'
+                  ? handleStartDuel
+                  : () => { setScreenError(''); setFriendModalOpen(true); }}
             />
           </div>
         )}
@@ -313,7 +375,7 @@ function DecorStar() {
 
 /* ----------------------------- Mode button ---------------------------- */
 
-function ModeButton({ icon: Icon, label, ariaLabel, hint, disabled, onClick }) {
+function ModeButton({ icon: Icon, label, ariaLabel, hint, helper, action, disabled, onClick }) {
   return (
     <motion.button
       type="button"
@@ -336,6 +398,8 @@ function ModeButton({ icon: Icon, label, ariaLabel, hint, disabled, onClick }) {
       <span className="min-w-0 flex-1">
         <span className="block font-inter text-[15px] font-black tracking-wide text-white">{label}</span>
         <span className="block mt-0.5 font-inter text-[12px] text-blue-100/65">{hint}</span>
+        {helper && <span className="mt-1 block font-inter text-[10px] font-semibold text-cyan-200/70">{helper}</span>}
+        {action && <span className="mt-1.5 block font-inter text-[11px] font-black text-amber-200">{action}</span>}
       </span>
     </motion.button>
   );

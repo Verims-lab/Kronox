@@ -127,10 +127,16 @@ const actorIsHost = (actor: any, lobby: any) => Boolean(
 const publicLobby = (lobby: any, actor: any) => {
   const players = Array.isArray(lobby?.players) ? lobby.players : [];
   const hostActorKey = String(lobby?.host_actor_key_hash || players[0]?.actor_key_hash || '');
+  const gameMode = String(lobby?.game_mode || 'random_online');
+  const duelAttempts = Array.isArray(lobby?.duel_round_attempts) ? lobby.duel_round_attempts : [];
+  const activeQuestion = gameMode === SAME_QUESTION_DUEL_MODE
+    ? (lobby?.online_question_deck || []).find((question: any) => String(question?.id || '') === String(lobby?.current_question_id || ''))
+    : null;
   return {
     id: String(lobby?.public_ref || ''),
     code: String(lobby?.code || ''),
     status: String(lobby?.status || 'waiting'),
+    game_mode: gameMode,
     host_name: safeUsername(lobby?.host_name || players[0]?.name, lobby?.public_ref || lobby?.code),
     current_actor_is_host: actorIsHost(actor, lobby),
     players: players.map((player: any) => ({
@@ -142,6 +148,7 @@ const publicLobby = (lobby: any, actor: any) => {
       avatar_color_id: player?.avatar_color_id || 'gold',
       avatar_url: String(player?.avatar_url || '').startsWith('https://') ? player.avatar_url : '',
       ready: Boolean(player?.ready),
+      claimed_count: Math.max(0, Math.trunc(Number(player?.claimed_count) || 0)),
       cards: Array.isArray(player?.cards) ? player.cards : [],
       is_self: actorMatchesPlayer(actor, player),
       is_host: Boolean(hostActorKey && hostActorKey === String(player?.actor_key_hash || '')),
@@ -157,8 +164,27 @@ const publicLobby = (lobby: any, actor: any) => {
     current_player_index: lobby?.current_player_index ?? 0,
     current_question_id: lobby?.current_question_id || null,
     used_question_ids: Array.isArray(lobby?.used_question_ids) ? lobby.used_question_ids : [],
-    online_question_deck: Array.isArray(lobby?.online_question_deck) ? lobby.online_question_deck : [],
+    online_question_deck: gameMode === SAME_QUESTION_DUEL_MODE
+      ? (activeQuestion ? [activeQuestion] : [])
+      : (Array.isArray(lobby?.online_question_deck) ? lobby.online_question_deck : []),
     online_deck_meta: lobby?.online_deck_meta || null,
+    active_shared_card: activeQuestion ? {
+      id: String(activeQuestion.id),
+      year: Number(activeQuestion.year),
+      question: String(activeQuestion.question || ''),
+      type: activeQuestion.type || 'metin',
+      media_url: activeQuestion.media_url || '',
+      sequence_id: Math.max(1, Math.trunc(Number(lobby?.duel_sequence) || 1)),
+      can_attempt: !duelAttempts.includes(actor?.actorKeyHash),
+    } : null,
+    recent_claim: gameMode === SAME_QUESTION_DUEL_MODE && lobby?.recent_claim ? {
+      participant_ref: lobby.recent_claim.participant_ref || null,
+      sequence_id: Number(lobby.recent_claim.sequence_id) || null,
+      claimed_at: lobby.recent_claim.claimed_at || null,
+      skipped: Boolean(lobby.recent_claim.skipped),
+      claimed_by_self: Boolean(lobby.recent_claim.participant_ref && players.some((player: any) =>
+        actorMatchesPlayer(actor, player) && player.participant_ref === lobby.recent_claim.participant_ref)),
+    } : null,
     winner: lobby?.winner || null,
     winner_participant_ref: lobby?.winner_participant_ref || null,
     started_at: lobby?.started_at || null,
@@ -317,6 +343,8 @@ const ONLINE_SHARED_DECK_MAX_QUESTIONS = 96;
 const ONLINE_SHARED_DECK_MIN_QUESTIONS = 32;
 const ONLINE_ALLOWED_DIFFICULTIES = new Set(ONLINE_GAME_POLICY.allowedDifficulties);
 const ONLINE_DECK_SELECTION_SOURCE = 'online_shared_all_active_random_deck_v1';
+const SAME_QUESTION_DUEL_MODE = 'same_question_duel';
+const SAME_QUESTION_DUEL_TARGET = 10;
 
 const normalizeMainCategoryId = (value: unknown): number | null => {
   const numeric = Number(value);
@@ -516,18 +544,20 @@ const shuffleQuestions = (questions: any[] = [], seed = 'kronox-online') => {
   return shuffled;
 };
 
-const buildInitialState = ({ players, questions, settings, activeMainCategoryIds, seed }: { players: any[]; questions: any[]; settings: any; activeMainCategoryIds: Set<number>; seed: string }) => {
+const buildInitialState = ({ players, questions, settings, activeMainCategoryIds, seed, gameMode }: { players: any[]; questions: any[]; settings: any; activeMainCategoryIds: Set<number>; seed: string; gameMode: string }) => {
   const filteredQuestions = filterQuestionsForLobbySettings(questions, settings, activeMainCategoryIds);
   const shuffled = shuffleQuestions(filteredQuestions, seed);
   const neededCount = players.length * 2 + 1;
-  const requestedDeckCount = Math.min(
-    ONLINE_SHARED_DECK_MAX_QUESTIONS,
-    Math.max(
-      ONLINE_SHARED_DECK_MIN_QUESTIONS,
-      neededCount,
-      players.length * Math.max(6, Number(settings.win_card_count) || 10) + players.length + 8,
-    ),
-  );
+  const requestedDeckCount = gameMode === SAME_QUESTION_DUEL_MODE
+    ? ONLINE_SHARED_DECK_MAX_QUESTIONS
+    : Math.min(
+      ONLINE_SHARED_DECK_MAX_QUESTIONS,
+      Math.max(
+        ONLINE_SHARED_DECK_MIN_QUESTIONS,
+        neededCount,
+        players.length * Math.max(6, Number(settings.win_card_count) || 10) + players.length + 8,
+      ),
+    );
   const sharedDeck = shuffled
     .slice(0, requestedDeckCount)
     .map(toOnlineDeckQuestion)
@@ -563,6 +593,59 @@ const buildInitialState = ({ players, questions, settings, activeMainCategoryIds
       ok: false,
       message: `Yeterli soru yok. Gerekli: ${neededCount}, mevcut: ${sharedDeck.length}`,
       reason: 'not_enough_questions',
+      neededCount,
+      availableCount: sharedDeck.length,
+    };
+  }
+
+  if (gameMode === SAME_QUESTION_DUEL_MODE) {
+    if (players.length !== 2) {
+      return {
+        ok: false,
+        message: 'Aynı Soru ile Kapış tam olarak 2 oyuncu gerektirir.',
+        reason: 'same_question_duel_requires_two_players',
+        neededCount,
+        availableCount: sharedDeck.length,
+      };
+    }
+    const openingCards = sharedDeck.slice(0, 2).map((question) => ({
+      id: question.id,
+      year: question.year,
+      question: question.question,
+      type: question.type,
+      media_url: question.media_url,
+    }));
+    const firstQuestion = sharedDeck[2];
+    const usedQuestionIds = [...openingCards.map((card) => card.id), firstQuestion.id];
+    return {
+      ok: true,
+      playersWithCards: players.map((player) => ({
+        ...player,
+        ready: true,
+        claimed_count: 0,
+        cards: openingCards.map((card) => ({ ...card })),
+      })),
+      firstQuestion,
+      usedQuestionIds,
+      onlineQuestionDeck: sharedDeck,
+      onlineDeckMeta: {
+        source: 'same_question_duel_server_shared_deck_v1',
+        selectedCategoryIds: [],
+        queriedMainCategoryIds: getQueryMainCategoryIdsForSettings(settings, activeMainCategoryIds),
+        deckQuestionCount: sharedDeck.length,
+        sharedOpeningCardCount: 2,
+        targetClaims: SAME_QUESTION_DUEL_TARGET,
+        exactlyTwoPlayers: true,
+        firstCorrectBackendClaim: true,
+        allCategoriesRandom: true,
+        soloPreferenceWeightingApplied: false,
+        guestSoloPathUsed: false,
+        jokerHintEnabled: false,
+        difficultyRule: ONLINE_GAME_POLICY.difficultyRule,
+        categorySourceOfTruth: ONLINE_GAME_POLICY.categorySourceOfTruth,
+        createdAt: new Date().toISOString(),
+      },
+      duelSequence: 1,
       neededCount,
       availableCount: sharedDeck.length,
     };
@@ -740,6 +823,11 @@ Deno.serve(async (req) => {
     const participantState = await reconcileAcceptedInvitePlayers(base44, lockedLobby);
     const startLobby = participantState.lobby || lockedLobby;
     const players = Array.isArray(participantState.players) ? participantState.players : [];
+    const gameMode = String(startLobby?.game_mode || 'random_online');
+
+    if (gameMode === SAME_QUESTION_DUEL_MODE && players.length !== 2) {
+      return json({ error: 'Aynı Soru ile Kapış tam olarak 2 oyuncu gerektirir.', code: 'same_question_duel_requires_two_players' }, 400);
+    }
 
     if (players.length < 2) {
       return json({ error: 'Oyun baslatmak icin en az 2 oyuncu gerekli' }, 400);
@@ -750,7 +838,10 @@ Deno.serve(async (req) => {
     // year window, turn duration, win-card count) is sourced from the
     // persisted lobby row only. Old callers that still send settings are
     // silently ignored — RLS already prevents non-host writes elsewhere.
-    const settings = normalizeSettings(startLobby, {});
+    const settings = {
+      ...normalizeSettings(startLobby, {}),
+      ...(gameMode === SAME_QUESTION_DUEL_MODE ? { win_card_count: SAME_QUESTION_DUEL_TARGET, turn_duration: 0 } : {}),
+    };
     const activeMainCategoryIds = await loadActiveMainCategoryIds(base44);
     const queryMainCategoryIds = getQueryMainCategoryIdsForSettings(settings, activeMainCategoryIds);
     const questions = queryMainCategoryIds.length > 0
@@ -761,7 +852,8 @@ Deno.serve(async (req) => {
       questions: questions || [],
       settings,
       activeMainCategoryIds,
-      seed: `${startLobby.public_ref || rowId(startLobby)}:${readRevision(startLobby.state_revision)}:all-active-random`,
+      seed: `${startLobby.public_ref || rowId(startLobby)}:${readRevision(startLobby.state_revision)}:${gameMode}:all-active-random`,
+      gameMode,
     });
 
     if (!initialState.ok) {
@@ -784,6 +876,7 @@ Deno.serve(async (req) => {
     const currentRevision = readRevision(startLobby.state_revision);
     const updateData = {
       ...settings,
+      game_mode: gameMode,
       status: 'starting',
       current_question_id: initialState.firstQuestion.id,
       used_question_ids: initialState.usedQuestionIds,
@@ -791,6 +884,12 @@ Deno.serve(async (req) => {
       online_deck_meta: initialState.onlineDeckMeta,
       current_player_index: 0,
       players: initialState.playersWithCards,
+      ...(gameMode === SAME_QUESTION_DUEL_MODE ? {
+        duel_sequence: initialState.duelSequence,
+        duel_round_attempts: [],
+        duel_processed_operation_keys: [],
+        recent_claim: null,
+      } : {}),
       winner: null,
       winner_email: null,
       winner_actor_key_hash: null,

@@ -48,7 +48,9 @@ const displayNameOf = (player) => {
   return at > 0 ? email.slice(0, at) : (email || 'Oyuncu');
 };
 
-const scoreOf = (player) => (Array.isArray(player?.cards) ? player.cards.length : 0);
+const scoreOf = (player) => Number.isFinite(Number(player?.claimed_count))
+  ? Math.max(0, Math.trunc(Number(player.claimed_count)))
+  : (Array.isArray(player?.cards) ? player.cards.length : 0);
 
 export default function OnlineScoreboard({
   players = [],
@@ -79,7 +81,7 @@ export default function OnlineScoreboard({
 
         return (
           <motion.div
-            key={player?.email || `idx-${idx}`}
+            key={player?.participant_ref || `idx-${idx}`}
             className="relative flex-1 min-w-0 max-w-[140px] rounded-2xl px-2 py-1.5"
             animate={
               isActive && !reducedMotion

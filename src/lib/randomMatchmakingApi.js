@@ -23,6 +23,6 @@ async function invoke(action, extra = {}) {
   return data;
 }
 
-export const joinRandomMatchmaking = () => invoke('join');
-export const pollRandomMatchmaking = () => invoke('poll');
-export const cancelRandomMatchmaking = () => invoke('cancel');
+export const joinRandomMatchmaking = (mode = 'random_online') => invoke('join', { mode });
+export const pollRandomMatchmaking = (mode = 'random_online') => invoke('poll', { mode });
+export const cancelRandomMatchmaking = (mode = 'random_online') => invoke('cancel', { mode });

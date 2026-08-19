@@ -1,47 +1,58 @@
 {
   "name": "Lobby",
   "type": "object",
+  "description": "Backend-authoritative Online lobby and match state. Standard Online and same_question_duel share this entity while mode-specific fields remain additive and private unless explicitly sanitized by lobby functions.",
   "properties": {
     "public_ref": {
       "type": "string",
-      "description": "Opaque client-safe lobby reference. Backend functions resolve it to the Base44 row id; raw entity ids are not returned by public lobby DTOs."
+      "description": "Opaque client-safe lobby reference."
     },
     "code": {
       "type": "string",
-      "description": "6-character unique lobby code"
+      "description": "Six-character compatibility lobby code."
+    },
+    "game_mode": {
+      "type": "string",
+      "enum": [
+        "random_online",
+        "same_question_duel"
+      ],
+      "default": "random_online",
+      "description": "Online mode. same_question_duel is random-opponent, exactly two-player V1."
     },
     "host_email": {
       "type": "string",
-      "description": "Private backend-only email of a linked host. Empty for guests and never returned in public lobby DTOs."
+      "description": "Private backend-only linked host email."
     },
     "host_actor_key_hash": {
       "type": "string",
-      "description": "Private backend actor ownership key for linked or token-proven guest hosts. Never returned to clients."
+      "description": "Private backend host actor key."
     },
     "host_kronox_user_id": {
       "type": "string",
-      "description": "Immutable Kronox ID of the lobby host when available. Durable backend reference; email remains for legacy RLS and compatibility."
+      "description": "Private immutable host reference."
     },
     "host_name": {
       "type": "string",
-      "description": "Display name of the host"
+      "description": "Public username snapshot for the host."
     },
     "players": {
       "type": "array",
+      "description": "Embedded authoritative participant state.",
       "items": {
         "type": "object",
         "properties": {
           "email": {
             "type": "string",
-            "description": "Private linked-player routing field. Empty for guests and stripped from every client lobby DTO."
+            "description": "Private linked-player routing field."
           },
           "actor_key_hash": {
             "type": "string",
-            "description": "Private backend participant ownership key. Never returned to clients."
+            "description": "Private participant authority key."
           },
           "participant_ref": {
             "type": "string",
-            "description": "Random opaque participant reference returned to authorized lobby clients for turn/winner correlation. It grants no authority by itself."
+            "description": "Opaque public participant reference."
           },
           "player_type": {
             "type": "string",
@@ -52,10 +63,11 @@
           },
           "kronox_user_id": {
             "type": "string",
-            "description": "Immutable Kronox ID of this player when available. Used for durable backend identity; UI still shows name/username."
+            "description": "Private immutable participant reference."
           },
           "name": {
-            "type": "string"
+            "type": "string",
+            "description": "Public username snapshot."
           },
           "avatar_type": {
             "type": "string",
@@ -63,23 +75,24 @@
               "",
               "icon",
               "photo"
-            ],
-            "description": "Safe public avatar kind copied from the player profile for waiting-room display."
+            ]
           },
           "avatar_icon_id": {
-            "type": "string",
-            "description": "Bundled app-local avatar icon id copied from the player profile."
+            "type": "string"
           },
           "avatar_url": {
-            "type": "string",
-            "description": "Safe HTTPS uploaded avatar photo URL copied from the player profile. No raw guest id/provider id/storage metadata."
+            "type": "string"
           },
           "avatar_color_id": {
-            "type": "string",
-            "description": "Safe avatar color/style token copied from the player profile."
+            "type": "string"
           },
           "ready": {
             "type": "boolean"
+          },
+          "claimed_count": {
+            "type": "number",
+            "minimum": 0,
+            "description": "same_question_duel cards claimed through backend-confirmed first-correct arbitration. Opening anchors do not count."
           },
           "cards": {
             "type": "array",
@@ -105,8 +118,7 @@
             }
           }
         }
-      },
-      "description": "List of players in the lobby"
+      }
     },
     "status": {
       "type": "string",
@@ -122,31 +134,69 @@
     },
     "winner": {
       "type": "string",
-      "description": "Name of the winning player"
+      "description": "Sanitized winner username."
     },
     "winner_email": {
       "type": "string",
-      "description": "Email of the winning player, written with status=finished for local win/loss perspective."
+      "description": "Private backend winner routing field."
     },
     "winner_kronox_user_id": {
       "type": "string",
-      "description": "Immutable Kronox ID of the winning player when available. Not displayed in public UI."
+      "description": "Private immutable winner reference."
     },
     "winner_actor_key_hash": {
       "type": "string",
-      "description": "Private backend actor key of the server-validated winner. Never returned to clients."
+      "description": "Private authoritative winner actor key."
     },
     "winner_participant_ref": {
       "type": "string",
-      "description": "Opaque participant reference of the winner used by authorized clients without exposing email or internal actor keys."
+      "description": "Opaque public winner reference."
     },
     "state_revision": {
       "type": "number",
-      "description": "Monotonic multiplayer state revision used by sync/merge guards."
+      "description": "Monotonic multiplayer state revision."
     },
     "last_operation_key": {
       "type": "string",
-      "description": "Private backend idempotency key for the most recently committed lobby mutation. Never returned by public lobby DTOs."
+      "description": "Latest private mutation idempotency key."
+    },
+    "duel_processed_operation_keys": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Bounded private idempotency window for same-question submissions."
+    },
+    "duel_sequence": {
+      "type": "number",
+      "minimum": 1,
+      "description": "Current same-question shared-card sequence."
+    },
+    "duel_round_attempts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Private actor keys that already answered the current duel card incorrectly."
+    },
+    "recent_claim": {
+      "type": "object",
+      "description": "Safe claim event state; backend DTO personalizes claimed_by_self and never returns private actor keys.",
+      "properties": {
+        "participant_ref": {
+          "type": "string"
+        },
+        "sequence_id": {
+          "type": "number"
+        },
+        "claimed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "skipped": {
+          "type": "boolean"
+        }
+      }
     },
     "category": {
       "type": "string",
@@ -158,14 +208,14 @@
         "sanat"
       ],
       "default": "karisik",
-      "description": "Legacy single-category field. Kept for backward compatibility with old lobbies. New lobbies should prefer selected_category_ids (Codex091)."
+      "description": "Legacy compatibility field."
     },
     "selected_category_ids": {
       "type": "array",
       "items": {
         "type": "number"
       },
-      "description": "Current Online category ids selected by the host. Values are live Category.category_id numbers from current category metadata. startLobbyGame requires at least one valid active selected id and does not fall back to legacy category names or stale hardcoded category arrays."
+      "description": "Legacy compatibility field; current Online uses all active categories."
     },
     "year_start": {
       "type": "number",
@@ -177,32 +227,29 @@
     },
     "turn_duration": {
       "type": "number",
-      "default": 60,
-      "description": "Seconds per turn"
+      "default": 60
     },
     "win_card_count": {
       "type": "number",
-      "default": 10,
-      "description": "Number of cards needed to win"
+      "default": 10
     },
     "current_player_index": {
       "type": "number",
-      "default": 0,
-      "description": "Index of the player whose turn it is"
+      "default": 0
     },
     "current_question_id": {
       "type": "string",
-      "description": "ID of the current question shown to all players"
+      "description": "Current server-authored shared question id."
     },
     "used_question_ids": {
       "type": "array",
       "items": {
         "type": "string"
-      },
-      "description": "List of already used question IDs"
+      }
     },
     "online_question_deck": {
       "type": "array",
+      "description": "Private bounded server-authored Online deck. same_question_duel public snapshots expose only the active shared card.",
       "items": {
         "type": "object",
         "properties": {
@@ -228,53 +275,50 @@
             "type": "number"
           }
         }
-      },
-      "description": "Authoritative bounded Online question deck created by startLobbyGame. All participants read this shared deck/order; Online must not hydrate from Solo getQuestions buffers."
+      }
     },
     "online_deck_meta": {
       "type": "object",
-      "description": "Safe Online deck metadata: source marker, selected category ids, deck size, category counts, difficulty counts, and readiness flags. No full bank/admin diagnostics."
+      "description": "Safe bounded deck metadata without full-bank content."
     },
     "max_players": {
       "type": "number",
-      "description": "Intended total number of players for this lobby (2, 3 or 4). Informational metadata."
+      "description": "Standard Online supports 2-4; same_question_duel requires exactly 2."
     },
     "invited_emails": {
       "type": "array",
       "items": {
         "type": "string"
       },
-      "description": "Lowercased emails of friends invited by the host at creation time."
+      "description": "Private invitation compatibility field."
     },
     "started_at": {
       "type": "string",
-      "format": "date-time",
-      "description": "ISO timestamp when the lobby transitions into active gameplay."
+      "format": "date-time"
     },
     "completed_at": {
       "type": "string",
-      "format": "date-time",
-      "description": "ISO timestamp when the lobby/game is completed."
+      "format": "date-time"
     },
     "cancelled_at": {
       "type": "string",
-      "format": "date-time",
-      "description": "ISO timestamp when a waiting lobby is cancelled/stale-retained."
+      "format": "date-time"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
     },
     "last_activity_at": {
       "type": "string",
-      "format": "date-time",
-      "description": "ISO timestamp for lobby activity/cleanup decisions. Existing rows may rely on updated_date fallback."
+      "format": "date-time"
     },
     "expires_at": {
       "type": "string",
-      "format": "date-time",
-      "description": "Optional stale-waiting expiry timestamp. Cleanup helpers mark stale waiting lobbies instead of deleting them."
+      "format": "date-time"
     },
     "description": {
       "type": "string",
-      "maxLength": 1000,
-      "description": "Optional free-text description for this lobby (up to 1000 characters)."
+      "maxLength": 1000
     }
   },
   "required": [

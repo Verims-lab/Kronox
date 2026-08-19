@@ -1,15 +1,15 @@
 {
   "name": "EconomyOperationLock",
   "type": "object",
-  "description": "Short-lived backend-owned guard for player economy mutations. Public UI and exports must never expose actor_key or lock_key.",
+  "description": "Short-lived backend-owned guard for economy, Daily, matchmaking, and Lobby mutations. Public UI and exports never expose actor_key or lock_key.",
   "properties": {
     "lock_key": {
       "type": "string",
-      "description": "Internal per-player lock key."
+      "description": "Internal deterministic operation lock key."
     },
     "actor_key": {
       "type": "string",
-      "description": "Internal normalized economy actor key. Never public."
+      "description": "Private normalized actor key."
     },
     "operation_scope": {
       "type": "string",
@@ -24,6 +24,7 @@
         "daily_quest_claim",
         "daily_calendar_assignment",
         "online_match_result",
+        "random_matchmaking_pair",
         "lobby_create",
         "lobby_join",
         "lobby_leave",
@@ -31,11 +32,10 @@
         "lobby_turn",
         "admin_diamond_grant"
       ],
-      "description": "Guarded operation type."
+      "description": "Guarded backend operation type. same_question_duel arbitration reuses lobby_turn."
     },
     "operation_id": {
-      "type": "string",
-      "description": "Debug-safe operation id."
+      "type": "string"
     },
     "status": {
       "type": "string",
@@ -43,8 +43,7 @@
         "active",
         "released",
         "stale"
-      ],
-      "description": "Lock lifecycle."
+      ]
     },
     "acquired_at": {
       "type": "string",
@@ -60,12 +59,11 @@
     },
     "metadata": {
       "type": "object",
-      "description": "Debug-safe metadata without secrets or private/public identity payloads."
+      "description": "Debug-safe metadata without secrets or identity payloads."
     },
     "description": {
       "type": "string",
-      "maxLength": 1000,
-      "description": "Optional admin/audit note."
+      "maxLength": 1000
     }
   },
   "required": [

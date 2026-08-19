@@ -24,6 +24,7 @@ const MarketPage = lazyWithRetry(() => import('./pages/MarketPage'), 'MarketPage
 const DailyPage = lazyWithRetry(() => import('./pages/DailyPage'), 'DailyPage');
 const SoloChallenge = lazyWithRetry(() => import('./pages/SoloChallenge'), 'SoloChallenge');
 const Game = lazyWithRetry(() => import('./pages/Game'), 'Game');
+const SameQuestionDuelPage = lazyWithRetry(() => import('./pages/SameQuestionDuelPage'), 'SameQuestionDuelPage');
 const LobbyRoom = lazyWithRetry(() => import('./pages/LobbyRoom'), 'LobbyRoom');
 const SettingsPage = lazyWithRetry(() => import('./pages/SettingsPage'), 'SettingsPage');
 const ProfilePage = lazyWithRetry(() => import('./pages/ProfilePage'), 'ProfilePage');
@@ -208,6 +209,7 @@ const AuthenticatedApp = () => {
             <Route path="/Game" element={<Navigate to="/solo" replace />} />
             <Route path="/setup" element={<Navigate to="/solo" replace />} />
             <Route path="/game" element={<Game />} />
+            <Route path="/duel" element={<SameQuestionDuelPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/profile/edit" element={<ProfileEditPage />} />

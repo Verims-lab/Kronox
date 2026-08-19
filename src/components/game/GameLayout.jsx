@@ -181,6 +181,9 @@ export default function GameLayout({
   isMyTurn,
   isOnline,
   myEmail,
+  onlineModeLabel = '',
+  onlineReadOnlyLabel = '',
+  onlineReadOnlyMessage = '',
   feedback,
   winner,
   turnDuration,
@@ -534,12 +537,18 @@ export default function GameLayout({
       {isOnline ? (
         currentQuestion && !winner ? (
           <div className="flex-shrink-0 flex items-center justify-center pb-1">
-            <OnlineTurnIndicator
-              isMyTurn={!!isMyTurn}
-              currentPlayerName={currentPlayer?.name}
-              currentPlayerIndex={currentPlayerIndex}
-              hasWinner={!!winner}
-            />
+            onlineModeLabel ? (
+              <p className="rounded-full border border-cyan-300/25 bg-cyan-400/5 px-3 py-1 font-inter text-[11px] font-bold text-cyan-100">
+                {onlineModeLabel}
+              </p>
+            ) : (
+              <OnlineTurnIndicator
+                isMyTurn={!!isMyTurn}
+                currentPlayerName={currentPlayer?.name}
+                currentPlayerIndex={currentPlayerIndex}
+                hasWinner={!!winner}
+              />
+            )
           </div>
         ) : null
       ) : (
@@ -641,7 +650,7 @@ export default function GameLayout({
                 onAudioError={onAudioError}
                 draggable={isMyTurn && !feedback && !interactionPaused}
                 readOnly={!isMyTurn || interactionPaused}
-                readOnlyLabel={isSpectatingQuestion ? 'İZLEME MODU' : 'KİLİTLİ'}
+                readOnlyLabel={onlineReadOnlyLabel || (isSpectatingQuestion ? 'İZLEME MODU' : 'KİLİTLİ')}
                 onDragStart={isMyTurn && !interactionPaused ? onDragStart : undefined}
                 onDragEnd={isMyTurn && !interactionPaused ? onDragEnd : undefined}
                 onTouchDragMove={isMyTurn && !interactionPaused ? onTouchDragMove : undefined}
@@ -664,7 +673,7 @@ export default function GameLayout({
                     pointerEvents: 'none',
                   }}
                 >
-                  Kartı yalnızca {currentPlayer?.name || 'aktif oyuncu'} yerleştirebilir.
+                  {onlineReadOnlyMessage || `Kartı yalnızca ${currentPlayer?.name || 'aktif oyuncu'} yerleştirebilir.`}
                 </div>
               )}
             </motion.div>
@@ -776,7 +785,7 @@ export default function GameLayout({
               boxShadow: '0 0 18px rgba(250,204,21,0.08)',
             }}
           >
-            Sıra {currentPlayer?.name || 'oyuncu'} oyuncusunda. Yerleştirme kilitli.
+            {onlineReadOnlyMessage || `Sıra ${currentPlayer?.name || 'oyuncu'} oyuncusunda. Yerleştirme kilitli.`}
           </div>
         </div>
       ) : (

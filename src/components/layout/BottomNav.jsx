@@ -23,7 +23,7 @@ const TABS = [
 // route alone. /lobby is NOT here anymore because its visibility depends on
 // the in-page mode/state (see lib/bottomNavVisibility.js). LobbyRoom toggles
 // the runtime override when entering create/join/waiting sub-flows.
-const HIDDEN_ROUTES = ['/game'];
+const HIDDEN_ROUTES = ['/game', '/duel'];
 
 export default function BottomNav() {
   const location = useLocation();

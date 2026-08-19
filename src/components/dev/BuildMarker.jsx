@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex624 — Same Question Duel V1: mode-scoped two-player random matchmaking, identical server-authored opening context/shared card sequence, backend first-correct idempotent claims, first-to-10 result, focused gameplay UI, Health, and docs; existing Online and +15/-6 scoring remain unchanged.
 // Codex623 — Zero KRONOX-MSZSZ4YL source blockers: exact-pin package.json/package-lock/Base44 SDK 0.8.34, remove BottomNav's optimistic switchTab setter while preserving route-root re-tap, and retarget source-connected Health/docs. No gameplay, scoring, economy, DB, Online, Daily, or visible BottomNav contract changes.
 // Codex622 — Close KRONOX-MSZSJKQA Base44-owned Health blockers with source-connected Admin dry-run proof, immediate Wheel Diamond propagation proof, VAPID/Admin/current-contract docs, BottomNav root re-tap, and blocked Data Hygiene execution; no package/backend/product-rule changes.
 // Codex621 — Remove the static Admin Release Readiness panel, preserve B1/B3, and retarget release gating to active HealthCenter packs plus canonical manual/external proof docs without product/backend behavior changes.
@@ -201,7 +202,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex623';
+const BUILD_MARKER = 'Codex624';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

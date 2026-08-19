@@ -1,15 +1,24 @@
 {
   "name": "RandomMatchQueue",
   "type": "object",
-  "description": "Codex591 \u2014 Online Kap\u0131\u015fma random matchmaking queue. One row per active queue attempt for a linked or guest actor. Backend-owned (randomMatchmaking function); public responses only ever return the opaque queue_ref and a matched lobby's public_ref/code, never actor_key_hash or any other actor's identity.",
+  "description": "Backend-owned Online random matchmaking queue. Queue rows are isolated by mode; public responses expose only opaque queue/lobby references and never private actor identity.",
   "properties": {
     "queue_ref": {
       "type": "string",
-      "description": "Opaque client-facing queue reference returned to the owning actor. Never derived from actor_key_hash."
+      "description": "Opaque client-facing queue reference."
     },
     "actor_key_hash": {
       "type": "string",
-      "description": "Private backend owner key for the linked or guest actor holding this queue row. Never returned to clients."
+      "description": "Private backend actor key. Never public."
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "random_online",
+        "same_question_duel"
+      ],
+      "default": "random_online",
+      "description": "Mode-scoped queue lane. Legacy missing values normalize to random_online."
     },
     "player_type": {
       "type": "string",
@@ -21,7 +30,7 @@
     },
     "kronox_user_id": {
       "type": "string",
-      "description": "Immutable Kronox ID of the queued actor when available. Admin/audit only; never returned publicly."
+      "description": "Private immutable player reference when available."
     },
     "status": {
       "type": "string",
@@ -31,59 +40,53 @@
         "cancelled",
         "expired"
       ],
-      "default": "waiting",
-      "description": "Queue lifecycle. waiting = searching for an opponent; matched = paired into a Lobby; cancelled = actor cancelled; expired = 30s search window elapsed with no match."
+      "default": "waiting"
     },
     "lobby_id": {
       "type": "string",
-      "description": "Private internal Lobby row id once matched. Never returned to clients \u2014 only lobby_public_ref is."
+      "description": "Private internal Lobby row id."
     },
     "lobby_public_ref": {
       "type": "string",
-      "description": "Public-safe Lobby.public_ref once matched. Safe to return to the owning actor so they can fetch the lobby snapshot."
+      "description": "Opaque matched Lobby public_ref."
     },
     "lobby_code": {
       "type": "string",
-      "description": "Backup Lobby code once matched. Not the primary UX; kept for compatibility with existing lobby lookup paths."
+      "description": "Compatibility lobby code; not primary matchmaking UI."
     },
     "is_host": {
       "type": "boolean",
-      "default": false,
-      "description": "Whether this queue row's actor is the designated host of the matched Lobby (the actor who performed the pairing) and is responsible for calling startLobbyGame."
+      "default": false
     },
     "paired_actor_key_hash": {
       "type": "string",
-      "description": "Private backend key of the paired opponent once matched. Never returned to clients."
+      "description": "Private paired actor key. Never public."
     },
     "created_at": {
       "type": "string",
-      "format": "date-time",
-      "description": "ISO timestamp when this queue attempt started."
+      "format": "date-time"
     },
     "expires_at": {
       "type": "string",
-      "format": "date-time",
-      "description": "ISO timestamp for the 30-second random matchmaking search window."
+      "format": "date-time"
     },
     "matched_at": {
       "type": "string",
-      "format": "date-time",
-      "description": "ISO timestamp when this row was paired into a Lobby."
+      "format": "date-time"
     },
     "cancelled_at": {
       "type": "string",
-      "format": "date-time",
-      "description": "ISO timestamp when the actor cancelled this queue attempt."
+      "format": "date-time"
     },
     "description": {
       "type": "string",
-      "maxLength": 1000,
-      "description": "Optional free-text description for this random matchmaking queue row (up to 1000 characters)."
+      "maxLength": 1000
     }
   },
   "required": [
     "queue_ref",
     "actor_key_hash",
+    "mode",
     "player_type",
     "status",
     "created_at"

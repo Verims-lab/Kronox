@@ -9,6 +9,14 @@ import { jsonResponse as json, bytesToBase64Url, hashGuestToken } from '../../sh
 
 const RANDOM_MATCH_TIMEOUT_MS = 30 * 1000;
 const PAIR_LOCK_TTL_MS = 8 * 1000;
+const STANDARD_RANDOM_MODE = 'random_online';
+const SAME_QUESTION_DUEL_MODE = 'same_question_duel';
+const MATCHMAKING_MODES = new Set([STANDARD_RANDOM_MODE, SAME_QUESTION_DUEL_MODE]);
+
+const normalizeMode = (value: unknown) => {
+  const mode = String(value || STANDARD_RANDOM_MODE).trim().toLowerCase();
+  return MATCHMAKING_MODES.has(mode) ? mode : STANDARD_RANDOM_MODE;
+};
 const KRONOX_ID_PATTERN = /^KX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
 
 const normalizeEmail = (value: unknown) => String(value ?? '').trim().toLowerCase();
@@ -106,6 +114,7 @@ const isExpired = (row: any, nowMs: number) => {
 
 const publicQueueState = (row: any) => ({
   queueRef: row?.queue_ref || '',
+  mode: normalizeMode(row?.mode),
   status: row?.status || 'waiting',
   expiresAt: row?.expires_at || null,
   matched: row?.status === 'matched',
@@ -117,9 +126,9 @@ const publicQueueState = (row: any) => ({
 // Global pairing lock so two simultaneous "join" calls never claim the same
 // waiting row. Volume for random matchmaking is expected to be low, so a
 // single serialized critical section is a safe, simple correctness guard.
-async function withPairingLock(base44: any, fn: () => Promise<any>) {
+async function withPairingLock(base44: any, mode: string, fn: () => Promise<any>) {
   const entity = base44.asServiceRole.entities.EconomyOperationLock;
-  const lockKey = 'random_matchmaking:pair';
+  const lockKey = `random_matchmaking:pair:${mode}`;
   for (let attempt = 0; attempt < 6; attempt += 1) {
     const now = new Date();
     const active = await entity.filter({ lock_key: lockKey }, 'acquired_at', 10).catch(() => []);
@@ -155,19 +164,20 @@ async function withPairingLock(base44: any, fn: () => Promise<any>) {
   throw new Error('random_matchmaking_lock_unavailable');
 }
 
-async function findOwnActiveRow(base44: any, actorKeyHash: string) {
+async function findOwnActiveRow(base44: any, actorKeyHash: string, mode: string) {
   const rows = await base44.asServiceRole.entities.RandomMatchQueue
-    .filter({ actor_key_hash: actorKeyHash }, '-created_at', 5)
+    .filter({ actor_key_hash: actorKeyHash }, '-created_at', 20)
     .catch(() => []);
-  return (rows || []).find((row: any) => row.status === 'waiting' || row.status === 'matched') || null;
+  return (rows || []).find((row: any) =>
+    normalizeMode(row?.mode) === mode && (row.status === 'waiting' || row.status === 'matched')) || null;
 }
 
-async function handleJoin(base44: any, actor: any) {
+async function handleJoin(base44: any, actor: any, mode: string) {
   const nowMs = Date.now();
 
   // Idempotent: if the actor already has an active (waiting/matched) row,
   // return it instead of creating a duplicate queue entry.
-  const existing = await findOwnActiveRow(base44, actor.actorKeyHash);
+  const existing = await findOwnActiveRow(base44, actor.actorKeyHash, mode);
   if (existing && !isExpired(existing, nowMs)) {
     return json({ ok: true, ...publicQueueState(existing) });
   }
@@ -175,19 +185,22 @@ async function handleJoin(base44: any, actor: any) {
     await base44.asServiceRole.entities.RandomMatchQueue.update(rowId(existing), { status: 'expired' }).catch(() => null);
   }
 
-  return withPairingLock(base44, async () => {
+  return withPairingLock(base44, mode, async () => {
     // Look for another actor's fresh waiting row.
     const waitingRows = await base44.asServiceRole.entities.RandomMatchQueue
       .filter({ status: 'waiting' }, 'created_at', 50)
       .catch(() => []);
     const candidate = (waitingRows || []).find((row: any) =>
-      String(row?.actor_key_hash || '') !== actor.actorKeyHash && !isExpired(row, Date.now()));
+      normalizeMode(row?.mode) === mode &&
+      String(row?.actor_key_hash || '') !== actor.actorKeyHash &&
+      !isExpired(row, Date.now()));
 
     if (!candidate) {
       const createdAt = new Date();
       const created = await base44.asServiceRole.entities.RandomMatchQueue.create({
         queue_ref: randomRef('rmq'),
         actor_key_hash: actor.actorKeyHash,
+        mode,
         player_type: actor.playerType,
         kronox_user_id: actor.kronoxUserId || undefined,
         status: 'waiting',
@@ -205,6 +218,7 @@ async function handleJoin(base44: any, actor: any) {
       const created = await base44.asServiceRole.entities.RandomMatchQueue.create({
         queue_ref: randomRef('rmq'),
         actor_key_hash: actor.actorKeyHash,
+        mode,
         player_type: actor.playerType,
         kronox_user_id: actor.kronoxUserId || undefined,
         status: 'waiting',
@@ -243,6 +257,7 @@ async function handleJoin(base44: any, actor: any) {
       code,
       host_actor_key_hash: actor.actorKeyHash,
       host_name: actor.username,
+      game_mode: mode,
       players: [selfPlayer, opponentPlayer],
       status: 'waiting',
       selected_category_ids: [],
@@ -266,6 +281,7 @@ async function handleJoin(base44: any, actor: any) {
     const selfRow = await base44.asServiceRole.entities.RandomMatchQueue.create({
       queue_ref: randomRef('rmq'),
       actor_key_hash: actor.actorKeyHash,
+      mode,
       player_type: actor.playerType,
       kronox_user_id: actor.kronoxUserId || undefined,
       status: 'matched',
@@ -283,8 +299,8 @@ async function handleJoin(base44: any, actor: any) {
   });
 }
 
-async function handlePoll(base44: any, actor: any) {
-  const row = await findOwnActiveRow(base44, actor.actorKeyHash);
+async function handlePoll(base44: any, actor: any, mode: string) {
+  const row = await findOwnActiveRow(base44, actor.actorKeyHash, mode);
   if (!row) return json({ ok: true, status: 'timeout', queueRef: '', matched: false });
   if (row.status === 'waiting' && isExpired(row, Date.now())) {
     await base44.asServiceRole.entities.RandomMatchQueue.update(rowId(row), { status: 'expired' }).catch(() => null);
@@ -293,8 +309,8 @@ async function handlePoll(base44: any, actor: any) {
   return json({ ok: true, ...publicQueueState(row) });
 }
 
-async function handleCancel(base44: any, actor: any) {
-  const row = await findOwnActiveRow(base44, actor.actorKeyHash);
+async function handleCancel(base44: any, actor: any, mode: string) {
+  const row = await findOwnActiveRow(base44, actor.actorKeyHash, mode);
   if (!row || row.status !== 'waiting') return json({ ok: true, cancelled: true });
   await base44.asServiceRole.entities.RandomMatchQueue.update(rowId(row), {
     status: 'cancelled',
@@ -308,14 +324,15 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
     const body = await req.json().catch(() => ({}));
     const action = String(body?.action || 'join');
+    const mode = normalizeMode(body?.mode);
 
     const resolved = await resolveOnlineActor(base44, body);
     if (!resolved.ok) return resolved.response;
     const actor = resolved.actor;
 
-    if (action === 'join') return await handleJoin(base44, actor);
-    if (action === 'poll') return await handlePoll(base44, actor);
-    if (action === 'cancel') return await handleCancel(base44, actor);
+    if (action === 'join') return await handleJoin(base44, actor, mode);
+    if (action === 'poll') return await handlePoll(base44, actor, mode);
+    if (action === 'cancel') return await handleCancel(base44, actor, mode);
     return json({ error: 'Geçersiz işlem.' }, 400);
   } catch (error) {
     console.error('[randomMatchmaking] failed:', error);
