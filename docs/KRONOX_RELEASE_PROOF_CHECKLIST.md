@@ -110,6 +110,10 @@ Checklist:
 * User A can start the accepted lobby without a 400.
 * Both users navigate to game.
 * Host and guest see synchronized game state.
+* Opening the app after Testing Agent invite/lobby runs does not replay historical `Davet kabul edildi` rows.
+* Multiple fresh accepts for one lobby collapse into one bounded summary; the global visible toast stack never exceeds four.
+* Explicit test-run markers are suppressed, dismissed/handled acceptance events do not replay after route changes, and notification copy contains username only.
+* Admin Integrity Snapshot reports stale/test-marked/repeated accepted artifacts as a dry-run with bounded fingerprints; it never auto-deletes rows.
 
 ---
 

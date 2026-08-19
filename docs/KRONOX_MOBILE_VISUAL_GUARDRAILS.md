@@ -123,6 +123,8 @@ checks that source code and static Health cannot honestly prove alone.
   user acts, the row reaches a terminal status, the invite expires, or the
   source is confirmed invalid; transient empty refreshes must not collapse the
   visible notification.
+* Terminal lobby-accept notifications must not fill the mobile viewport: historical accepts are not replayed on bootstrap, fresh accepts collapse into one summary per batch/lobby, and the shared visible toast stack is capped at four.
+* Explicit test artifacts and stale accepted rows are suppressed non-destructively; notification text remains username-only and never renders private identifiers.
 * Offline UI is shown only for real offline or failed fetch plus no usable
   cache, not for an empty cache while online.
 

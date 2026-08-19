@@ -829,6 +829,10 @@ After deployment, verify:
 * valid pending friend/game invite notifications survive transient empty
   refreshes and close only on explicit user action, terminal status, expiry, or
   confirmed source invalidation
+* accepted outgoing GameInvite rows are terminal history, not an unbounded notification feed: app bootstrap baselines them without toast replay, fresh accepts are deduped and collapsed per batch/lobby, and the shared toast stack is capped
+* explicit Testing Agent/Health markers are suppressed from the normal acceptance UI; unmarked historical test artifacts are suppressed by accepted-at freshness plus bootstrap baselining, never by destructive KronoxUser-name matching
+* existing accepted-invite artifacts are visible only as bounded fingerprints/counts in the AdminUser-gated Integrity Snapshot dry-run; no automatic delete runs on app open
+* notification rendering remains username-only and never exposes email, owner/player/actor keys, guest proof, provider/auth IDs, internal row IDs, raw errors, or stack traces
 
 ## Account Deletion
 

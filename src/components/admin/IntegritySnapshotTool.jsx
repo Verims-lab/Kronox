@@ -6,6 +6,7 @@ import AdminCollapsibleSection from '@/components/admin/AdminCollapsibleSection'
 import IntegritySnapshotSummary from '@/components/admin/IntegritySnapshotSummary';
 import IntegrityProofSections from '@/components/admin/IntegrityProofSections';
 import IntegrityDuplicateChecks from '@/components/admin/IntegrityDuplicateChecks';
+import NotificationArtifactSummary from '@/components/admin/NotificationArtifactSummary';
 
 export default function IntegritySnapshotTool() {
   const [report, setReport] = useState(null);
@@ -29,7 +30,7 @@ export default function IntegritySnapshotTool() {
       <div className="flex justify-end"><Button size="sm" variant="outline" disabled={loading} onClick={load} aria-label="Bütünlük özetini yenile"><RefreshCw className={loading ? 'animate-spin' : ''} /></Button></div>
       {error && <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs text-red-100">{error}</p>}
       {!report && !error && <p role="status" className="text-xs text-muted-foreground">{loading ? 'Salt okunur rapor hazırlanıyor...' : 'Rapor henüz yüklenmedi.'}</p>}
-      {report && <><IntegritySnapshotSummary report={report} /><IntegrityProofSections snapshot={report.integritySnapshot} /><IntegrityDuplicateChecks checks={report.checks} /></>}
+      {report && <><IntegritySnapshotSummary report={report} /><NotificationArtifactSummary snapshot={report.notificationArtifactSnapshot} /><IntegrityProofSections snapshot={report.integritySnapshot} /><IntegrityDuplicateChecks checks={report.checks} /></>}
     </AdminCollapsibleSection>
   );
 }

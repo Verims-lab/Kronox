@@ -12,6 +12,7 @@ import {
 } from '@/hooks/useNotificationCenter';
 import { traceGameInviteLifecycle } from '@/lib/gameInviteSelectors';
 import { getSafeNotificationActorName } from '@/lib/notificationIdentity';
+import { collapseLobbyAcceptanceNotifications } from '@/lib/lobbyAcceptanceNotifications';
 
 const PERSISTENT_INVITE_TOAST_DURATION = Infinity;
 
@@ -33,6 +34,7 @@ export default function GameInviteNotifier() {
   const hiddenOnGameInviteIdsRef = useRef(new Set());
   const activeToastByInviteIdRef = useRef(new Map());
   const handledAcceptedOutgoingInviteIdsRef = useRef(new Set());
+  const acceptedOutgoingBootstrappedRef = useRef(false);
   const bootstrappedRef = useRef(false);
   const pathnameRef = useRef(location.pathname);
 
@@ -138,6 +140,7 @@ export default function GameInviteNotifier() {
     knownInviteIdsRef.current = new Set();
     hiddenOnGameInviteIdsRef.current = new Set();
     handledAcceptedOutgoingInviteIdsRef.current = new Set();
+    acceptedOutgoingBootstrappedRef.current = false;
     bootstrappedRef.current = false;
   }, [dismissAllInviteToasts, user?.email]);
 
@@ -168,27 +171,46 @@ export default function GameInviteNotifier() {
   }, [center.gameInvites, dismissInviteToast]);
 
   useEffect(() => {
-    (center.acceptedOutgoingInvites || []).forEach((invite) => {
-      if (!invite?.id || handledAcceptedOutgoingInviteIdsRef.current.has(invite.id)) return;
+    if (!center.bootstrapped) return;
+    const rows = center.acceptedOutgoingInvites || [];
+    if (!acceptedOutgoingBootstrappedRef.current) {
+      rows.forEach((invite) => {
+        if (!invite?.id) return;
+        handledAcceptedOutgoingInviteIdsRef.current.add(invite.id);
+        markAcceptedOutgoingInviteHandled(invite.id);
+      });
+      acceptedOutgoingBootstrappedRef.current = true;
+      return;
+    }
+
+    const unseen = rows.filter((invite) => invite?.id && !handledAcceptedOutgoingInviteIdsRef.current.has(invite.id));
+    unseen.forEach((invite) => {
       handledAcceptedOutgoingInviteIdsRef.current.add(invite.id);
       markAcceptedOutgoingInviteHandled(invite.id);
-      if (pathnameRef.current !== '/game' && pathnameRef.current !== '/lobby' && invite.lobby_id) {
-        getLobbySnapshot({ lobbyId: invite.lobby_ref || invite.lobby_id })
-          .then((response) => {
-            const acceptedLobby = response?.data?.lobby;
-            if (acceptedLobby?.id) {
-              navigate('/lobby', { state: { joinedLobby: acceptedLobby } });
-            }
-          })
-          .catch(() => null);
-      }
-      toast({
-        title: 'Davet kabul edildi',
-        description: `${getSafeNotificationActorName(invite.to_name, 'Arkadaşın')} lobiye katıldı.`,
-        duration: 5000,
-      });
     });
-  }, [center.acceptedOutgoingInvites, navigate]);
+    const summary = collapseLobbyAcceptanceNotifications(unseen);
+    if (!summary) return;
+
+    if (summary.sameLobby && pathnameRef.current !== '/game' && pathnameRef.current !== '/lobby' && summary.lobbyRef) {
+      getLobbySnapshot({ lobbyId: summary.lobbyRef })
+        .then((response) => {
+          const acceptedLobby = response?.data?.lobby;
+          if (acceptedLobby?.id) navigate('/lobby', { state: { joinedLobby: acceptedLobby } });
+        })
+        .catch(() => null);
+    }
+
+    const first = summary.rows[0];
+    toast({
+      title: summary.count === 1 ? 'Davet kabul edildi' : `${summary.count} davet kabul edildi`,
+      description: summary.count === 1
+        ? `${getSafeNotificationActorName(first?.to_name, 'Arkadaşın')} lobiye katıldı.`
+        : summary.sameLobby
+          ? `${summary.count} oyuncu lobiye katıldı.`
+          : `${summary.count} oyuncu davetini kabul etti.`,
+      duration: 5000,
+    });
+  }, [center.acceptedOutgoingInvites, center.bootstrapped, navigate]);
 
   return null;
 }

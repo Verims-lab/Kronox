@@ -378,6 +378,11 @@ function effectiveLifecycleStatus(row: any, nowMs: number) {
   return status === 'pending' && Number.isFinite(expiresAt) && expiresAt <= nowMs ? 'expired' : status;
 }
 
+function isExplicitTestingArtifact(row: any) {
+  const source = String(row?.created_source || row?.source || row?.metadata?.source || '').trim().toLowerCase();
+  return row?.is_test === true || source === 'testing_agent' || Boolean(row?.test_run_id || row?.health_run_id || row?.metadata?.test_run_id || row?.metadata?.health_run_id);
+}
+
 async function buildSocialSnapshot(base44: any, actor: any, nowMs: number, includeGameInvites = true) {
   const myEmail = normalizeEmail(actor?.myEmail);
   const actorKeyHash = String(actor?.ownerKeyHash || '').trim();
@@ -519,6 +524,7 @@ async function buildSocialSnapshot(base44: any, actor: any, nowMs: number, inclu
       created_at: row?.created_at || row?.created_date || null,
       accepted_at: row?.accepted_at || null,
       declined_at: row?.declined_at || null,
+      notification_suppressed: isExplicitTestingArtifact(row),
     };
   };
 

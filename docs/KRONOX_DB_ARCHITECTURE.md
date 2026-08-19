@@ -340,6 +340,12 @@ or account data.
 
 `claimLoginBonuses` also exposes the narrow `solo_streak_reward` action so the project stays within the 50-function deploy cap. It accepts no client reward amount, verifies level 7+, milestone 4/5, and the persisted tail of clean Solo `QuestionAttemptEvent` answers for the exact authenticated actor + attempt + level. Receipt verification deduplicates `event_id`, treats Joker/Hint/streak-assisted correct rows as neutral, and stops on a wrong or unprovable row. The client retries only bounded receipt-propagation/lock-contention failures. The backend writes one `DiamondTransaction.source = solo_streak` under `EconomyOperationLock.operation_scope = solo_streak_reward`. The response contains no transaction/internal actor IDs and carries explicit no-Puan/no-Leaderboard/no-Daily impact markers. Levels 1-6 never enter this economy path. Guest claims are blocked because guest QuestionAttemptEvent reward receipts are not yet persisted through an equivalent backend-owned source; guest/training HUD feedback uses non-reward copy.
 
+### Notification replay and test-artifact boundary
+
+Accepted outgoing `GameInvite` rows remain terminal lifecycle history, but they are not a persistent user-facing feed. The notification center accepts only fresh, non-suppressed acceptance DTOs; explicit `testing_agent` / test-run metadata becomes a boolean suppression marker without exposing the marker or private row fields. `GameInviteNotifier` baselines terminal rows on first bootstrap, dedupes by public invite ref, collapses same-batch/same-lobby accepts, and emits at most one acceptance toast per refresh batch. The shared toast viewport is capped at four.
+
+Existing artifacts are suppressed non-destructively. The AdminUser-gated `adminDuplicateKeyReport` Integrity Snapshot includes a dry-run/read-only `notificationArtifactSnapshot` with bounded counts and irreversible fingerprints for stale, explicitly test-marked, or repeated accepted rows. No username-only heuristic authorizes deletion, and no automatic destructive cleanup runs on app open. Real pending invite actionability, guest support, lobby authority, Online scoring, and lobby participant updates remain unchanged.
+
 ## 3. Current Risks
 
 ### P0/P1 Data Risks

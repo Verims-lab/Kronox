@@ -12,6 +12,7 @@ import {
   NOTIFICATION_ROW_TYPES,
 } from '@/lib/notificationReducer';
 import { normalizeEmail, traceGameInviteLifecycle } from '@/lib/gameInviteSelectors';
+import { isLobbyAcceptanceNotificationEligible } from '@/lib/lobbyAcceptanceNotifications';
 
 const POLL_INTERVAL_MS = 20000;
 const REFRESH_DEBOUNCE_MS = 250;
@@ -74,7 +75,7 @@ async function fetchNotificationCenter({ preserveExisting = true, source = 'fetc
     const friendRows = Array.isArray(snapshot?.incomingFriendRequests) ? snapshot.incomingFriendRequests : [];
     const gameInviteRows = Array.isArray(snapshot?.incomingGameInvites) ? snapshot.incomingGameInvites : [];
     const acceptedOutgoingInvites = (Array.isArray(snapshot?.outgoingGameInvites) ? snapshot.outgoingGameInvites : [])
-      .filter((invite) => invite?.status === 'accepted');
+      .filter((invite) => isLobbyAcceptanceNotificationEligible(invite));
     const now = Date.now();
     updateState((prev) => {
       if (prev.email !== email) return prev;

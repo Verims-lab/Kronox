@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex616 — Notification flood hardening: suppress historical/explicit test invite accept replays, collapse fresh lobby accepts into one bounded toast, cap the global toast stack, and add Admin dry-run plus Health coverage without changing Online authority or scoring.
 // Codex615 — Friends reliability: load the Friends snapshot without unrelated game-invite hydration, resolve leaderboard projection usernames to registered users server-side, and report unlinked guest identities honestly; privacy and authorization remain unchanged.
 // Codex614 — Restore deployed page-name compatibility for /TestSuite and /AdminPage by redirecting them to the existing guarded canonical routes; Health packs, admin authorization, and product behavior are unchanged.
 // Codex613 — Solo Level 1 guest bootstrap: preserve distinct-year coverage before capping the guest question candidate buffer and version the local cache key so stale narrow samples cannot block gameplay; scoring and rewards are unchanged.
@@ -193,7 +194,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex615';
+const BUILD_MARKER = 'Codex616';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

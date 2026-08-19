@@ -1,7 +1,7 @@
 // Inspired by react-hot-toast library
 import { useState, useEffect } from "react";
 
-const TOAST_LIMIT = 20;
+const TOAST_LIMIT = 4;
 const TOAST_REMOVE_DELAY = 350;
 const DEFAULT_TOAST_DURATION = 6000;
 

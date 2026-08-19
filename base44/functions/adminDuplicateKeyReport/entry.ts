@@ -164,6 +164,36 @@ function buildDailySnapshot(windows, checks, serverDay) {
   };
 }
 
+function buildNotificationArtifactSnapshot(rows) {
+  const now = Date.now();
+  const accepted = (Array.isArray(rows) ? rows : []).filter((row) => String(row?.status || '') === 'accepted');
+  const explicitTest = accepted.filter((row) => {
+    const source = String(row?.created_source || row?.source || row?.metadata?.source || '').trim().toLowerCase();
+    return row?.is_test === true || source === 'testing_agent' || Boolean(row?.test_run_id || row?.health_run_id || row?.metadata?.test_run_id || row?.metadata?.health_run_id);
+  });
+  const stale = accepted.filter((row) => {
+    const time = Date.parse(String(row?.accepted_at || ''));
+    return Number.isFinite(time) && now - time > 2 * 60 * 1000;
+  });
+  const groups = new Map();
+  accepted.forEach((row) => {
+    const key = `${String(row?.lobby_id || '')}|${String(row?.to_kronox_user_id || row?.to_email || '')}`;
+    if (key !== '|') groups.set(key, (groups.get(key) || 0) + 1);
+  });
+  const repeated = [...groups.entries()].filter(([, count]) => count > 1).sort((a, b) => b[1] - a[1]);
+  return {
+    dryRun: true,
+    readOnly: true,
+    destructiveCleanupImplemented: false,
+    acceptedInviteCount: accepted.length,
+    staleAcceptedCount: stale.length,
+    explicitTestArtifactCount: explicitTest.length,
+    repeatedAcceptanceGroupCount: repeated.length,
+    samples: repeated.slice(0, 3).map(([key, count]) => ({ fingerprint: keyFingerprint(key), count })),
+    identityHeuristicUsedForDeletion: false,
+  };
+}
+
 function buildIntegritySnapshot(windows, checks) {
   const diamondRows = windows.DiamondTransaction?.rows || [];
   const jokerRows = windows.JokerTransaction?.rows || [];
@@ -412,6 +442,7 @@ export default async function adminDuplicateKeyReport(req) {
       scannedAt: new Date().toISOString(),
       checks,
       integritySnapshot: buildIntegritySnapshot(windows, checks),
+      notificationArtifactSnapshot: buildNotificationArtifactSnapshot(windows.GameInvite?.rows || []),
     });
   } catch (error) {
     console.error('[adminDuplicateKeyReport] failed');
