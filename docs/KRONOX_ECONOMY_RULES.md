@@ -886,6 +886,8 @@ Admin Ekranı now offers an AdminUser-gated, read-only `Integrity Snapshot` back
 
 The report keeps `daily_wheel`, `daily_calendar_streak_reward`, `solo_streak`, `market_purchase`, starter/login sources, admin adjustments, Joker spends, Hint spends, and purchase receipts distinct. It never repairs balances, cleans duplicates, grants rewards, changes prices, or mutates economy state. Platform unique indexes and live parallel consistency remain manual release proof.
 
+Data Hygiene P0 extends that same report with a dry-run-only canonical plan. `UserJokerInventory` follows the current runtime maximum quantity candidate but requires ledger reconciliation; `UserHintInventory` follows highest quantity/latest tie-break then ledger review; Joker/Hint ledger groups prefer the earliest valid receipt and become `DO_NOT_AUTOMATE` when amount/type/balance semantics conflict. No quantity, ledger, reward, Diamond, streak, score, or leaderboard value is changed. Cleanup is a separate second step requiring explicit admin/user approval, and duplicate checks remain FAIL until that approved execution is completed and re-verified.
+
 # Paket B4 — Economy Release Proof Tracking
 
 The Admin-only `Yayın Hazırlığı` tracker lists B1 Integrity Snapshot, Daily Wheel, Daily Calendar 200-Diamond reward, Solo Streak +3/+5, Store Diamond spending, and duplicate/idempotency proof as required release evidence. It does not read ledgers, grant or spend Diamonds, repair balances, run cleanup, or mark parallel proof complete. Platform uniqueness and two-device race behavior remain manual/external proof.

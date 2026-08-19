@@ -40,6 +40,12 @@ parallel idempotency as pending proof. It reads no ledger, mutates no balance,
 and keeps platform uniqueness and two-device races manual/external.
 Paket B5 changes no economy behavior. B1 remains the read-only source, while
 platform uniqueness and live parallel two-device proof remain manual/external.
+Data Hygiene P0 uses the same AdminUser-gated report for a dry-run plan only.
+Inventory candidates follow current runtime effective quantity plus ledger review;
+transaction candidates prefer the earliest valid receipt and conflicting amount,
+type, or balance groups are DO_NOT_AUTOMATE. No balance, quantity, ledger, reward,
+score, or row is changed. Cleanup requires a separate explicit admin/user-approved
+task, and duplicate checks remain FAIL until execution and a fresh verification.
 
 ## Active sources
 - starter_bonus (one-time, guarded by User.starter_bonus_granted_at)

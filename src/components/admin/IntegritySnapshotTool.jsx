@@ -6,6 +6,7 @@ import AdminCollapsibleSection from '@/components/admin/AdminCollapsibleSection'
 import IntegritySnapshotSummary from '@/components/admin/IntegritySnapshotSummary';
 import IntegrityProofSections from '@/components/admin/IntegrityProofSections';
 import IntegrityDuplicateChecks from '@/components/admin/IntegrityDuplicateChecks';
+import DuplicateCleanupPlan from '@/components/admin/DuplicateCleanupPlan';
 import NotificationArtifactSummary from '@/components/admin/NotificationArtifactSummary';
 
 export default function IntegritySnapshotTool() {
@@ -16,7 +17,7 @@ export default function IntegritySnapshotTool() {
     if (loading) return;
     setLoading(true); setError('');
     try {
-      const response = await base44.functions.invoke('adminDuplicateKeyReport', { mode: 'dry_run', scanLimit: 1000 });
+      const response = await base44.functions.invoke('adminDuplicateKeyReport', { mode: 'prepare_cleanup_plan', scanLimit: 5000 });
       const body = response?.data?.data || response?.data || {};
       if (!body?.ok || body?.readOnly !== true) throw new Error('integrity_report_unavailable');
       setReport(body);
@@ -30,7 +31,7 @@ export default function IntegritySnapshotTool() {
       <div className="flex justify-end"><Button size="sm" variant="outline" disabled={loading} onClick={load} aria-label="Bütünlük özetini yenile"><RefreshCw className={loading ? 'animate-spin' : ''} /></Button></div>
       {error && <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs text-red-100">{error}</p>}
       {!report && !error && <p role="status" className="text-xs text-muted-foreground">{loading ? 'Salt okunur rapor hazırlanıyor...' : 'Rapor henüz yüklenmedi.'}</p>}
-      {report && <><IntegritySnapshotSummary report={report} /><NotificationArtifactSummary snapshot={report.notificationArtifactSnapshot} /><IntegrityProofSections snapshot={report.integritySnapshot} /><IntegrityDuplicateChecks checks={report.checks} /></>}
+      {report && <><IntegritySnapshotSummary report={report} /><DuplicateCleanupPlan plan={report.cleanupPlan} /><NotificationArtifactSummary snapshot={report.notificationArtifactSnapshot} /><IntegrityProofSections snapshot={report.integritySnapshot} /><IntegrityDuplicateChecks checks={report.checks} /></>}
     </AdminCollapsibleSection>
   );
 }

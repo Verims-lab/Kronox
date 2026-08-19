@@ -260,6 +260,8 @@ import * as hamle3RuntimeAlignmentCases from './simulationPanelHamle3RuntimeAlig
 import * as soloStreakCases from './simulationPanelSoloStreakCases';
 // Paket B1 — admin-only, read-only economy/idempotency/source proof contracts.
 import * as integrityProofCases from './simulationPanelIntegrityProofCases';
+// Data Hygiene P0 — Admin-only duplicate cleanup planning; analysis and fingerprints only.
+import * as dataHygieneDryRunCases from './simulationPanelDataHygieneDryRunCases';
 // Paket B2 — lazy chunks, finite effects, polling cleanup, and mobile runtime guards.
 import * as performanceRuntimeCases from './simulationPanelPerformanceRuntimeCases';
 // Paket B3 — Admin-only question distribution, readiness, metadata, year, and duplicate QA.
@@ -340,6 +342,7 @@ const MODULES = [
   hamle3RuntimeAlignmentCases,
   soloStreakCases,
   integrityProofCases,
+  dataHygieneDryRunCases,
   performanceRuntimeCases,
   questionQualityCases,
   releaseReadinessCases,

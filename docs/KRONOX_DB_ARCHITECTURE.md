@@ -1210,6 +1210,12 @@ Admin Ekranı exposes one compact `Integrity Snapshot` that summarizes economy s
 
 B1 reuses the existing report function at the 50-entry deploy ceiling. No backend function was added.
 
+### Data Hygiene P0 — Duplicate Cleanup Dry-Run Plan
+
+Duplicate cleanup is a two-step process: (1) an AdminUser-gated dry-run plan and review, then (2) a separate cleanup execution task requiring explicit admin/user approval. The current `adminDuplicateKeyReport` `prepare_cleanup_plan` mode performs bounded reads only, selects proposed canonical candidates in memory, returns counts/risk/eligibility plus at most three irreversible fingerprint samples per check, and enables no create/update/delete/archive/merge/repair operation. Canonical rules are proposals, not executed decisions.
+
+The latest production scan supersedes older zero-duplicate snapshots and currently leaves the affected `UserDailyQuestProgress`, `JokerTransaction`, `HintTransaction`, `UserJokerInventory`, `UserHintInventory`, `SoloLeaderboardEntry`, `FriendRequest`, and `GameInvite` checks at FAIL. Inventory, ledger, Daily, leaderboard, friend, and invite groups require review; conflicting ledger or cross-lobby groups are `DO_NOT_AUTOMATE`. Duplicate checks remain FAIL until a separately approved cleanup is executed and a fresh report verifies the result. Raw rows, raw IDs, email, owner/player/actor keys, guest proof, and private payloads are never returned; Admin UI receives bounded fingerprints and counts only.
+
 ## Paket B2 — Frontend Runtime Boundaries
 
 Home demand-loads the full Daily Wheel visual module and opt-in diagnostics; Admin remains route-lazy and the Health Simulator remains click-lazy. Daily status stores now dedupe only concurrent identical actor/day reads while retaining the existing TTL, server-owned claim authority, and invalidation rules.

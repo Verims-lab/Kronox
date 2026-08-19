@@ -1043,6 +1043,12 @@ The B1 `Integrity Snapshot` is mounted only inside the guarded Admin Ekranı and
 
 Both supported report modes are dry-run/read-only. B1 introduces no cleanup action, mutation, migration, schema/index change, automatic scheduler, or public route. Runtime 401/403/admin success, cross-account isolation, platform unique indexes, production deployment/secrets, and real-device proof remain manual.
 
+## Data Hygiene Dry-Run Security Boundary
+
+The cleanup plan is step one of a two-step process and remains inside guarded Admin Ekranı / Integrity Snapshot. `adminDuplicateKeyReport` authorizes the current caller through active AdminUser owner/admin state, performs bounded service-role reads, and returns aggregate counts plus irreversible fingerprints only. It exposes no raw duplicate rows, internal row IDs, email, owner/player/actor keys, raw guest ID/token, provider/auth IDs, secrets, private payloads, or stack traces.
+
+The report enables no mutation or execution path. Canonical candidates, risk, and eligibility are recommendations only; step two is a separate explicitly approved cleanup task. Duplicate checks remain FAIL until that task runs and a fresh report verifies them. Existing cleanup-capable maintenance code is not invoked or exposed by this dry-run UI.
+
 # Paket B2 — Lazy Runtime Boundary
 
 Normal Home startup no longer imports the full Daily Wheel visual module or opt-in App diagnostics. The wheel loads only when its Home shortcut/auto-popup opens; diagnostics load only for the existing `?diag=1` or `kx_diag=1` opt-in. Admin remains route-lazy, and the Health Simulator plus its case registry remain click-lazy behind the guarded Admin route.

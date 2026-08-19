@@ -1302,6 +1302,14 @@ verified against the deployed Base44 environment.
 * Production deployment, real RLS/multi-account probes, real devices, Base44 unique indexes, production secrets, and parallel race behavior remain manual.
 * Package-layer boundary: `package.json` now pins `@base44/sdk` exactly to `0.8.34`, matching the deploy gate/backend imports. Base44 does not expose `package-lock.json` through the editable file surface. A package-layer probe still observes root `^0.8.42` and resolved `0.8.42`; regeneration/alignment remains an external blocker and is not claimed by Health.
 
+## Data Hygiene Dry-Run Release Boundary
+
+* Open guarded Admin Ekranı > Integrity Snapshot and confirm `Veri Temizliği Planı — Dry Run` renders current FAIL/INCOMPLETE checks, group/row counts, P0/P1 risk, canonical strategy, eligibility, runtime risk, and at most three irreversible fingerprints per check.
+* Require response flags `dryRun: true`, `readOnly: true`, `mutationOperationsEnabled: false`, `cleanupExecutionAvailable: false`, and `explicitApprovalRequired: true`.
+* Confirm no cleanup function is invoked from this UI and no execute CTA is present. Review is step one; execution is a separate task requiring explicit admin/user approval.
+* Duplicate FAILs must remain FAIL until separately approved cleanup runs and a fresh report verifies the data. Static Data Hygiene Health PASS proves only the dry-run contract, not cleaned production data.
+* Confirm no raw duplicate row, row ID, email, owner/player/actor key, raw guest ID/token, private payload, secret, or stack trace appears in UI/export.
+
 # Paket B2 — Performance / Runtime Cleanup Proof
 
 * Confirm Home renders without loading the Admin route, Health Simulator, opt-in diagnostics, or the full Daily Wheel visual chunk; opening each demand surface must still work.

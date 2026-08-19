@@ -26,6 +26,75 @@ const DUPLICATE_KEY_CHECKS = [
   { id: 'game_invite_sender_recipient_status', entity: 'GameInvite', priority: 'P1', fields: ['from_email', 'to_email', 'status'], purpose: 'Invite lifecycle duplicate risk' },
 ];
 
+const DUPLICATE_CLEANUP_PLANS = {
+  user_daily_quest_progress_idempotency_key: {
+    riskLevel: 'P0', canonicalStrategyName: 'COMPLETED_THEN_HIGHEST_PROGRESS',
+    canonicalStrategy: 'Prefer completed/claimed state, then highest progress_value, then earliest equivalent row while preserving source-proof receipt metadata.',
+    recommendedAction: 'Future approved consolidation to one canonical Daily progress receipt; do not grant rewards or change streak state.',
+    automationSafetyLevel: 'REVIEW_REQUIRED', conflictFields: ['status', 'progress_value', 'target_value', 'last_event_key'],
+    rationale: 'Disagreement can change task completion or source provenance.', relatedRuntimeRisk: 'Duplicate Daily completion, progress, or source-proof interpretation.',
+  },
+  user_daily_quest_progress_user_day_task: {
+    riskLevel: 'P0', canonicalStrategyName: 'ACTOR_DAY_TASK_BEST_PROGRESS',
+    canonicalStrategy: 'Prefer completed/claimed state, then highest progress_value, then earliest equivalent actor/day/task row.',
+    recommendedAction: 'Future approved consolidation to one row per actor/day/task while preserving completion and source proof.',
+    automationSafetyLevel: 'REVIEW_REQUIRED', conflictFields: ['status', 'progress_value', 'target_value', 'last_event_key'],
+    rationale: 'Daily rows can affect completion display and 7-day eligibility.', relatedRuntimeRisk: 'Duplicate Daily tasks or incorrect completion state.',
+  },
+  joker_transaction_idempotency_key: {
+    riskLevel: 'P0', canonicalStrategyName: 'EARLIEST_VALID_LEDGER_RECEIPT',
+    canonicalStrategy: 'Prefer the earliest valid transaction for the idempotency key; conflicting joker type, delta, reason, or balances block automation.',
+    recommendedAction: 'Future approved ledger dedupe only after balance-impact review; never delete ledger rows blindly.',
+    automationSafetyLevel: 'REVIEW_REQUIRED', conflictFields: ['joker_type', 'quantity_delta', 'reason', 'balance_before', 'balance_after'],
+    rationale: 'Ledger removal can weaken audit history or mask balance drift.', relatedRuntimeRisk: 'Joker idempotency and reconciliation trust.',
+  },
+  hint_transaction_idempotency_key: {
+    riskLevel: 'P1', canonicalStrategyName: 'EARLIEST_VALID_LEDGER_RECEIPT',
+    canonicalStrategy: 'Prefer the earliest valid transaction for the idempotency key; conflicting delta, reason, or balances block automation.',
+    recommendedAction: 'Future approved Hint ledger dedupe only after balance-impact review.',
+    automationSafetyLevel: 'REVIEW_REQUIRED', conflictFields: ['quantity_delta', 'reason', 'balance_before', 'balance_after'],
+    rationale: 'Ledger rows are audit receipts, not disposable balance rows.', relatedRuntimeRisk: 'Hint idempotency and reconciliation trust.',
+  },
+  user_joker_inventory_actor_type: {
+    riskLevel: 'P0', canonicalStrategyName: 'RUNTIME_MAX_THEN_LEDGER_RECONCILIATION',
+    canonicalStrategy: 'Current runtime reads the highest quantity per actor/joker type; validate it against latest ledger balance_after and summed distinct receipts before choosing one row.',
+    recommendedAction: 'Future approved consolidation to one inventory row per actor/joker type; quantity remains unchanged in this plan.',
+    automationSafetyLevel: 'REVIEW_REQUIRED', conflictFields: ['quantity', 'last_transaction_id'],
+    rationale: 'The runtime max protects visible balance, but ledger conflicts require review.', relatedRuntimeRisk: 'Wrong spend target, purchase/reward drift, or inconsistent Joker balance.',
+  },
+  user_hint_inventory_actor: {
+    riskLevel: 'P1', canonicalStrategyName: 'RUNTIME_MAX_THEN_LEDGER_RECONCILIATION',
+    canonicalStrategy: 'Current runtime selects highest quantity then latest timestamp; validate against latest Hint ledger balance before selecting one row.',
+    recommendedAction: 'Future approved consolidation to one Hint inventory row per actor.',
+    automationSafetyLevel: 'REVIEW_REQUIRED', conflictFields: ['quantity', 'last_transaction_id'],
+    rationale: 'Current effective balance is tolerant of duplicates but not proof of ledger correctness.', relatedRuntimeRisk: 'Incorrect visible or spendable Hint balance.',
+  },
+  solo_leaderboard_entry_owner_key: {
+    riskLevel: 'P0', canonicalStrategyName: 'VISIBLE_KRONOX_PUAN_THEN_FRESHNESS',
+    canonicalStrategy: 'Prefer highest current total_kronox_score under the materialized leaderboard policy, then latest updated timestamp and current safe profile projection on ties.',
+    recommendedAction: 'Future approved consolidation to one materialized row per owner; do not recompute history in this plan.',
+    automationSafetyLevel: 'REVIEW_REQUIRED', conflictFields: ['total_kronox_score', 'total_solo_score', 'online_score', 'username'],
+    rationale: 'Conflicting projections can alter visible rank or overwrite recovery evidence.', relatedRuntimeRisk: 'Materialized Kronox Puan and leaderboard rank drift.',
+  },
+  friend_request_sender_recipient_status: {
+    riskLevel: 'P1', canonicalStrategyName: 'STATUS_AWARE_RELATION_HISTORY',
+    canonicalStrategy: 'Within same-status duplicates prefer accepted terminal provenance, latest valid pending when no terminal relation exists, and keep rejected/expired history separate.',
+    recommendedAction: 'Future approved dedupe of exact same-status rows only after related-pair lifecycle review.',
+    automationSafetyLevel: 'REVIEW_REQUIRED', conflictFields: ['accepted_at', 'expires_at', 'cancelled_at'],
+    rationale: 'Same pair can have legitimate lifecycle history outside the current grouping key.', relatedRuntimeRisk: 'Duplicate friends UI rows or stale pending/accepted state.',
+  },
+  game_invite_sender_recipient_status: {
+    riskLevel: 'P1', canonicalStrategyName: 'LOBBY_AND_STATUS_AWARE_INVITE_HISTORY',
+    canonicalStrategy: 'Require same lobby plus same status; prefer a still-valid pending invite or latest terminal audit row. Testing artifacts remain suppression candidates, not deletion authority.',
+    recommendedAction: 'Future approved archival/dedupe only for reviewed stale terminal artifacts; active invites require manual review.',
+    automationSafetyLevel: 'REVIEW_REQUIRED', conflictFields: ['lobby_id', 'expires_at', 'accepted_at', 'created_source'],
+    rationale: 'Different lobbies under the same sender/recipient/status are not safe duplicates.', relatedRuntimeRisk: 'Repeated or stale invite/notification rows.',
+  },
+};
+
+const CLEANUP_PLAN_SAMPLE_LIMIT = 3;
+const CLEANUP_APPROVAL_BOUNDARY = 'Cleanup execution is separate and blocked until explicit admin/user approval.';
+
 const DAILY_SOURCE_PROOF = [
   { taskType: 'daily_wheel_claim', title: 'Çark çevir', proofSource: 'DailyWheelSpin', receiptField: 'idempotency_key' },
   { taskType: 'joker_used', title: '1/2 joker kullan', proofSource: 'JokerTransaction', receiptField: 'idempotency_key' },
@@ -105,6 +174,20 @@ function keyFingerprint(value) {
   return `key_${(hash >>> 0).toString(36)}`;
 }
 
+function groupDuplicateRows(rows, fields, filter) {
+  const groups = new Map();
+  const relevant = rows.filter((row) => matchesFilter(row, filter));
+  for (const row of relevant) {
+    const parts = fields.map((field) => String(row?.[field] ?? '').trim());
+    if (parts.some((part) => !part)) continue;
+    const key = parts.join('|');
+    const group = groups.get(key) || [];
+    group.push(row);
+    groups.set(key, group);
+  }
+  return [...groups.entries()].filter(([, group]) => group.length > 1).sort((a, b) => b[1].length - a[1].length);
+}
+
 function duplicateReport(rows, fields, filter) {
   const counts = new Map();
   let missingKeyRows = 0;
@@ -122,7 +205,133 @@ function duplicateReport(rows, fields, filter) {
     duplicateKeyCount: duplicates.length,
     duplicateRowCount: duplicates.reduce((sum, [, count]) => sum + count - 1, 0),
     missingKeyRows,
-    samples: duplicates.slice(0, 3).map(([key, count]) => ({ fingerprint: keyFingerprint(key), count })),
+    samples: duplicates.slice(0, CLEANUP_PLAN_SAMPLE_LIMIT).map(([key, count]) => ({ fingerprint: keyFingerprint(key), count })),
+  };
+}
+
+function rowTime(row, fields = ['created_at', 'created_date', 'updated_at', 'updated_date']) {
+  for (const field of fields) {
+    const time = Date.parse(String(row?.[field] || ''));
+    if (Number.isFinite(time)) return time;
+  }
+  return 0;
+}
+
+function pickCanonicalCandidate(checkId, group) {
+  const rows = [...group];
+  if (checkId.startsWith('user_daily_quest_progress_')) {
+    return rows.sort((a, b) => {
+      const rank = (row) => String(row?.status || '') === 'claimed' ? 2 : String(row?.status || '') === 'completed' ? 1 : 0;
+      return rank(b) - rank(a) || Number(b?.progress_value || 0) - Number(a?.progress_value || 0) || rowTime(a) - rowTime(b);
+    })[0];
+  }
+  if (checkId === 'user_joker_inventory_actor_type' || checkId === 'user_hint_inventory_actor') {
+    return rows.sort((a, b) => Number(b?.quantity || 0) - Number(a?.quantity || 0) || rowTime(b, ['updated_at', 'updated_date']) - rowTime(a, ['updated_at', 'updated_date']))[0];
+  }
+  if (checkId === 'solo_leaderboard_entry_owner_key') {
+    return rows.sort((a, b) => Number(b?.total_kronox_score || 0) - Number(a?.total_kronox_score || 0) || rowTime(b, ['updated_at', 'updated_date']) - rowTime(a, ['updated_at', 'updated_date']))[0];
+  }
+  if (checkId === 'friend_request_sender_recipient_status') {
+    return rows.sort((a, b) => rowTime(b, ['accepted_at', 'created_date']) - rowTime(a, ['accepted_at', 'created_date']))[0];
+  }
+  if (checkId === 'game_invite_sender_recipient_status') {
+    return rows.sort((a, b) => rowTime(b, ['accepted_at', 'created_at', 'created_date']) - rowTime(a, ['accepted_at', 'created_at', 'created_date']))[0];
+  }
+  return rows.sort((a, b) => rowTime(a) - rowTime(b))[0];
+}
+
+function conflictingFields(group, fields = []) {
+  return fields.filter((field) => new Set(group.map((row) => JSON.stringify(row?.[field] ?? null))).size > 1);
+}
+
+function groupSafety(plan, conflicts) {
+  if (['joker_transaction_idempotency_key', 'hint_transaction_idempotency_key'].includes(plan.checkId) && conflicts.length) return 'DO_NOT_AUTOMATE';
+  if (plan.checkId === 'game_invite_sender_recipient_status' && conflicts.includes('lobby_id')) return 'DO_NOT_AUTOMATE';
+  return plan.automationSafetyLevel;
+}
+
+function buildCleanupCheckPlan(check, rows, report, status) {
+  const metadata = DUPLICATE_CLEANUP_PLANS[check.id];
+  if (!metadata) return null;
+  const groups = groupDuplicateRows(rows, check.fields, check.filter);
+  const safetyCounts = { AUTO_SAFE_CANDIDATE: 0, REVIEW_REQUIRED: 0, MANUAL_ONLY: 0, DO_NOT_AUTOMATE: 0 };
+  const analyzed = groups.map(([key, group]) => {
+    const conflicts = conflictingFields(group, metadata.conflictFields);
+    const plan = { ...metadata, checkId: check.id };
+    const automationSafetyLevel = groupSafety(plan, conflicts);
+    safetyCounts[automationSafetyLevel] += 1;
+    const canonical = pickCanonicalCandidate(check.id, group);
+    const rowIdentity = String(canonical?.id || canonical?._id || `${rowTime(canonical)}|${group.length}`);
+    return {
+      fingerprint: keyFingerprint(key),
+      rowCount: group.length,
+      duplicateRowCount: group.length - 1,
+      canonicalCandidateFingerprint: keyFingerprint(`canonical|${key}|${rowIdentity}`),
+      automationSafetyLevel,
+      riskLevel: metadata.riskLevel,
+      conflictFields: conflicts,
+      executeBlocked: true,
+    };
+  });
+  return {
+    checkId: check.id,
+    entity: check.entity,
+    duplicateKeyName: check.id,
+    status,
+    duplicateGroupCount: report.duplicateKeyCount,
+    duplicateRowCount: report.duplicateRowCount,
+    canonicalStrategyName: metadata.canonicalStrategyName,
+    canonicalStrategy: metadata.canonicalStrategy,
+    recommendedAction: metadata.recommendedAction,
+    automationSafetyLevel: metadata.automationSafetyLevel,
+    riskLevel: metadata.riskLevel,
+    rationale: metadata.rationale,
+    relatedRuntimeRisk: metadata.relatedRuntimeRisk,
+    cleanupEligibilityCounts: safetyCounts,
+    samples: analyzed.slice(0, CLEANUP_PLAN_SAMPLE_LIMIT),
+    sampleLimit: CLEANUP_PLAN_SAMPLE_LIMIT,
+    samplesFingerprintOnly: true,
+    executeBlocked: true,
+    approvalBoundary: CLEANUP_APPROVAL_BOUNDARY,
+  };
+}
+
+function buildCleanupPlan(checkPlans) {
+  const plans = checkPlans.filter(Boolean);
+  const failing = plans.filter((plan) => plan.status === 'FAIL');
+  const summary = {
+    failingChecks: failing.length,
+    totalDuplicateGroups: failing.reduce((sum, plan) => sum + plan.duplicateGroupCount, 0),
+    totalDuplicateRows: failing.reduce((sum, plan) => sum + plan.duplicateRowCount, 0),
+    p0DuplicateGroups: failing.filter((plan) => plan.riskLevel === 'P0').reduce((sum, plan) => sum + plan.duplicateGroupCount, 0),
+    p1DuplicateGroups: failing.filter((plan) => plan.riskLevel === 'P1').reduce((sum, plan) => sum + plan.duplicateGroupCount, 0),
+    AUTO_SAFE_CANDIDATE: failing.reduce((sum, plan) => sum + plan.cleanupEligibilityCounts.AUTO_SAFE_CANDIDATE, 0),
+    REVIEW_REQUIRED: failing.reduce((sum, plan) => sum + plan.cleanupEligibilityCounts.REVIEW_REQUIRED, 0),
+    MANUAL_ONLY: failing.reduce((sum, plan) => sum + plan.cleanupEligibilityCounts.MANUAL_ONLY, 0),
+    DO_NOT_AUTOMATE: failing.reduce((sum, plan) => sum + plan.cleanupEligibilityCounts.DO_NOT_AUTOMATE, 0),
+  };
+  const byEntity = new Map();
+  failing.forEach((plan) => {
+    const current = byEntity.get(plan.entity) || { entity: plan.entity, duplicateGroupCount: 0, duplicateRowCount: 0, highestRisk: plan.riskLevel };
+    current.duplicateGroupCount += plan.duplicateGroupCount;
+    current.duplicateRowCount += plan.duplicateRowCount;
+    if (plan.riskLevel === 'P0') current.highestRisk = 'P0';
+    byEntity.set(plan.entity, current);
+  });
+  return {
+    planVersion: 'data-hygiene-dry-run-v1',
+    dryRun: true,
+    readOnly: true,
+    mutationOperationsEnabled: false,
+    cleanupExecutionAvailable: false,
+    explicitApprovalRequired: true,
+    samplesFingerprintOnly: true,
+    sampleLimitPerCheck: CLEANUP_PLAN_SAMPLE_LIMIT,
+    approvalBoundary: CLEANUP_APPROVAL_BOUNDARY,
+    nextRecommendedAction: 'Review P0 groups and conflict fingerprints; cleanup execution requires a separate explicitly approved task.',
+    summary,
+    topEntities: [...byEntity.values()].sort((a, b) => b.duplicateRowCount - a.duplicateRowCount).slice(0, 5),
+    checks: plans,
   };
 }
 
@@ -410,10 +619,12 @@ export default async function adminDuplicateKeyReport(req) {
     const entityNames = [...new Set(activeChecks.map((check) => check.entity))];
     const windows = {};
     for (const entityName of entityNames) windows[entityName] = await fetchWindow(base44, entityName, scanLimit);
+    const cleanupCheckPlans = [];
     const checks = activeChecks.map((check) => {
       const window = windows[check.entity] || { rows: [], entityAvailable: false, scanWindowComplete: false };
       const report = duplicateReport(window.rows, check.fields, check.filter);
       const status = !window.entityAvailable || !window.scanWindowComplete ? 'INCOMPLETE' : report.duplicateKeyCount > 0 ? 'FAIL' : 'PASS';
+      cleanupCheckPlans.push(buildCleanupCheckPlan(check, window.rows, report, status));
       return {
         id: check.id,
         entity: check.entity,
@@ -427,6 +638,7 @@ export default async function adminDuplicateKeyReport(req) {
         uniqueIndexBlockedByDuplicates: report.duplicateKeyCount > 0,
       };
     });
+    const cleanupPlan = buildCleanupPlan(cleanupCheckPlans);
     return json({
       ok: true,
       reportVersion: 'b1-read-only-integrity-v1',
@@ -438,9 +650,13 @@ export default async function adminDuplicateKeyReport(req) {
       destructiveCleanupImplemented: false,
       duplicateCleanupRequiredBeforeUniqueIndex: true,
       indexSupportModel: 'platform_manual_only',
+      cleanupPlanDryRunOnly: true,
+      cleanupExecutionDeferred: true,
+      explicitApprovalRequired: true,
       scanLimit,
       scannedAt: new Date().toISOString(),
       checks,
+      cleanupPlan,
       integritySnapshot: buildIntegritySnapshot(windows, checks),
       notificationArtifactSnapshot: buildNotificationArtifactSnapshot(windows.GameInvite?.rows || []),
     });
