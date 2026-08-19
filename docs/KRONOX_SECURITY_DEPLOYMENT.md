@@ -89,12 +89,10 @@ cannot create `OnlineMatchResult` or write profile/leaderboard score.
 
 ## Base44 SDK alignment
 
-The backend Base44 Deno functions and frontend `package.json` remain pinned to
-`@base44/sdk 0.8.34` exactly. The deploy gate checks the editable package source
-and backend imports. Base44 does not expose `package-lock.json` through the editable file surface.
-A package-layer probe still observes root `^0.8.42` and resolved `0.8.42`, so
-regeneration/alignment remains an external blocker and must not be claimed as
-an automated Health pass.
+The backend Base44 Deno functions, frontend `package.json`, and committed
+`package-lock.json` root/resolved package remain pinned to `@base44/sdk 0.8.34`
+exactly. The deploy gate and source-connected Health checks validate all three
+surfaces. Live Base44 deployment remains separate manual proof.
 
 `scripts/checkBase44FunctionsCompile.mjs` caps the repo at 50 Base44 function
 entry files, verifies SDK alignment, and rejects removed legacy/test/diagnostic

@@ -188,12 +188,13 @@ export const EXTRA_TESTS = [
     () => {
       const missing = missingTokens(bottomNavSource, [
         'resetStack(path)',
-        'switchTab(path)',
+        'const activeTab = getTabRootForPathname(location.pathname)',
         'state: getTabRootNavigationState(path)',
         "window.scrollTo({ top: 0",
         "HIDDEN_ROUTES = ['/game']",
       ]);
-      if (missing.length) return fail('Active tab re-tap reset or /game hidden rule is missing.', { verification: 'STATIC_CONTRACT', missing });
+      const forbidden = forbiddenTokens(bottomNavSource, ['switchTab(path)']);
+      if (missing.length || forbidden.length) return fail('Active tab re-tap reset, committed-route ownership, or /game hidden rule is missing.', { verification: 'STATIC_CONTRACT', actual: { missing, forbidden } });
       return pass('BottomNav taps reset the selected tab root and scroll to top; /game remains full-screen.', { verification: 'STATIC_CONTRACT' });
     }),
 

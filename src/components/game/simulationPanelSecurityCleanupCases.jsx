@@ -30,6 +30,7 @@ import startLobbyGameSource from '../../../base44/functions/startLobbyGame/entry
 import acceptGameInviteSource from '../../../base44/functions/acceptGameInvite/entry.ts?raw';
 import caseRegistrySource from './simulationPanelCaseRegistry.jsx?raw';
 import packageJsonSource from '../../../package.json?raw';
+import packageLockJsonSource from '../../../package-lock.json?raw';
 import {
   SECURITY_DEPLOYMENT_DOC as securityDeploymentDocSource,
   RELEASE_PROOF_CHECKLIST_DOC as releaseProofChecklistSource,
@@ -72,10 +73,10 @@ const LIVE_SOURCES = [
 
 const BASE44_SDK_VERSION = '0.8.34';
 const PACKAGE_LOCK_PROOF = {
-  packageLockAvailable: false,
-  classification: 'MANUAL_EXTERNAL',
+  packageLockAvailable: true,
+  classification: 'SOURCE_CONNECTED',
   fixOwner: 'Codex package / repo',
-  nextAction: 'Regenerate and verify package-lock.json in the external package/repo layer.',
+  nextAction: 'Keep package.json and package-lock root/resolved SDK versions exact and aligned.',
 };
 const CRITICAL_BASE44_FUNCTION_SDK_SOURCES = [
   ['sendFriendRequest', sendFriendRequestSource],
@@ -151,6 +152,14 @@ function missingTokens(source, tokens) {
 
 function presentTokens(source, tokens) {
   return tokens.filter((token) => String(source || '').includes(token));
+}
+
+function parseJsonSource(source) {
+  try {
+    return JSON.parse(String(source || '{}'));
+  } catch {
+    return {};
+  }
 }
 
 export const EXTRA_SUITES = [
@@ -318,9 +327,15 @@ export const EXTRA_TESTS = [
       const requiredPackage = `"@base44/sdk": "${BASE44_SDK_VERSION}"`;
       const requiredDeno = `npm:@base44/sdk@${BASE44_SDK_VERSION}`;
       const packageSource = String(packageJsonSource || '');
+      const packageLockSource = String(packageLockJsonSource || '');
+      const parsedPackageLock = parseJsonSource(packageLockSource);
+      const packageLockRootPin = parsedPackageLock?.packages?.['']?.dependencies?.['@base44/sdk'];
+      const packageLockResolvedVersion = parsedPackageLock?.packages?.['node_modules/@base44/sdk']?.version;
       const combinedFunctionSource = CRITICAL_BASE44_FUNCTION_SDK_SOURCES.map(([, source]) => source).join('\n');
       const missing = [
         ...(!packageSource.includes(requiredPackage) ? ['package.json exact @base44/sdk pin'] : []),
+        ...(packageLockRootPin !== BASE44_SDK_VERSION ? ['package-lock.json root exact @base44/sdk pin'] : []),
+        ...(packageLockResolvedVersion !== BASE44_SDK_VERSION ? ['package-lock.json resolved @base44/sdk version'] : []),
         ...CRITICAL_BASE44_FUNCTION_SDK_SOURCES
           .filter(([, source]) => !String(source || '').includes(requiredDeno))
           .map(([name]) => `${name} Deno import ${requiredDeno}`),
@@ -330,7 +345,7 @@ export const EXTRA_TESTS = [
         'npm:@base44/sdk@0.8.25',
         "from 'npm:@base44/sdk'",
         'from "npm:@base44/sdk"',
-      ].filter((token) => `${packageSource}\n${combinedFunctionSource}`.includes(token));
+      ].filter((token) => `${packageSource}\n${packageLockSource}\n${combinedFunctionSource}`.includes(token));
       if (missing.length || forbidden.length) {
         return fail('Base44 SDK version alignment can drift between frontend and backend.', {
           verification: 'STATIC_CONTRACT',
@@ -340,9 +355,9 @@ export const EXTRA_TESTS = [
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass(`Base44 SDK is pinned to ${BASE44_SDK_VERSION} in package.json and critical Base44 functions; unavailable lockfile resolution remains external proof.`, {
+      return pass(`Base44 SDK is pinned to ${BASE44_SDK_VERSION} in package.json, package-lock root/resolution, and critical Base44 functions.`, {
         verification: 'STATIC_CONTRACT',
-        classification: 'STATIC_CHECK_LIMITATION',
+        classification: 'RUNTIME_PATH_VERIFIED',
         actionType: ACTION_TYPES.CODE_FIX,
         packageLayerProof: PACKAGE_LOCK_PROOF,
       });

@@ -30,7 +30,6 @@ export default function BottomNav() {
   const navigate = useNavigate();
   const {
     resetStack,
-    switchTab,
     rememberRoute,
   } = useNavigationStack();
 
@@ -53,7 +52,6 @@ export default function BottomNav() {
     // BottomNav is root navigation, not nested-route restoration. This keeps
     // Profile/Friends/Settings subpages from becoming sticky after tab changes.
     resetStack(path);
-    switchTab(path);
     navigate(path, { replace: true, state: getTabRootNavigationState(path) });
     window.requestAnimationFrame?.(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }));
   };

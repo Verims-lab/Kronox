@@ -21,7 +21,10 @@ export const EXTRA_SUITES = [{ id: SUITE_ID, name: SUITE_NAME, critical: true, c
 
 export const EXTRA_TESTS = [
   makeCase('active_tab_derived_from_route', 'Active tab is derived only from the committed pathname', () => {
-    const forbidden = ['useState(activeTab', 'switchTab(path)', '|| currentTab'].filter((token) => bottomNavSource.includes(token));
+    const forbidden = [
+      ...['useState(activeTab', 'switchTab(path)', '|| currentTab'].filter((token) => bottomNavSource.includes(token)),
+      ...['const [currentTab', 'setCurrentTab', 'const switchTab'].filter((token) => navigationSource.includes(token)),
+    ];
     const required = ['useLocation()', 'const activeTab = getTabRootForPathname(location.pathname)'];
     const missing = required.filter((token) => !bottomNavSource.includes(token));
     return forbidden.length || missing.length ? fail('BottomNav can drift from the committed route.', { forbidden, missing }) : pass('BottomNav active state has one committed-route source and no optimistic fallback.');

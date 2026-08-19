@@ -85,13 +85,11 @@ export function NavigationStackProvider({ children }) {
     [TAB_ROOTS.profile]: [TAB_ROOTS.profile],
   });
   const [scrollPositions, setScrollPositions] = useState({});
-  const [currentTab, setCurrentTab] = useState(TAB_ROOTS.home);
 
   const rememberRoute = useCallback((locationLike) => {
     const tabRoot = getTabRootForPathname(locationLike?.pathname || '/');
     if (!tabRoot || !TAB_ROOT_VALUES.includes(tabRoot)) return;
     const routeKey = routeKeyFromLocation(locationLike);
-    setCurrentTab(tabRoot);
     setStacks((prev) => ({
       ...prev,
       [tabRoot]: [routeKey],
@@ -121,11 +119,6 @@ export function NavigationStackProvider({ children }) {
     clearScrollForTab(tabRoot);
   }, [clearScrollForTab]);
 
-  const switchTab = useCallback((tabRoot) => {
-    if (!tabRoot || !TAB_ROOT_VALUES.includes(tabRoot)) return;
-    setCurrentTab(tabRoot);
-  }, []);
-
   const getStackForTab = useCallback((tabRoot) => {
     const stack = stacks[tabRoot];
     return Array.isArray(stack) && stack.length ? stack : [tabRoot];
@@ -137,11 +130,9 @@ export function NavigationStackProvider({ children }) {
 
   const value = useMemo(() => ({
     stacks,
-    currentTab,
     scrollPositions,
     rememberRoute,
     resetStack,
-    switchTab,
     getStackForTab,
     getScrollForTab,
     saveScrollForTab,
@@ -149,7 +140,6 @@ export function NavigationStackProvider({ children }) {
     getTabRootForPathname,
   }), [
     clearScrollForTab,
-    currentTab,
     getScrollForTab,
     getStackForTab,
     rememberRoute,
@@ -157,7 +147,6 @@ export function NavigationStackProvider({ children }) {
     saveScrollForTab,
     scrollPositions,
     stacks,
-    switchTab,
   ]);
 
   return (
