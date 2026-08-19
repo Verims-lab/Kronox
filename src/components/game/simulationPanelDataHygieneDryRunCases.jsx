@@ -16,7 +16,7 @@ const noMutationCalls = () => present(reportSource, ['.create(', '.update(', '.d
 export const EXTRA_SUITES = [{ id: SUITE_ID, name: 'Data Hygiene Dry Run Health Suite', critical: true, color: '#f59e0b' }];
 export const EXTRA_TESTS = [
   makeCase('report_is_admin_only', 'Cleanup plan is Admin-only', () => {
-    const absent = missing(`${reportSource}\n${adminPageSource}\n${appSource}\n${integrityToolSource}`, ['requireAdmin', 'AdminUser', '<AdminRoute><AdminPage', '<IntegritySnapshotTool />', "mode: 'prepare_cleanup_plan'"]);
+    const absent = missing(`${reportSource}\n${adminPageSource}\n${appSource}\n${integrityToolSource}`, ['requireAdmin', 'AdminUser', '<AdminRoute><AdminPage', '<IntegritySnapshotTool />', "mode: 'dry_run'"]);
     return absent.length ? fail('Admin boundary drifted.', { missing: absent }) : pass('The plan is produced by the AdminUser-gated report and rendered only inside guarded Admin Integrity Snapshot.');
   }),
   makeCase('report_is_read_only', 'Cleanup plan is read-only', () => {

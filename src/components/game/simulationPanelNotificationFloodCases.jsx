@@ -3,6 +3,8 @@ import toastSource from '../ui/use-toast.jsx?raw';
 import notificationViewModelSource from '../../lib/notificationViewModel.js?raw';
 import identitySource from '../../lib/notificationIdentity.js?raw';
 import integrityToolSource from '../admin/IntegritySnapshotTool.jsx?raw';
+import notificationArtifactSummarySource from '../admin/NotificationArtifactSummary.jsx?raw';
+import duplicateReportSource from '../../../base44/functions/adminDuplicateKeyReport/entry.ts?raw';
 import {
   collapseLobbyAcceptanceNotifications,
   isLobbyAcceptanceNotificationEligible,
@@ -45,10 +47,19 @@ export const EXTRA_TESTS = [
   }, ['src/components/invites/GameInviteNotifier.jsx']),
 
   makeCase('test_artifact_cleanup_is_admin_only_dry_run_first', 'Artifact recovery is admin report-only and non-destructive', () => {
-    const required = ['adminDuplicateKeyReport', "mode: 'dry_run'", 'notificationArtifactSnapshot', 'readOnly'];
-    const missing = required.filter((token) => !integrityToolSource.includes(token));
+    const activeSource = `${integrityToolSource}\n${notificationArtifactSummarySource}\n${duplicateReportSource}`;
+    const required = [
+      'adminDuplicateKeyReport',
+      "mode: 'dry_run'",
+      'notificationArtifactSnapshot',
+      'dryRun: true',
+      'readOnly: true',
+      'destructiveCleanupImplemented: false',
+      'Dry-run · Salt okunur · Otomatik silme yok',
+    ];
+    const missing = required.filter((token) => !activeSource.includes(token));
     return !missing.length ? pass('Existing artifacts are visible through the guarded read-only Integrity Snapshot; no automatic deletion path is exposed.') : fail('Admin dry-run artifact visibility is incomplete.', missing);
-  }, ['src/components/admin/IntegritySnapshotTool.jsx', 'base44/functions/adminDuplicateKeyReport/entry.ts']),
+  }, ['src/components/admin/IntegritySnapshotTool.jsx', 'src/components/admin/NotificationArtifactSummary.jsx', 'base44/functions/adminDuplicateKeyReport/entry.ts']),
 
   makeCase('notification_privacy_no_private_ids', 'Acceptance UI renders username-safe labels without private identifiers', () => {
     const rendered = `${notifierSource}\n${notificationViewModelSource}`;

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex622 — Close KRONOX-MSZSJKQA Base44-owned Health blockers with source-connected Admin dry-run proof, immediate Wheel Diamond propagation proof, VAPID/Admin/current-contract docs, BottomNav root re-tap, and blocked Data Hygiene execution; no package/backend/product-rule changes.
 // Codex621 — Remove the static Admin Release Readiness panel, preserve B1/B3, and retarget release gating to active HealthCenter packs plus canonical manual/external proof docs without product/backend behavior changes.
 // Codex620 — VAPID security: migrate sendGameInvitePush to request-time Base44 runtime secrets, preserve fail-closed best-effort invites, and retarget Health/docs without exposing values or changing push UI/Online behavior.
 // Codex619 — BottomNav route-sync regression: derive active tab only from committed pathname and remove overlapping global route exits so lazy/root content cannot appear under another tab; add source-connected Health/docs without product behavior changes.
@@ -199,7 +200,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex621';
+const BUILD_MARKER = 'Codex622';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

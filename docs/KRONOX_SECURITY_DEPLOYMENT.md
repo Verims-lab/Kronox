@@ -223,6 +223,7 @@ Question loading / offline fallback:
 Rules:
 
 * do not commit personal admin emails to source code
+* VAPID private key remains a real server-only secret outside Admin/public UI and must never be logged, returned, rendered, or documented as a real value
 * do not use env-based admin email allowlists for authorization
 * keep `AdminUser` rows private/admin-only
 * never rely only on client-side admin UI visibility
@@ -634,13 +635,9 @@ After deployment, verify:
 * no Spotify helper functions are deployed
 * no Spotify credentials are present
 * no VAPID private key is committed
-* `VAPID_PRIVATE_KEY` exists only as a backend deployment secret/env value;
-  env-var-name scanner findings are tracked as deployment-secret management
-  notes unless real key material is found in source or logs
-* `VAPID_PUBLIC_KEY` is public-by-design for browser subscription and remains
-  config-managed
-* `VAPID_SUBJECT` is contact/config metadata, is not a cryptographic secret,
-  and is not logged or returned unnecessarily
+* VAPID private key remains a real server-only secret. `VAPID_PRIVATE_KEY` must never be logged, returned, rendered, or documented as a real value; env-var-name scanner findings remain deployment-secret management notes unless real key material is found in source or logs.
+* `VAPID_PUBLIC_KEY` is public-by-design for browser subscription but remains config-managed and must not use insecure defaults or placeholders.
+* `VAPID_SUBJECT` is contact/config metadata, not a cryptographic secret, and must never be logged, returned, rendered when unnecessary.
 * no personal admin email is committed
 
 ## Admin

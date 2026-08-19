@@ -16,6 +16,7 @@ import economyGatewaySource from '../../lib/dbGateway/economyGateway.js?raw';
 import diamondEconomySource from '../../lib/diamondEconomy.js?raw';
 import gameSoundsSource from '../../lib/gameSounds.js?raw';
 import guestProfileEntitySource from '../../../base44/entities/GuestProfile.jsonc?raw';
+import claimDailyWheelSource from '../../../base44/functions/claimDailyWheelReward/entry.ts?raw';
 import { ECONOMY_RULES_DOC as economyRulesSource } from '@/lib/economyRulesDoc';
 import { RELEASE_PROOF_CHECKLIST_DOC as releaseChecklistSource } from '@/lib/package2DocMirrors';
 import { DAILY_WHEEL_BACKEND_HEALTH_SOURCE } from '@/lib/dailyWheelHealthMirror';
@@ -1346,7 +1347,7 @@ export const EXTRA_TESTS = [
   makeCase('daily_wheel_home_diamond_updates_immediately',
     'Home diamond count updates after successful wheel claim',
     () => {
-      const missing = missingTokens(`${mainMenuSource}\n${dailyWheelHookSource}`, [
+      const missing = missingTokens(`${mainMenuSource}\n${dailyWheelHookSource}\n${claimDailyWheelSource}`, [
         'handleDailyWheelUserPatch',
         'const applyUserPatch = (current)',
         'setLocalUser(applyUserPatch)',

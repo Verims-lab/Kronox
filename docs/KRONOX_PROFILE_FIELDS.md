@@ -57,7 +57,7 @@ initially generated as `KronoxUser####` / `KronoxUser#####`. The stored
 `display_name` field is a legacy/projection mirror of `username`, not a separate
 editable profile field.
 
-Profile and leaderboard surfaces must use `username` for public identity.
+Public identity is `username` only. Profile and leaderboard surfaces must use `username` for public identity.
 `display_name` may be stored only as an internal compatibility mirror for old
 rows and must not be used as the public fallback identity or returned as the
 public leaderboard identity field. Email, Google ID, Apple ID, provider UID,

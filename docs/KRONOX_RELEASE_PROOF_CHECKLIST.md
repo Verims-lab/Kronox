@@ -844,7 +844,8 @@ Checklist:
 * Push subscription works on real installed device if supported.
 * `sendGameInvitePush` requires `VAPID_SUBJECT`, `VAPID_PUBLIC_KEY`, and `VAPID_PRIVATE_KEY` as Base44 project secrets.
 * The backend imports `secrets` from `base44:runtime` and reads all three with request-time `secrets.get(...)`; direct `Deno.env.get(...)` is forbidden for VAPID config.
-* `VAPID_PRIVATE_KEY` is never hardcoded, logged, returned, rendered, included in Health output/raw errors, or documented as a real value.
+* VAPID private key remains a real server-only secret. `VAPID_PRIVATE_KEY` must never be logged, returned, rendered, included in Health output/raw errors, or documented as a real value.
+* `VAPID_PUBLIC_KEY` is public-by-design but config-managed and must not use insecure defaults or placeholders. `VAPID_SUBJECT` is contact/config metadata and must never be logged, returned, rendered when unnecessary.
 * Missing, blank, malformed, or placeholder-like VAPID values fail closed with safe `PUSH_VAPID_NOT_CONFIGURED` / `missing_vapid_config` diagnostics and no push-provider attempt.
 * In-app GameInvite persistence and acceptance remain best-effort and functional when push is unavailable.
 * Production Base44 secret provisioning/rotation plus real subscribed-device push delivery remain `MANUAL_REQUIRED`; static Health and `npm run build` are not deployment-secret proof.
@@ -1283,7 +1284,7 @@ verified against the deployed Base44 environment.
 
 * Open guarded Admin Ekranı > Integrity Snapshot and confirm `Veri Temizliği Planı — Dry Run` renders current FAIL/INCOMPLETE checks, group/row counts, P0/P1 risk, canonical strategy, eligibility, runtime risk, and at most three irreversible fingerprints per check.
 * Require response flags `dryRun: true`, `readOnly: true`, `mutationOperationsEnabled: false`, `cleanupExecutionAvailable: false`, and `explicitApprovalRequired: true`.
-* Confirm no cleanup function is invoked from this UI and no execute CTA is present. Review is step one; execution is a separate task requiring explicit admin/user approval.
+* Confirm no cleanup function is invoked from this UI and no execute CTA is present. The visible plan states `Yürütme engelli`; review is step one, and execution is a separate task requiring explicit admin/user approval.
 * Duplicate FAILs must remain FAIL until separately approved cleanup runs and a fresh report verifies the data. Static Data Hygiene Health PASS proves only the dry-run contract, not cleaned production data.
 * Confirm no raw duplicate row, row ID, email, owner/player/actor key, raw guest ID/token, private payload, secret, or stack trace appears in UI/export.
 
