@@ -24,8 +24,12 @@ checks that source code and static Health cannot honestly prove alone.
 * Pull-to-refresh/overscroll guards are scoped to the relevant container or
   active gameplay drag only.
 * BottomNav visible tabs are exactly `Ana Sayfa`, `Liderlik`, and `Profil`.
-  Tapping any tab opens that tab root, never a cached/sticky subpage. Profile
-  subpages, Friends, Settings, Admin, Market, Daily, and similar main-tab
+  Tapping any tab opens that tab root, never a cached/sticky subpage. The active
+  tab is derived only from the committed route pathname; rapid taps and browser
+  back/forward cannot maintain a separate optimistic tab state. Lazy route
+  loading replaces prior page content with the route loading shell, so Home,
+  Liderlik, or Profil content is never visible under another tab highlight.
+  Profile subpages, Friends, Settings, Admin, Market, Daily, and similar main-tab
   subpages use a top-left back arrow with explicit parent/root fallback; the
   top-right remains reserved for notifications/actions.
 * Home is bounded by `100dvh`, safe-area insets, and the known BottomNav height.

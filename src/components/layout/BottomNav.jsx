@@ -29,8 +29,6 @@ export default function BottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
   const {
-    currentTab,
-    switchTab,
     resetStack,
     rememberRoute,
   } = useNavigationStack();
@@ -47,12 +45,13 @@ export default function BottomNav() {
   if (HIDDEN_ROUTES.includes(location.pathname)) return null;
   if (runtimeHidden) return null;
 
-  const activeTab = getTabRootForPathname(location.pathname) || currentTab;
+  // Codex619 — The committed route is the only active-tab source. Never mark a
+  // destination active optimistically while different route content is visible.
+  const activeTab = getTabRootForPathname(location.pathname);
   const handleTabClick = (path) => {
     // BottomNav is root navigation, not nested-route restoration. This keeps
     // Profile/Friends/Settings subpages from becoming sticky after tab changes.
     resetStack(path);
-    switchTab(path);
     navigate(path, { replace: true, state: getTabRootNavigationState(path) });
     window.requestAnimationFrame?.(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }));
   };

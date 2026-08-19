@@ -230,6 +230,8 @@ import * as a11yQualityCases from './simulationPanelA11yQualityCases';
 import * as errorStateCases from './simulationPanelErrorStateCases';
 // Codex601 — A3 narrow viewport, safe-area, modal, BottomNav, and touch contracts.
 import * as mobileSafetyCases from './simulationPanelMobileSafetyCases';
+// Codex619 — committed-route BottomNav ownership and non-overlapping lazy route rendering.
+import * as bottomNavRouteSyncCases from './simulationPanelBottomNavRouteSyncCases';
 // Health Center recent-contract update audit: Profile/Settings route ownership,
 // Leaderboard own row, presence/invite/admin reporting, performance/visual
 // guardrails, UX docs, and SDK pin Health coverage inventory.
@@ -333,6 +335,7 @@ const MODULES = [
   a11yQualityCases,
   errorStateCases,
   mobileSafetyCases,
+  bottomNavRouteSyncCases,
   healthUpdateAuditCases,
   profileAvatarCases,
   startupStatusCacheCases,

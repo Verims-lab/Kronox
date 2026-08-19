@@ -3,7 +3,6 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes, useLocation, Navigate } from 'react-router-dom';
 import React, { Suspense, useEffect } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
 import PageNotFound from './lib/PageNotFound';
 import MainMenu from './pages/MainMenu';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
@@ -132,17 +131,6 @@ const AuthenticatedApp = () => {
     }
   }, [location.pathname, location.state]);
 
-  // Determine transition direction: push (right-to-left) or pop (left-to-right)
-  const getTransitionDirection = () => {
-    const routeOrder = ['/', '/onboarding', '/market', '/daily', '/solo', '/game', '/lobby', '/profile', '/profile/edit', '/friends', '/settings', '/admin', '/test-suite', '/account-deletion', '/privacy'];
-    const currIdx = routeOrder.indexOf(location.pathname);
-    const prevIdx = routeOrder.indexOf(prevPathRef.current);
-    const direction = currIdx > prevIdx ? 'push' : 'pop';
-    prevPathRef.current = location.pathname;
-    return direction;
-  };
-
-  const transitionDir = getTransitionDirection();
   const viewportShellStyle = isViewportLockedPage
     ? { width: '100%', minHeight: '100dvh', height: '100dvh', overflow: 'hidden', overscrollBehavior: 'none' }
     : { width: '100%', minHeight: '100%' };
@@ -202,64 +190,40 @@ const AuthenticatedApp = () => {
       <LazyAppDiagnostics currentUser={user} />
       {/* Codex102 — Global AppHeader removed. Each screen renders its own
           ScreenHeader so the title/back/avatar match the active page. */}
+      {/* Codex619 — One committed route owns the visible content. The previous
+          global AnimatePresence mode="sync" kept the old page visibly mounted
+          after location changed, while BottomNav correctly highlighted the new
+          pathname. Direct route rendering unmounts old content at commit; lazy
+          routes show PageLoader instead of stale content. Page-local motion and
+          resilient lazy chunk loading remain unchanged. */}
       <Suspense fallback={<PageLoader />}>
-        {/*
-          Codex085 — /game route is rendered OUTSIDE AnimatePresence.
-          The previous mode="wait" wrapper required the previous route's exit
-          animation to complete before the new route's enter animation
-          started. On a slow host transition from /lobby → /game this could
-          leave the new route stuck at { opacity: 0, x: 100 } → BLACK SCREEN.
-          The /game route is the most timing-sensitive route in the app, so
-          we render it directly (no animation wrapper) to guarantee an
-          immediate mount on the host. All other routes keep the slick
-          transition.
-        */}
-        {isGamePage ? (
-          <AppErrorBoundary>
-            <Routes location={location}>
-              <Route path="/game" element={<Game />} />
-            </Routes>
-          </AppErrorBoundary>
-        ) : (
-          <AnimatePresence mode="sync">
-            <motion.div
-              key={location.pathname}
-              initial={{ opacity: 0, x: transitionDir === 'push' ? 100 : -100 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: transitionDir === 'push' ? -100 : 100 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              data-kx-route-locked={isViewportLockedPage ? 'true' : undefined}
-              style={isViewportLockedPage ? { height: '100dvh', overflow: 'hidden', overscrollBehavior: 'none' } : undefined}
-            >
-              <AppErrorBoundary>
-                <Routes location={location}>
-                  <Route path="/" element={<MainMenu />} />
-                  <Route path="/onboarding" element={<OnboardingPage />} />
-                  <Route path="/market" element={<MarketPage />} />
-                  <Route path="/daily" element={<DailyPage />} />
-                  <Route path="/solo" element={<SoloChallenge />} />
-                  <Route path="/SoloChallenge" element={<Navigate to="/solo" replace />} />
-                  <Route path="/Game" element={<Navigate to="/solo" replace />} />
-                  <Route path="/setup" element={<Navigate to="/solo" replace />} />
-                  <Route path="/settings" element={<SettingsPage />} />
-                  <Route path="/profile" element={<ProfilePage />} />
-                  <Route path="/profile/edit" element={<ProfileEditPage />} />
-                  <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
-                  <Route path="/AdminPage" element={<Navigate to="/admin" replace />} />
-                  <Route path="/friends" element={<FriendsPage />} />
-                  <Route path="/leaderboard" element={<LeaderboardPage />} />
-                  <Route path="/lobby" element={<LobbyRoom />} />
-                  <Route path="/LobbyRoom" element={<Navigate to="/lobby" replace />} />
-                  <Route path="/test-suite" element={<TestSuite />} />
-                  <Route path="/TestSuite" element={<Navigate to="/test-suite" replace />} />
-                  <Route path="/account-deletion" element={<AccountDeletionPage />} />
-                  <Route path="/privacy" element={<PrivacyPolicy />} />
-                  <Route path="*" element={<PageNotFound />} />
-                </Routes>
-              </AppErrorBoundary>
-            </motion.div>
-          </AnimatePresence>
-        )}
+        <AppErrorBoundary>
+          <Routes location={location}>
+            <Route path="/" element={<MainMenu />} />
+            <Route path="/onboarding" element={<OnboardingPage />} />
+            <Route path="/market" element={<MarketPage />} />
+            <Route path="/daily" element={<DailyPage />} />
+            <Route path="/solo" element={<SoloChallenge />} />
+            <Route path="/SoloChallenge" element={<Navigate to="/solo" replace />} />
+            <Route path="/Game" element={<Navigate to="/solo" replace />} />
+            <Route path="/setup" element={<Navigate to="/solo" replace />} />
+            <Route path="/game" element={<Game />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/profile/edit" element={<ProfileEditPage />} />
+            <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
+            <Route path="/AdminPage" element={<Navigate to="/admin" replace />} />
+            <Route path="/friends" element={<FriendsPage />} />
+            <Route path="/leaderboard" element={<LeaderboardPage />} />
+            <Route path="/lobby" element={<LobbyRoom />} />
+            <Route path="/LobbyRoom" element={<Navigate to="/lobby" replace />} />
+            <Route path="/test-suite" element={<TestSuite />} />
+            <Route path="/TestSuite" element={<Navigate to="/test-suite" replace />} />
+            <Route path="/account-deletion" element={<AccountDeletionPage />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="*" element={<PageNotFound />} />
+          </Routes>
+        </AppErrorBoundary>
       </Suspense>
       {isAuthenticated && nonCriticalModulesEnabled && (
         <Suspense fallback={null}>
