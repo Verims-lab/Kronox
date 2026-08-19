@@ -232,6 +232,8 @@ import * as errorStateCases from './simulationPanelErrorStateCases';
 import * as mobileSafetyCases from './simulationPanelMobileSafetyCases';
 // Codex619 — committed-route BottomNav ownership and non-overlapping lazy route rendering.
 import * as bottomNavRouteSyncCases from './simulationPanelBottomNavRouteSyncCases';
+// Codex620 — request-time Base44 runtime secrets and fail-closed VAPID delivery.
+import * as vapidRuntimeSecretsCases from './simulationPanelVapidRuntimeSecretsCases';
 // Health Center recent-contract update audit: Profile/Settings route ownership,
 // Leaderboard own row, presence/invite/admin reporting, performance/visual
 // guardrails, UX docs, and SDK pin Health coverage inventory.
@@ -336,6 +338,7 @@ const MODULES = [
   errorStateCases,
   mobileSafetyCases,
   bottomNavRouteSyncCases,
+  vapidRuntimeSecretsCases,
   healthUpdateAuditCases,
   profileAvatarCases,
   startupStatusCacheCases,

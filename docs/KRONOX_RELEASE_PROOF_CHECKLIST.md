@@ -842,39 +842,12 @@ Checklist:
   90717 fix is proven. Real App Store Connect re-upload validation remains
   manual.
 * Push subscription works on real installed device if supported.
-* `sendGameInvitePush` requires backend `VAPID_PUBLIC_KEY`,
-  `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT` config; missing/blank values return
-  explicit `vapid_config_missing` / `missing_vapid_config` push diagnostics.
-* `VAPID_PRIVATE_KEY` is backend-env-only: it must be stored as a deployment
-  secret, never committed, never read from `VITE_`, and never logged/returned.
-  Scanner findings that only flag the env var name are deployment-secret
-  management notes unless actual key material is found.
-* Health/security triage wording for env-sourced VAPID secrets:
-  `VAPID_PRIVATE_KEY is server-side env/secret sourced. Production secret
-  manager verification is MANUAL_REQUIRED.`
-* Before release, manually verify Base44 production secret/env configuration
-  has the intended `VAPID_PRIVATE_KEY`, no default/placeholder key is active,
-  and rotation is completed if exposure is suspected.
-* `VAPID_PUBLIC_KEY` may be used by browser subscription code through
-  `VITE_KRONOX_VAPID_PUBLIC_KEY`; it is public-by-design but still
-  config-managed. Backend push signing must use only deployment-managed
-  non-`VITE_` config.
-* `VAPID_SUBJECT` is deployment configured and validated; it is not hardcoded
-  as a source fallback. It may contain contact/config metadata and must not be
-  logged or returned unnecessarily.
-* `VAPID_SUBJECT` uses a `mailto:` or `https://` subject and VAPID keys use
-  non-empty base64url-style deployment values.
-* Backend push config has no empty-string, dummy, hardcoded, or `VITE_`
-  private-key fallback; in-app invites remain functional if push is not
-  configured.
-* Missing VAPID config returns safe skip diagnostics such as `pushSent: false`,
-  `pushSkipped: true`, `missingConfig: true`, and
-  `reason: vapid_config_missing`; push summaries preserve `skippedReasons`,
-  `failedReasons`, `missing_vapid_config`, `no_active_subscriptions`, and
-  `subscriptionCount` without returning VAPID values, private keys, push auth
-  secrets, or raw provider stack traces.
-* `npm run build` is not backend-secret proof. Real push delivery remains a
-  manual runtime proof on a subscribed device with deployed backend secrets.
+* `sendGameInvitePush` requires `VAPID_SUBJECT`, `VAPID_PUBLIC_KEY`, and `VAPID_PRIVATE_KEY` as Base44 project secrets.
+* The backend imports `secrets` from `base44:runtime` and reads all three with request-time `secrets.get(...)`; direct `Deno.env.get(...)` is forbidden for VAPID config.
+* `VAPID_PRIVATE_KEY` is never hardcoded, logged, returned, rendered, included in Health output/raw errors, or documented as a real value.
+* Missing, blank, malformed, or placeholder-like VAPID values fail closed with safe `PUSH_VAPID_NOT_CONFIGURED` / `missing_vapid_config` diagnostics and no push-provider attempt.
+* In-app GameInvite persistence and acceptance remain best-effort and functional when push is unavailable.
+* Production Base44 secret provisioning/rotation plus real subscribed-device push delivery remain `MANUAL_REQUIRED`; static Health and `npm run build` are not deployment-secret proof.
 
 ## Android 15 Edge-To-Edge / Play Console
 

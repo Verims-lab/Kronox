@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex620 — VAPID security: migrate sendGameInvitePush to request-time Base44 runtime secrets, preserve fail-closed best-effort invites, and retarget Health/docs without exposing values or changing push UI/Online behavior.
 // Codex619 — BottomNav route-sync regression: derive active tab only from committed pathname and remove overlapping global route exits so lazy/root content cannot appear under another tab; add source-connected Health/docs without product behavior changes.
 // Codex618 — Data Hygiene P0: extend the guarded Integrity Snapshot with a read-only duplicate cleanup plan, canonical candidate fingerprints, risk/eligibility summaries, and source-connected Health/docs; no cleanup or product behavior changes.
 // Codex617 — Base44 Health blocker alignment: retarget Friends actor-scoped social snapshot proof, executable notification suppression, shared wheel Diamond propagation, and explicit Daily cache-preservation branches without changing product rules.
@@ -197,7 +198,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex619';
+const BUILD_MARKER = 'Codex620';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

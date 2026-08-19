@@ -127,79 +127,15 @@ Base44-managed auth pattern. Current mitigation is to remove `access_token`
 from the URL immediately, avoid token logging/rendering, and avoid inventing a
 custom token store in app code.
 
-Game invite push delivery is best-effort.
+Game invite push delivery is best-effort. In-app invite persistence does not depend on push being configured.
 
-In-app invite persistence does not depend on push being configured.
+`VAPID_SUBJECT`, `VAPID_PUBLIC_KEY`, and `VAPID_PRIVATE_KEY` are Base44 project secrets. The active backend imports `secrets` from `base44:runtime` and reads each value with request-time `secrets.get(...)`; direct `Deno.env.get(...)` access is forbidden for these VAPID settings. Do not add compatibility environment names, hardcoded values, empty defaults, generated fallback keys, or `VITE_` backend fallbacks.
 
-Configure these server secrets in Base44/production:
+`VAPID_PRIVATE_KEY` is server-only secret material and must never be logged, returned, rendered, printed in Health, included in raw errors/stacks, or documented as a real value. `VAPID_PUBLIC_KEY` is public-by-design for browser subscription but remains project-secret/config managed on the backend. `VAPID_SUBJECT` is contact/config metadata and must be a configured `mailto:` or `https://` value.
 
-```text
-VAPID_PUBLIC_KEY
-VAPID_PRIVATE_KEY
-VAPID_SUBJECT
-```
+Missing, blank, malformed, or placeholder-like values—including `changeme`, `placeholder`, `default`, `demo`, `test`, `insecure`, `unsafe`, `dev-private-key`, and `your-vapid-*-key`—fail closed. `sendGameInvitePush` does not call the push provider and returns only safe best-effort diagnostics such as `PUSH_VAPID_NOT_CONFIGURED`, `missing_vapid_config`, booleans, and counts. Persisted GameInvite, header notification, pending invite list, and invite acceptance remain available.
 
-Compatibility names may also be supported:
-
-```text
-KRONOX_VAPID_PUBLIC_KEY
-KRONOX_VAPID_PRIVATE_KEY
-KRONOX_VAPID_SUBJECT
-```
-
-Configure this public client build value for browser subscription:
-
-```text
-VITE_KRONOX_VAPID_PUBLIC_KEY
-```
-
-The backend push sender must read only the non-`VITE_` server names above.
-`VITE_` VAPID values are client-exposed by Vite and must never be used as
-backend VAPID private-key fallbacks.
-
-Rules:
-
-* never commit the VAPID private key
-* rotate VAPID keys if exposure is suspected
-* deploy secrets through the secret manager
-* reading `VAPID_PRIVATE_KEY` from backend environment/secret storage is the
-  required secure practice; scanner findings that only identify the env var
-  name are deployment-secret management notes, not source-code exposure
-* Health/security triage must classify env-sourced `VAPID_PRIVATE_KEY`
-  deployment verification as `MANUAL_REQUIRED`/warning; it is a blocker only
-  if key material is hardcoded, exposed through `VITE_`, logged, returned, or
-  included in raw errors
-* Required triage wording: `VAPID_PRIVATE_KEY is server-side env/secret sourced.
-  Production secret manager verification is MANUAL_REQUIRED.`
-* Release operators must verify the Base44 production secret manager/env
-  contains the current `VAPID_PRIVATE_KEY`, confirm no default or placeholder
-  value is active, and record any rotation/manual proof before release
-* `VAPID_PRIVATE_KEY` is server-only and must never be logged, returned, sent to
-  the client, exposed through `VITE_`, or included in raw error/stack responses
-* VAPID public key, private key, and subject are all required backend config
-* `VAPID_PUBLIC_KEY` is public by design for browser subscriptions, but it
-  should still be deployment/config managed rather than hardcoded in source
-* `VAPID_SUBJECT` is deployment-controlled metadata and must be a valid
-  configured contact subject, not a source fallback; it may contain contact
-  metadata and should not be logged unnecessarily
-* `VAPID_SUBJECT` should use a `mailto:` or `https://` subject; VAPID key
-  values must be non-empty base64url-style deployment values
-* missing, blank, whitespace-only, or placeholder VAPID config must fail
-  explicitly as push-not-configured
-* no empty-string, dummy, hardcoded, or client `VITE_` fallback is allowed for
-  backend push sending
-* the VAPID private key value must never be logged, returned in API responses,
-  printed in Health reports, or exposed through frontend `VITE_` variables
-* safe push-skip diagnostics may return `vapid_config_missing`,
-  `missing_vapid_config`, `pushSent: false`, `pushSkipped: true`,
-  `missingConfig: true`, `vapidConfigured`, `vapidConfigValid`,
-  `skippedReasons`, `failedReasons`,
-  `subscriptionCount`, and counts, but never VAPID values or private-key
-  material
-* missing VAPID config must not break in-app invite flow
-* `npm run build` validates the frontend bundle only; it does not prove backend
-  VAPID secrets are configured in deployment
-* real push delivery requires a subscribed device plus deployed backend secrets
+Production Base44 project-secret provisioning, rotation, deployment, and real subscribed-device delivery are `MANUAL_REQUIRED` release proofs. Static Health and `npm run build` must not claim those values are configured. No real secret value belongs in this document.
 
 If VAPID config is missing:
 
@@ -1102,7 +1038,8 @@ Rules:
   and `file:///__shared` imports in critical functions should fail Health, but
   live markers still require Base44 Test Function/deploy proof
 * `npm run check:base44-functions` is the pre-deploy static gate for Base44
-  function sources. It catches TypeScript syntax/duplicate-declaration blockers,
+  function sources. It accepts the built-in `base44:runtime` module for request-time
+  project-secret access and catches TypeScript syntax/duplicate-declaration blockers,
   deploy-risk `_shared` imports, committed email literals, and missing
   `getQuestions` runtime marker/projection diagnostics before manual Save &
   Deploy.

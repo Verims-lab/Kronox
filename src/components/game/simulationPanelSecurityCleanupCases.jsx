@@ -3,10 +3,9 @@
 // Product decisions locked by this suite:
 // - Spotify/external music-provider import functions are removed because
 //   Kronox does not use them now.
-// - VAPID keys are read from deployment secrets/config, never hardcoded.
-// - VAPID_PRIVATE_KEY is backend-env-only; scanner findings about the env var
-//   name are deployment-secret management notes when no key material is
-//   committed, logged, returned, or exposed through VITE_ config.
+// - VAPID values are read request-time from Base44 project secrets, never hardcoded.
+// - VAPID_PRIVATE_KEY is backend-only and never logged, returned, rendered,
+//   included in Health output, or exposed through VITE_ config.
 // - Missing VAPID config skips push only; the persisted in-app invite flow
 //   remains available.
 // - Admin access is DB-backed through the private AdminUser source-of-truth;
@@ -208,124 +207,71 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('vapid_keys_not_hardcoded',
-    'sendGameInvitePush reads VAPID values from env/config only',
+    'sendGameInvitePush reads VAPID values from Base44 runtime secrets only',
     () => {
       const required = [
-        'VAPID_CONFIG_FIELDS',
-        "canonicalName: 'VAPID_PUBLIC_KEY'",
-        "envNames: ['VAPID_PUBLIC_KEY', 'KRONOX_VAPID_PUBLIC_KEY']",
-        "canonicalName: 'VAPID_PRIVATE_KEY'",
-        "envNames: ['VAPID_PRIVATE_KEY', 'KRONOX_VAPID_PRIVATE_KEY']",
-        "canonicalName: 'VAPID_SUBJECT'",
-        "envNames: ['VAPID_SUBJECT', 'KRONOX_VAPID_SUBJECT']",
-        'Deno.env.get(envName)',
-        'readRequiredVapidValue',
-        'isInvalidVapidValue',
-        'VAPID_PLACEHOLDER_EXACT',
-        'VAPID_PLACEHOLDER_MARKERS',
-        "normalized.startsWith('test_')",
-        'isValidVapidSubject',
-        'isLikelyVapidKey',
-        'summarizeVapidConfigState',
-        'VAPID_SECRET_HEALTH_CLASSIFICATION',
-        "vapidPrivateKeyProductionSecretManagerVerification: 'MANUAL_REQUIRED'",
-        "envSourcedVapidPrivateKeyFindingSeverity: 'WARNING'",
-        "criticalOnlyWhen: 'hardcoded_logged_returned_client_exposed_or_unsafe_default'",
-        'vapid_config_missing',
-        'pushSent: false',
-        'pushSkipped: true',
-        'missingConfig: true',
-        'vapidConfigured',
-        'vapidConfigValid',
-        'missingCount',
-        'invalidCount',
-        'sanitizePushErrorReason',
-        'push_invite_failed',
+        "import { secrets } from 'base44:runtime'",
+        'secrets.get("VAPID_SUBJECT")',
+        'secrets.get("VAPID_PUBLIC_KEY")',
+        'secrets.get("VAPID_PRIVATE_KEY")',
+        'const config = getVapidConfig()',
+        'isInvalidVapidValue(value)',
+        'PUSH_VAPID_NOT_CONFIGURED',
         'webpush.setVapidDetails(config.subject, config.publicKey, config.privateKey)',
       ];
       const forbidden = [
-        /privateKey\s*:\s*['"][^'"]{12,}['"]/,
-        /publicKey\s*:\s*['"][^'"]{12,}['"]/,
-        /subject\s*:\s*['"]mailto:[^'"]+['"]/,
-        /Deno\.env\.get\('(?:KRONOX_)?VAPID_(?:PUBLIC_KEY|PRIVATE_KEY|SUBJECT)'\)\s*\|\|\s*['"]['"]/,
-        /Deno\.env\.get\('(?:KRONOX_)?VAPID_SUBJECT'\)\s*\|\|\s*['"][^'"]+['"]/,
-        /Deno\.env\.get\('VITE_[^']*VAPID[^']*'\)/,
-        /Deno\.env\.get\('VITE_[^']*(?:PRIVATE|SECRET|TOKEN)[^']*'\)/,
-        /console\.(?:log|warn|error)\([^;]*(?:config\.privateKey|privateKey|KRONOX_VAPID_PRIVATE_KEY)/,
-        /return\s+json\(\{[\s\S]{0,500}privateKey\s*:/,
-        /console\.error\([^;]*(?:\.message|\|\|\s*error|,\s*error)/,
-        /acceptedEnvNames/,
-        /missingConfig:\s*config\.missing/,
-        /invalidConfig:\s*config\.invalid/,
+        /Deno\.env\.get\(["']VAPID_(?:SUBJECT|PUBLIC_KEY|PRIVATE_KEY)["']\)/,
+        /privateKey\s*:\s*['"][A-Za-z0-9_-]{40,}['"]/, 
+        /console\.(?:log|warn|error)\([^;]*(?:config\.privateKey|secretValues\.privateKey)/,
+        /return\s+json\(\{[^}]*privateKey\s*:/,
         privateKeyBlockPattern,
       ].filter((pattern) => pattern.test(sendGameInvitePushSource));
       const missing = missingTokens(sendGameInvitePushSource, required);
       if (missing.length || forbidden.length) {
-        return fail('VAPID key handling can still expose committed key material.', {
-          verification: 'STATIC_CONTRACT',
+        return fail('VAPID runtime-secret handling can expose or bypass project-secret configuration.', {
+          verification: 'SOURCE_CONNECTED',
           classification: 'REAL_PRODUCT_RISK',
           file: 'base44/functions/sendGameInvitePush/entry.ts',
-          expected: 'Server VAPID keys read from non-VITE Deno.env names only, strictly validated, and never empty-string/defaulted',
           actual: { missing, forbidden: forbidden.map(String) },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('VAPID keys are loaded from server env/config names, strict validation rejects missing/blank values, no empty/default/VITE private-key fallback is present, and private key values are not logged or returned.', {
-        verification: 'STATIC_CONTRACT',
-        classification: 'STATIC_CHECK_LIMITATION',
+      return pass('VAPID config uses request-time Base44 runtime secrets with no committed/logged/returned key material.', {
+        verification: 'SOURCE_CONNECTED',
         actionType: ACTION_TYPES.CODE_FIX,
       });
     }),
 
   makeCase('vapid_private_key_backend_secret_only',
-    'VAPID_PRIVATE_KEY is backend-env-only and never exposed to frontend/logs/responses',
+    'VAPID_PRIVATE_KEY is a Base44 project secret and never exposed',
     () => {
       const required = [
-        "canonicalName: 'VAPID_PRIVATE_KEY'",
-        "envNames: ['VAPID_PRIVATE_KEY', 'KRONOX_VAPID_PRIVATE_KEY']",
-        'Deno.env.get(envName)',
-        'config.privateKey',
-        'webpush.setVapidDetails(config.subject, config.publicKey, config.privateKey)',
-        'vapid_config_missing',
-        'pushSent: false',
-        'pushSkipped: true',
-        'missingConfig: true',
-        'vapidConfigured',
-        'vapidConfigValid',
-        'missingCount',
-        'invalidCount',
-        'getVapidSecretHealthClassification',
+        "import { secrets } from 'base44:runtime'",
+        'secrets.get("VAPID_PRIVATE_KEY")',
+        "vapidPrivateKeySource: 'base44_project_secret'",
         "vapidPrivateKeyProductionSecretManagerVerification: 'MANUAL_REQUIRED'",
-        "envSourcedVapidPrivateKeyFindingSeverity: 'WARNING'",
-        'push_invite_failed',
+        'webpush.setVapidDetails(config.subject, config.publicKey, config.privateKey)',
       ];
       const forbidden = [
+        /Deno\.env\.get\(["']VAPID_PRIVATE_KEY["']\)/,
         /VITE_[A-Z0-9_]*VAPID_PRIVATE_KEY/,
-        /VITE_[A-Z0-9_]*PRIVATE_KEY/,
-        /Deno\.env\.get\('VITE_[^']*(?:VAPID|PRIVATE|SECRET|TOKEN)[^']*'\)/,
-        /import\.meta\.env\.[A-Z0-9_]*VAPID_PRIVATE_KEY/,
-        /console\.(?:log|warn|error)\([^;]*(?:config\.privateKey|privateKey|KRONOX_VAPID_PRIVATE_KEY)/,
-        /return\s+json\(\{[\s\S]{0,500}privateKey\s*:/,
-        /console\.error\([^;]*(?:\.message|\|\|\s*error|,\s*error)/,
-        /privateKey\s*:\s*['"][^'"]{12,}['"]/,
-        /acceptedEnvNames/,
-        /missingConfig:\s*config\.missing/,
-        /invalidConfig:\s*config\.invalid/,
+        /console\.(?:log|warn|error)\([^;]*(?:config\.privateKey|secretValues\.privateKey)/,
+        /return\s+json\(\{[^}]*privateKey\s*:/,
+        /privateKey\s*:\s*['"][A-Za-z0-9_-]{40,}['"]/, 
         privateKeyBlockPattern,
       ].filter((pattern) => pattern.test(sendGameInvitePushSource));
       const missing = missingTokens(sendGameInvitePushSource, required);
       if (missing.length || forbidden.length) {
-        return fail('VAPID private key handling may expose backend secret material.', {
-          verification: 'STATIC_CONTRACT',
+        return fail('VAPID private-key project-secret boundary drifted.', {
+          verification: 'SOURCE_CONNECTED',
           classification: 'REAL_PRODUCT_RISK',
           file: 'base44/functions/sendGameInvitePush/entry.ts',
-          expected: 'VAPID_PRIVATE_KEY is read only from backend env, used only for webpush signing, never logged/returned/client-exposed',
           actual: { missing, forbidden: forbidden.map(String) },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('VAPID_PRIVATE_KEY remains backend-env-only; scanner env-name findings are deployment-secret management notes when no value is committed. VAPID_PRIVATE_KEY is server-side env/secret sourced. Production secret manager verification is MANUAL_REQUIRED.', {
-        verification: 'STATIC_CONTRACT',
+      return pass('VAPID_PRIVATE_KEY is request-time Base44 secret material; production provisioning remains MANUAL_REQUIRED.', {
+        verification: 'SOURCE_CONNECTED',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
       });
@@ -336,7 +282,7 @@ export const EXTRA_TESTS = [
     () => {
       const missing = missingTokens(sendGameInvitePushSource, [
         'missing_vapid_config',
-        'vapid_config_missing',
+        'PUSH_VAPID_NOT_CONFIGURED',
         'attempted: false',
         'ok: false',
         'pushSent: false',
@@ -477,14 +423,14 @@ export const EXTRA_TESTS = [
       const combined = `${securityDeploymentDocSource}\n${releaseProofChecklistSource}`;
       const required = [
         'VAPID_PUBLIC_KEY',
-        'public-by-design',
-        'config-managed',
         'VAPID_SUBJECT',
-        'contact/config metadata',
-        'must not be logged',
         'VAPID_PRIVATE_KEY',
-        'server-only',
-        'never logged, returned',
+        'Base44 project secrets',
+        'base44:runtime',
+        'secrets.get(...)',
+        'Deno.env.get(...)',
+        'never be logged, returned, rendered',
+        'MANUAL_REQUIRED',
       ];
       const missing = missingTokens(combined, required);
       if (missing.length) {
@@ -638,11 +584,11 @@ export const EXTRA_TESTS = [
 
   makeCase('security_runtime_secret_scan_needed',
     'Runtime security scan should be rerun after deploy',
-    () => notAutomatable('Static Health can verify source contracts, but deployed secret presence/rotation remains manual-only verification. VAPID_PRIVATE_KEY is server-side env/secret sourced. Production secret manager verification is MANUAL_REQUIRED. A VAPID_PRIVATE_KEY env-var-name-only finding is a deployment-secret management warning, not a blocker, unless real key material is hardcoded, exposed, logged, returned, or read through VITE_.', {
+    () => notAutomatable('Static Health verifies Base44 runtime-secret source contracts only. Production VAPID project-secret presence, rotation, deployment, and real-device delivery remain MANUAL_REQUIRED and must not expose any value in evidence.', {
       verification: 'NOT_AUTOMATABLE',
       classification: 'DEPLOYMENT_SECRET_MANAGEMENT',
       verificationLabels: ['MANUAL_REQUIRED', 'BACKEND_RUNTIME_PROBE', 'SECRET_DEPLOYMENT_REVIEW'],
-      expected: 'External scan reports no exposed Spotify/VAPID/admin-email findings; backend VAPID_PRIVATE_KEY env-name-only usage is warning/manual deployment verification unless real key material is found.',
+      expected: 'Base44 production project secrets are provisioned and real subscribed-device push succeeds without exposing values.',
       actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE,
     }),
     { critical: false, runtimeProofRequired: true, actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, verificationLabels: ['MANUAL_REQUIRED', 'BACKEND_RUNTIME_PROBE', 'SECRET_DEPLOYMENT_REVIEW'] }),

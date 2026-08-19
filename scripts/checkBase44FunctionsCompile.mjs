@@ -107,7 +107,10 @@ function compileDiagnostics(filePath, source) {
 }
 
 function isAllowedDenoImport(specifier) {
-  return specifier.startsWith('npm:') || specifier.startsWith('jsr:') || specifier.startsWith('node:');
+  return specifier === 'base44:runtime'
+    || specifier.startsWith('npm:')
+    || specifier.startsWith('jsr:')
+    || specifier.startsWith('node:');
 }
 
 function resolveRelativeImport(fromFile, specifier) {

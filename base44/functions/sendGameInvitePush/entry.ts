@@ -9,6 +9,7 @@
  * - Push failure never invalidates the invite/lobby creation flow.
  */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
+import { secrets } from 'base44:runtime';
 import webpush from 'npm:web-push@3.6.7';
 
 const normalizeEmail = (value: unknown) => String(value || '').trim().toLowerCase();
@@ -16,15 +17,13 @@ const json = (body: unknown, status = 200) => Response.json(body, { status });
 // Codex130 — Game invite TTL: 10 minutes (was 5).
 const GAME_INVITE_TTL_MS = 10 * 60 * 1000;
 const VAPID_CONFIG_FIELDS = [
-  { key: 'subject', canonicalName: 'VAPID_SUBJECT', envNames: ['VAPID_SUBJECT', 'KRONOX_VAPID_SUBJECT'] },
-  { key: 'publicKey', canonicalName: 'VAPID_PUBLIC_KEY', envNames: ['VAPID_PUBLIC_KEY', 'KRONOX_VAPID_PUBLIC_KEY'] },
-  { key: 'privateKey', canonicalName: 'VAPID_PRIVATE_KEY', envNames: ['VAPID_PRIVATE_KEY', 'KRONOX_VAPID_PRIVATE_KEY'] },
+  { key: 'subject', secretName: 'VAPID_SUBJECT' },
+  { key: 'publicKey', secretName: 'VAPID_PUBLIC_KEY' },
+  { key: 'privateKey', secretName: 'VAPID_PRIVATE_KEY' },
 ] as const;
 const VAPID_SECRET_HEALTH_CLASSIFICATION = {
-  vapidPrivateKeySource: 'server_env_secret',
+  vapidPrivateKeySource: 'base44_project_secret',
   vapidPrivateKeyProductionSecretManagerVerification: 'MANUAL_REQUIRED',
-  envSourcedVapidPrivateKeyFindingSeverity: 'WARNING',
-  criticalOnlyWhen: 'hardcoded_logged_returned_client_exposed_or_unsafe_default',
 } as const;
 
 // Codex485 — Placeholder/default VAPID values must fail closed in production.
@@ -41,11 +40,18 @@ const VAPID_PLACEHOLDER_EXACT = [
   'replace_me',
   'replace-me',
   'placeholder',
+  'default',
+  'demo',
+  'insecure',
+  'unsafe',
   'dummy',
   'todo',
   'test',
   'example',
   'sample',
+  'dev-private-key',
+  'your-vapid-private-key',
+  'your-vapid-public-key',
   'test_private_key',
   'test_public_key',
   'your_vapid_key',
@@ -96,24 +102,12 @@ function safePublicActorName(value: unknown, fallback = 'Bir arkadaşın') {
   return fallback;
 }
 
-function readRequiredVapidValue(field: typeof VAPID_CONFIG_FIELDS[number]) {
-  for (const envName of field.envNames) {
-    const raw = Deno.env.get(envName);
-    if (typeof raw !== 'string') continue;
-    const value = raw.trim();
-    if (!value) continue;
-    if (isInvalidVapidValue(value)) {
-      return { value: null, invalid: field.canonicalName };
-    }
-    if (field.key === 'subject' && !isValidVapidSubject(value)) {
-      return { value: null, invalid: field.canonicalName };
-    }
-    if ((field.key === 'publicKey' || field.key === 'privateKey') && !isLikelyVapidKey(value)) {
-      return { value: null, invalid: field.canonicalName };
-    }
-    return { value, invalid: null };
-  }
-  return { value: null, invalid: null };
+function readVapidSecrets() {
+  const values: Record<string, unknown> = {};
+  try { values.subject = secrets.get("VAPID_SUBJECT"); } catch { values.subject = null; }
+  try { values.publicKey = secrets.get("VAPID_PUBLIC_KEY"); } catch { values.publicKey = null; }
+  try { values.privateKey = secrets.get("VAPID_PRIVATE_KEY"); } catch { values.privateKey = null; }
+  return values;
 }
 // Codex139 — Naive ISO timestamp guard. Base44 sometimes serializes
 // `created_date` / `expires_at` without a timezone suffix; on non-UTC hosts
@@ -145,21 +139,27 @@ const getInviteExpiry = (invite: any) => {
 };
 
 function getVapidConfig() {
+  const secretValues = readVapidSecrets();
   const config: Record<string, string> = {};
   const missing: string[] = [];
   const invalid: string[] = [];
 
   for (const field of VAPID_CONFIG_FIELDS) {
-    const result = readRequiredVapidValue(field);
-    if (result.invalid) {
-      invalid.push(result.invalid);
+    const value = typeof secretValues[field.key] === 'string'
+      ? String(secretValues[field.key]).trim()
+      : '';
+    if (!value) {
+      missing.push(field.secretName);
       continue;
     }
-    if (!result.value) {
-      missing.push(field.canonicalName);
+    const invalidValue = isInvalidVapidValue(value)
+      || (field.key === 'subject' && !isValidVapidSubject(value))
+      || ((field.key === 'publicKey' || field.key === 'privateKey') && !isLikelyVapidKey(value));
+    if (invalidValue) {
+      invalid.push(field.secretName);
       continue;
     }
-    config[field.key] = result.value;
+    config[field.key] = value;
   }
 
   return {
@@ -186,7 +186,6 @@ function getVapidSecretHealthClassification() {
   return {
     vapidPrivateKeySource: VAPID_SECRET_HEALTH_CLASSIFICATION.vapidPrivateKeySource,
     vapidPrivateKeyProductionSecretManagerVerification: VAPID_SECRET_HEALTH_CLASSIFICATION.vapidPrivateKeyProductionSecretManagerVerification,
-    envSourcedVapidPrivateKeyFindingSeverity: VAPID_SECRET_HEALTH_CLASSIFICATION.envSourcedVapidPrivateKeyFindingSeverity,
   };
 }
 
@@ -221,7 +220,7 @@ function buildTargetUrl(invite: any, lobbyRef: string) {
   return query ? `/lobby?${query}` : '/lobby';
 }
 
-Deno.serve(async (req) => {
+export default async function(req: Request): Promise<Response> {
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
@@ -295,7 +294,7 @@ Deno.serve(async (req) => {
       const configState = summarizeVapidConfigState(config);
       const secretManagement = getVapidSecretHealthClassification();
       console.warn('[sendGameInvitePush] VAPID config missing or invalid; push skipped but in-app invite remains available.', {
-        reason: 'vapid_config_missing',
+        reason: 'PUSH_VAPID_NOT_CONFIGURED',
         ...configState,
       });
       return json({
@@ -404,4 +403,4 @@ Deno.serve(async (req) => {
     console.error('[sendGameInvitePush] error:', { reason: 'push_invite_failed' });
     return json({ ok: false, error: 'Push notification failed', reason: 'push_invite_failed' }, 500);
   }
-});
+}

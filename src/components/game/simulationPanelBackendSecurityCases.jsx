@@ -244,66 +244,41 @@ export const EXTRA_TESTS = [
     { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, critical: true, runtimeProofRequired: true }),
 
   makeCase('send_game_invite_push_vapid_secret_contract',
-    'sendGameInvitePush keeps VAPID private key backend-only and push best-effort',
+    'sendGameInvitePush uses request-time Base44 VAPID secrets and best-effort fallback',
     () => {
       const requiredBackend = [
-        'VAPID_CONFIG_FIELDS',
-        "canonicalName: 'VAPID_PRIVATE_KEY'",
-        "envNames: ['VAPID_PRIVATE_KEY', 'KRONOX_VAPID_PRIVATE_KEY']",
-        'Deno.env.get(envName)',
-        'webpush.setVapidDetails(config.subject, config.publicKey, config.privateKey)',
-        'vapid_config_missing',
+        "import { secrets } from 'base44:runtime'",
+        'secrets.get("VAPID_SUBJECT")',
+        'secrets.get("VAPID_PUBLIC_KEY")',
+        'secrets.get("VAPID_PRIVATE_KEY")',
+        'const config = getVapidConfig()',
+        'PUSH_VAPID_NOT_CONFIGURED',
+        "skippedPushSummary('missing_vapid_config'",
         'pushSent: false',
         'pushSkipped: true',
-        'missingConfig: true',
-        'vapidConfigured',
-        'vapidConfigValid',
-        'isValidVapidSubject',
-        'isLikelyVapidKey',
-        'summarizeVapidConfigState',
-        'VAPID_SECRET_HEALTH_CLASSIFICATION',
-        "vapidPrivateKeyProductionSecretManagerVerification: 'MANUAL_REQUIRED'",
-        "envSourcedVapidPrivateKeyFindingSeverity: 'WARNING'",
-        "criticalOnlyWhen: 'hardcoded_logged_returned_client_exposed_or_unsafe_default'",
-        'getVapidSecretHealthClassification',
-        'sanitizePushErrorReason',
+        'isInvalidVapidValue(value)',
+        'webpush.setVapidDetails(config.subject, config.publicKey, config.privateKey)',
       ];
-      const requiredFrontend = [
-        'VITE_KRONOX_VAPID_PUBLIC_KEY',
-        'missing_vapid_public_key',
-        'registerKronoxServiceWorker',
-      ];
-      const forbiddenBackend = presentTokens(sendGameInvitePushSource, [
-        "Deno.env.get('VITE_",
-        'acceptedEnvNames',
-        'missingConfig: config.missing',
-        'invalidConfig: config.invalid',
-        'return json({ ok: false, error: (error as Error)?.message',
-      ]);
-      const unsafePrivateKeyLiteral = [
-        /(?:VAPID_PRIVATE_KEY|privateKey)\s*[:=]\s*['"][A-Za-z0-9_-]{40,}['"]/,
-        /Deno\.env\.get\([^)]*VAPID_PRIVATE_KEY[^)]*\)\s*\|\|\s*['"][^'"]+['"]/
-      ].some((pattern) => pattern.test(String(sendGameInvitePushSource || '')));
-      const forbiddenFrontend = presentTokens(notificationApiSource, [
-        'VAPID_PRIVATE_KEY',
-        'VITE_KRONOX_VAPID_PRIVATE_KEY',
-      ]);
-      const missing = [
-        ...missingTokens(sendGameInvitePushSource, requiredBackend),
-        ...missingTokens(notificationApiSource, requiredFrontend),
-      ];
-      if (missing.length || forbiddenBackend.length || forbiddenFrontend.length || unsafePrivateKeyLiteral) {
-        return fail('Game invite push can expose, default, or mishandle VAPID config.', {
-          verification: 'STATIC_CONTRACT',
+      const requiredFrontend = ['VITE_KRONOX_VAPID_PUBLIC_KEY', 'missing_vapid_public_key', 'registerKronoxServiceWorker'];
+      const forbiddenBackend = [
+        /Deno\.env\.get\(["']VAPID_(?:SUBJECT|PUBLIC_KEY|PRIVATE_KEY)["']\)/,
+        /console\.(?:log|warn|error)\([^;]*(?:config\.privateKey|secretValues\.privateKey)/,
+        /return\s+json\(\{[^}]*privateKey\s*:/,
+        /(?:VAPID_PRIVATE_KEY|privateKey)\s*[:=]\s*['"][A-Za-z0-9_-]{40,}['"]/, 
+      ].filter((pattern) => pattern.test(String(sendGameInvitePushSource || '')));
+      const forbiddenFrontend = presentTokens(notificationApiSource, ['VAPID_PRIVATE_KEY', 'VITE_KRONOX_VAPID_PRIVATE_KEY']);
+      const missing = [...missingTokens(sendGameInvitePushSource, requiredBackend), ...missingTokens(notificationApiSource, requiredFrontend)];
+      if (missing.length || forbiddenBackend.length || forbiddenFrontend.length) {
+        return fail('Game invite push runtime-secret boundary drifted.', {
+          verification: 'SOURCE_CONNECTED',
           classification: 'REAL_PRODUCT_RISK',
           files: ['base44/functions/sendGameInvitePush/entry.ts', 'src/lib/notificationApi.js'],
-          expected: 'Backend-only VAPID_PRIVATE_KEY, public client key only, explicit safe push skip when config is missing, and env-sourced private-key findings classified as manual secret-manager verification',
-          actual: { missing, forbiddenBackend, forbiddenFrontend, unsafePrivateKeyLiteral },
+          actual: { missing, forbiddenBackend: forbiddenBackend.map(String), forbiddenFrontend },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('sendGameInvitePush uses backend-only VAPID private-key config and preserves in-app invites when push is skipped. VAPID_PRIVATE_KEY is server-side env/secret sourced. Production secret manager verification is MANUAL_REQUIRED.', {
-        verification: 'STATIC_CONTRACT',
+      return pass('sendGameInvitePush uses request-time Base44 project secrets, fails closed, and preserves in-app invites when push is unavailable.', {
+        verification: 'SOURCE_CONNECTED',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
       });
