@@ -229,6 +229,28 @@ function publicPlayer(player: any, actor: any, hostActorKey: string, { includeCa
   return output;
 }
 
+function publicDuelTimelineCards(cards: any[] = []) {
+  return (Array.isArray(cards) ? cards : [])
+    .map((card: any, index: number) => ({
+      id: `duel_timeline_${index + 1}`,
+      year: Number(card?.year),
+    }))
+    .filter((card: any) => Number.isFinite(card.year));
+}
+
+function publicDuelActiveCard(question: any, sequence: number, canAttempt: boolean) {
+  if (!question) return null;
+  const mediaUrl = String(question?.media_url || '');
+  return {
+    id: `duel_card_${sequence}`,
+    question: String(question?.question || ''),
+    type: question?.type || 'metin',
+    media_url: mediaUrl.startsWith('https://') || mediaUrl.startsWith('/assets/') ? mediaUrl : '',
+    sequence_id: sequence,
+    can_attempt: canAttempt,
+  };
+}
+
 function normalizeSnapshotScope(value: unknown) {
   return String(value || '').trim().toLowerCase() === 'waiting_room' ? 'waiting_room' : 'game';
 }
@@ -239,9 +261,16 @@ function publicLobby(lobby: any, actor: any, { summaryOnly = false, snapshotScop
   const scope = normalizeSnapshotScope(snapshotScope);
   const gameMode = String(lobby?.game_mode || 'random_online');
   const duelAttempts = Array.isArray(lobby?.duel_round_attempts) ? lobby.duel_round_attempts : [];
-  const activeQuestion = gameMode === SAME_QUESTION_DUEL_MODE
+  const duelSequence = Math.max(1, Math.trunc(Number(lobby?.duel_sequence) || 1));
+  const duelIsActive = ['starting', 'in_game'].includes(String(lobby?.status || ''));
+  const activeQuestion = gameMode === SAME_QUESTION_DUEL_MODE && duelIsActive
     ? (lobby?.online_question_deck || []).find((question: any) => String(question?.id || '') === String(lobby?.current_question_id || ''))
     : null;
+  const publicActiveQuestion = publicDuelActiveCard(
+    activeQuestion,
+    duelSequence,
+    !duelAttempts.includes(actor?.actorKeyHash),
+  );
   const base = {
     id: String(lobby?.public_ref || ''),
     code: String(lobby?.code || ''),
@@ -261,7 +290,15 @@ function publicLobby(lobby: any, actor: any, { summaryOnly = false, snapshotScop
   const rosterProjection = {
     ...base,
     snapshot_scope: scope,
-    players: players.map((player) => publicPlayer(player, actor, hostActorKey, { includeCards: scope === 'game' })),
+    players: players.map((player) => {
+      const publicProjection = publicPlayer(player, actor, hostActorKey, {
+        includeCards: scope === 'game' && gameMode !== SAME_QUESTION_DUEL_MODE,
+      });
+      if (scope === 'game' && gameMode === SAME_QUESTION_DUEL_MODE) {
+        publicProjection.cards = actorMatchesPlayer(actor, player) ? publicDuelTimelineCards(player?.cards) : [];
+      }
+      return publicProjection;
+    }),
     category: lobby?.category || 'karisik',
     selected_category_ids: Array.isArray(lobby?.selected_category_ids) ? lobby.selected_category_ids : [],
     year_start: Number(lobby?.year_start) || 1900,
@@ -275,21 +312,13 @@ function publicLobby(lobby: any, actor: any, { summaryOnly = false, snapshotScop
   return {
     ...rosterProjection,
     current_player_index: Number(lobby?.current_player_index) || 0,
-    current_question_id: lobby?.current_question_id || null,
-    used_question_ids: Array.isArray(lobby?.used_question_ids) ? lobby.used_question_ids : [],
+    current_question_id: gameMode === SAME_QUESTION_DUEL_MODE ? publicActiveQuestion?.id || null : lobby?.current_question_id || null,
+    used_question_ids: gameMode === SAME_QUESTION_DUEL_MODE ? [] : (Array.isArray(lobby?.used_question_ids) ? lobby.used_question_ids : []),
     online_question_deck: gameMode === SAME_QUESTION_DUEL_MODE
-      ? (activeQuestion ? [activeQuestion] : [])
+      ? (publicActiveQuestion ? [publicActiveQuestion] : [])
       : (Array.isArray(lobby?.online_question_deck) ? lobby.online_question_deck : []),
     online_deck_meta: lobby?.online_deck_meta || null,
-    active_shared_card: activeQuestion ? {
-      id: String(activeQuestion.id),
-      year: Number(activeQuestion.year),
-      question: String(activeQuestion.question || ''),
-      type: activeQuestion.type || 'metin',
-      media_url: activeQuestion.media_url || '',
-      sequence_id: Math.max(1, Math.trunc(Number(lobby?.duel_sequence) || 1)),
-      can_attempt: !duelAttempts.includes(actor?.actorKeyHash),
-    } : null,
+    active_shared_card: publicActiveQuestion,
     recent_claim: gameMode === SAME_QUESTION_DUEL_MODE && lobby?.recent_claim ? {
       participant_ref: lobby.recent_claim.participant_ref || null,
       sequence_id: Number(lobby.recent_claim.sequence_id) || null,

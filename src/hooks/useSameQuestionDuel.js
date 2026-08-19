@@ -23,13 +23,38 @@ export default function useSameQuestionDuel() {
   const [scoreResult, setScoreResult] = useState(null);
   const appliedResultRef = useRef(false);
   const lastClaimRef = useRef('');
+  const mountedRef = useRef(true);
+  const touchDragTimerRef = useRef(null);
+
+  const acceptLobbySnapshot = useCallback((fresh) => {
+    if (!fresh || !mountedRef.current) return false;
+    setLobby((current) => {
+      const freshRevision = Number(fresh?.state_revision) || 0;
+      const currentRevision = Number(current?.state_revision) || 0;
+      return !current || freshRevision >= currentRevision ? fresh : current;
+    });
+    return true;
+  }, []);
 
   const refresh = useCallback(async () => {
     if (!lobbyId) return;
     const response = await getLobbySnapshot({ lobbyId });
     const fresh = response?.data?.lobby;
-    if (fresh) setLobby((current) => !current || Number(fresh.state_revision) >= Number(current.state_revision || 0) ? fresh : current);
-  }, [lobbyId]);
+    acceptLobbySnapshot(fresh);
+    if (fresh && mountedRef.current) setError('');
+    return fresh || null;
+  }, [acceptLobbySnapshot, lobbyId]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (touchDragTimerRef.current) {
+        window.clearTimeout(touchDragTimerRef.current);
+        touchDragTimerRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!lobbyId) {
@@ -46,11 +71,11 @@ export default function useSameQuestionDuel() {
   }, [lobbyId, refresh]);
 
   const players = Array.isArray(lobby?.players) ? lobby.players : [];
-  const myIndex = Math.max(0, players.findIndex((player) => player?.is_self));
-  const myPlayer = players[myIndex] || null;
-  const opponent = players.find((_, index) => index !== myIndex) || null;
+  const myIndex = players.findIndex((player) => player?.is_self);
+  const myPlayer = myIndex >= 0 ? players[myIndex] : null;
+  const opponent = myIndex >= 0 ? players.find((_, index) => index !== myIndex) || null : null;
   const activeCard = lobby?.active_shared_card || lobby?.online_question_deck?.[0] || null;
-  const canAttempt = Boolean(activeCard?.can_attempt !== false && !pending && lobby?.status !== 'finished');
+  const canAttempt = Boolean(myPlayer && activeCard?.can_attempt !== false && !pending && lobby?.status !== 'finished');
 
   useEffect(() => {
     setSelectedZone(null);
@@ -79,27 +104,39 @@ export default function useSameQuestionDuel() {
       });
       const data = response?.data || {};
       if (!data?.success || data?.error) throw new Error('Duello hamlesi doğrulanamadı.');
-      if (data.lobby) setLobby(data.lobby);
+      if (!mountedRef.current) return;
+      acceptLobbySnapshot(data.lobby);
       if (data.claim_result === 'claimed') {
-        setFeedback({ result: 'correct', year: Number(activeCard.year) });
+        const resolvedSelf = data.lobby?.players?.find((player) => player?.is_self);
+        const resolvedCards = Array.isArray(resolvedSelf?.cards) ? resolvedSelf.cards : [];
+        const resolvedYear = Number(resolvedCards[resolvedCards.length - 1]?.year);
+        setFeedback({
+          result: 'correct',
+          year: Number.isFinite(resolvedYear) ? resolvedYear : null,
+          guessedYear: activeCard.sequence_id,
+        });
         setNotice('Kartı sen aldın.');
       } else if (data.claim_result === 'wrong') {
-        setFeedback({ result: 'wrong', year: Number(activeCard.year), guessedYear: zone });
+        setFeedback({ result: 'wrong', year: null, guessedYear: `${activeCard.sequence_id}:${zone}` });
         setNotice('Yanlış yerleştirme. Rakip hâlâ kartı alabilir.');
       } else if (data.claim_result === 'both_wrong_next_card') {
-        setFeedback({ result: 'wrong', year: Number(activeCard.year), guessedYear: zone });
+        setFeedback({ result: 'wrong', year: null, guessedYear: `${activeCard.sequence_id}:${zone}` });
         setNotice('İkiniz de bilemediniz. Yeni kart açıldı.');
       } else if (data.claim_result === 'card_already_resolved') {
-        setNotice('Bu kart rakip tarafından çözüldü.');
+        setNotice('Bu kart rakip tarafından alındı.');
+      } else if (data.claim_result === 'already_attempted') {
+        setNotice('Bu kart için cevabın kilitlendi.');
       }
     } catch {
-      setError('Hamle gönderilemedi. Güncel durum yeniden yükleniyor.');
+      if (mountedRef.current) setError('Hamle gönderilemedi. Güncel durum yeniden yükleniyor.');
       await refresh().catch(() => null);
     } finally {
-      setPending(false);
-      setSelectedZone(null);
+      if (mountedRef.current) {
+        setPending(false);
+        setSelectedZone(null);
+      }
     }
-  }, [activeCard, canAttempt, lobbyId, refresh]);
+  }, [acceptLobbySnapshot, activeCard, canAttempt, lobbyId, refresh]);
 
   const winnerRef = lobby?.winner_participant_ref || null;
   const isWinner = Boolean(winnerRef && myPlayer?.participant_ref === winnerRef);
@@ -109,8 +146,14 @@ export default function useSameQuestionDuel() {
     const result = isWinner ? 'win' : 'loss';
     setScoreResult({ result, pending: true, message: 'Puan kaydediliyor...' });
     applyOnlineMatchToCurrentUser({ lobbyId, source: 'same_question_duel' })
-      .then((response) => setScoreResult(buildOnlineScorePopupState({ result, response })))
-      .catch(() => { appliedResultRef.current = false; setScoreResult({ result, error: true, message: 'Puan kaydedilemedi. Tekrar dene.' }); });
+      .then((response) => {
+        if (mountedRef.current) setScoreResult(buildOnlineScorePopupState({ result, response }));
+      })
+      .catch(() => {
+        if (!mountedRef.current) return;
+        appliedResultRef.current = false;
+        setScoreResult({ result, error: true, message: 'Puan kaydedilemedi. Tekrar dene.' });
+      });
   }, [isWinner, lobby?.status, lobbyId, winnerRef]);
 
   const drag = {
@@ -118,7 +161,16 @@ export default function useSameQuestionDuel() {
     onDragStart: () => setIsDragging(true),
     onDragEnd: () => { setIsDragging(false); setTouchDragPos(null); },
     onTouchDragMove: (x, y) => { setIsDragging(true); setTouchDragPos({ x, y }); },
-    onTouchDragEnd: (x, y) => { setIsDragging(false); setTouchDragPos(null); setTouchDragEnd({ x, y }); window.setTimeout(() => setTouchDragEnd(null), 100); },
+    onTouchDragEnd: (x, y) => {
+      setIsDragging(false);
+      setTouchDragPos(null);
+      setTouchDragEnd({ x, y });
+      if (touchDragTimerRef.current) window.clearTimeout(touchDragTimerRef.current);
+      touchDragTimerRef.current = window.setTimeout(() => {
+        touchDragTimerRef.current = null;
+        if (mountedRef.current) setTouchDragEnd(null);
+      }, 100);
+    },
     onTouchDragCancel: () => { setIsDragging(false); setTouchDragPos(null); },
   };
 

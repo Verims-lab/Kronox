@@ -1526,6 +1526,8 @@ Manual release gates that source cannot prove:
 * The matched lobby contains exactly two players, no invite/category selector, and no third/fourth join path.
 * Both clients receive identical two-card opening context and the same active shared card.
 * Submit near-simultaneous correct placements; backend order awards exactly one claim and reconnect preserves it.
+* Verify the pre-claim payload contains the same sequence/prompt on both clients but no answer year, raw Question id, used-question ids, opponent card rows, or remaining deck.
+* Verify the winner sees `Kartı sen aldın.`, the opponent sees `Rakip kartı aldı.`, and a stale submitter sees `Bu kart rakip tarafından alındı.` before reconciling to the newer revision.
 * A wrong answer locks only that player for the current card; if both are wrong, the backend releases the next shared card.
 * Continue until one player reaches 10 backend-confirmed claims; verify terminal winner, loser, +15/-6 persistence, no duplicate score on refresh, and no Diamond/Daily/Store/Solo reward.
 * Confirm public UI and copied snapshots contain no email, guest token/id, owner/actor/internal player IDs, private row IDs, or remaining deck.
