@@ -1348,9 +1348,14 @@ export const EXTRA_TESTS = [
     () => {
       const missing = missingTokens(`${mainMenuSource}\n${dailyWheelHookSource}`, [
         'handleDailyWheelUserPatch',
-        'setLocalUser((current)',
-        'setLocalGuestProfile((current)',
-        'onUserUpdated(body.userPatch)',
+        'const applyUserPatch = (current)',
+        'setLocalUser(applyUserPatch)',
+        'setUser(applyUserPatch)',
+        'const applyGuestPatch = (current)',
+        'setLocalGuestProfile(applyGuestPatch)',
+        'setGuestProfile(applyGuestPatch)',
+        "if (body.userPatch && typeof onUserUpdated === 'function') onUserUpdated(body.userPatch)",
+        'diamonds: diamondTotal',
         'updatedDiamondTotal',
       ]);
       if (missing.length) {

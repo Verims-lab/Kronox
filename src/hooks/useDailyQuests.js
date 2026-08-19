@@ -98,9 +98,11 @@ export function useDailyQuests({ user, guestProfile, onUserUpdated } = {}) {
       return applyDailyQuestStatusBody(body);
     } catch (err) {
       if (refreshVersion !== refreshVersionRef.current) return null;
-      if (!cachedBody && !preserveState) {
-        setStatus('error');
-        setState(buildEmptyCalendarState());
+      if (!cachedBody) {
+        if (!preserveState) {
+          setStatus('error');
+          setState(buildEmptyCalendarState());
+        }
       }
       setError('Günlük hedefler yüklenemedi.');
       return null;

@@ -732,9 +732,9 @@ export const EXTRA_TESTS = [
         '"delete": { "user_condition": { "role": "admin" } }',
       ];
       const requiredBackend = [
-        "if (action === 'social_snapshot')",
-        'FriendRequest.filter({ to_email: myEmail }',
-        'FriendRequest.filter({ from_email: myEmail }',
+        "if (action === 'social_snapshot' || action === 'friends_snapshot')",
+        'base44.asServiceRole.entities.FriendRequest.filter({ to_email: myEmail }',
+        'base44.asServiceRole.entities.FriendRequest.filter({ from_email: myEmail }',
         'publicFriendRequest',
       ];
       const missing = [

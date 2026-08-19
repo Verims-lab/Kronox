@@ -1,6 +1,5 @@
 import notifierSource from '../invites/GameInviteNotifier.jsx?raw';
 import toastSource from '../ui/use-toast.jsx?raw';
-import notificationCenterSource from '../../hooks/useNotificationCenter.js?raw';
 import notificationViewModelSource from '../../lib/notificationViewModel.js?raw';
 import identitySource from '../../lib/notificationIdentity.js?raw';
 import integrityToolSource from '../admin/IntegritySnapshotTool.jsx?raw';
@@ -59,9 +58,18 @@ export const EXTRA_TESTS = [
   }, ['src/components/invites/GameInviteNotifier.jsx', 'src/lib/notificationIdentity.js']),
 
   makeCase('testing_agent_teardown_or_suppression_exists', 'Testing Agent pollution has active suppression even without destructive teardown', () => {
-    const required = ['notification_suppressed', 'accepted_at', "status === 'accepted'"];
-    const source = `${notificationCenterSource}\n${notifierSource}`;
-    const missing = required.filter((token) => !source.includes(token) && !isLobbyAcceptanceNotificationEligible.toString().includes(token));
-    return !missing.length ? pass('Terminal test artifacts are freshness-filtered, test-marker suppressed, baselined, and never auto-deleted.') : fail('Testing artifact suppression is incomplete.', missing);
-  }, ['src/hooks/useNotificationCenter.js', 'src/lib/lobbyAcceptanceNotifications.js', 'base44/functions/getOnlinePlayerSelection/entry.ts']),
+    const tagged = invite('2001', 'lobby_test', { notification_suppressed: true });
+    const stale = invite('2002', 'lobby_test', { accepted_at: new Date(now - (3 * 60 * 1000)).toISOString() });
+    const fresh = invite('2003', 'lobby_real');
+    const sourceRequired = ['acceptedOutgoingBootstrappedRef', 'handledAcceptedOutgoingInviteIdsRef', 'collapseLobbyAcceptanceNotifications'];
+    const missing = sourceRequired.filter((token) => !notifierSource.includes(token));
+    const behavior = {
+      taggedSuppressed: !isLobbyAcceptanceNotificationEligible(tagged, now),
+      staleSuppressed: !isLobbyAcceptanceNotificationEligible(stale, now),
+      freshRealAllowed: isLobbyAcceptanceNotificationEligible(fresh, now),
+    };
+    return !missing.length && Object.values(behavior).every(Boolean)
+      ? pass('Terminal test artifacts are freshness-filtered, test-marker suppressed, baselined, and fresh real accepts remain eligible.')
+      : fail('Testing artifact suppression is incomplete.', { missing, behavior });
+  }, ['src/hooks/useNotificationCenter.js', 'src/lib/lobbyAcceptanceNotifications.js', 'src/components/invites/GameInviteNotifier.jsx', 'base44/functions/getOnlinePlayerSelection/entry.ts']),
 ];
