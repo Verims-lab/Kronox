@@ -5,6 +5,8 @@ import identitySource from '../../lib/notificationIdentity.js?raw';
 import integrityToolSource from '../admin/IntegritySnapshotTool.jsx?raw';
 import notificationArtifactSummarySource from '../admin/NotificationArtifactSummary.jsx?raw';
 import duplicateReportSource from '../../../base44/functions/adminDuplicateKeyReport/entry.ts?raw';
+import adminPageSource from '../../pages/AdminPage.jsx?raw';
+import appSource from '../../App.jsx?raw';
 import {
   collapseLobbyAcceptanceNotifications,
   isLobbyAcceptanceNotificationEligible,
@@ -47,19 +49,28 @@ export const EXTRA_TESTS = [
   }, ['src/components/invites/GameInviteNotifier.jsx']),
 
   makeCase('test_artifact_cleanup_is_admin_only_dry_run_first', 'Artifact recovery is admin report-only and non-destructive', () => {
-    const activeSource = `${integrityToolSource}\n${notificationArtifactSummarySource}\n${duplicateReportSource}`;
-    const required = [
-      'adminDuplicateKeyReport',
-      "mode: 'dry_run'",
-      'notificationArtifactSnapshot',
-      'dryRun: true',
-      'readOnly: true',
-      'destructiveCleanupImplemented: false',
-      'Dry-run · Salt okunur · Otomatik silme yok',
-    ];
-    const missing = required.filter((token) => !activeSource.includes(token));
-    return !missing.length ? pass('Existing artifacts are visible through the guarded read-only Integrity Snapshot; no automatic deletion path is exposed.') : fail('Admin dry-run artifact visibility is incomplete.', missing);
-  }, ['src/components/admin/IntegritySnapshotTool.jsx', 'src/components/admin/NotificationArtifactSummary.jsx', 'base44/functions/adminDuplicateKeyReport/entry.ts']),
+    const backendSource = duplicateReportSource;
+    const uiSource = `${integrityToolSource}\n${notificationArtifactSummarySource}`;
+    const adminSource = `${adminPageSource}\n${appSource}`;
+    const missingBackend = [
+      'requireAdmin', 'AdminUser', "mode: 'dry_run'", 'dryRun: true', 'readOnly: true',
+      'reportOnly: true', 'nonDestructive: true', 'cleanupExecuted: false',
+      'executionEnabled: false', 'destructiveCleanupImplemented: false',
+      'samples: repeated.slice(0, 3)', 'fingerprint: keyFingerprint(key)',
+    ].filter((token) => !backendSource.includes(token));
+    const missingUi = [
+      'adminDuplicateKeyReport', 'notificationArtifactSnapshot',
+      'data-notification-artifact-recovery="report-only"',
+      'Dry-run · Salt okunur · Rapor-only', 'Otomatik silme yok · Yürütme engelli',
+      'snapshot.samples', 'sample.fingerprint',
+    ].filter((token) => !uiSource.includes(token));
+    const missingAdminGate = ['<IntegritySnapshotTool />', '<AdminRoute><AdminPage'].filter((token) => !adminSource.includes(token));
+    const forbiddenExecution = ['adminDuplicateKeyCleanup', 'DELETE_DUPLICATES', 'execute_cleanup'].filter((token) => uiSource.includes(token));
+    const forbiddenMutation = ['.create(', '.update(', '.delete(', '.deleteMany(', '.updateMany(', '.bulkCreate(', '.bulkUpdate('].filter((token) => backendSource.includes(token));
+    const actual = { missingBackend, missingUi, missingAdminGate, forbiddenExecution, forbiddenMutation };
+    const ok = Object.values(actual).every((items) => items.length === 0);
+    return ok ? pass('Accepted/test artifacts remain terminal audit data and are exposed only as bounded counts/fingerprints through the guarded non-destructive Admin report.') : fail('Admin dry-run artifact visibility is incomplete.', actual);
+  }, ['src/pages/AdminPage.jsx', 'src/App.jsx', 'src/components/admin/IntegritySnapshotTool.jsx', 'src/components/admin/NotificationArtifactSummary.jsx', 'base44/functions/adminDuplicateKeyReport/entry.ts']),
 
   makeCase('notification_privacy_no_private_ids', 'Acceptance UI renders username-safe labels without private identifiers', () => {
     const rendered = `${notifierSource}\n${notificationViewModelSource}`;

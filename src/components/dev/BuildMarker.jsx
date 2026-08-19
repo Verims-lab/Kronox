@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex628 — Notification artifact recovery proof: Admin-only dry-run/report-only backend flags, bounded fingerprint UI, explicit non-destructive/Yürütme engelli state, Health, and docs; no cleanup or notification behavior change.
 // Codex627 — Data Hygiene P0 deep eligibility review: Admin-only fingerprinted reconciliation previews, confidence/conflict classification, blocked three-stage cleanup boundary, Health, and docs; no data mutation or cleanup execution.
 // Codex626 — Restore source-connected navigation Health contracts: explicit /game BottomNav hiding, route-derived root re-taps, and backend-snapshot/adaptive-poll-confirmed canonical /game? Online navigation; runtime behavior is unchanged.
 // Codex625 — Finalize the user-facing Online mode name as Duello across active UI, backend-safe error copy, Health labels, docs, and mirrors while preserving the stable same_question_duel key and all gameplay/matchmaking/scoring/DB contracts.
@@ -205,7 +206,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex627';
+const BUILD_MARKER = 'Codex628';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

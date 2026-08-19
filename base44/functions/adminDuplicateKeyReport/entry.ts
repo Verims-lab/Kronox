@@ -547,8 +547,13 @@ function buildNotificationArtifactSnapshot(rows) {
   });
   const repeated = [...groups.entries()].filter(([, count]) => count > 1).sort((a, b) => b[1] - a[1]);
   return {
+    mode: 'dry_run',
     dryRun: true,
     readOnly: true,
+    reportOnly: true,
+    nonDestructive: true,
+    cleanupExecuted: false,
+    executionEnabled: false,
     destructiveCleanupImplemented: false,
     acceptedInviteCount: accepted.length,
     staleAcceptedCount: stale.length,
