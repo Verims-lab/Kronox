@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex630 — Restore the exact frontend and lockfile @base44/sdk 0.8.34 contract after the Base44 package bot drifted it to caret 0.8.43; backend imports, Health logic, function count, and product behavior are unchanged.
 // Codex629 — Health proof and Base44 automation audit: evidence classification, manifest/argument/cleanup/logging gates, Phase 1 hygiene reflection, docs/mirrors, and no product or cleanup behavior change.
 // Codex628 — Notification artifact recovery proof: Admin-only dry-run/report-only backend flags, bounded fingerprint UI, explicit non-destructive/Yürütme engelli state, Health, and docs; no cleanup or notification behavior change.
 // Codex627 — Data Hygiene P0 deep eligibility review: Admin-only fingerprinted reconciliation previews, confidence/conflict classification, blocked three-stage cleanup boundary, Health, and docs; no data mutation or cleanup execution.
