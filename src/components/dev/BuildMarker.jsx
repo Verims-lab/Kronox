@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex637 — Remove the active Online/Duello lobby journey, add backend-authoritative same-screen match-found direct start, and align focused Health, Runtime E2E, docs, and mirrors without scoring changes.
 // Codex636 — Fix the legacy /Game versus canonical /game route collision,
 // move protected profile/leaderboard access behind authorized backend paths,
 // and add action-scoped bounded Runtime E2E response/permission evidence.
@@ -215,7 +216,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex636';
+const BUILD_MARKER = 'Codex637';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

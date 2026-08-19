@@ -92,7 +92,7 @@ export const BASE_SUITES = [
   { id: 'offline_solo', name: 'Offline Solo Regression Suite', critical: true, color: '#c084fc' },
   { id: 'game_rules', name: 'Game Rules Suite', critical: true, color: '#a3e635' },
   { id: 'multiplayer_authority', name: 'Multiplayer Authority Simulation Suite', critical: true, color: '#38bdf8' },
-  { id: 'waiting_room_start', name: 'Waiting Room / Start Flow Suite', critical: true, color: '#60a5fa' },
+  { id: 'waiting_room_start', name: 'Online Direct Start Flow Suite', critical: true, color: '#60a5fa' },
   { id: 'route_bootstrap', name: 'Route State / Bootstrap Suite', critical: true, color: '#818cf8' },
   { id: 'media_audio', name: 'Media / Audio Suite', critical: false, color: '#f9a8d4' },
   { id: 'debug_hygiene', name: 'Debug / Production Hygiene Suite', critical: true, color: '#86efac' },

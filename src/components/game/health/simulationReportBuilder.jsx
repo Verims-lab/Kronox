@@ -293,7 +293,7 @@ export function recommendedActions(problemCases) {
   if (problemCases.some(item => item.suiteId === 'timeline_hit_testing')) actions.push('Exercise drag/drop manually on a phone before shipping any timeline-adjacent change.');
   if (problemCases.some(item => item.suiteId === 'friends_security')) actions.push('Run a two-account RLS probe against Friendship / FriendRequest before claiming friend-data security.');
   if (problemCases.some(item => item.suiteId === 'game_invites')) actions.push('Run a two-account GameInvite probe (cross-user read/update attempt) before claiming invite security.');
-  if (problemCases.some(item => item.suiteId === 'create_lobby_invite_gate')) actions.push('Manually verify the "Lobi Oluştur ve Davet Et" disabled state and helper text on a real mobile device.');
+  if (problemCases.some(item => item.suiteId === 'create_lobby_invite_gate')) actions.push('Manually verify the friend-invite disabled/error state and direct Online handoff on a real mobile device.');
   if (problemCases.some(item => item.suiteId === 'mobile_social_flow')) actions.push('Verify Profile / Friends / Invite screens on a narrow real phone (320×568) including keyboard focus behavior.');
   if (problemCases.some(item => item.suiteId === 'health_intelligence')) actions.push('Repair Health catalog, grouping, proof classification, or report actionability before relying on the affected pack.');
   if (problemCases.some(item => item.suiteId === 'historical_kronox_regression')) actions.push('Re-test recently fixed Kronox incidents, especially Settings stability and duplicate lobby title composition.');
@@ -301,7 +301,7 @@ export function recommendedActions(problemCases) {
   if (problemCases.some(item => item.suiteId === 'social_rls_two_account_risk')) actions.push('Execute the required User A / User B / User C RLS matrix before claiming social security readiness.');
   if (problemCases.some(item => item.suiteId === 'invite_contract_drift')) actions.push('Resolve invite behavior/comment drift and verify pending-recipient filters with a two-account backend probe.');
   if (problemCases.some(item => item.suiteId === 'visual_composition_regression' || item.suiteId === 'kronox_game_feel')) actions.push('Capture mobile screenshots and review tactile fantasy presentation, duplicate headers, asset paths, and CTA readability.');
-  if (problemCases.some(item => item.suiteId === 'route_navigation_resilience')) actions.push('Run direct URL and back-navigation smoke tests for /settings, /profile, /friends, /lobby, /game, and /test-suite.');
+  if (problemCases.some(item => item.suiteId === 'route_navigation_resilience')) actions.push('Run direct URL and back-navigation smoke tests for /settings, /profile, /friends, /online, /game, /duel, the legacy /lobby redirect, and /test-suite.');
   if (problemCases.some(item => item.suiteId === 'friend_request_email_deep_link')) actions.push('Verify FriendRequest email delivery with a real recipient inbox and confirm the /friends deep link survives login.');
   if (problemCases.some(item => item.suiteId === 'game_invite_push_notifications')) actions.push('Run push-notification proof on a subscribed device with VAPID configured; keep in-app invites working if push fails.');
   if (problemCases.some(item => item.suiteId === 'online_category_taxonomy')) actions.push('Confirm Online has no category selector/carousel and backend Online start uses all active categories randomly.');

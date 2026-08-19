@@ -23,11 +23,11 @@ self.addEventListener('activate', (event) => {
 
 function resolveSameOriginTarget(targetUrl) {
   try {
-    const target = new URL(targetUrl || '/lobby', self.location.origin);
-    if (target.origin !== self.location.origin) return `${self.location.origin}/lobby`;
+    const target = new URL(targetUrl || '/online', self.location.origin);
+    if (target.origin !== self.location.origin) return `${self.location.origin}/online`;
     return target.href;
   } catch (_error) {
-    return `${self.location.origin}/lobby`;
+    return `${self.location.origin}/online`;
   }
 }
 
@@ -42,7 +42,7 @@ self.addEventListener('push', (event) => {
   const title = payload.title || 'Kronox';
   const body = payload.body || 'Yeni bir Kronox oyun davetin var.';
   const data = payload.data || {};
-  const targetUrl = data.targetUrl || '/lobby';
+  const targetUrl = data.targetUrl || '/online';
 
   event.waitUntil(
     self.registration.showNotification(title, {
@@ -61,7 +61,7 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetUrl = event.notification?.data?.targetUrl || '/lobby';
+  const targetUrl = event.notification?.data?.targetUrl || '/online';
   const target = resolveSameOriginTarget(targetUrl);
 
   event.waitUntil((async () => {

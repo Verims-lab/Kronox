@@ -6,7 +6,7 @@
 // the top-right of the bell. Tapping opens a popup with two sections:
 //
 //    A) Friend Requests  →  tap item navigates to /friends
-//    B) Game Invites     →  tap item accepts (lobby-first) via the
+//    B) Game Invites     →  tap item accepts into the direct Online handoff via the
 //                            existing acceptGameInvite flow.
 //
 // When no user is signed in, Home still renders a visual bell affordance while
@@ -294,7 +294,7 @@ function GameInviteItem({ row, onOpen }) {
             Oyun daveti{remaining ? ` • ${remaining}` : ''}
           </p>
         </div>
-        <span className="font-inter text-[11px] font-black text-amber-200">Lobiye Git</span>
+        <span className="font-inter text-[11px] font-black text-amber-200">Eşleşmeye Git</span>
       </div>
     </button>
   );

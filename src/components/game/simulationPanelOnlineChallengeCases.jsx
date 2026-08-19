@@ -6,8 +6,8 @@
 //       active categories (startLobbyGame / randomMatchmaking backend owns
 //       this; the Online screen must not render a category carousel).
 //     • Two entry points, both routed through the shared Pre-game Hourglass
-//       wait screen: "Arkadaşını Davet Et" (invite, 60s) and
-//       "Rastgele Eşleş" (random matchmaking queue, 30s).
+//       search screen: "Arkadaşını Davet Et" (invite, 60s), "Online Kapış"
+//       and Duello (mode-scoped matchmaking queues, 30s).
 //     • Optional social/player-list load failure (loadSocialSnapshot /
 //       getOnlinePlayerSelection) must never render as a page-level alarm
 //       banner and must never disable Rastgele Eşleş.
@@ -24,14 +24,15 @@
 //   tokens are present, not that the live UX is bug-free. Runtime / device
 //   verification stays NOT_AUTOMATABLE elsewhere.
 
+import appSource from '../../App.jsx?raw';
 import lobbyRoomSource from '../../pages/LobbyRoom.jsx?raw';
+import onlinePageSource from '../../pages/OnlinePage.jsx?raw';
 import onlineChallengeScreenSource from '../../components/lobby/OnlineChallengeScreen.jsx?raw';
 import friendSelectModalSource from '../../components/lobby/FriendSelectModal.jsx?raw';
 import incomingInvitesPanelSource from '../../components/invites/IncomingInvitesPanel.jsx?raw';
 import useRandomMatchmakingSource from '../../hooks/useRandomMatchmaking.js?raw';
 import randomMatchmakingApiSource from '../../lib/randomMatchmakingApi.js?raw';
 import preGameHourglassSource from '../../components/lobby/PreGameHourglass.jsx?raw';
-import lobbyCreateJoinPanelSource from '../../components/lobby/LobbyCreateJoinPanel.jsx?raw';
 import startLobbyGameSource from '../../../base44/functions/startLobbyGame/entry.ts?raw';
 import gameSource from '../../pages/Game.jsx?raw';
 import { auditSourceContracts, findRenderedSensitiveKeyHits } from '@/lib/health/sourceProof';
@@ -103,31 +104,33 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 2. Online screen offers both Invite and Random entry points into the Pre-game Hourglass. */
+  /* 2. Online screen offers invite, Online Kapış, and Duello search entry points. */
   makeCase('online_challenge_flow', 'online_offers_invite_and_random_modes',
-    'OnlineChallengeScreen offers "Arkadaşını Davet Et" (invite) and "Rastgele Eşleş" (random matchmaking), both routed through PreGameHourglass',
+    'OnlineChallengeScreen offers Invite, Online Kapış, and Duello through the shared search surface',
     () => {
       const required = missingTokens(onlineChallengeScreenSource, [
         'Arkadaşını Davet Et',
-        'Rastgele Eşleş',
+        'Online Kapış',
+        'Duello',
         'const INVITE_WAIT_MS = 60 * 1000',
         'durationMs={30 * 1000}',
         "import PreGameHourglass from '@/components/lobby/PreGameHourglass'",
         "import useRandomMatchmaking from '@/hooks/useRandomMatchmaking'",
         "'invite-wait'",
         "'random-wait'",
+        "'duel-wait'",
       ]);
       if (required.length) {
-        return fail('Online screen is missing the invite/random dual-entry Pre-game Hourglass wiring.', {
+        return fail('Online screen is missing its invite/Online Kapış/Duello search wiring.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'OnlineChallengeScreen.jsx',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'invite + random CTAs, PreGameHourglass + useRandomMatchmaking imports, invite-wait/random-wait screens',
+          expected: 'invite + Online Kapış + Duello CTAs and their bounded shared search surfaces',
           actual: { required },
         });
       }
-      return pass('Both Online entry points route through the Pre-game Hourglass.',
+      return pass('All Online entry points use the shared bounded search surface.',
         { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION' });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
@@ -216,25 +219,27 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 6. Friend modal caps selection at 3. */
+  /* 6. Friend modal keeps a reusable default while Online direct matches cap at one opponent. */
   makeCase('online_challenge_flow', 'friend_modal_caps_at_three',
-    'FriendSelectModal enforces a max selection cap of 3',
+    'FriendSelectModal has a default cap of 3 and Online direct matches cap at one opponent',
     () => {
-      const required = missingTokens(friendSelectModalSource, [
-        'MAX_SELECTION = 3',
-        'prev.length >= MAX_SELECTION',
+      const required = missingTokens(`${friendSelectModalSource}\n${onlineChallengeScreenSource}`, [
+        'DEFAULT_MAX_SELECTION = 3',
+        'maxSelection = DEFAULT_MAX_SELECTION',
+        'prev.length >= maxSelection',
+        'maxSelection={1}',
       ]);
       if (required.length) {
-        return fail('Friend modal does not enforce the 3-player cap.', {
+        return fail('Friend modal selection caps do not match reusable/direct-match ownership.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'FriendSelectModal.jsx',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'MAX_SELECTION=3 cap',
+          expected: 'default maxSelection=3 and OnlineChallengeScreen maxSelection=1',
           actual: { required },
         });
       }
-      return pass('Friend modal enforces the 3-player cap.',
+      return pass('Friend modal enforces its configurable cap; direct Online invite matches select one opponent.',
         { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION' });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
@@ -264,50 +269,53 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 8. LobbyCreateJoinPanel only handles "join" mode. */
+  /* 8. OnlinePage owns the active flow; LobbyRoom is compatibility redirect only. */
   makeCase('online_challenge_flow', 'lobby_room_wires_new_online_flow',
-    'LobbyRoom wires OnlineChallengeScreen through onCreateInviteLobby / onEnterLobby (not the legacy onStartChallenge one-shot CTA)',
+    'OnlinePage wires search to direct backend handoff while LobbyRoom redirects only',
     () => {
-      const required = missingTokens(lobbyRoomSource, [
-        'onCreateInviteLobby={',
-        'onEnterLobby={',
-        'OnlineChallengeScreen',
+      const required = missingTokens(`${appSource}\n${onlinePageSource}\n${lobbyRoomSource}`, [
+        'path="/online"',
+        '<OnlineChallengeScreen',
+        'onCreateInviteMatch={',
+        'onMatchFound={handleMatchFound}',
+        '<DirectOnlineMatchScreen',
+        "pathname: '/online'",
       ]);
-      const forbidden = forbiddenTokensFound(lobbyRoomSource, [
-        'onStartChallenge={',
-        'CreateLobbyInvitePanel',
+      const forbidden = forbiddenTokensFound(`${onlinePageSource}\n${lobbyRoomSource}`, [
+        '<WaitingRoomPanel',
+        '<ActiveLobbyCard',
       ]);
       if (required.length || forbidden.length) {
-        return fail('LobbyRoom is not wired to the current Pre-game Hourglass Online flow.', {
+        return fail('Active Online direct-start ownership or legacy redirect drifted.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
-          file: 'pages/LobbyRoom.jsx',
+          file: 'pages/OnlinePage.jsx / pages/LobbyRoom.jsx / App.jsx',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'onCreateInviteLobby + onEnterLobby wiring; no legacy onStartChallenge/CreateLobbyInvitePanel',
+          expected: '/online owns OnlineChallengeScreen + DirectOnlineMatchScreen; /lobby redirects only',
           actual: { required, forbidden },
         });
       }
-      return pass('LobbyRoom routes through the current invite/random Online flow.',
+      return pass('OnlinePage owns search/direct start and LobbyRoom cannot mount gameplay UI.',
         { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION' });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 9. BottomNav görünürlük kuralları korunuyor. */
+  /* 9. BottomNav stays on Online selection and hides only during a direct handoff/deep link. */
   makeCase('online_challenge_flow', 'bottom_nav_visibility_rules_preserved',
-    'BottomNav stays visible on the Online selection screen and is hidden once a lobby is active or an invite deep-link is pending',
+    'BottomNav stays visible on Online selection and hides during a direct match or invite deep link',
     () => {
-      const required = missingTokens(lobbyRoomSource, [
+      const required = missingTokens(onlinePageSource, [
         'setBottomNavHidden',
-        'isOnlineSelectionScreen',
-        '!lobby && !queryInviteId && (mode === null || mode === undefined)',
+        'setBottomNavHidden(Boolean(match || queryInviteId))',
+        'return () => setBottomNavHidden(false)',
       ]);
       if (required.length) {
-        return fail('BottomNav visibility rule was lost on LobbyRoom.', {
+        return fail('BottomNav visibility rule was lost on OnlinePage.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
-          file: 'pages/LobbyRoom.jsx',
+          file: 'pages/OnlinePage.jsx',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'BottomNav hidden only when lobby/invite is active',
+          expected: 'BottomNav hidden only while match handoff or invite deep link is active',
           actual: { required },
         });
       }
@@ -316,20 +324,22 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 10. Davet altyapısı korunuyor. */
+  /* 10. Invite infrastructure remains backend-backed without a user-visible lobby. */
   makeCase('online_challenge_flow', 'invite_infrastructure_preserved',
-    'Lobby creation still triggers createGameInvites for selected invite targets — invite backend wiring is preserved',
+    'Private match creation still triggers createGameInvites and cleans failed sessions',
     () => {
-      const required = missingTokens(lobbyRoomSource, [
+      const required = missingTokens(onlinePageSource, [
+        'createLobby({ code, playerName, maxPlayers: 2 })',
         'createGameInvites',
         'inviteTargets',
-        'await createGameInvites',
+        'const summary = await createGameInvites',
+        'if (created?.id) await leaveLobby(created.id).catch(() => null)',
       ]);
       if (required.length) {
         return fail('Invite creation pathway was broken.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
-          file: 'pages/LobbyRoom.jsx',
+          file: 'pages/OnlinePage.jsx',
           actionType: ACTION_TYPES.CODE_FIX,
           expected: 'createGameInvites still invoked with inviteTargets',
           actual: { required },
@@ -354,15 +364,17 @@ export const EXTRA_TESTS = [
     { actionType: ACTION_TYPES.CODE_FIX }),
 
   makeCase('online_challenge_flow', 'join_by_code_remains_available',
-    'Join-by-code remains an active Online entry path',
+    'Legacy join-by-code UI is absent from the active no-lobby Online flow',
     () => {
-      const violations = auditSourceContracts([
-        { file: 'OnlineChallengeScreen.jsx', source: onlineChallengeScreenSource, required: ['onJoinOpenLobby', 'veya kodla katıl'] },
-        { file: 'LobbyCreateJoinPanel.jsx', source: lobbyCreateJoinPanelSource, required: ["if (mode !== 'join') return null", 'Lobi Kodu (örn: ABC123)', 'onClick={onJoin}'] },
+      const forbidden = forbiddenTokensFound(`${onlineChallengeScreenSource}\n${onlinePageSource}`, [
+        'onJoinOpenLobby',
+        'veya kodla katıl',
+        '<LobbyCreateJoinPanel',
       ]);
-      return violations.length
-        ? fail('Join-by-code active wiring drifted.', { verification: 'STATIC_CONTRACT', classification: 'REAL_PRODUCT_RISK', actual: { violations } })
-        : pass('Online selection still opens the dedicated join-code panel and its real join handler.', { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION' });
+      const redirectOk = appSource.includes('function LegacyLobbyRedirect()') && appSource.includes("pathname: '/online'");
+      return forbidden.length || !redirectOk
+        ? fail('Legacy lobby/join-code UI returned to the active Online flow.', { verification: 'STATIC_CONTRACT', classification: 'REAL_PRODUCT_RISK', actual: { forbidden, redirectOk } })
+        : pass('Active Online exposes no join-code/lobby step; legacy routes redirect to /online.', { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION' });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 

@@ -2,10 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Hourglass, X } from 'lucide-react';
 
-// Codex591 — Pre-game Hourglass: shared visual for both Online matchmaking
-// waits (Invite = 60s, Rastgele Eşleş = 30s). Purely presentational; the
-// parent screen drives when to unmount it (matched / cancelled) and is
-// notified via onTimeout when the countdown reaches zero.
+// Shared search surface for Online Kapış and Duello. Match-found feedback is
+// rendered here as a phase of the same screen before direct game navigation.
 export default function PreGameHourglass({
   title,
   subtitle,
@@ -26,7 +24,7 @@ export default function PreGameHourglass({
   useEffect(() => { onTimeoutRef.current = onTimeout; }, [onTimeout]);
   const totalMs = expiresAt ? Math.max(1000, (Date.parse(expiresAt) || 0) - startRef.current) : durationMs;
   const [remainingMs, setRemainingMs] = useState(totalMs);
-  const timerPaused = ['error', 'timeout', 'matched'].includes(phase);
+  const timerPaused = ['error', 'timeout', 'matched', 'starting'].includes(phase);
 
   useEffect(() => {
     firedRef.current = false;
@@ -50,19 +48,20 @@ export default function PreGameHourglass({
   }, [expiresAt, durationMs, timerPaused]);
 
   const seconds = Math.ceil(remainingMs / 1000);
-  const statusTitle = phase === 'waiting'
+  const statusTitle = phase === 'waiting' || phase === 'checking' || phase === 'joining'
     ? 'Rakip aranıyor'
-    : phase === 'checking'
-      ? 'Bağlantı kontrol ediliyor'
-      : phase === 'joining' || phase === 'matched'
-        ? 'Eşleşme kuruluyor'
-        : phase === 'error' || phase === 'timeout'
-          ? 'Eşleşme bulunamadı, tekrar dene'
+    : phase === 'matched' || phase === 'starting'
+      ? 'Rakip bulundu'
+      : phase === 'timeout'
+        ? 'Rakip bulunamadı'
+        : phase === 'error'
+          ? 'Eşleşme başlatılamadı'
           : title;
 
   return (
     <div
       data-testid={testId}
+      data-matchmaking-phase={phase || 'idle'}
       className="kx-a1-screen kx-a1-online fixed inset-0 flex w-full max-w-full flex-col items-center justify-center overflow-x-hidden overflow-y-auto px-4 text-white"
       data-kronox-pre-game-hourglass="mobile-safe"
       style={{
@@ -93,7 +92,7 @@ export default function PreGameHourglass({
         <p className="mt-5 font-bebas text-5xl tracking-widest text-white kronox-timeline-number">{seconds}s</p>
       )}
 
-      {errorMessage && (
+      {errorMessage && ['error', 'timeout'].includes(phase) && (
         <p
           className="mt-4 rounded-xl px-3 py-2 font-inter text-xs text-rose-100/90"
           style={{ background: 'rgba(244,63,94,0.10)', boxShadow: 'inset 0 0 0 1px rgba(244,63,94,0.35)' }}
@@ -113,7 +112,7 @@ export default function PreGameHourglass({
         </button>
       )}
 
-      {onCancel && (
+      {onCancel && !['matched', 'starting'].includes(phase) && (
         <button
           type="button"
           data-testid={cancelTestId}

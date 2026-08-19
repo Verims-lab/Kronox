@@ -76,11 +76,13 @@ import * as healthUiCases from './simulationPanelHealthUiCases';
 // shared style tokens contracts for Profile/Leaderboard so neither
 // surface can silently revert to a local StatTile duplicate.
 import * as uiConsolidationCases from './simulationPanelUiConsolidationCases';
-// Codex127 — Online challenge flow simplification:
-// kategori carousel + arkadaş popup + tek adımda lobi + davet.
+// Online challenge selection plus bounded direct-start search/match handoff.
 import * as onlineChallengeCases from './simulationPanelOnlineChallengeCases';
 import * as sameQuestionDuelCases from './simulationPanelSameQuestionDuelCases';
 import * as onlineMatchmakingRuntimeCases from './simulationPanelOnlineMatchmakingRuntimeCases';
+// Direct Online/Duello start: no active lobby route or waiting-room UI,
+// same-screen match-found, backend-authoritative handoff, and E2E honesty.
+import * as onlineDirectStartCases from './simulationPanelOnlineDirectStartCases';
 // Codex128 — Online score/checkpoint system: win/loss only, no draw
 // scoring, no speed bonus, checkpoint floor + idempotent match write contracts.
 import * as onlineRankingCases from './simulationPanelOnlineRankingCases';
@@ -89,7 +91,7 @@ import * as inviteDeliveryCases from './simulationPanelInviteDeliveryCases';
 // Codex130 — Game invite lifecycle, 10-min TTL, stale lobby cleanup,
 // persistent in-app banner, focus/visibility recheck contracts.
 import * as inviteLifecycleCases from './simulationPanelInviteLifecycleCases';
-// Codex131 — Lobby simplification + active-lobby return contracts.
+// Historical private-session safety contracts, retargeted to direct start.
 import * as lobbySimplificationCases from './simulationPanelLobbySimplificationCases';
 // Codex134 — Shared real-time header notification system contracts.
 import * as headerNotificationsCases from './simulationPanelHeaderNotificationsCases';
@@ -110,11 +112,11 @@ import * as scoringContractCases from './simulationPanelScoringContractCases';
 // parsers now append `Z` to naive strings so they parse as UTC. The
 // GameInvite entity also gained the missing timestamp columns.
 import * as inviteTimezoneCases from './simulationPanelInviteTimezoneCases';
-// Codex140 — GameInvite "Aç" regression: successful accept must open the
-// lobby/waiting room; fresh lobby timestamps must not be parsed as stale.
+// GameInvite "Aç" regression: successful accept must preserve verified
+// backend session state and enter the canonical /online direct handoff.
 import * as gameInviteOpenToLobbyCases from './simulationPanelGameInviteOpenToLobbyCases';
-// Online 4-player lobby start regression: merge/retry joins, accepted-invite
-// reconciliation, idempotent start, and missed-realtime recovery.
+// Historical backend-session join/start regression guards. Active UI no longer
+// mounts a lobby; idempotent start and missed-transition recovery still matter.
 import * as onlineLobbyStartCases from './simulationPanelOnlineLobbyStartCases';
 // Codex139 — DB/Data Model hardening:
 // schema docs, Solo localStorage scoping, leaderboard projection drift,
@@ -299,6 +301,7 @@ const MODULES = [
   onlineChallengeCases,
   sameQuestionDuelCases,
   onlineMatchmakingRuntimeCases,
+  onlineDirectStartCases,
   onlineRankingCases,
   inviteDeliveryCases,
   inviteLifecycleCases,
@@ -379,6 +382,9 @@ function flatten(key) {
 
 const MODULAR_EXTRA_SUITES = flatten('EXTRA_SUITES');
 const MODULAR_EXTRA_TESTS = flatten('EXTRA_TESTS');
+const DIRECT_START_OVERRIDE_KEYS = onlineDirectStartCases.LEGACY_OVERRIDDEN_CASE_KEYS || new Set();
+const DIRECT_START_OVERRIDE_TESTS = onlineDirectStartCases.LEGACY_OVERRIDE_TESTS || [];
+const ACTIVE_OVERRIDE_KEYS = new Set([...OVERRIDDEN_CASE_KEYS, ...DIRECT_START_OVERRIDE_KEYS]);
 
 // Codex132 — Filter overridden case keys out of BASE_EXTRA_TESTS before
 // appending the override + modular replacements. `key` follows the
@@ -391,10 +397,13 @@ const MODULAR_EXTRA_TESTS = flatten('EXTRA_TESTS');
 // frozen modular file. Whichever file the original case lived in, the
 // override is the single source of truth.
 const FILTERED_BASE_EXTRA_TESTS = BASE_EXTRA_TESTS.filter(
-  (c) => !(c?.key && OVERRIDDEN_CASE_KEYS.has(c.key)),
+  (c) => !(c?.key && ACTIVE_OVERRIDE_KEYS.has(c.key)),
 );
 const FILTERED_MODULAR_EXTRA_TESTS = MODULAR_EXTRA_TESTS.filter(
-  (c) => !(c?.key && OVERRIDDEN_CASE_KEYS.has(c.key)),
+  (c) => !(c?.key && ACTIVE_OVERRIDE_KEYS.has(c.key)),
+);
+const FILTERED_OVERRIDE_TESTS = OVERRIDE_TESTS.filter(
+  (c) => !(c?.key && DIRECT_START_OVERRIDE_KEYS.has(c.key)),
 );
 
 // Aggregated outputs SimulationPanel.jsx consumes. Ordering: legacy
@@ -404,7 +413,8 @@ export const ALL_EXTRA_SUITES = [...BASE_EXTRA_SUITES, ...MODULAR_EXTRA_SUITES]
   .filter((suite) => !HEALTH_RETIRED_SUITE_IDS.has(suite.id));
 export const ALL_EXTRA_TESTS = [
   ...FILTERED_BASE_EXTRA_TESTS,
-  ...OVERRIDE_TESTS,
+  ...FILTERED_OVERRIDE_TESTS,
+  ...DIRECT_START_OVERRIDE_TESTS,
   ...FILTERED_MODULAR_EXTRA_TESTS,
 ].filter((item) => !HEALTH_RETIRED_SUITE_IDS.has(item.suiteId) && !HEALTH_RETIRED_CASE_KEYS.has(item.key));
 

@@ -249,7 +249,7 @@ export const EXTRA_TESTS = [
       const required = missingTokens(online, [
         'Tüm kategorilerden rastgele sorular',
         'Arkadaşını Davet Et',
-        'Rastgele Eşleş',
+        'Online Kapış',
       ]);
       const forbidden = [
         'loadActiveCategories({ limit: 1000 })',

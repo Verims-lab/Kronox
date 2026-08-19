@@ -245,7 +245,7 @@ export function useLobbySync({
         } else if (latestLobbyRef.current) {
           debugWarn('[useLobbySync] initial fetch returned empty after live data; ignoring route fallback');
         } else {
-          setError('Lobi yüklenemedi: canlı lobi bulunamadı.');
+          setError('Oyun bağlantısı kurulamadı. Lütfen tekrar dene.');
         }
       } catch (err) {
         if (cancelled) return;
@@ -253,7 +253,7 @@ export function useLobbySync({
         if (!latestLobbyRef.current && activeLobbyId && initPlayers && initPlayers.length > 0) {
           applyLobbyData(buildRouteFallback(), 'route-state-error-fallback');
         } else if (!latestLobbyRef.current) {
-          setError('Lobi yüklenemedi: ' + err.message);
+          setError('Oyun bağlantısı kurulamadı. Lütfen tekrar dene.');
         } else {
           debugWarn('[useLobbySync] initial fetch failed after live data; preserving latest lobby:', err.message);
         }

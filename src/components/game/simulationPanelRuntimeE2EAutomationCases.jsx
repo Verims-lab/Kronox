@@ -522,12 +522,12 @@ export const EXTRA_TESTS = [
       : fail('Solo public UI can expose raw backend permission details.', { missing: absent });
   }),
 
-  makeCase('online_requires_authenticated_storage_or_guest_policy', 'Online automation requires authenticated storage and an explicit safe queue gate', () => {
+  makeCase('online_requires_authenticated_storage_or_guest_policy', 'Online automation requires a completed actor and an explicit safe queue gate', () => {
     const online = RUNTIME_E2E_SCENARIOS.find((item) => item.scenarioId === 'runtime_e2e.online_random_waiting_cancel_smoke');
-    const required = ['authenticatedStorage', 'onlineMatchmaking', 'safeMatchmakingQueue'];
+    const required = ['completedActor', 'onlineMatchmaking', 'safeMatchmakingQueue'];
     const absent = required.filter((item) => !online?.requiredCapabilities.includes(item));
     return !absent.length && runnerSource.includes('KRONOX_E2E_ALLOW_MATCHMAKING')
-      ? pass('Online cannot run from labels alone; actor storage and queue mutation are explicit gates.')
+      ? pass('Online cannot run from labels alone; completed linked/token-proven guest state and queue mutation are explicit gates.')
       : fail('Online actor/matchmaking setup gate drifted.', { missing: absent });
   }),
 
@@ -1080,13 +1080,13 @@ export const EXTRA_TESTS = [
         status: AUTOMATION_STATUS.PASS,
         backendEvidence: summarizeRuntimeBackendEvidence(),
         executionEvidence: evidence,
-        steps: definition.steps.map((step) => ({ ...step, status: AUTOMATION_STATUS.PASS, durationMs: 1, route: '/lobby' })),
+        steps: definition.steps.map((step) => ({ ...step, status: AUTOMATION_STATUS.PASS, durationMs: 1, route: '/online' })),
       }],
     }, 'Health-test');
     const result = normalized.scenarios.find((item) => item.scenarioId === definition.scenarioId);
     return result?.status === AUTOMATION_STATUS.NOT_AUTOMATABLE
       && result?.failureCategory === 'BACKEND_RUNTIME_EVIDENCE_MISSING'
-      ? pass('A fully rendered /lobby route is demoted when no matchmaking response proves backend activity.')
+      ? pass('A fully rendered /online route is demoted when no matchmaking response proves backend activity.')
       : fail('Online route rendering was accepted as backend matchmaking proof.', { result });
   }),
 
@@ -1101,7 +1101,7 @@ export const EXTRA_TESTS = [
       "outcome.state === 'successful_response'",
     ]);
     return evidence.observed === true && evidence.successful === true && evidence.statusClass === '2xx' && absent.length === 0
-      ? pass('Online waiting UI is accepted only after the scenario action receives successful matchmaking evidence.')
+      ? pass('Online search UI is accepted only after the scenario action receives successful matchmaking evidence.')
       : fail('Online can pass without 2xx/3xx matchmaking evidence.', { evidence, missing: absent });
   }),
 

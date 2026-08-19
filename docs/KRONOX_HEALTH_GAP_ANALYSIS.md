@@ -182,7 +182,7 @@ fallback polling/refetch.
 | Unified Solo + Online Kronox Puan | Static/executable scoring suites confirm visible Kronox Puan includes Solo best-score plus Online progress, Online winner is exactly +15, loser is exactly -6 with checkpoint protection, Online has no speed bonus, and result popup copy shows the persisted delta/new score | Two-account live proof that winner/loser score writes, Profile, Header, and Leaderboard all refresh to the same persisted Kronox Puan |
 | Solo record congratulations | Static backend context/copy checks | Production-like multi-user record fixture or backend probe |
 | Immutable Kronox user ID | Static source checks for backend generation/backfill, link preservation, Profile Info read-only/copy display, internal dual-write fields, tombstone non-reuse, and public output stripping | Deployed two-account/guest-link proof; DB uniqueness/index proof if the platform adds first-class constraints; full production backfill audit |
-| Global profile avatar propagation | Static UI/projection checks for shared renderer usage, safe avatar quartet, bundled icon categories, leaderboard/friends/Online/lobby/invite/header propagation, profile-save projection refresh, current/friend Leaderboard avatar overlay, and no private avatar payload fields | Manual visual proof across leaderboard, friends, player select, lobby, invites, header, uploaded photo fallback, and guest/linked profiles |
+| Global profile avatar propagation | Static UI/projection checks for shared renderer usage, safe avatar quartet, bundled icon categories, leaderboard/friends/Online match-found/invite/header propagation, profile-save projection refresh, current/friend Leaderboard avatar overlay, and no private avatar payload fields | Manual visual proof across leaderboard, friends, player select, Online match-found, invites, header, uploaded photo fallback, and guest/linked profiles |
 | Mağaza open / purchase readiness | Static Market checks for idle chunk/cache warm-up, fast inventory read before starter self-heal, explicit purchase-readiness helper, and backend server-price/idempotency/lock guards | Manual low-end mobile proof for first open/reopen, sufficient/insufficient Diamond CTA state, purchase success, and double-tap/retry behavior |
 | Liderlik open / score projection performance | Static Leaderboard checks for idle chunk/snapshot warm-up, projection-only `getSoloLeaderboard` fast mode, cached rows during refetch, deferred friend enrichment, bounded repair, and materialized score reads | Manual low-end mobile proof for cold/repeat BottomNav opens, deployed Base44 latency, DB index/sort behavior, exact rank at scale, and post-score-change refresh |
 | App startup / Home first render | Static startup fast-path checks for direct Home shell import, cached GuestProfile repeat launch, post-paint AuthContext maintenance, deferred presence/invite/category modules, idle Market/Liderlik warm-up, and delayed Daily Wheel/Daily Calendar status refresh | Manual Android/WebView proof for cold/repeat app launch, splash duration, dark-loader duration, first Home paint, and deployed Base44 latency |
@@ -361,9 +361,9 @@ local environment values without echoing them, for example
 `KRONOX_E2E_BASE_URL=https://kronoxgame.com KRONOX_E2E_STORAGE_STATE=.auth/kronox-e2e-prod.json KRONOX_E2E_USE_GUEST=false KRONOX_E2E_ALLOW_MATCHMAKING=true npm run health:e2e`.
 
 Wheel, Diamond purchase, and matchmaking mutations require their explicit
-`KRONOX_E2E_ALLOW_*` gates. Online requires authenticated storage plus
-`KRONOX_E2E_ALLOW_MATCHMAKING=true`; production direct-preflight limitations no
-longer block its safe waiting/cancel probe, but only observed matchmaking
+`KRONOX_E2E_ALLOW_*` gates. Online requires a completed linked or token-proven
+guest actor plus `KRONOX_E2E_ALLOW_MATCHMAKING=true`; production
+direct-preflight limitations no longer block its safe search/cancel probe, but only observed matchmaking
 backend evidence can support PASS. Duello A/B actor fixtures may be declared
 through `KRONOX_E2E_STORAGE_STATE_A/B`, but the scenario remains
 `AUTOMATION_MANUAL_EXTERNAL` until deterministic pairing and correct-claim
@@ -379,16 +379,43 @@ two-phone manual gate, App-not-found rejection, and non-fake Duello two-context
 evidence. This suite guards the repaired contract but does not replace two real
 phones against the deployed `randomMatchmaking` function.
 
+## Codex637 Online / Duello Direct-Start Coverage
+
+The active product no longer has a lobby step. `/online` owns selection,
+bounded 30-second search, and the same-screen `Rakip bulundu` / `Oyun başlıyor`
+transition. A participant-scoped backend `GAME` snapshot gates direct `/game`
+or `/duel` navigation; the private `Lobby` row remains only the authoritative
+session store. Legacy `/lobby` routes redirect and are explicitly invalid
+Runtime E2E evidence.
+
+Twenty-five focused `online_flow`, `duello_flow`, and
+`runtime_e2e_automation` cases now guard no-lobby routing/UI/copy, authoritative
+direct start, queue cancellation/timeout/consumption, matched transition
+timing, safe Turkish errors, no pre-game question-bank exposure, public
+identity privacy, Full Health separation, and precise E2E gaps. Runtime Online
+must fail `LOBBY_STILL_PRESENT` if a lobby route/surface appears; missing
+two-actor or direct-start evidence becomes `TWO_ACTOR_REQUIRED`,
+`MATCH_FOUND_DIRECT_GAME_PENDING`, backend-response, or permission evidence,
+never route-only PASS.
+
+Static/source checks cannot prove simultaneous two-client delivery or Duello's
+first-correct race. Duello therefore remains `MANUAL_EXTERNAL` until two
+isolated actors and deterministic pairing/claim fixtures prove the shared card,
+one accepted claim, first-to-10 result, and single backend `+15`/`-6` commit.
+Online also retains `+15`/`-6`; neither mode has a speed bonus. Permission/RLS
+diagnostics remain visible and blocking where applicable.
+
 ## Manual / Live Probe Checklist
 
 - Two-phone matchmaking: use distinct actors, enter Duello within 30 seconds,
-  confirm both receive the same exactly-two-player Lobby and leave waiting;
-  repeat through normal `Rastgele Eşleş`, then verify timeout/retry/cancel and
-  a second attempt leave no active ghost row.
-- Two-account Online: host creates 4-player lobby, three recipients join by
-  code/invite, host starts, every player lands on the same question.
-- Realtime miss: block or delay subscription event for one non-host, confirm
-  poll/refetch transitions to game.
+  confirm both show `Rakip bulundu` on `/online`, never render `/lobby`, and
+  enter the same exactly-two-player `/duel`; repeat through `Online Kapış`, then
+  verify timeout/retry/cancel and a second attempt leave no active ghost row.
+- Two-account friend Online: one actor invites one friend, acceptance enters
+  `/online`, both clients show the direct transition, and both land on the same
+  `/game` question without ready/start UI.
+- Realtime miss: block or delay one matched update, then confirm sanitized
+  snapshot polling still transitions that participant directly to game.
 - Invite accept: expired, accepted, stale lobby, non-recipient, and duplicate
   accept all return safe states.
 - Notification lifecycle: transient empty fetch does not clear valid pending
@@ -398,7 +425,7 @@ phones against the deployed `randomMatchmaking` function.
 - Economy: same user double-taps/refreshes reward and joker purchase across
   two devices without duplicate grant/spend.
 - Privacy: no email/provider/raw guest/owner/internal player ids visible in
-  leaderboard, lobby, notification, or push text.
+  leaderboard, match-found, notification, or push text.
 - Friend invite duplicate/expiry proof: Account A sends a friend invite to
   Account B from Leaderboard, retries while it is open and sees the open-invite
   warning, sends from Add Friend by username/email and receives the same

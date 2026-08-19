@@ -199,7 +199,7 @@ export class RuntimeScenarioHarness {
         actual: error?.message || 'Automation assertion failed.',
         route: this.safeRoute(),
         durationMs: Date.now() - startedMs,
-        failureCategory: this.definition.failureCategories[0],
+        failureCategory: error?.failureCategory || this.definition.failureCategories[0],
         screenshotPath: relativeArtifactPath(screenshotPath),
         tracePath: null,
       };
@@ -345,7 +345,7 @@ export class RuntimeScenarioHarness {
       finishedAt: new Date().toISOString(),
       durationMs: Date.now() - this.startedMs,
       failureCategory: this.failedStep
-        ? this.definition.failureCategories[0]
+        ? this.failedStep.failureCategory || this.definition.failureCategories[0]
         : (status === AUTOMATION_STATUS.PASS ? null : this.setupStep?.failureCategory || 'AUTOMATION_SETUP_GAP'),
       failedStepId: this.failedStep?.id || null,
       failedStepTitle: this.failedStep?.title || null,

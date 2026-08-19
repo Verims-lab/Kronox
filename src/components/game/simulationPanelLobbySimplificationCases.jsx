@@ -29,9 +29,9 @@
 // Cases now return PASS/FAIL cleanly — never throw.
 
 import waitingRoomPanelSource from '../../components/lobby/WaitingRoomPanel.jsx?raw';
-import lobbyRoomSource from '../../pages/LobbyRoom.jsx?raw';
+import onlinePageSource from '../../pages/OnlinePage.jsx?raw';
 import onlineChallengeScreenSource from '../../components/lobby/OnlineChallengeScreen.jsx?raw';
-import activeLobbyCardSource from '../../components/lobby/ActiveLobbyCard.jsx?raw';
+import directOnlineMatchScreenSource from '../../components/online/DirectOnlineMatchScreen.jsx?raw';
 import activeLobbyLibSource from '../../lib/activeLobby.js?raw';
 import lobbyGatewaySource from '../../lib/dbGateway/lobbyGateway.js?raw';
 import startLobbyGameFnSource from '../../../base44/functions/startLobbyGame/entry.ts?raw';
@@ -191,16 +191,16 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 5. Online category selection is gone from the active lobby flow. */
+  /* 5. Online category selection is gone from the active direct-start flow. */
   makeCase('lobby_simplification', 'lobby_uses_online_selected_categories',
-    'LobbyRoom no longer depends on OnlineChallengeScreen selectedCategories; Online start is all-active-random',
+    'Online direct start ignores Solo categories and backend start remains all-active-random',
     () => {
-      const src = `${safeStr(onlineChallengeScreenSource)}\n${safeStr(lobbyRoomSource)}\n${safeStr(findLobbyByCodeFnSource)}\n${safeStr(startLobbyGameFnSource)}`;
+      const src = `${safeStr(onlineChallengeScreenSource)}\n${safeStr(onlinePageSource)}\n${safeStr(findLobbyByCodeFnSource)}\n${safeStr(startLobbyGameFnSource)}`;
       const required = [
         'Tüm kategorilerden rastgele sorular',
-        'onCreateInviteLobby',
-        'handleCreate({ maxPlayers, inviteTargets: selectedTargets })',
-        'const lobbyPayload = { code, playerName: derivedName, maxPlayers }',
+        'onCreateInviteMatch',
+        'createLobby({ code, playerName, maxPlayers: 2 })',
+        'onMatchFound={handleMatchFound}',
         'const selectedCategoryIds: number[] = []',
         'selected_category_ids',
         'selectedCategoriesOnly: false',
@@ -295,34 +295,28 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 8. Active lobby card present on Online screen */
+  /* 8. Matched state stays on the Online surface and never exposes a lobby card. */
   makeCase('lobby_simplification', 'active_lobby_card_visible_on_online_screen',
-    'OnlineChallengeScreen renders ActiveLobbyCard when activeLobby is present',
+    'Online renders the direct match-found handoff instead of an active-lobby card',
     () => {
-      const src = safeStr(onlineChallengeScreenSource);
+      const src = `${safeStr(onlineChallengeScreenSource)}\n${safeStr(onlinePageSource)}\n${safeStr(directOnlineMatchScreenSource)}`;
       const required = [
-        '<ActiveLobbyCard',
-        'activeLobby',
-        'onResumeActiveLobby',
+        'onMatchFound',
+        '<DirectOnlineMatchScreen',
+        "'online-match-found-screen'",
       ];
       const missing = required.filter((t) => !src.includes(t));
-      if (missing.length) {
-        return fail('ActiveLobbyCard not wired on Online screen.', {
+      const forbidden = ['<ActiveLobbyCard'].filter((t) => src.includes(t));
+      if (missing.length || forbidden.length) {
+        return fail('Online matched state is not owned by the direct-start surface.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
           missing,
+          forbidden,
         });
       }
-      const cardSrc = safeStr(activeLobbyCardSource);
-      if (!cardSrc.includes('export default function ActiveLobbyCard')) {
-        return fail('ActiveLobbyCard component is missing.', {
-          verification: 'STATIC_CONTRACT',
-          classification: 'REAL_PRODUCT_RISK',
-          actionType: ACTION_TYPES.CODE_FIX,
-        });
-      }
-      return pass('Active lobby card surfaces on the Online screen.',
+      return pass('Match-found stays on /online and hands off through the direct match screen.',
         { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION' });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
@@ -420,15 +414,15 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 12. BottomNav rule preserved: hidden inside the waiting room */
+  /* 12. BottomNav is hidden only while direct match/invite handoff owns /online. */
   makeCase('lobby_simplification', 'bottom_nav_hidden_in_waiting_room',
-    'LobbyRoom keeps BottomNav hidden once a lobby exists; visible on Online selection',
+    'OnlinePage hides BottomNav during direct handoff and restores it on cleanup',
     () => {
-      const src = safeStr(lobbyRoomSource);
+      const src = safeStr(onlinePageSource);
       const required = [
-        'setBottomNavHidden(!isOnlineSelectionScreen)',
-        'isOnlineSelectionScreen',
+        'setBottomNavHidden(Boolean(match || queryInviteId))',
         'return () => setBottomNavHidden(false)',
+        '<DirectOnlineMatchScreen',
       ];
       const missing = required.filter((t) => !src.includes(t));
       if (missing.length) {
@@ -439,7 +433,7 @@ export const EXTRA_TESTS = [
           missing,
         });
       }
-      return pass('BottomNav visibility rule preserved.',
+      return pass('BottomNav is hidden for direct handoff and restored when OnlinePage releases ownership.',
         { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION' });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),

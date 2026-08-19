@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CalendarDays } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
 import { useAuth } from '@/lib/AuthContext';
 import StandardTopBar from '@/components/layout/StandardTopBar';
@@ -176,8 +175,7 @@ export default function MainMenu() {
 
   const handleOnline = () => {
     sounds.tap();
-    if (!user) base44.auth.redirectToLogin('/');
-    else navigate('/lobby');
+    navigate('/online');
   };
 
   const handleMarket = () => {

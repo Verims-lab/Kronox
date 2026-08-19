@@ -36,6 +36,7 @@ import inviteApiSource from '../../lib/inviteApi.js?raw';
 import inviteCountdownSource from '../invites/InviteCountdown.jsx?raw';
 import onlineChallengeScreenSource from '../lobby/OnlineChallengeScreen.jsx?raw';
 import lobbyRoomSource from '../../pages/LobbyRoom.jsx?raw';
+import onlinePageSource from '../../pages/OnlinePage.jsx?raw';
 import appSource from '../../App.jsx?raw';
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL' };
@@ -316,14 +317,14 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 10. Banner "Aç" -> shared accept/open action */
+  /* 10. Banner "Aç" -> shared accept/open action -> Online direct handoff */
   makeCase('invite_lifecycle', 'in_app_invite_banner_open_goes_to_lobby',
-    'Banner "Aç" action uses shared openGameInvite and navigates with the accepted lobby payload',
+    'Banner "Aç" action uses shared openGameInvite and enters /online with verified session state',
     () => {
       const src = `${safeStr(gameInviteNotifierSource)}\n${safeStr(useNotificationCenterSource)}\n${safeStr(inviteApiSource)}`;
       const required = [
         "params.set('inviteId'",
-        "'/lobby'",
+        "'/online'",
         '<ToastAction',
         'openNotificationCenterGameInvite(invite',
         'openGameInviteAction(invite',
@@ -338,14 +339,15 @@ export const EXTRA_TESTS = [
           missing,
         });
       }
-      if (!safeStr(lobbyRoomSource).includes('acceptGameInvite(deepLinkInvite.id)')) {
-        return fail('LobbyRoom deep-link path does not call acceptGameInvite.', {
+      const online = safeStr(onlinePageSource);
+      if (!online.includes('acceptGameInvite(deepLinkInvite.id)') || !online.includes('<DirectOnlineMatchScreen')) {
+        return fail('Online direct-link path does not accept the exact invite and own the direct handoff.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Banner Aç → shared openGameInvite → accepted lobby waiting room.',
+      return pass('Banner Aç → shared openGameInvite → verified /online direct handoff.',
         { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION' });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),

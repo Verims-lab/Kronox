@@ -251,21 +251,21 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 7. Game invite item uses shared accept/open flow → lobby (NOT /game). */
+  /* 7. Game invite item uses shared accept/open flow → Online direct handoff. */
   makeCase('header_game_invite_opens_lobby',
-    'openGameInvite uses shared inviteApi action and navigates to /lobby (lobby-first, never /game)',
+    'openGameInvite uses shared inviteApi action and navigates to /online direct handoff',
     () => {
       const src = `${safeStr(useHeaderNotificationsSource)}\n${safeStr(useNotificationCenterSource)}\n${safeStr(inviteApiSource)}`;
       const m = missing(src, [
         'openGameInviteAction',
         "source: 'header_notifications'",
-        "navigate('/lobby'",
+        "navigate('/online'",
+        'joinedLobby',
+        'verifiedLobby',
       ]);
-      // Forbid a direct /game navigation from the notification path —
-      // the lobby must come first.
-      const forbidden = ["navigate('/game'"].filter((t) => src.includes(t));
+      const forbidden = ["navigate('/game'", "navigate('/lobby'"].filter((t) => src.includes(t));
       if (m.length || forbidden.length) {
-        return fail('Game invite open path is not lobby-first.', {
+        return fail('Game invite open path does not enter the Online direct-start owner.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'hooks/useHeaderNotifications.js',
@@ -274,7 +274,7 @@ export const EXTRA_TESTS = [
           forbidden,
         });
       }
-      return pass('Game invite items go through shared openGameInvite → /lobby.',
+      return pass('Game invite items go through shared openGameInvite → /online direct handoff.',
         { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION' });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),

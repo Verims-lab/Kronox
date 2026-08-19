@@ -190,14 +190,14 @@ export const EXTRA_TESTS = [
   ], 'The shared poller prevents overlap and all Duello-owned timers/listeners stop on unmount.'), ['adaptivePoller.js', 'useSameQuestionDuel.js']),
 
   make('waiting_cancel_timeout_cleanup', 'Duello cancel and timeout close waiting state', () => sourceResult([
-    ...required(onlineScreen, ['handleDuelCancel', 'handleDuelTimeout', 'void duel.cancel()', 'duel.resolveTimeout()']),
+    ...required(onlineScreen, ['handleDuelCancel', 'handleDuelTimeout', 'await duel.cancel()', 'duel.resolveTimeout()']),
     ...required(randomHook, ['stopPolling()', 'window.clearInterval(pollRef.current)', 'await pollRandomMatchmaking(mode)', 'await cancelRandomMatchmaking(mode)']),
     ...required(randomBackend, ["status: 'cancelled'", "status: 'expired'", "action === 'cancel'"]),
   ], 'Explicit cancel settles immediately; timeout first checks the backend once more, then settles the waiting row when no match exists.'), ['OnlineChallengeScreen.jsx', 'useRandomMatchmaking.js', 'randomMatchmaking/entry.ts']),
 
   make('existing_online_modes_unchanged', 'Invite and normal random Online entries remain active', () => sourceResult(required(onlineScreen, [
     'Arkadaşını Davet Et',
-    'Rastgele Eşleş',
+    'Online Kapış',
     'useRandomMatchmaking(STANDARD_RANDOM_MODE)',
     'useRandomMatchmaking(SAME_QUESTION_DUEL_MODE)',
   ]), 'Existing invite and normal random modes remain beside the isolated Duello path.'), ['OnlineChallengeScreen.jsx']),

@@ -5,9 +5,9 @@ import {
   STANDARD_RANDOM_MODE,
 } from '@/lib/onlineModeDisplay';
 
-// Codex591 — Thin client wrapper around the randomMatchmaking backend
-// function (RASTGELE EŞLEŞ). Guest credentials are attached the same way
-// lobbyGateway does; linked users are authenticated via the request itself.
+// Thin client wrapper around the Online Kapış / Duello matchmaking backend.
+// Guest credentials are attached the same way lobbyGateway does; linked users
+// are authenticated via the request itself.
 
 function withActorProof(payload = {}) {
   const guest = getStoredGuestCredentials();
@@ -34,5 +34,8 @@ export const pollRandomMatchmaking = (mode = STANDARD_RANDOM_MODE) => invoke('po
   mode: normalizeOnlineMatchmakingMode(mode),
 });
 export const cancelRandomMatchmaking = (mode = STANDARD_RANDOM_MODE) => invoke('cancel', {
+  mode: normalizeOnlineMatchmakingMode(mode),
+});
+export const consumeRandomMatchmaking = (mode = STANDARD_RANDOM_MODE) => invoke('consume', {
   mode: normalizeOnlineMatchmakingMode(mode),
 });

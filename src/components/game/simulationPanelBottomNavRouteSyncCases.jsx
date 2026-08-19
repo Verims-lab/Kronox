@@ -67,7 +67,7 @@ export const EXTRA_TESTS = [
     return wrong.length ? fail('A Profile subroute escaped the existing Profil tab.', { wrong }) : pass('Settings, Friends, Admin, Profile Edit, and account subroutes stay under Profil with no extra item.');
   }, ['src/lib/NavigationStackContext.jsx', 'src/components/layout/BottomNav.jsx']),
   makeCase('online_not_bottom_nav_owned', 'Online remains Home CTA-owned and absent from BottomNav', () => (
-    !bottomNavSource.includes("label: 'Online") && mainMenuSource.includes("navigate('/lobby')")
+    !bottomNavSource.includes("label: 'Online") && mainMenuSource.includes("navigate('/online')")
       ? pass('Online remains launched by the Home CTA and is not a BottomNav item.')
       : fail('Online route ownership drifted into BottomNav.')
   ), ['src/pages/MainMenu.jsx', 'src/components/layout/BottomNav.jsx']),

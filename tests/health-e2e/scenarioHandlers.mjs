@@ -463,18 +463,56 @@ async function soloSmoke(runtime, config) {
 }
 
 async function onlineRandom(runtime, config) {
-  requireCapability(config.hasStorageState, 'Current Home Online CTA requires an authenticated test storage state.');
+  const evidence = {
+    lobbyRouteObserved: false,
+    lobbyScreenObserved: false,
+    searchScreenObserved: false,
+    matchFoundObserved: false,
+    directGameStartObserved: false,
+    matchedTransitionMs: null,
+    routeAfterMatch: null,
+    mode: 'random_online',
+    backendMatchEvidence: {
+      observed: false,
+      successful: false,
+      category: RUNTIME_SERVICE_CATEGORY.ONLINE_MATCHMAKING,
+      statusClass: null,
+      safeSummary: 'No successful matchmaking response observed yet.',
+    },
+  };
+  runtime.authorityEvidence = evidence;
+
+  const fail = (message, failureCategory) => {
+    const error = new Error(message);
+    error.failureCategory = failureCategory;
+    throw error;
+  };
+  const inspectNoLobby = async () => {
+    const route = runtime.safeRoute();
+    const lobbyRouteObserved = route === '/lobby' || route === '/LobbyRoom';
+    const lobbyScreenObserved = await runtime.page
+      .locator('[data-testid="lobby-screen"], [data-testid="waiting-room-screen"], [data-kronox-waiting-room]')
+      .count() > 0;
+    evidence.lobbyRouteObserved ||= lobbyRouteObserved;
+    evidence.lobbyScreenObserved ||= lobbyScreenObserved;
+    if (lobbyRouteObserved || lobbyScreenObserved) {
+      fail('LOBBY_STILL_PRESENT: active Online flow reached a lobby route or waiting-room surface.', 'LOBBY_STILL_PRESENT');
+    }
+  };
+
   await runtime.step('online.open', async () => {
     await openHome(runtime, config);
     await clickAndSee(runtime.page, '[data-testid="home-online-entry"]', '[data-testid="online-screen"]');
-    return 'Authenticated test actor opened Online from the Home-owned CTA.';
+    await expectPath(runtime.page, '/online');
+    await inspectNoLobby();
+    return 'Completed actor opened canonical /online from the Home-owned CTA.';
   });
   await runtime.step('online.root', async () => 'Online root is visible.');
   await runtime.step('online.options', async () => {
     const text = await runtime.page.locator('[data-testid="online-screen"]').innerText();
-    const missing = ['Arkadaşını Davet Et', 'Rastgele Eşleş', 'Duello'].filter((label) => !text.includes(label));
+    const missing = ['Arkadaşını Davet Et', 'Online Kapış', 'Duello'].filter((label) => !text.includes(label));
     if (missing.length) throw new Error(`Missing Online option(s): ${missing.join(', ')}`);
-    return 'Invite, random, and Duello options are visible.';
+    return 'Invite, Online Kapış, and Duello options are visible.';
   });
   await runtime.step('online.no_category', async () => {
     const text = await runtime.page.locator('[data-testid="online-screen"]').innerText();
@@ -484,28 +522,117 @@ async function onlineRandom(runtime, config) {
   await runtime.step('online.random_start', async () => {
     requireCapability(config.allowMatchmaking, 'KRONOX_E2E_ALLOW_MATCHMAKING is not true; the shared queue was not mutated.');
     const matchmakingBaseline = runtime.captureServiceBaseline(RUNTIME_SERVICE_ACTION.ONLINE_MATCHMAKING);
-    await clickAndSee(runtime.page, '[data-testid="online-random-entry"]', '[data-testid="online-waiting-screen"]', 20000);
-    await requireSuccessfulBackendAction(runtime, {
+    await clickAndSee(runtime.page, '[data-testid="online-kapis-entry"]', '[data-testid="online-kapis-search-screen"]', 20000);
+    const outcome = await requireSuccessfulBackendAction(runtime, {
       category: RUNTIME_SERVICE_CATEGORY.ONLINE_MATCHMAKING,
       actionLabel: RUNTIME_SERVICE_ACTION.ONLINE_MATCHMAKING,
       baseline: matchmakingBaseline,
       failurePrefix: 'ONLINE_MATCHMAKING',
       description: 'Online matchmaking',
     });
-    return 'Random waiting state opened and a successful Online matchmaking backend response was observed.';
+    evidence.searchScreenObserved = true;
+    evidence.backendMatchEvidence = {
+      observed: true,
+      successful: true,
+      category: RUNTIME_SERVICE_CATEGORY.ONLINE_MATCHMAKING,
+      statusClass: outcome.lifecycle?.responseStatusClass || '2xx',
+      safeSummary: 'Online matchmaking returned a successful backend response.',
+    };
+    await inspectNoLobby();
+    return 'Online Kapış search opened after a successful matchmaking backend response.';
   });
   await runtime.step('online.waiting', async () => {
-    await expectVisible(runtime.page, '[data-testid="online-waiting-cancel"]');
-    return 'Waiting screen and cancellation control are visible.';
+    await expectVisible(runtime.page, '[data-testid="online-kapis-search-cancel"]');
+    const text = await runtime.page.locator('[data-testid="online-kapis-search-screen"]').innerText();
+    if (!text.includes('Rakip aranıyor')) throw new Error('Rakip aranıyor copy is not visible on the search screen.');
+    await inspectNoLobby();
+    return 'Rakip aranıyor, bounded countdown, and Vazgeç are visible.';
   });
   await runtime.step('online.cancel', async () => {
-    await clickAndSee(runtime.page, '[data-testid="online-waiting-cancel"]', '[data-testid="online-screen"]');
-    return 'Vazgeç returned to Online root.';
+    await clickAndSee(runtime.page, '[data-testid="online-kapis-search-cancel"]', '[data-testid="online-screen"]');
+    await expectPath(runtime.page, '/online');
+    if (await runtime.page.locator('[data-testid="online-kapis-search-screen"]').count()) {
+      throw new Error('Stale Online search UI remained after cancellation.');
+    }
+    return 'Vazgeç settled the queue request and returned to /online.';
+  });
+  await runtime.step('online.restart', async () => {
+    const baseline = runtime.captureServiceBaseline(RUNTIME_SERVICE_ACTION.ONLINE_MATCHMAKING);
+    await clickAndSee(runtime.page, '[data-testid="online-kapis-entry"]', '[data-testid="online-kapis-search-screen"]', 20000);
+    const outcome = await requireSuccessfulBackendAction(runtime, {
+      category: RUNTIME_SERVICE_CATEGORY.ONLINE_MATCHMAKING,
+      actionLabel: RUNTIME_SERVICE_ACTION.ONLINE_MATCHMAKING,
+      baseline,
+      failurePrefix: 'ONLINE_MATCHMAKING',
+      description: 'Online matchmaking restart',
+    });
+    evidence.backendMatchEvidence = {
+      observed: true,
+      successful: true,
+      category: RUNTIME_SERVICE_CATEGORY.ONLINE_MATCHMAKING,
+      statusClass: outcome.lifecycle?.responseStatusClass || '2xx',
+      safeSummary: 'Second Online matchmaking attempt returned a successful backend response.',
+    };
+    return 'Online Kapış restarted with successful backend evidence.';
+  });
+  let matchedAt = null;
+  await runtime.step('online.matched', async () => {
+    const deadline = Date.now() + 35_000;
+    while (Date.now() < deadline) {
+      await inspectNoLobby();
+      if (await runtime.page.locator('[data-testid="online-match-found-screen"]').isVisible().catch(() => false)) {
+        const text = await runtime.page.locator('[data-testid="online-match-found-screen"]').innerText();
+        if (!text.includes('Rakip bulundu') || !text.includes('Oyun başlıyor')) {
+          fail('Matched screen is missing approved Rakip bulundu / Oyun başlıyor copy.', 'MATCH_FOUND_DIRECT_GAME_PENDING');
+        }
+        matchedAt = Date.now();
+        evidence.matchFoundObserved = true;
+        return 'Rakip bulundu appeared on the same search surface; no lobby was observed.';
+      }
+      if (runtime.safeRoute() === '/game') {
+        fail('Direct game route appeared without observable same-screen Rakip bulundu evidence.', 'MATCH_FOUND_DIRECT_GAME_PENDING');
+      }
+      const phase = await runtime.page.locator('[data-testid="online-kapis-search-screen"]')
+        .getAttribute('data-matchmaking-phase').catch(() => null);
+      if (phase === 'timeout') {
+        throw new AutomationSetupGap(
+          'TWO_ACTOR_REQUIRED: one actor proved search/cancel/backend response, but no opponent paired for same-screen match-found and direct-game proof.',
+          AUTOMATION_STATUS.NOT_AUTOMATABLE,
+          'TWO_ACTOR_REQUIRED',
+        );
+      }
+      await runtime.page.waitForTimeout(100);
+    }
+    throw new AutomationSetupGap(
+      'MATCH_FOUND_DIRECT_GAME_PENDING: no match-found event arrived in the bounded runtime window.',
+      AUTOMATION_STATUS.NOT_AUTOMATABLE,
+      'MATCH_FOUND_DIRECT_GAME_PENDING',
+    );
+  });
+  await runtime.step('online.direct_game', async () => {
+    const deadline = Date.now() + 20_000;
+    while (Date.now() < deadline) {
+      await inspectNoLobby();
+      if (runtime.safeRoute() === '/game') {
+        await expectVisible(runtime.page, '[data-testid="online-game-screen"]', 15000);
+        evidence.directGameStartObserved = true;
+        evidence.routeAfterMatch = '/game';
+        evidence.matchedTransitionMs = matchedAt ? Date.now() - matchedAt : null;
+        return `Direct /game start observed after ${evidence.matchedTransitionMs ?? 'unknown'}ms.`;
+      }
+      await runtime.page.waitForTimeout(100);
+    }
+    throw new AutomationSetupGap(
+      'MATCH_FOUND_DIRECT_GAME_PENDING: Rakip bulundu appeared but the backend-authoritative /game surface did not become ready.',
+      AUTOMATION_STATUS.NOT_AUTOMATABLE,
+      'MATCH_FOUND_DIRECT_GAME_PENDING',
+    );
   });
   await runtime.step('online.cleanup', async () => {
     await assertPublicTextSafe(runtime.page);
-    if (await runtime.page.locator('[data-testid="online-waiting-screen"]').count()) throw new Error('Stale Online waiting UI remained after cancellation.');
-    return 'No stale waiting UI, private identifier, or raw backend error remains.';
+    await inspectNoLobby();
+    if (await runtime.page.locator('[data-testid="online-kapis-search-screen"]').count()) throw new Error('Stale Online search UI remained after direct start.');
+    return 'Direct game route has no lobby/search residue, private identifier, or raw backend error.';
   });
 }
 
@@ -513,6 +640,7 @@ async function duelloTwoContext() {
   throw new AutomationSetupGap(
     'No deterministic two-actor pairing and correct-claim fixture exists in this repository. Keep Duello as MANUAL_EXTERNAL; do not infer PASS from route rendering.',
     AUTOMATION_STATUS.MANUAL_EXTERNAL,
+    'TWO_ACTOR_REQUIRED',
   );
 }
 

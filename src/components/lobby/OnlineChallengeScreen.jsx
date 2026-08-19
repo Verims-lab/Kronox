@@ -1,10 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Swords, Users, Shuffle, Target } from 'lucide-react';
 import StandardTopBar from '@/components/layout/StandardTopBar';
 import FriendSelectModal from '@/components/lobby/FriendSelectModal';
 import IncomingInvitesPanel from '@/components/invites/IncomingInvitesPanel';
-import ActiveLobbyCard from '@/components/lobby/ActiveLobbyCard';
 import PreGameHourglass from '@/components/lobby/PreGameHourglass';
 import KronoxStatePanel from '@/components/ui/KronoxStatePanel';
 import { sounds } from '@/lib/gameSounds';
@@ -23,89 +22,57 @@ import {
  * Category selection is removed: every Online game now draws randomly from
  * the full active question bank. The screen offers two entry points into
  * the Pre-game Hourglass flow:
- *   • "Arkadaşını Davet Et" — pick specific players (FriendSelectModal),
- *     then wait up to 60s for one of them to accept.
- *   • "Rastgele Eşleş" — join the random matchmaking queue, wait up to 30s
+ *   • "Arkadaşını Davet Et" — pick one player (FriendSelectModal),
+ *     then wait up to 60s for that player to accept.
+ *   • "Online Kapış" — join the random matchmaking queue, wait up to 30s
  *     to be paired with another searching player.
- * Either path lands the player in the real Lobby (WaitingRoomPanel) once
- * matched via the onEnterLobby callback.
+ * Match found stays on this visual surface and hands the private backend
+ * session to the direct-start coordinator. No waiting-room UI is mounted.
  */
 const INVITE_WAIT_MS = 60 * 1000;
 const INVITE_POLL_MS = 2500;
-const MATCH_HANDOFF_POLL_MS = 1250;
-
-function useMatchedLobbyHandoff(active, lobbyRef, onEnterLobby, setScreenError, safeError) {
-  useEffect(() => {
-    if (!active || !lobbyRef) return undefined;
-    let cancelled = false;
-    let timerId = null;
-    const refresh = async () => {
-      try {
-        const res = await getLobbySnapshot({ lobbyId: lobbyRef, scope: LOBBY_SNAPSHOT_SCOPES.WAITING_ROOM });
-        const fresh = res?.data?.lobby;
-        if (!fresh) throw new Error('matched_lobby_snapshot_missing');
-        if (!cancelled) {
-          setScreenError('');
-          onEnterLobby?.(fresh);
-        }
-      } catch {
-        if (!cancelled) {
-          setScreenError(safeError);
-          timerId = window.setTimeout(refresh, MATCH_HANDOFF_POLL_MS);
-        }
-      }
-    };
-    void refresh();
-    return () => {
-      cancelled = true;
-      if (timerId) window.clearTimeout(timerId);
-    };
-  }, [active, lobbyRef, onEnterLobby, safeError, setScreenError]);
-}
-
 export default function OnlineChallengeScreen({
   user,
   guestProfile = null,
   loading,
-  onCreateInviteLobby,
-  onEnterLobby,
+  onCreateInviteMatch,
+  onMatchFound,
   onBackHome,
-  onJoinOpenLobby,
   onGoFriends,
-  activeLobby,
-  isActiveLobbyHost,
-  onResumeActiveLobby,
 }) {
   const [screen, setScreen] = useState('select'); // select | invite-wait | random-wait | duel-wait
   const [friendModalOpen, setFriendModalOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [screenError, setScreenError] = useState('');
-  const [inviteLobby, setInviteLobby] = useState(null);
+  const [inviteSession, setInviteSession] = useState(null);
   const random = useRandomMatchmaking(STANDARD_RANDOM_MODE);
   const duel = useRandomMatchmaking(SAME_QUESTION_DUEL_MODE);
+  const handedOffRef = useRef('');
 
-  useMatchedLobbyHandoff(
-    screen === 'random-wait' && random.phase === 'matched',
-    random.lobbyRef,
-    onEnterLobby,
-    setScreenError,
-    'Bağlantı kontrol ediliyor.',
-  );
-  useMatchedLobbyHandoff(
-    screen === 'duel-wait' && duel.phase === 'matched',
-    duel.lobbyRef,
-    onEnterLobby,
-    setScreenError,
-    'Duello bağlantısı kontrol ediliyor.',
-  );
+  useEffect(() => {
+    const match = screen === 'random-wait'
+      ? { state: random, mode: STANDARD_RANDOM_MODE }
+      : screen === 'duel-wait'
+        ? { state: duel, mode: SAME_QUESTION_DUEL_MODE }
+        : null;
+    if (!match || match.state.phase !== 'matched' || !match.state.lobbyRef) return;
+    const key = `${match.mode}:${match.state.lobbyRef}`;
+    if (handedOffRef.current === key) return;
+    handedOffRef.current = key;
+    onMatchFound?.({
+      lobbyRef: match.state.lobbyRef,
+      queueMode: match.mode,
+      source: match.mode === SAME_QUESTION_DUEL_MODE ? 'duello' : 'online_kapis',
+    });
+  }, [duel.lobbyRef, duel.phase, onMatchFound, random.lobbyRef, random.phase, screen]);
 
   const handleConfirmInvite = async (targets) => {
     setScreenError('');
     setCreating(true);
     try {
-      const lobby = await onCreateInviteLobby?.({ inviteTargets: targets });
-      if (lobby) {
-        setInviteLobby(lobby);
+      const session = await onCreateInviteMatch?.({ inviteTargets: targets });
+      if (session) {
+        setInviteSession(session);
         setScreen('invite-wait');
       }
     } catch {
@@ -115,30 +82,30 @@ export default function OnlineChallengeScreen({
     }
   };
 
-  // Invite mode: poll the created lobby until another player joins.
+  // Invite mode: poll the private backend session until the invited player joins.
   useEffect(() => {
-    if (screen !== 'invite-wait' || !inviteLobby?.id) return undefined;
+    if (screen !== 'invite-wait' || !inviteSession?.id) return undefined;
     let cancelled = false;
     let tickPending = false;
     const tick = async () => {
       if (cancelled || tickPending) return;
       tickPending = true;
       try {
-        const res = await getLobbySnapshot({ lobbyId: inviteLobby.id, scope: LOBBY_SNAPSHOT_SCOPES.WAITING_ROOM });
+        const res = await getLobbySnapshot({ lobbyId: inviteSession.id, scope: LOBBY_SNAPSHOT_SCOPES.WAITING_ROOM });
         const fresh = res?.data?.lobby;
         if (!cancelled && fresh && (fresh.players?.length || fresh.player_count || 0) > 1) {
-          onEnterLobby?.(fresh);
+          onMatchFound?.({ lobbyRef: fresh.id, initialLobby: fresh, source: 'friend_invite' });
         }
       } catch { /* transient poll errors are ignored; next tick retries */ }
       finally { tickPending = false; }
     };
     const intervalId = window.setInterval(tick, INVITE_POLL_MS);
     return () => { cancelled = true; window.clearInterval(intervalId); };
-  }, [screen, inviteLobby, onEnterLobby]);
+  }, [screen, inviteSession, onMatchFound]);
 
-  const handleInviteTimeoutOrCancel = () => {
-    if (inviteLobby?.id) leaveLobby(inviteLobby.id).catch(() => null);
-    setInviteLobby(null);
+  const handleInviteTimeoutOrCancel = async () => {
+    if (inviteSession?.id) await leaveLobby(inviteSession.id).catch(() => null);
+    setInviteSession(null);
     setScreen('select');
   };
 
@@ -156,14 +123,16 @@ export default function OnlineChallengeScreen({
     duel.start();
   };
 
-  const handleRandomCancel = () => {
-    void random.cancel();
+  const handleRandomCancel = async () => {
+    const cancelled = await random.cancel();
+    if (!cancelled) return;
     setScreenError('');
     setScreen('select');
   };
 
-  const handleDuelCancel = () => {
-    void duel.cancel();
+  const handleDuelCancel = async () => {
+    const cancelled = await duel.cancel();
+    if (!cancelled) return;
     setScreenError('');
     setScreen('select');
   };
@@ -178,7 +147,7 @@ export default function OnlineChallengeScreen({
 
   // Codex593 — Named ctaDisabled state per CTA. Neither button is ever
   // gated by social/friend/player-list load state — only by an in-flight
-  // lobby-create/invite action, so "Rastgele Eşleş" always stays available
+  // invite-session action, so Online Kapış always stays available
   // even if the manual invite player list failed to load.
   const ctaDisabledInvite = loading || creating;
   const ctaDisabledRandom = loading || creating;
@@ -189,8 +158,8 @@ export default function OnlineChallengeScreen({
       <PreGameHourglass
         testId="online-invite-waiting-screen"
         cancelTestId="online-invite-waiting-cancel"
-        title="Arkadaşın Bekleniyor"
-        subtitle="Davet ettiğin oyuncunun katılmasını bekliyoruz."
+        title="Rakip aranıyor"
+        subtitle="Davet ettiğin oyuncunun katılması bekleniyor."
         durationMs={INVITE_WAIT_MS}
         onTimeout={handleInviteTimeoutOrCancel}
         onCancel={handleInviteTimeoutOrCancel}
@@ -201,10 +170,10 @@ export default function OnlineChallengeScreen({
   if (screen === 'random-wait') {
     return (
       <PreGameHourglass
-        testId="online-waiting-screen"
-        cancelTestId="online-waiting-cancel"
+        testId="online-kapis-search-screen"
+        cancelTestId="online-kapis-search-cancel"
         title="Rakip Aranıyor"
-        subtitle="Rastgele bir oyuncuyla eşleştiriliyorsun."
+        subtitle="30 saniye içinde eşleşme aranıyor."
         expiresAt={random.expiresAt}
         durationMs={30 * 1000}
         phase={random.phase}
@@ -219,10 +188,10 @@ export default function OnlineChallengeScreen({
   if (screen === 'duel-wait') {
     return (
       <PreGameHourglass
-        testId="duello-waiting-screen"
-        cancelTestId="duello-waiting-cancel"
-        title={DUELLO_DISPLAY_NAME}
-        subtitle="Rakip aranıyor. Aynı sorularla kapışmaya hazırlan."
+        testId="duello-search-screen"
+        cancelTestId="duello-search-cancel"
+        title="Rakip aranıyor"
+        subtitle="30 saniye içinde Duello rakibi aranıyor."
         expiresAt={duel.expiresAt}
         durationMs={30 * 1000}
         phase={duel.phase}
@@ -260,16 +229,6 @@ export default function OnlineChallengeScreen({
           paddingBottom: 'calc(4rem + env(safe-area-inset-bottom) + 1.5rem)',
         }}
       >
-        {activeLobby && (
-          <div className="mb-2">
-            <ActiveLobbyCard
-              lobby={activeLobby}
-              isHost={isActiveLobbyHost}
-              onResume={onResumeActiveLobby}
-            />
-          </div>
-        )}
-
         <IncomingInvitesPanel user={user} />
 
         <TitleBlock />
@@ -285,10 +244,10 @@ export default function OnlineChallengeScreen({
             onClick={() => { sounds.tap(); setFriendModalOpen(true); }}
           />
           <ModeButton
-            testId="online-random-entry"
+            testId="online-kapis-entry"
             icon={Shuffle}
-            label="Rastgele Eşleş"
-            ariaLabel="Rastgele Eşleş"
+            label="Online Kapış"
+            ariaLabel="Online Kapış"
             hint="30 saniyede rastgele bir rakip bul."
             disabled={ctaDisabledRandom}
             onClick={handleStartRandom}
@@ -321,15 +280,6 @@ export default function OnlineChallengeScreen({
           </div>
         )}
 
-        {onJoinOpenLobby && (
-          <button
-            type="button"
-            onClick={() => { sounds.tap(); onJoinOpenLobby(); }}
-            className="mt-4 mx-auto block font-inter text-[12px] font-bold text-blue-100/70 hover:text-blue-100"
-          >
-            veya kodla katıl
-          </button>
-        )}
       </main>
 
       <FriendSelectModal
@@ -337,6 +287,7 @@ export default function OnlineChallengeScreen({
         onClose={() => setFriendModalOpen(false)}
         user={user}
         guestProfile={guestProfile}
+        maxSelection={1}
         initialSelectedTargets={[]}
         onConfirm={handleConfirmInvite}
         onGoFriends={onGoFriends}

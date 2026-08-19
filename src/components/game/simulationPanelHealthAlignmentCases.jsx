@@ -565,7 +565,7 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('notification_invite_lifecycle_current_contracts',
-    'Notification/invite Health covers shared source, visual-only dismissal, and lobby-first open',
+    'Notification/invite Health covers shared source, visual-only dismissal, and direct Online handoff',
     () => {
       const combined = `${notificationApiSource}\n${releaseChecklistSource}`;
       const missing = missingTokens(combined, [

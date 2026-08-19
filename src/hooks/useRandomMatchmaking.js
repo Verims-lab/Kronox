@@ -6,7 +6,7 @@ import {
 } from '@/lib/randomMatchmakingApi';
 import { STANDARD_RANDOM_MODE } from '@/lib/onlineModeDisplay';
 
-// Codex591 — Random matchmaking (Rastgele Eşleş) lifecycle hook.
+// Random matchmaking (Online Kapış / Duello) lifecycle hook.
 // Owns join → poll → matched/timeout/cancel state so the Pre-game
 // Hourglass screen only needs to render the current phase.
 const POLL_INTERVAL_MS = 1250;
@@ -60,7 +60,7 @@ export default function useRandomMatchmaking(mode = STANDARD_RANDOM_MODE) {
       return 'matched';
     }
     if (['timeout', 'expired', 'cancelled'].includes(data.status)) {
-      setErrorMessage('Eşleşme bulunamadı, tekrar dene.');
+      setErrorMessage('Tekrar dene.');
       updatePhase('timeout');
       stopPolling();
       return 'timeout';
@@ -122,8 +122,18 @@ export default function useRandomMatchmaking(mode = STANDARD_RANDOM_MODE) {
     stopPolling();
     updatePhase('idle');
     setErrorMessage('');
-    await cancelRandomMatchmaking(mode).catch(() => null);
-  }, [mode, stopPolling, updatePhase]);
+    const data = await cancelRandomMatchmaking(mode).catch(() => null);
+    if (!data) {
+      updatePhase('error');
+      setErrorMessage('Lütfen tekrar dene.');
+      return false;
+    }
+    if (data?.matched || data?.status === 'matched') {
+      applyState(data);
+      return false;
+    }
+    return true;
+  }, [applyState, mode, stopPolling, updatePhase]);
 
   const resolveTimeout = useCallback(async () => {
     if (phaseRef.current === 'matched') return true;
@@ -142,10 +152,21 @@ export default function useRandomMatchmaking(mode = STANDARD_RANDOM_MODE) {
       // A final failed read is followed by best-effort backend cleanup and a
       // retry state; raw transport details never reach the public screen.
     }
-    await cancelRandomMatchmaking(mode).catch(() => null);
+    const cancelled = await cancelRandomMatchmaking(mode).catch(() => null);
+    if (!cancelled) {
+      if (mountedRef.current && sessionRef.current === sessionId) {
+        updatePhase('error');
+        setErrorMessage('Lütfen tekrar dene.');
+      }
+      return false;
+    }
+    if (cancelled?.matched || cancelled?.status === 'matched') {
+      applyState(cancelled);
+      return true;
+    }
     if (mountedRef.current && sessionRef.current === sessionId) {
       updatePhase('timeout');
-      setErrorMessage('Eşleşme bulunamadı, tekrar dene.');
+      setErrorMessage('Tekrar dene.');
     }
     return false;
   }, [applyState, mode, stopPolling, updatePhase]);

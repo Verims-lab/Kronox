@@ -6,7 +6,7 @@
  * - Caller must be authenticated.
  * - Caller must match invite.from_email.
  * - Function only sends to invite.to_email active PushSubscription rows.
- * - Push failure never invalidates the invite/lobby creation flow.
+ * - Push failure never invalidates the invite/session creation flow.
  */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
 import { secrets } from 'base44:runtime';
@@ -217,7 +217,7 @@ function buildTargetUrl(invite: any, lobbyRef: string) {
   if (lobbyRef) params.set('lobbyId', lobbyRef);
   if (invite?.lobby_code) params.set('lobbyCode', invite.lobby_code);
   const query = params.toString();
-  return query ? `/lobby?${query}` : '/lobby';
+  return query ? `/online?${query}` : '/online';
 }
 
 export default async function(req: Request): Promise<Response> {

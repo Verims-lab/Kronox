@@ -27,11 +27,11 @@ import { preserveSafeRowsOnTransientFailure } from '@/lib/transientRowState';
  *
  * Selection rules:
  *   - Minimum 1 player required to enable "ONAYLA".
- *   - Maximum 3 players; extra taps are silent no-ops.
+ *   - Maximum defaults to 3 players; callers may lower the cap.
  *
  * Selection stores opaque backend target refs, never recipient emails.
  */
-const MAX_SELECTION = 3;
+const DEFAULT_MAX_SELECTION = 3;
 const GROUP_LABELS = {
   [ONLINE_PLAYER_SELECTION_GROUPS.ONLINE_FRIEND]: 'Çevrimiçi Arkadaşlar',
   [ONLINE_PLAYER_SELECTION_GROUPS.ONLINE_NON_FRIEND]: 'Çevrimiçi Oyuncular',
@@ -46,6 +46,7 @@ export default function FriendSelectModal({
   initialSelectedTargets = [],
   onConfirm,
   onGoFriends,
+  maxSelection = DEFAULT_MAX_SELECTION,
 }) {
   const [selected, setSelected] = useState(initialSelectedTargets);
   const [players, setPlayers] = useState([]);
@@ -121,16 +122,16 @@ export default function FriendSelectModal({
         sounds.tick();
         return prev.filter((ref) => ref !== targetRef);
       }
-      if (prev.length >= MAX_SELECTION) {
+      if (prev.length >= maxSelection) {
         sounds.tick();
-        return prev; // silent cap at 3
+        return prev;
       }
       sounds.tap();
       return [...prev, targetRef];
     });
   };
 
-  const confirmEnabled = selected.length >= 1 && selected.length <= MAX_SELECTION;
+  const confirmEnabled = selected.length >= 1 && selected.length <= maxSelection;
 
   const confirm = () => {
     if (!confirmEnabled) return;
@@ -209,7 +210,7 @@ export default function FriendSelectModal({
                     boxShadow: 'inset 0 0 0 1px rgba(250,204,21,0.45)',
                   }}
                 >
-                  {selected.length}/{MAX_SELECTION} seçildi
+                  {selected.length}/{maxSelection} seçildi
                 </span>
               </div>
             </div>
@@ -260,6 +261,7 @@ export default function FriendSelectModal({
                   players={players}
                   selected={selected}
                   onToggle={toggle}
+                  maxSelection={maxSelection}
                 />
               )}
             </div>
@@ -310,7 +312,7 @@ export default function FriendSelectModal({
 
 /* ----------------------------- Sub-views ----------------------------- */
 
-function GroupedPlayerList({ players, selected, onToggle }) {
+function GroupedPlayerList({ players, selected, onToggle, maxSelection }) {
   return (
     <div className="space-y-3">
       {Object.values(ONLINE_PLAYER_SELECTION_GROUPS).map((group) => {
@@ -325,7 +327,7 @@ function GroupedPlayerList({ players, selected, onToggle }) {
               {rows.map((player) => {
                 const isSelected = selected.includes(player.target_ref);
                 const selectionDisabled = player?.invite_enabled === false;
-                const capped = !isSelected && selected.length >= MAX_SELECTION;
+                const capped = !isSelected && selected.length >= maxSelection;
                 return (
                   <PlayerRow
                     key={player.target_ref}

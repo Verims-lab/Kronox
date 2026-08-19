@@ -38,7 +38,7 @@ Mechanical scan from this pass:
 | Area | Current entry points | Data source | State owner | Separation | Deterministic critical state | Direct Base44 spread | Security risks | Performance risks | Health coverage | Recommended action |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Solo | `src/pages/SoloChallenge.jsx`, `src/pages/Game.jsx`, `src/components/game/SoloLevelResult.jsx`, `SoloSuccessPopup.jsx` | `getQuestions`, player `solo_progress`, local engine helpers | `useSoloAttemptViewModel` over `soloAttemptReducer`; page owns rendering and external effects | Phase 1 runtime handoff completed without route or scoring changes | Reducer owns evaluated moves, mistakes, remaining moves, terminal state, persistence status, and joker summary | Persistence is isolated in `features/solo/services/soloAttemptEffects.js`; question fetch remains gateway-owned | Raw question bank exposure is controlled by `getQuestions`; guest token proof stays backend-verified | `Game.jsx` remains large; further extraction must be incremental | Executable reducer plus runtime-connected ViewModel/effect/placement Health | Continue small render/effect extractions only after device proof |
-| Online | `LobbyRoom.jsx`, `WaitingRoomPanel.jsx`, `useWaitingRoomSync`, `useLobbySync`, `Game.jsx` | `Lobby`, `GameInvite`, `OnlineMatchResult`, backend lobby functions | Client reducer/hook projection over backend authority | `lobbyGateway` owns commands and scoped snapshots; waiting-room DTO omits deck/question/player-card payload | Phase 1 reducer plus expected revision/fail-closed lock; one canonical start deck/result receipt | No direct client Lobby/result/profile-score/leaderboard mutation remains | Linked and token-proven guest actor proof, participant/host checks, max four, sanitized DTO | One shared non-overlapping adaptive poller per hook replaces duplicate fixed intervals; live scale proof remains manual | Executable poller/reducer plus source-connected authority/privacy/recovery Health | Keep live parallel multi-device join/start/result proof as release gate |
+| Online | `OnlinePage.jsx`, `OnlineChallengeScreen.jsx`, `DirectOnlineMatchScreen.jsx`, `useDirectOnlineGameHandoff`, `useLobbySync`, `Game.jsx`, `SameQuestionDuelPage.jsx` | Private backend `Lobby` session, `RandomMatchQueue`, `GameInvite`, `OnlineMatchResult`, backend lobby/match functions | `/online` search/match-found state plus client projection over backend authority | `lobbyGateway` owns private-session commands/scoped snapshots; no active waiting-room route or UI | Expected revision/fail-closed lock; one canonical start deck/result receipt; direct navigation requires a complete GAME snapshot | No direct client Lobby/result/profile-score/leaderboard mutation remains | Linked and token-proven guest actor proof, participant/host checks, two-player random modes, sanitized DTO | Bounded search polling and one direct-handoff poller; live two-device scale proof remains manual | Executable direct-start/queue/reducer plus source-connected authority/privacy/recovery Health | Keep live two-device match-found/direct-start/result proof as release gate |
 | Notifications | `useNotificationCenter`, `useHeaderNotifications`, `HeaderNotificationBell`, `GameInviteNotifier`, `IncomingInvitesPanel` | Backend social snapshot/invite functions plus push APIs | Shared external store in `useNotificationCenter` | Reducer is lifecycle owner; effects remain in hook/API | Transient empty/error fetches and `INVITE_OPENED` preserve actionable rows; confirmed terminal events close | Direct entity reads replaced on active social/invite paths | Username-safe labels; raw errors/private IDs stripped | Multiple subscriptions/focus refreshes need bounded cadence as usage grows | Executable nonterminal-open, transient preservation, terminal close, and safe-error cases | Keep reducer/store; live failed accept/decline proof remains manual |
 | Social presence / player selection | `usePresenceHeartbeat`, `useFriendPresence`, Online player picker rows | `PlayerPresence`, `updatePlayerPresence`, `getOnlinePlayerSelection`, `createGameInvitesForTargets` | App heartbeat hook plus backend-owned snapshot | Focused boundary; one bounded User profile batch hydrates safe public rows | Presence freshness is 75s TTL-based and best-effort; offline fallback is safe | Backend hides direct presence/friend reads and recipient resolution | Linked/guest proof; username/safe avatar/status plus opaque target ref only | One bounded public-profile scan replaces per-friend profile reads; live scale/index proof remains manual | Batched-read/privacy/guest/presence/invite Health | Keep presence best-effort and prove multi-account selection/invite live |
 | Profile / Settings / Account linking | `ProfilePage`, `SettingsPage`, `ProfileEditPage`, `AuthContext`, `useCurrentPlayerProfile` | Base44 auth `User`, `GuestProfile`, linking/settings functions | AuthContext is canonical identity owner; shared ViewModel maps linked/guest player | Profile and Leaderboard no longer duplicate auth/profile hydration | Link and guest inventory flows use token proof/idempotency | Direct Base44 auth duplication removed from Profile | Account linking/deletion still require two-account/manual privacy proof | Shared mapping removes repeated profile bootstrap; inventory cache remains scoped | Canonical actor, navigation, privacy, and guest inventory Health | Reuse the ViewModel in more read-only profile consumers when safe |
@@ -177,3 +177,30 @@ to remove.
 | Pilot future MVI reducers in Solo, Online, Notifications | These are the flows with the highest recurring bug cost. |
 | Treat Health as contract guard, not release proof | Recent failures show static checks must be paired with runtime/manual probes. |
 | Use docs plus targeted Health as this pass's safe fix | It closes architecture drift without destabilizing product behavior. |
+
+## Codex637 Online / Duello Direct-Start Update
+
+`src/pages/OnlinePage.jsx` is now the active Online orchestration owner.
+Selection and search stay in `OnlineChallengeScreen`; matched state moves to
+`DirectOnlineMatchScreen`, and `useDirectOnlineGameHandoff` reconciles the
+participant-scoped backend `GAME` snapshot. Only the backend-recognized host
+may idempotently call `startLobbyGame`; every other client polls the same
+authoritative session until its deck/current-card/status are ready. Effects,
+queue consumption, and navigation remain outside presentation components.
+
+The backend `Lobby` entity/function family is retained as a private session and
+authorization boundary. It is no longer a view-model or route concept in the
+active user flow. `/lobby` and `/LobbyRoom` are compatibility redirects to
+`/online`. Accepted invites carry verified backend session state into
+`OnlinePage`; random Online and Duello transition from same-screen match-found
+directly to `/game` and `/duel` respectively.
+
+`RandomMatchQueue.consumed` adds an idempotent terminal handoff state through
+the existing `randomMatchmaking` function, so function count does not grow.
+Cancel and timeout remain serialized terminal updates. Online/Duello score and
+result authority are unchanged (`+15`/`-6`, no speed bonus), no client final
+score write was added, and the pre-game UI receives no deck/answer payload.
+
+The new 25-case focused Health layer plus Runtime E2E contracts rejects lobby
+route/screen evidence and route-only PASS. Two-client delivery, Duello claim
+races, RLS, and production permission behavior remain external proof gates.

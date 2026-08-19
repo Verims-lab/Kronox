@@ -40,7 +40,7 @@ export default function OnlineGameBootstrapFallback({
   }, []);
 
   const message = !hasLobbyData && isOnline
-    ? 'Lobi durumu yükleniyor...'
+    ? 'Oyun durumu yükleniyor...'
     : !hasQuestions
       ? 'Sorular yükleniyor...'
       : 'Oyun başlatılıyor...';

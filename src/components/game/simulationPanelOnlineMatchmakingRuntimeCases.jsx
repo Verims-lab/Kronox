@@ -4,6 +4,9 @@ import releaseProof from '../../../docs/KRONOX_RELEASE_PROOF_CHECKLIST.md?raw';
 import onlineScreen from '@/components/lobby/OnlineChallengeScreen.jsx?raw';
 import preGame from '@/components/lobby/PreGameHourglass.jsx?raw';
 import randomHook from '@/hooks/useRandomMatchmaking.js?raw';
+import directHandoff from '@/hooks/useDirectOnlineGameHandoff.js?raw';
+import directMatch from '@/components/online/DirectOnlineMatchScreen.jsx?raw';
+import onlinePage from '@/pages/OnlinePage.jsx?raw';
 import modeDisplay from '@/lib/onlineModeDisplay.js?raw';
 import randomApi from '@/lib/randomMatchmakingApi.js?raw';
 import runtimeReportSource from '@/lib/health/runtimeE2EReport.js?raw';
@@ -121,7 +124,7 @@ export const EXTRA_TESTS = [
   }, ['randomMatchmakingPolicy.js', 'randomMatchmaking/entry.ts']),
 
   make('normal_random_queue_still_exists', 'Existing normal random Online queue remains active', () => sourceResult(required(onlineScreen + randomApi + queueEntity, [
-    'online-random-entry',
+    'online-kapis-entry',
     'STANDARD_RANDOM_MODE',
     "invoke('join'",
     'random_online',
@@ -152,13 +155,15 @@ export const EXTRA_TESTS = [
     ], 'Token-proven guests and linked users are both valid; mode and distinct actor identity decide compatibility.');
   }, ['randomMatchmaking/entry.ts', 'RandomMatchQueue.jsonc']),
 
-  make('waiting_poll_uses_backend_snapshot', 'Waiting poll reconciles backend queue and matched Lobby snapshots', () => sourceResult(required(randomHook + randomBackend + onlineScreen, [
+  make('waiting_poll_uses_backend_snapshot', 'Matched handoff reconciles backend queue and authoritative game snapshots', () => sourceResult(required(randomHook + randomBackend + onlineScreen + directHandoff + onlinePage, [
     'pollRandomMatchmaking(mode)',
     'await pollOnce(sessionId)',
     'reconcileWaitingActor(base44, actor, mode, false)',
     'getLobbySnapshot',
-    'MATCH_HANDOFF_POLL_MS',
-  ]), 'Join performs an immediate poll, waiting polls can pair existing rows, and matched handoff retries sanitized Lobby snapshots.'), ['useRandomMatchmaking.js', 'randomMatchmaking/entry.ts', 'OnlineChallengeScreen.jsx']),
+    'LOBBY_SNAPSHOT_SCOPES.GAME',
+    'startLobbyGame(lobby.id, lobby.state_revision)',
+    'onGameReady={handleGameReady}',
+  ]), 'Join performs an immediate poll, waiting polls can pair rows, and direct handoff waits for one backend-authored GAME snapshot.'), ['useRandomMatchmaking.js', 'useDirectOnlineGameHandoff.js', 'randomMatchmaking/entry.ts', 'OnlinePage.jsx']),
 
   make('timeout_cancel_cleanup_safe', 'Timeout performs a final snapshot read before serialized cleanup', () => sourceResult(required(randomHook + randomBackend + onlineScreen, [
     'resolveTimeout',
@@ -169,10 +174,10 @@ export const EXTRA_TESTS = [
     'withPairingLock(base44, mode',
   ]), 'A boundary match wins over timeout; otherwise polling stops and the waiting row is settled under the mode lock.'), ['useRandomMatchmaking.js', 'randomMatchmaking/entry.ts', 'OnlineChallengeScreen.jsx']),
 
-  make('safe_error_ui', 'Matchmaking exposes fixed Turkish retry/cancel states only', () => sourceResult([
-    ...required(preGame + randomHook + randomBackend, ['Rakip aranıyor', 'Eşleşme kuruluyor', 'Bağlantı kontrol ediliyor', 'Eşleşme bulunamadı, tekrar dene', 'Vazgeç', 'Tekrar dene', 'Eşleşme servisine ulaşılamadı. Lütfen tekrar dene.']),
+  make('safe_error_ui', 'Matchmaking exposes fixed Turkish search/match/retry states only', () => sourceResult([
+    ...required(preGame + randomHook + randomBackend + directHandoff + directMatch + onlinePage, ['Rakip aranıyor', 'Rakip bulundu', 'Oyun başlıyor', 'Rakip bulunamadı', 'Eşleşme başlatılamadı', 'Vazgeç', 'Tekrar dene', 'Lütfen tekrar dene.']),
     ...forbidden(preGame + onlineScreen, ['error?.message', 'Request failed with status code', 'actor_key_hash', 'guest_token']),
-  ], 'Public waiting UI uses bounded Turkish lifecycle copy and never renders transport or private actor details.'), ['PreGameHourglass.jsx', 'useRandomMatchmaking.js', 'randomMatchmaking/entry.ts']),
+  ], 'Public search/direct-start UI uses bounded Turkish lifecycle copy and never renders transport or private actor details.'), ['PreGameHourglass.jsx', 'useRandomMatchmaking.js', 'useDirectOnlineGameHandoff.js']),
 
   make('duello_two_phone_manual_gate', 'Two-phone Duello remains a deployed manual release gate', () => sourceResult(required(releaseProof + healthMirrors, [
     'Duello V1 Manual Proof',
