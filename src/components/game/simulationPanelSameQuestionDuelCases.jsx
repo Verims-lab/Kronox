@@ -46,9 +46,9 @@ export const EXTRA_TESTS = [
   make('first_to_10_wins', 'First player to ten backend-confirmed claims wins', () => result(required(startBackend + updateBackend, [
     'SAME_QUESTION_DUEL_TARGET = 10', 'claimed_count: 0', 'Number(winnerPlayer.claimed_count) >= SAME_QUESTION_DUEL_TARGET', "status: hasWon ? 'finished' : 'in_game'",
   ]), 'Backend commits terminal winner state at ten claimed cards.'), ['startLobbyGame/entry.ts', 'updateLobbyGameState/entry.ts']),
-  make('result_scoring_unchanged', 'Duel reuses winner +15 / loser -6 result authority', () => result(required(updateBackend + duelHook, [
-    'const ONLINE_WIN_POINTS = 15', 'const ONLINE_LOSS_POINTS = -6', "source: 'same_question_duel'", "action: 'commit_result'",
-  ]), 'Duel uses the existing backend result commit and fixed score rule.'), ['updateLobbyGameState/entry.ts', 'useSameQuestionDuel.js']),
+  make('result_scoring_unchanged', 'Duel reuses winner +15 / loser -6 result authority', () => result(required(updateBackend + duelHook + lobbyGateway, [
+    'const ONLINE_WIN_POINTS = 15', 'const ONLINE_LOSS_POINTS = -6', "source: 'same_question_duel'", "body?.action === 'commit_result'", 'commitOnlineMatchResult',
+  ]), 'Duel uses the existing backend result commit and fixed score rule.'), ['updateLobbyGameState/entry.ts', 'useSameQuestionDuel.js', 'lobbyGateway.js']),
   make('no_client_score_writes', 'Duel client has no direct score/result entity writes', () => result(forbidden(duelHook + duelPage + duelArena, [
     'OnlineMatchResult.create', 'User.update', 'GuestProfile.update', 'SoloLeaderboardEntry.create', 'online_progress:',
   ]), 'Duel client only invokes the existing backend result commit.'), ['useSameQuestionDuel.js', 'SameQuestionDuelPage.jsx']),
