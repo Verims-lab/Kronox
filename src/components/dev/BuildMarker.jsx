@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex630 — Harden Duello public snapshots, stale reconciliation, timer cleanup, Health proof, and docs without changing scoring or existing Online modes.
+// Codex631 — Add the separate Runtime E2E Automation Health Suite, real browser harness, evidence-safe reporting, and 10 screen scenarios.
 // Codex629 — Health proof and Base44 automation audit: evidence classification, manifest/argument/cleanup/logging gates, Phase 1 hygiene reflection, docs/mirrors, and no product or cleanup behavior change.
 // Codex628 — Notification artifact recovery proof: Admin-only dry-run/report-only backend flags, bounded fingerprint UI, explicit non-destructive/Yürütme engelli state, Health, and docs; no cleanup or notification behavior change.
 // Codex627 — Data Hygiene P0 deep eligibility review: Admin-only fingerprinted reconciliation previews, confidence/conflict classification, blocked three-stage cleanup boundary, Health, and docs; no data mutation or cleanup execution.
@@ -208,7 +208,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex630';
+const BUILD_MARKER = 'Codex631';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

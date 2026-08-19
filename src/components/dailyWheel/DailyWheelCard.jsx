@@ -955,6 +955,7 @@ function DailyWheelReadyActions({ claiming, onSpin, onClose }) {
     >
       <button
         type="button"
+        data-testid="daily-wheel-close"
         onClick={onClose}
         disabled={claiming}
         className="min-h-12 rounded-xl px-4 py-3 font-inter text-sm font-black tracking-[0.35em] transition-transform active:scale-[0.98] disabled:opacity-50"
@@ -969,6 +970,7 @@ function DailyWheelReadyActions({ claiming, onSpin, onClose }) {
       </button>
       <button
         type="button"
+        data-testid="daily-wheel-spin"
         onClick={onSpin}
         disabled={claiming}
         aria-busy={claiming ? 'true' : 'false'}
@@ -1154,6 +1156,7 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
 function DailyWheelModalFrame({ children, onClose, disableClose = false }) {
   return (
     <div
+      data-testid="daily-wheel-modal"
       className="fixed inset-0 z-[220] grid place-items-center overflow-hidden px-3"
       data-kronox-daily-wheel-modal-frame="mobile-safe"
       style={{
@@ -1190,6 +1193,7 @@ function DailyWheelModalFrame({ children, onClose, disableClose = false }) {
       >
         <button
           type="button"
+          data-testid="daily-wheel-close"
           onClick={disableClose ? undefined : onClose}
           disabled={disableClose}
           className="absolute right-2 top-2 grid h-11 w-11 place-items-center rounded-full text-slate-200"

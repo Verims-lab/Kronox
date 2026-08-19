@@ -77,6 +77,7 @@ export default function DailyPage() {
 
   return (
     <main
+      data-testid="daily-screen"
       data-kronox-daily-page-root="true"
       className="kx-a1-screen kx-a1-daily min-h-[100dvh] w-full max-w-full overflow-x-hidden overflow-y-auto text-white"
       style={{
@@ -97,6 +98,7 @@ export default function DailyPage() {
       >
         <button
           type="button"
+          data-testid="daily-back-home"
           onClick={() => navigate('/', { replace: true })}
           className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-100 active:scale-95"
           style={{ background: 'rgba(7,18,38,0.72)', boxShadow: 'inset 0 0 0 1px rgba(148,163,184,0.22)' }}

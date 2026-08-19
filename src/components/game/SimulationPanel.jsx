@@ -105,7 +105,13 @@ import { SUITES, TESTS } from './health/simulationCases';
 import SimulationSuiteSummary from './health/SimulationSuiteSummary';
 import SimulationCaseRow, { StatusBadge } from './health/SimulationCaseRow';
 import SimulationReportActions from './health/SimulationReportActions';
+import RuntimeE2EAutomationPanel from './health/RuntimeE2EAutomationPanel';
 import { HEALTH_PACKS, getHealthPack, getHealthPackCases } from './health/healthCatalog';
+import { RUNTIME_E2E_SUITE, RUNTIME_E2E_SUITE_ID } from '@/lib/health/runtimeE2EScenarios';
+
+// Display-only external suite. It is intentionally absent from SUITES/TESTS,
+// so getHealthPackCases(TESTS, 'full') can never launch runtime browser E2E.
+const DISPLAY_SUITES = [...SUITES, RUNTIME_E2E_SUITE];
 
 const LEGACY_LAST_RUN_KEYS = [
   LAST_RUN_KEY,
@@ -242,7 +248,8 @@ export default function SimulationPanel({ onClose }) {
     };
   }, []);
 
-  const selectedSuite = SUITES.find(suite => suite.id === selectedSuiteId) || SUITES[0];
+  const selectedSuite = DISPLAY_SUITES.find(suite => suite.id === selectedSuiteId) || DISPLAY_SUITES[0];
+  const runtimeAutomationSelected = selectedSuite.id === RUNTIME_E2E_SUITE_ID;
   const selectedTests = useMemo(() => TESTS.filter(testCase => testCase.suiteId === selectedSuiteId), [selectedSuiteId]);
   const allResults = useMemo(() => Object.values(resultsByKey), [resultsByKey]);
   const counts = report?.counts || Object.values(STATUS).reduce((acc, status) => ({ ...acc, [status]: 0 }), {});
@@ -349,7 +356,10 @@ export default function SimulationPanel({ onClose }) {
     return runCases(getHealthPackCases(TESTS, pack.id), { packId: pack.id, packLabel: pack.label });
   };
   const runAll = () => runPack('full');
-  const runSelected = () => runCases(selectedTests, { packId: `suite:${selectedSuite.id}`, packLabel: selectedSuite.name });
+  const runSelected = () => {
+    if (runtimeAutomationSelected) return;
+    return runCases(selectedTests, { packId: `suite:${selectedSuite.id}`, packLabel: selectedSuite.name });
+  };
   const handlePanelClose = () => {
     runSequenceRef.current += 1;
     runLockRef.current = false;
@@ -468,7 +478,7 @@ export default function SimulationPanel({ onClose }) {
 
         <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden md:grid-cols-[290px_minmax(0,1fr)] md:grid-rows-1">
         <SimulationSuiteSummary
-          suites={SUITES}
+          suites={DISPLAY_SUITES}
           tests={TESTS}
           selectedSuiteId={selectedSuiteId}
           setSelectedSuiteId={setSelectedSuiteId}
@@ -483,6 +493,7 @@ export default function SimulationPanel({ onClose }) {
           onRunAll={runAll}
           onRunSuite={runSelected}
           onRunPack={runPack}
+          runSuiteDisabled={runtimeAutomationSelected}
         />
 
           <main
@@ -498,13 +509,17 @@ export default function SimulationPanel({ onClose }) {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <div className="text-lg font-semibold">{selectedSuite.name}</div>
-                  <div className="text-xs text-white/55">PASS only means the simulator executed and verified the case. Manual gaps are risk states.</div>
+                  <div className="text-xs text-white/55">
+                    {runtimeAutomationSelected
+                      ? 'Ayrı otomasyon raporu · Full Run tarafından çalıştırılmaz · 10 senaryo'
+                      : 'PASS only means the simulator executed and verified the case. Manual gaps are risk states.'}
+                  </div>
                 </div>
                 {selectedSuite.critical && <StatusBadge status={STATUS.BLOCKED} text="critical suite" />}
               </div>
             </section>
 
-            {report && (
+            {!runtimeAutomationSelected && report && (
               <div data-health-report-slot="top">
                 <SimulationReportActions
                   report={report}
@@ -519,16 +534,20 @@ export default function SimulationPanel({ onClose }) {
               </div>
             )}
 
-            <div className="space-y-2">
-              {selectedTests.map(testCase => (
-                <SimulationCaseRow
-                  key={testCase.key}
-                  testCase={testCase}
-                  result={resultsByKey[testCase.key]}
-                  running={runningKey === testCase.key}
-                />
-              ))}
-            </div>
+            {runtimeAutomationSelected ? (
+              <RuntimeE2EAutomationPanel />
+            ) : (
+              <div className="space-y-2">
+                {selectedTests.map(testCase => (
+                  <SimulationCaseRow
+                    key={testCase.key}
+                    testCase={testCase}
+                    result={resultsByKey[testCase.key]}
+                    running={runningKey === testCase.key}
+                  />
+                ))}
+              </div>
+            )}
           </main>
         </div>
       </div>

@@ -400,6 +400,7 @@ export default function LeaderboardPage() {
 
   return (
     <div
+      data-testid="leaderboard-screen"
       className="leaderboard-page text-white"
       style={{
         userSelect: 'none',

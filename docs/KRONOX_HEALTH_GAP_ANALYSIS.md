@@ -258,6 +258,39 @@ Primary-source notes used for B6 guidance:
 
 Official guidance informs Health/docs only; it does not replace live Base44 deployment, device, RLS, secret, index, or store proof.
 
+## Runtime E2E Automation Health Suite V1
+
+HealthCheck now lists a display-only `Runtime E2E Automation Health Suite` with
+10 registry-owned screen scenarios. It is separate from Full Run: Full Run
+does not execute browser automation, and automation results never increment
+Health blocker, fail, or warning counts. Its report owns only
+`automationPassed`, `automationFailed`, `automationNotRun`,
+`automationNotAutomatable`, and `automationManualExternal`.
+
+Run it separately with `npm run health:e2e`. The runner uses a real isolated
+Chromium context per scenario, captures bounded console/network diagnostics,
+and retains a screenshot plus trace for real failures under ignored
+`test-results/health-e2e`. HealthCheck can load the local latest report or
+import its JSON. Selected/all failed scenarios can be copied as redacted
+automation-failure JSON with no credentials, private IDs, sensitive URL query
+parameters, or absolute local paths.
+
+Set `KRONOX_E2E_BASE_URL` for a configured preview/deployment. A local Vite run
+needs `VITE_BASE44_APP_BASE_URL` for backend-owned Solo question preparation;
+without it, the Solo scenario reports `AUTOMATION_NOT_AUTOMATABLE`.
+
+Use guest automation where the current route permits it. Home-owned scenarios
+may use an isolated completed guest or linked test actor supplied through
+`KRONOX_E2E_STORAGE_STATE`; credentials are never hardcoded. Mutation-prone
+steps require explicit `KRONOX_E2E_ALLOW_WHEEL_SPIN=true`,
+`KRONOX_E2E_ALLOW_DIAMOND_PURCHASE=true`, or
+`KRONOX_E2E_ALLOW_MATCHMAKING=true`. Missing browser, actor, safe state, or
+fixture is `AUTOMATION_NOT_AUTOMATABLE`/`AUTOMATION_NOT_RUN`, never a fake PASS.
+The Duello scenario remains `AUTOMATION_MANUAL_EXTERNAL` until deterministic
+two-actor pairing and correct-claim fixtures prove one backend winner and
+snapshot reconciliation in two real contexts. Health PASS remains contract
+proof, not release-ready proof while manual/external gates remain.
+
 ## Manual / Live Probe Checklist
 
 - Two-account Online: host creates 4-player lobby, three recipients join by

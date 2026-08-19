@@ -215,6 +215,7 @@ export default function MainMenu() {
 
   return (
     <main
+      data-testid="home-screen"
       className="kx-a1-screen kx-a1-home fixed inset-0 w-full overflow-hidden text-white"
       style={{
         width: '100%',
@@ -278,6 +279,7 @@ export default function MainMenu() {
               className="absolute left-0 top-1/2 z-10 flex w-20 -translate-y-1/2 justify-center"
             >
               <HomeShortcut
+                testId="daily-screen-entry"
                 label="GÜNLÜK"
                 icon={CalendarDays}
                 tone="cyan"
@@ -290,6 +292,7 @@ export default function MainMenu() {
               className="absolute right-0 top-1/2 z-10 flex w-20 -translate-y-1/2 justify-center"
             >
               <HomeShortcut
+                testId="daily-wheel-entry"
                 label="Çark"
                 icon={HomeMiniDailyWheelIcon}
                 tone="gold"
@@ -304,6 +307,7 @@ export default function MainMenu() {
             style={{ gap: 14, marginTop: HOME_CTA_BALANCE_GAP, marginBottom: HOME_CTA_BALANCE_GAP }}
           >
             <HomeCTA
+              testId="home-solo-entry"
               variant="solo"
               primaryLabel="OYNA"
               secondaryLabel={soloProgressLoaded ? `Seviye ${homeSoloLevelNumber}` : 'Seviye hazırlanıyor'}
@@ -312,6 +316,7 @@ export default function MainMenu() {
               ariaLabel={soloProgressLoaded ? `Oyna Seviye ${homeSoloLevelNumber}` : 'Solo seviyesi hazırlanıyor'}
             />
             <HomeCTA
+              testId="home-online-entry"
               variant="online"
               label="ONLINE KAPIŞ"
               onClick={handleOnline}
@@ -335,11 +340,12 @@ export default function MainMenu() {
   );
 }
 
-function HomeShortcut({ label, icon: Icon, tone, ready = false, onClick }) {
+function HomeShortcut({ label, icon: Icon, tone, ready = false, onClick, testId }) {
   const isGold = tone === 'gold';
   return (
     <button
       type="button"
+      data-testid={testId}
       onClick={onClick}
       className="kx-a1-pressable flex min-w-0 flex-col items-center justify-center gap-2 text-center"
       style={{ touchAction: 'manipulation' }}
@@ -468,7 +474,7 @@ function HomeTimeArtifact() {
   );
 }
 
-function HomeCTA({ variant, label, primaryLabel, secondaryLabel, onClick, ariaLabel, disabled = false }) {
+function HomeCTA({ variant, label, primaryLabel, secondaryLabel, onClick, ariaLabel, disabled = false, testId }) {
   const isSolo = variant === 'solo';
   // Primary and secondary CTAs share the same box model so their dimensions
   // cannot drift while each keeps its own visual variant.
@@ -499,6 +505,7 @@ function HomeCTA({ variant, label, primaryLabel, secondaryLabel, onClick, ariaLa
   return (
     <motion.button
       type="button"
+      data-testid={testId}
       onClick={onClick}
       disabled={disabled}
       whileTap={{ y: 2, scale: 0.985 }}

@@ -238,6 +238,7 @@ export default function ProfilePage() {
 
   return (
     <div
+      data-testid="profile-screen"
       className="kx-a1-screen kx-a1-profile min-h-screen w-full max-w-full overflow-x-hidden bg-background text-white"
       style={{
         paddingTop: 'calc(4rem + env(safe-area-inset-top))',
@@ -299,6 +300,7 @@ export default function ProfilePage() {
 
         <Section label="Profil">
           <RowCard
+            testId="profile-edit-entry"
             icon={<UserRound className="w-4 h-4" />}
             title="Profil Bilgileri"
             desc="Kullanıcı adı, yaş aralığı, cinsiyet ve kategori seçimi"
@@ -709,10 +711,11 @@ function Section({ label, children }) {
   );
 }
 
-function RowCard({ icon, title, desc, badge, onClick, disabled }) {
+function RowCard({ icon, title, desc, badge, onClick, disabled, testId }) {
   return (
     <button
       type="button"
+      data-testid={testId}
       onClick={onClick}
       disabled={disabled}
       className="kx-a1-panel kx-a1-pressable w-full flex items-center gap-3 p-4 rounded-2xl text-left disabled:opacity-70"

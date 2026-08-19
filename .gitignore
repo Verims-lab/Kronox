@@ -30,3 +30,9 @@ dist-ssr
 .env
 .vite
 base44/.app.jsonc
+
+# Separate Runtime E2E Automation output. Reports are imported into HealthCheck,
+# never committed as product/runtime state.
+/test-results/
+/playwright-report/
+/public/health-e2e/latest.json

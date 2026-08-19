@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "check:base44-functions": "node scripts/checkBase44FunctionsCompile.mjs",
+    "health:e2e": "node scripts/run-health-e2e.mjs",
+    "health:e2e:contracts": "node scripts/check-runtime-e2e-contracts.mjs",
     "check:ios-icons": "node scripts/check-ios-icons-no-alpha.mjs",
     "lint": "eslint . --quiet",
     "lint:fix": "eslint . --fix",
@@ -72,6 +74,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.19.0",
+    "@playwright/test": "1.62.1",
     "@types/node": "^22.13.5",
     "@types/react": "^18.2.66",
     "@types/react-dom": "^18.2.22",

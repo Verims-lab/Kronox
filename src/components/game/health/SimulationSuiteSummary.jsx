@@ -82,12 +82,13 @@ export default function SimulationSuiteSummary({
   onRunAll,
   onRunSuite,
   onRunPack,
+  runSuiteDisabled = false,
 }) {
   return (
     <aside className="border-b border-white/10 bg-white/[0.03] p-3 md:border-b-0 md:border-r md:overflow-y-auto">
       <div className="mb-3 grid grid-cols-2 gap-2">
         <ActionButton icon={Play} label="Run Full" onClick={onRunAll} disabled={running} />
-        <ActionButton icon={RefreshCw} label="Run Suite" onClick={onRunSuite} disabled={running} />
+        <ActionButton icon={RefreshCw} label="Run Suite" onClick={onRunSuite} disabled={running || runSuiteDisabled} />
       </div>
       <HealthPackControls running={running} onRunPack={onRunPack} lastRunsByPack={lastRunsByPack} />
 
@@ -126,7 +127,7 @@ export default function SimulationSuiteSummary({
                 {hasProblems && <AlertTriangle className="h-4 w-4 text-amber-300" />}
               </div>
               <div className="mt-1 text-[11px] text-white/50">
-                {suiteResults.length || tests.filter(item => item.suiteId === suite.id).length} cases
+                {suite.scenarioCount || suiteResults.length || tests.filter(item => item.suiteId === suite.id).length} {suite.externalAutomation ? 'scenarios · separate' : 'cases'}
               </div>
             </button>
           );

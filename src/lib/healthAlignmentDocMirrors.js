@@ -771,6 +771,14 @@ Status: Active product contract.
 - Duello is the final display name for the stable internal same_question_duel key. Duello V1 is random-opponent only, exactly two-player, mode-scoped from normal random Online, server-authored, and first-correct backend-claimed. Both players receive identical two opening anchors and one monotonic active sequence. Wrong answers lock that player for the current sequence; two wrong answers release the next card. Stale claims return the current backend snapshot and the client accepts only non-regressing state_revision values. First to 10 claims wins. Joker/Hint are disabled, result scoring remains backend winner +15 / loser -6, and no category selector or Solo buffer is used. Public snapshots expose a synthetic-id active prompt without its answer year, empty used-question ids, self-only resolved timeline years under synthetic ids, and opponent claimed_count without opponent card rows; real two-device race/reconnect proof remains MANUAL_EXTERNAL.
 - two-account preference RLS proof remains manual/NOT_AUTOMATABLE.
 - old UserSubCategoryPreference rows are retained but not used by the current Profile Info preference UI.
+
+## Runtime E2E Automation Health Suite V1
+- HealthCheck lists a display-only Runtime E2E Automation Health Suite with 10 registry-owned screen scenarios. Full Run does not execute it, and automation output never increments core Health blocker/fail/warning counts.
+- Run npm run health:e2e. The runner uses an isolated real Chromium context, writes an ignored test-results/health-e2e/latest.json report, and retains screenshot/trace plus bounded console/network diagnostics for real failures.
+- Use KRONOX_E2E_BASE_URL for a configured preview/deployment. Local backend-owned Solo question proof requires VITE_BASE44_APP_BASE_URL; without it the Solo scenario remains NOT_AUTOMATABLE.
+- HealthCheck shows separate automationPassed, automationFailed, automationNotRun, automationNotAutomatable, and automationManualExternal counters, expandable step evidence, report import, and redacted selected/all Automation Fail JSON copy controls.
+- Home-owned scenarios use an isolated completed guest or linked test actor supplied through KRONOX_E2E_STORAGE_STATE. Credentials are never hardcoded. Mutation-prone wheel, Diamond purchase, and matchmaking steps require explicit KRONOX_E2E_ALLOW_* gates.
+- Missing browser, safe actor state, or deterministic fixture remains NOT_AUTOMATABLE/NOT_RUN. Duello stays MANUAL_EXTERNAL until two real contexts prove deterministic pairing, one accepted backend claim, and snapshot reconciliation. Health PASS is not release-ready proof while manual/external gates remain.
 `;
 
 export const RELEASE_PROOF_CHECKLIST_DOC = `# Kronox Release Proof Checklist
@@ -1002,6 +1010,13 @@ SubCategory entity still exists, but Profile Info currently uses Category intere
 The Profile Info Category preference surface is custom touch UI with no raw native select in the targeted section; save validation and user scoping remain unchanged.
 Mobile wrapping/long-name visual proof and two-account preference RLS proof
 remain manual/NOT_AUTOMATABLE.
+
+## Runtime E2E Automation V1
+- Runtime E2E Automation Health Suite is a separate expandable 10-scenario report. Full Run does not execute it and its failures do not alter core blocker/fail/warning counts.
+- Run npm run health:e2e. KRONOX_E2E_BASE_URL may select staging; KRONOX_E2E_STORAGE_STATE supplies an isolated completed guest or linked test actor without committed credentials. Local Solo question proof also needs VITE_BASE44_APP_BASE_URL or remains NOT_AUTOMATABLE.
+- Wheel, Diamond-purchase, and matchmaking mutations require their explicit KRONOX_E2E_ALLOW_* gate. Missing setup is NOT_AUTOMATABLE/NOT_RUN, never PASS.
+- Import test-results/health-e2e/latest.json into HealthCheck when needed. Selected/all failed scenarios expose redacted Automation Fail JSON and failure-only screenshot/trace evidence.
+- Duello remains MANUAL_EXTERNAL until deterministic two-context pairing and correct-claim fixtures prove one backend winner and reconciled snapshots. Runtime E2E does not replace Base44 deploy, RLS/BOLA, device, store, push, race, or release proof.
 `;
 
 export const CATEGORY_TAXONOMY_DOC = `# Kronox Category Taxonomy

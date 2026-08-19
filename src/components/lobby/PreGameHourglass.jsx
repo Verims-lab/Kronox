@@ -12,6 +12,8 @@ export default function PreGameHourglass({
   durationMs = 30000,
   expiresAt = null,
   errorMessage = '',
+  testId,
+  cancelTestId,
   onTimeout,
   onCancel,
 }) {
@@ -47,6 +49,7 @@ export default function PreGameHourglass({
 
   return (
     <div
+      data-testid={testId}
       className="kx-a1-screen kx-a1-online fixed inset-0 flex w-full max-w-full flex-col items-center justify-center overflow-x-hidden overflow-y-auto px-4 text-white"
       data-kronox-pre-game-hourglass="mobile-safe"
       style={{
@@ -87,6 +90,7 @@ export default function PreGameHourglass({
       {onCancel && (
         <button
           type="button"
+          data-testid={cancelTestId}
           onClick={onCancel}
           className="kx-a1-pressable mt-9 flex min-h-11 items-center gap-2 rounded-2xl px-5 py-2.5 font-inter text-sm font-bold text-blue-100/80"
           style={{ background: 'rgba(148,163,184,0.12)', boxShadow: 'inset 0 0 0 1px rgba(148,163,184,0.28)' }}

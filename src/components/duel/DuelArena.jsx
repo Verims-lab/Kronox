@@ -4,7 +4,17 @@ import GameLayout from '@/components/game/GameLayout';
 export default function DuelArena({ duel }) {
   const { players, myIndex, myPlayer, activeCard, canAttempt, pending, notice, error, feedback, selectedZone, setSelectedZone, submitPlacement, drag } = duel;
   return (
-    <div className="relative" data-kronox-same-question-duel="active">
+    <div
+      className="relative"
+      data-kronox-same-question-duel="active"
+      data-testid="duello-active-card"
+    >
+      <span className="sr-only" data-testid="duello-player-progress">
+        Oyuncu ilerlemesi: {myPlayer?.claimed_count || 0}/10
+      </span>
+      <span className="sr-only" data-testid="duello-opponent-progress">
+        Rakip ilerlemesi: {players.find((_, index) => index !== myIndex)?.claimed_count || 0}/10
+      </span>
       <div className="pointer-events-none fixed left-3 top-3 z-[70] rounded-full border border-cyan-300/30 bg-slate-950/80 px-3 py-1 font-inter text-[10px] font-black text-cyan-100">
         DUELLO · 10 KART
       </div>
