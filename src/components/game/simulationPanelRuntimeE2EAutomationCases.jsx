@@ -1,4 +1,5 @@
 import packageSource from '../../../package.json?raw';
+import gitignoreSource from '../../../.gitignore?raw';
 import runnerSource from '../../../scripts/run-health-e2e.mjs?raw';
 import handlerSource from '../../../tests/health-e2e/scenarioHandlers.mjs?raw';
 import harnessSource from '../../../tests/health-e2e/runtimeHarness.mjs?raw';
@@ -11,12 +12,25 @@ import { HEALTH_GAP_ANALYSIS_DOC, RELEASE_PROOF_CHECKLIST_DOC } from '@/lib/heal
 import {
   AUTOMATION_STATUS,
   BACKEND_PREFLIGHT_STATUS,
+  RUNTIME_E2E_PREFLIGHT_DEPENDENCY,
+  RUNTIME_E2E_PROOF_LEVEL,
   buildAllAutomationSetupGapsJson,
   buildAutomationFailureJson,
   classifyRuntimeDiagnostic,
+  classifyRuntimeServiceRequest,
   createNotRunAutomationReport,
   normalizeRuntimeE2EReport,
+  recordRuntimeServiceObservation,
+  resolveRuntimePreflightStatus,
+  runtimeServiceSummaryUnavailableReason,
 } from '@/lib/health/runtimeE2EReport';
+import {
+  buildRuntimeCapabilitySummary,
+  classifyRuntimeE2ETarget,
+  evaluateScenarioCapabilities,
+  RUNTIME_E2E_CAPABILITY_STATUS,
+  RUNTIME_E2E_TARGET_KIND,
+} from '@/lib/health/runtimeE2ECapabilities';
 import {
   RUNTIME_E2E_SCENARIOS,
   RUNTIME_E2E_SUITE,
@@ -350,9 +364,42 @@ export const EXTRA_TESTS = [
 
   makeCase('report_includes_preflight_and_capabilities', 'Runtime report V2 includes preflight and capability evidence', () => {
     const report = createNotRunAutomationReport('Health-test');
-    const required = ['preflight', 'environment', 'capabilitySummary', 'configuredBaseUrl', 'pageOrigin', 'backendAvailable', 'appConfigAvailable', 'base44AppReachable'];
+    const required = [
+      'preflight',
+      'environment',
+      'capabilitySummary',
+      'configuredBaseUrl',
+      'pageOrigin',
+      'targetKind',
+      'productionCustomDomainMode',
+      'directBackendPreflightStatus',
+      'runtimeBackendProbeStatus',
+      'preflightStatusReason',
+      'serviceSummary',
+      'serviceSummaryUnavailableReason',
+      'backendProofLevel',
+      'homeVisible',
+      'authenticatedOrStoredSession',
+      'canRunRuntimeProbes',
+      'preflightLimitations',
+      'backendAvailable',
+      'appConfigAvailable',
+      'base44AppReachable',
+    ];
     const absent = required.filter((key) => !(key in report));
-    const scenarioAbsent = ['requiredCapabilities', 'capabilityStatus', 'backendDependent', 'uiOnly', 'preflightDecision', 'statusReason', 'safeSetupInstructions']
+    const scenarioAbsent = [
+      'requiredCapabilities',
+      'capabilityStatus',
+      'backendDependent',
+      'uiOnly',
+      'preflightDecision',
+      'proofLevel',
+      'backendEvidence',
+      'preflightDependency',
+      'blockReason',
+      'statusReason',
+      'safeSetupInstructions',
+    ]
       .filter((key) => !(key in report.scenarios[0]));
     return report.version === 2 && !absent.length && !scenarioAbsent.length
       ? pass('Top-level and per-scenario V2 proof fields are present.')
@@ -388,6 +435,258 @@ export const EXTRA_TESTS = [
     return payload.setupGaps.length === 1 && !absent.length
       ? pass('Health UI exports selected failures/setup gaps, all setup gaps, and the full sanitized report.')
       : fail('Setup-gap JSON copy contract is incomplete.', { missing: absent, payload });
+  }),
+
+  makeCase('production_target_classified', 'Production custom-domain targets are classified separately from local and Base44 preview targets', () => {
+    const production = classifyRuntimeE2ETarget('https://kronoxgame.com/');
+    const local = classifyRuntimeE2ETarget('http://127.0.0.1:4174/');
+    const preview = classifyRuntimeE2ETarget('https://sample.base44.app/');
+    return production === RUNTIME_E2E_TARGET_KIND.PRODUCTION_CUSTOM_DOMAIN
+      && local === RUNTIME_E2E_TARGET_KIND.LOCAL_DEV
+      && preview === RUNTIME_E2E_TARGET_KIND.BASE44_PREVIEW
+      ? pass('Production, local-dev, and Base44 preview targets resolve to distinct target kinds.')
+      : fail('Runtime target-kind classification drifted.', { production, local, preview });
+  }),
+
+  makeCase('preflight_unknown_not_final_for_prod', 'Production custom-domain preflight never ends at generic UNKNOWN when a specific state applies', () => {
+    const withoutProbe = resolveRuntimePreflightStatus({
+      productionCustomDomainMode: true,
+      directBackendPreflightStatus: BACKEND_PREFLIGHT_STATUS.UNKNOWN,
+      canRunRuntimeProbes: false,
+    });
+    const withProbe = resolveRuntimePreflightStatus({
+      productionCustomDomainMode: true,
+      directBackendPreflightStatus: BACKEND_PREFLIGHT_STATUS.UNKNOWN,
+      canRunRuntimeProbes: true,
+    });
+    return withoutProbe === BACKEND_PREFLIGHT_STATUS.PROD_CUSTOM_DOMAIN_PREFLIGHT_UNSUPPORTED
+      && withProbe === BACKEND_PREFLIGHT_STATUS.PROD_RUNTIME_PROBE_REQUIRED
+      ? pass('Generic production UNKNOWN becomes an explicit direct-preflight limitation or runtime-probe requirement.')
+      : fail('Production preflight can still dead-end at UNKNOWN.', { withoutProbe, withProbe });
+  }),
+
+  makeCase('prod_custom_domain_prefight_limitation_explicit', 'Production custom-domain direct-preflight limitations are explicit in report output', () => {
+    const absent = missing(`${runnerSource}\n${reportSource}`, [
+      'PROD_CUSTOM_DOMAIN_PREFLIGHT_UNSUPPORTED',
+      'PROD_RUNTIME_PROBE_REQUIRED',
+      'directBackendPreflightStatus',
+      'preflightLimitations',
+      'Production custom domains may proxy backend traffic through the app origin',
+    ]);
+    return absent.length === 0
+      ? pass('The report separates direct custom-domain limitations from runtime-probe eligibility.')
+      : fail('Production preflight limitations are not explicit.', { missing: absent });
+  }),
+
+  makeCase('runtime_probe_allowed_when_prod_preflight_unsupported', 'Safe scenarios may run runtime probes when direct production preflight is unsupported', () => {
+    const capabilitySummary = buildRuntimeCapabilitySummary({
+      browserAvailable: true,
+      preflight: {
+        status: BACKEND_PREFLIGHT_STATUS.PROD_RUNTIME_PROBE_REQUIRED,
+        documentLoaded: true,
+        appConfigAvailable: true,
+        guestBootstrapAvailable: true,
+        canRunRuntimeProbes: true,
+      },
+      environment: {
+        hasStorageState: true,
+        hasStorageStateA: false,
+        hasStorageStateB: false,
+        allowMatchmaking: false,
+      },
+    });
+    const leaderboard = RUNTIME_E2E_SCENARIOS.find((item) => item.scenarioId === 'runtime_e2e.leaderboard_smoke_privacy');
+    const decision = evaluateScenarioCapabilities(leaderboard, capabilitySummary);
+    return capabilitySummary.base44Backend.status === RUNTIME_E2E_CAPABILITY_STATUS.PROBE_REQUIRED
+      && decision.canRun === true
+      && decision.decision === 'RUN_WITH_RUNTIME_PROBES'
+      ? pass('A production custom-domain scenario can execute while still owing scenario-level backend evidence.')
+      : fail('Direct-preflight limitations still block all safe production runtime probes.', { decision, capabilitySummary });
+  }),
+
+  makeCase('backend_pass_requires_runtime_evidence', 'Backend-dependent PASS requires successful scenario-level runtime evidence', () => {
+    const definition = RUNTIME_E2E_SCENARIOS.find((item) => item.scenarioId === 'runtime_e2e.leaderboard_smoke_privacy');
+    const evidence = {
+      executionId: 'health-runtime-evidence-gate',
+      browserName: 'chromium health',
+      configuredBaseUrl: 'https://kronoxgame.com',
+      pageOrigin: 'https://kronoxgame.com',
+      baseUrlOrigin: 'https://kronoxgame.com',
+      backendPreflight: { status: BACKEND_PREFLIGHT_STATUS.PROD_RUNTIME_PROBE_REQUIRED },
+    };
+    const normalized = normalizeRuntimeE2EReport({
+      runId: 'health-runtime-evidence-gate',
+      startedAt: new Date().toISOString(),
+      finishedAt: new Date().toISOString(),
+      targetKind: RUNTIME_E2E_TARGET_KIND.PRODUCTION_CUSTOM_DOMAIN,
+      productionCustomDomainMode: true,
+      configuredBaseUrl: 'https://kronoxgame.com',
+      pageOrigin: 'https://kronoxgame.com',
+      preflight: {
+        status: BACKEND_PREFLIGHT_STATUS.PROD_RUNTIME_PROBE_REQUIRED,
+        directBackendPreflightStatus: BACKEND_PREFLIGHT_STATUS.PROD_CUSTOM_DOMAIN_PREFLIGHT_UNSUPPORTED,
+        canRunRuntimeProbes: true,
+      },
+      executionEvidence: evidence,
+      scenarios: [{
+        scenarioId: definition.scenarioId,
+        status: AUTOMATION_STATUS.PASS,
+        proofLevel: RUNTIME_E2E_PROOF_LEVEL.BACKEND_RUNTIME_PROBE,
+        backendEvidence: { observed: false, successful: false, category: null, statusClass: null, safeSummary: 'No classified backend response was observed.' },
+        preflightDependency: RUNTIME_E2E_PREFLIGHT_DEPENDENCY.RUNTIME_PROBE,
+        executionEvidence: evidence,
+        steps: definition.steps.map((step) => ({ ...step, status: AUTOMATION_STATUS.PASS, durationMs: 1 })),
+      }],
+    }, 'Health-test');
+    const result = normalized.scenarios.find((item) => item.scenarioId === definition.scenarioId);
+    return result?.status === AUTOMATION_STATUS.NOT_AUTOMATABLE
+      && result?.failureCategory === 'BACKEND_RUNTIME_PROBE_NOT_OBSERVED'
+      ? pass('A forged backend PASS without successful runtime traffic is demoted to an explicit setup gap.')
+      : fail('Backend PASS survived without scenario runtime evidence.', { result });
+  }),
+
+  makeCase('ui_only_pass_not_backendproof', 'UI-only PASS is labeled UI_ONLY and cannot become backend proof', () => {
+    const definition = RUNTIME_E2E_SCENARIOS.find((item) => item.scenarioId === 'runtime_e2e.bottom_nav_route_sync');
+    const evidence = {
+      executionId: 'health-ui-proof-level',
+      browserName: 'chromium health',
+      pageOrigin: 'https://kronoxgame.com',
+      baseUrlOrigin: 'https://kronoxgame.com',
+    };
+    const normalized = normalizeRuntimeE2EReport({
+      runId: 'health-ui-proof-level',
+      startedAt: new Date().toISOString(),
+      finishedAt: new Date().toISOString(),
+      configuredBaseUrl: 'https://kronoxgame.com',
+      pageOrigin: 'https://kronoxgame.com',
+      backendAvailable: false,
+      executionEvidence: evidence,
+      scenarios: [{
+        scenarioId: definition.scenarioId,
+        status: AUTOMATION_STATUS.PASS,
+        proofLevel: RUNTIME_E2E_PROOF_LEVEL.UI_ONLY,
+        preflightDependency: RUNTIME_E2E_PREFLIGHT_DEPENDENCY.NOT_REQUIRED,
+        executionEvidence: evidence,
+        steps: definition.steps.map((step) => ({ ...step, status: AUTOMATION_STATUS.PASS, durationMs: 1 })),
+      }],
+    }, 'Health-test');
+    const result = normalized.scenarios.find((item) => item.scenarioId === definition.scenarioId);
+    return result?.status === AUTOMATION_STATUS.PASS
+      && result?.proofLevel === RUNTIME_E2E_PROOF_LEVEL.UI_ONLY
+      && result?.backendDependent === false
+      ? pass('UI-only browser proof remains valid without being presented as backend-connected proof.')
+      : fail('UI-only proof was promoted or rejected incorrectly.', { result });
+  }),
+
+  makeCase('service_summary_not_empty_or_explained', 'Service summary is populated with safe categories or carries an explicit unavailable reason', () => {
+    const summary = {};
+    const category = classifyRuntimeServiceRequest(
+      'https://kronoxgame.com/api/functions/getUnifiedLeaderboard?token=secret',
+      'https://kronoxgame.com',
+      'fetch',
+    );
+    recordRuntimeServiceObservation(summary, category, 'REQUEST');
+    recordRuntimeServiceObservation(summary, category, 'RESPONSE', 200);
+    const emptyReason = runtimeServiceSummaryUnavailableReason({});
+    const populatedReason = runtimeServiceSummaryUnavailableReason(summary);
+    return category === 'leaderboard'
+      && summary.leaderboard?.statusClasses?.['2xx'] === 1
+      && /No classified backend requests observed/.test(emptyReason || '')
+      && populatedReason === null
+      ? pass('Service traffic is summarized by category/status only, and empty observation windows explain themselves.')
+      : fail('Service summary can remain empty or ambiguous.', { category, summary, emptyReason, populatedReason });
+  }),
+
+  makeCase('console_error_categories_are_safe', 'Console errors are categorized and fingerprinted without retaining secrets or raw identity data', () => {
+    const classified = classifyRuntimeDiagnostic('CORS blocked backend request token=top-secret owner_key=private user@example.com');
+    const serialized = JSON.stringify(classified);
+    const criticalExamples = [
+      '[Base44 SDK Error] request failed',
+      'User auth check failed',
+      'Unhandled promise rejection',
+      'TypeError: hidden detail\n    at run (/app.js:1:2)',
+      'backend returned 503',
+      'permission denied by RLS',
+      'function call failed',
+    ].map((message) => classifyRuntimeDiagnostic(message));
+    const browserNoise = classifyRuntimeDiagnostic('chrome-extension://sample devtools message');
+    return classified.category === 'BACKEND_CORS_BLOCKED'
+      && classified.critical === true
+      && /^diag-[a-f0-9]{8}$/.test(classified.fingerprint)
+      && criticalExamples.every((item) => item.critical === true && /^diag-[a-f0-9]{8}$/.test(item.fingerprint))
+      && browserNoise.category === 'BROWSER_EXTENSION_NOISE'
+      && browserNoise.critical === false
+      && !serialized.includes('top-secret')
+      && !serialized.includes('private')
+      && !serialized.includes('user@example.com')
+      ? pass('Critical browser errors retain only safe category, summary, action, and fingerprint evidence.')
+      : fail('Safe console classification leaked raw diagnostic material or lost severity.', { classified });
+  }),
+
+  makeCase('auth_storage_files_gitignored', '.auth, environment, and generated storage-state files are excluded from source control', () => {
+    const protectedPatterns = [
+      '/.auth/',
+      '**/.auth/',
+      '**/*storage-state*.json',
+      '.env.*',
+    ];
+    const absent = missing(gitignoreSource, protectedPatterns);
+    return absent.length === 0
+      ? pass('Authentication fixtures, storage-state exports, and local environment files are covered by repository ignore rules.')
+      : fail('Sensitive Runtime E2E fixture ignore coverage is incomplete.', { missing: absent });
+  }, [...RELATED_FILES, '.gitignore']),
+
+  makeCase('prod_online_gate_respects_allow_matchmaking', 'Production Online runtime probe honors the explicit matchmaking gate and still requires backend evidence', () => {
+    const online = RUNTIME_E2E_SCENARIOS.find((item) => item.scenarioId === 'runtime_e2e.online_random_waiting_cancel_smoke');
+    const makeSummary = (allowMatchmaking) => buildRuntimeCapabilitySummary({
+      browserAvailable: true,
+      preflight: {
+        status: BACKEND_PREFLIGHT_STATUS.PROD_RUNTIME_PROBE_REQUIRED,
+        documentLoaded: true,
+        appConfigAvailable: true,
+        guestBootstrapAvailable: true,
+        canRunRuntimeProbes: true,
+      },
+      environment: {
+        hasStorageState: true,
+        hasStorageStateA: false,
+        hasStorageStateB: false,
+        allowMatchmaking,
+      },
+    });
+    const allowed = evaluateScenarioCapabilities(online, makeSummary(true));
+    const denied = evaluateScenarioCapabilities(online, makeSummary(false));
+    const sourceContract = runnerSource.includes('config.canRunBackendProbe')
+      && handlerSource.includes('config.allowMatchmaking')
+      && reportSource.includes('BACKEND_RUNTIME_PROBE_NOT_OBSERVED');
+    return allowed.canRun === true && allowed.decision === 'RUN_WITH_RUNTIME_PROBES'
+      && denied.canRun === false && sourceContract
+      ? pass('Online queue probing requires the explicit gate, and route success alone cannot satisfy backend proof.')
+      : fail('Production Online gate/evidence ownership drifted.', { allowed, denied, sourceContract });
+  }),
+
+  makeCase('duello_two_context_still_manual_without_two_actors', 'Duello two-context remains MANUAL_EXTERNAL without two actors and deterministic fixtures', () => {
+    const duello = RUNTIME_E2E_SCENARIOS.find((item) => item.scenarioId === 'runtime_e2e.duello_two_context_runtime_sync');
+    const capabilitySummary = buildRuntimeCapabilitySummary({
+      browserAvailable: true,
+      preflight: {
+        status: BACKEND_PREFLIGHT_STATUS.PROD_RUNTIME_PROBE_REQUIRED,
+        documentLoaded: true,
+        appConfigAvailable: true,
+        canRunRuntimeProbes: true,
+      },
+      environment: {
+        hasStorageState: true,
+        hasStorageStateA: false,
+        hasStorageStateB: false,
+      },
+    });
+    const decision = evaluateScenarioCapabilities(duello, capabilitySummary);
+    return decision.canRun === false
+      && decision.status === AUTOMATION_STATUS.MANUAL_EXTERNAL
+      && decision.decision === 'MANUAL_EXTERNAL_REQUIRED'
+      ? pass('Production preflight changes do not promote Duello without two isolated actors and deterministic authority fixtures.')
+      : fail('Duello manual/external boundary was weakened.', { decision });
   }),
 
   makeCase('full_run_still_excludes_e2e', 'Full Health Run still excludes Runtime E2E automation', () => {

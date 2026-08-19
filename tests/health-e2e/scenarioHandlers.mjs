@@ -281,8 +281,8 @@ async function soloSmoke(runtime, config) {
   });
   await runtime.step('solo.root', async () => {
     requireCapability(
-      config.hasBackendService,
-      'Solo question bootstrap is unavailable because Base44 preflight did not reach the configured app.',
+      config.canRunBackendProbe,
+      'Solo question bootstrap is unavailable because neither direct preflight nor a safe production runtime probe is available.',
     );
     const gameplay = runtime.page.locator('[data-testid="solo-game-screen"]').first();
     const safeRecovery = runtime.page.getByText(

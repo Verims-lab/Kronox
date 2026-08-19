@@ -1547,10 +1547,26 @@ Manual release gates that source cannot prove:
   `VITE_BASE44_APP_BASE_URL`/`app_base_url`. An endpoint alone is not app
   identity. Use `KRONOX_E2E_STORAGE_STATE` for an isolated completed guest or
   linked test actor; never commit credentials or storage-state files.
-* V2 records safe app/backend/capability preflight evidence. Base44 `App not
-  found`, missing app ID/config, unreachable backend, or unknown backend state
-  cannot yield PASS for a `BACKEND_DEPENDENT` scenario. A `UI_ONLY` PASS must
-  explicitly say it is browser-only and not backend proof.
+* V2 classifies local dev, Base44 preview, production custom-domain, and unknown
+  external targets. It reports direct backend preflight separately from the
+  scenario runtime probe. A production custom domain with no observable direct
+  backend traffic resolves to `PROD_CUSTOM_DOMAIN_PREFLIGHT_UNSUPPORTED` or
+  `PROD_RUNTIME_PROBE_REQUIRED`, not a generic UNKNOWN dead-end.
+* `UI_ONLY` proves browser UI only. `SESSION_RESTORED` proves Home plus restored
+  actor state only. `BACKEND_CONNECTED` requires a successful classified
+  response in that scenario's declared backend category. A backend-dependent
+  PASS without scenario evidence is demoted to NOT_AUTOMATABLE. Safe service
+  summaries are populated by category/status or explain why no backend request
+  was observable; console output is categorized/fingerprinted without raw
+  messages or secrets.
+* Create storage state only under ignored `.auth/`, for example with
+  `mkdir -p .auth` and
+  `npx playwright codegen --save-storage=.auth/kronox-e2e-prod.json https://kronoxgame.com`;
+  complete the isolated actor interactively. Never inspect, print, or commit the
+  file. `.auth/`, storage-state JSON, `.env.local`, reports, and traces remain
+  ignored. Production execution may use
+  `KRONOX_E2E_BASE_URL=https://kronoxgame.com KRONOX_E2E_STORAGE_STATE=.auth/kronox-e2e-prod.json KRONOX_E2E_USE_GUEST=false KRONOX_E2E_ALLOW_MATCHMAKING=true npm run health:e2e`
+  with existing local environment values left unprinted.
 * Wheel spin, Diamond purchase, and matchmaking mutations stay disabled unless
   the matching `KRONOX_E2E_ALLOW_*` gate is explicitly enabled for a resettable
   non-production actor. Missing setup is NOT_AUTOMATABLE/NOT_RUN, not PASS.
@@ -1559,7 +1575,9 @@ Manual release gates that source cannot prove:
   Setup gaps name missing capabilities and safe next actions. Real failures
   retain route/visible-state, screenshot, trace, and safe console/network
   summaries.
-* Duello requires two real isolated contexts, deterministic pairing, a
+* Online production waiting/cancel may run when authenticated storage and the
+  explicit matchmaking gate are present, but it still requires observed
+  matchmaking backend evidence. Duello requires two real isolated contexts, deterministic pairing, a
   deterministic correct-claim fixture, one accepted backend claim, and
   reconciled snapshots. Until those capabilities exist, its scenario remains
   MANUAL_EXTERNAL. A route smoke must never be promoted to Duello PASS.
