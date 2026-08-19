@@ -268,6 +268,7 @@ import * as integrityProofCases from './simulationPanelIntegrityProofCases';
 // Data Hygiene P0 — Admin-only duplicate cleanup planning; analysis and fingerprints only.
 import * as dataHygieneDryRunCases from './simulationPanelDataHygieneDryRunCases';
 import * as dataHygieneReviewCases from './simulationPanelDataHygieneReviewCases';
+import * as dataHygienePhase1Cases from './simulationPanelDataHygienePhase1Cases';
 // Paket B2 — lazy chunks, finite effects, polling cleanup, and mobile runtime guards.
 import * as performanceRuntimeCases from './simulationPanelPerformanceRuntimeCases';
 // Paket B3 — Admin-only question distribution, readiness, metadata, year, and duplicate QA.
@@ -278,6 +279,8 @@ import * as releaseReadinessCases from './simulationPanelReleaseReadinessCases';
 import * as paketBClosureCases from './simulationPanelPaketBClosureCases';
 // B6 — catalog intelligence, grouped automation, proof quality, and ownership reporting.
 import * as healthIntelligenceCases from './simulationPanelHealthIntelligenceCases';
+import * as automationHealthCases from './simulationPanelAutomationHealthCases';
+import * as healthProofIntegrityCases from './simulationPanelHealthProofIntegrityCases';
 import { HEALTH_RETIRED_CASE_KEYS, HEALTH_RETIRED_SUITE_IDS } from './health/healthCatalog';
 
 const MODULES = [
@@ -353,11 +356,14 @@ const MODULES = [
   integrityProofCases,
   dataHygieneDryRunCases,
   dataHygieneReviewCases,
+  dataHygienePhase1Cases,
   performanceRuntimeCases,
   questionQualityCases,
   releaseReadinessCases,
   paketBClosureCases,
   healthIntelligenceCases,
+  automationHealthCases,
+  healthProofIntegrityCases,
 ];
 
 function flatten(key) {

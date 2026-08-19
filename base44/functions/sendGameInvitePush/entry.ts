@@ -378,8 +378,6 @@ export default async function(req: Request): Promise<Response> {
           }).catch(() => null);
         }
         console.warn('[sendGameInvitePush] push failed:', {
-          inviteRef: invite.public_ref,
-          subscriptionId: row.id,
           statusCode,
           reason: safeReason,
         });

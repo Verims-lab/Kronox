@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import ts from 'typescript';
+import { auditBase44AutomationSurface } from '../src/lib/health/base44AutomationProof.js';
 
 const rootDir = process.cwd();
 const functionsDir = path.join(rootDir, 'base44', 'functions');
@@ -55,6 +56,15 @@ function walkEntryFiles(dir) {
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) return walkEntryFiles(fullPath);
     return entry.isFile() && entry.name === 'entry.ts' ? [fullPath] : [];
+  }).sort();
+}
+
+function walkNamedFiles(dir, fileName) {
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  return entries.flatMap((entry) => {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) return walkNamedFiles(fullPath, fileName);
+    return entry.isFile() && entry.name === fileName ? [fullPath] : [];
   }).sort();
 }
 
@@ -364,6 +374,7 @@ function deploymentManifestDiagnostics(entryFiles) {
 }
 
 const entryFiles = walkEntryFiles(functionsDir);
+const manifestFiles = walkNamedFiles(functionsDir, 'function.jsonc');
 const failures = [];
 
 for (const filePath of entryFiles) {
@@ -377,6 +388,18 @@ failures.push(...getQuestionsDiagnostics(entryFiles));
 failures.push(...categoryRuntimePolicyDiagnostics(entryFiles));
 failures.push(...deploymentManifestDiagnostics(entryFiles));
 
+const automationAudit = auditBase44AutomationSurface(
+  Object.fromEntries(manifestFiles.map((filePath) => [relativeFile(filePath), readText(filePath)])),
+  Object.fromEntries(entryFiles.map((filePath) => [relativeFile(filePath), readText(filePath)])),
+);
+failures.push(
+  ...automationAudit.manifestIssues,
+  ...automationAudit.argumentIssues,
+  ...automationAudit.cleanupAutomationIssues,
+  ...automationAudit.waitUntilIssues,
+  ...automationAudit.privateLogIssues,
+);
+
 if (failures.length) {
   console.error(`Base44 function compile/deploy gate failed with ${failures.length} issue(s):`);
   for (const failure of failures) {
@@ -385,4 +408,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`Base44 function compile/deploy gate passed for ${entryFiles.length} function entry files.`);
+console.log(`Base44 function compile/deploy gate passed for ${entryFiles.length} function entry files, ${manifestFiles.length} manifests, and ${automationAudit.automationCount} local automations.`);

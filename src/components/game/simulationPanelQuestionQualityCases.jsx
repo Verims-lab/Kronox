@@ -14,11 +14,18 @@ import functionGateSource from '../../../scripts/checkBase44FunctionsCompile.mjs
 
 const SUITE_ID = 'question_quality_health';
 const SUITE_NAME = 'Question Quality Health Suite';
+const RELATED_FILES = [
+  'base44/functions/adminDuplicateKeyReport/entry.ts',
+  'base44/functions/getQuestions/entry.ts',
+  'base44/functions/startLobbyGame/entry.ts',
+  'src/components/admin/QuestionQualityTool.jsx',
+  'base44/entities/Question.jsonc',
+];
 const pass = (reason) => ({ status: 'PASS', reason, verification: 'STATIC_CONTRACT' });
 const fail = (reason, actual) => ({ status: 'FAIL', reason, actual, verification: 'STATIC_CONTRACT' });
 const missing = (source, tokens) => tokens.filter((token) => !String(source || '').includes(token));
 const present = (source, tokens) => tokens.filter((token) => String(source || '').includes(token));
-const makeCase = (id, name, run) => ({ key: `${SUITE_ID}.${id}`, suiteId: SUITE_ID, suiteName: SUITE_NAME, id, name, critical: true, actionType: 'CODE_FIX', run });
+const makeCase = (id, name, run) => ({ key: `${SUITE_ID}.${id}`, suiteId: SUITE_ID, suiteName: SUITE_NAME, id, name, critical: true, actionType: 'CODE_FIX', relatedFiles: RELATED_FILES, run });
 
 export const EXTRA_SUITES = [{ id: SUITE_ID, name: SUITE_NAME, critical: true, color: '#a78bfa' }];
 export const EXTRA_TESTS = [

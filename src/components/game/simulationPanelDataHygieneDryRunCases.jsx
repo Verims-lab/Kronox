@@ -6,11 +6,18 @@ import cleanupPlanSource from '../admin/DuplicateCleanupPlan.jsx?raw';
 import docsMirrorSource from '../../lib/healthAlignmentDocMirrors.js?raw';
 
 const SUITE_ID = 'data_hygiene_dry_run';
+const RELATED_FILES = [
+  'base44/functions/adminDuplicateKeyReport/entry.ts',
+  'src/pages/AdminPage.jsx',
+  'src/App.jsx',
+  'src/components/admin/IntegritySnapshotTool.jsx',
+  'src/components/admin/DuplicateCleanupPlan.jsx',
+];
 const pass = (reason) => ({ status: 'PASS', reason, verification: 'STATIC_CONTRACT' });
 const fail = (reason, actual) => ({ status: 'FAIL', reason, verification: 'STATIC_CONTRACT', actual });
 const missing = (source, tokens) => tokens.filter((token) => !String(source).includes(token));
 const present = (source, tokens) => tokens.filter((token) => String(source).includes(token));
-const makeCase = (id, name, run) => ({ key: `${SUITE_ID}.${id}`, suiteId: SUITE_ID, suiteName: 'Data Hygiene Dry Run Health Suite', id, name, critical: true, actionType: 'CODE_FIX', run });
+const makeCase = (id, name, run) => ({ key: `${SUITE_ID}.${id}`, suiteId: SUITE_ID, suiteName: 'Data Hygiene Dry Run Health Suite', id, name, critical: true, actionType: 'CODE_FIX', relatedFiles: RELATED_FILES, run });
 const noMutationCalls = () => present(reportSource, ['.create(', '.update(', '.delete(', '.deleteMany(', '.updateMany(', '.bulkCreate(', '.bulkUpdate(']);
 
 export const EXTRA_SUITES = [{ id: SUITE_ID, name: 'Data Hygiene Dry Run Health Suite', critical: true, color: '#f59e0b' }];

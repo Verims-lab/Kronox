@@ -241,14 +241,20 @@ Retired suites `research_test_strategy`, `report_ux_human_decision`, and `sre_re
 
 Health runs are single-owner, reject duplicate concurrent starts, batch/yield UI work, persist completed pack summaries, and invalidate progress when the panel closes or unmounts. They run on-demand from guarded Admin only. Scheduled/continuous monitoring requires external automation or future platform support; B6 does not fake a scheduler.
 
+The proof classifier now preserves evidence strength: `EXECUTABLE` means a helper/runtime simulation actually ran, `SOURCE_CONNECTED` means a static contract inspected named active files, `STATIC_ONLY` remains a limitation, and `MANUAL_EXTERNAL` always wins over executable-looking labels. The three former dynamic `health_intelligence` catalog cases are retired into the dedicated `health_proof_integrity` suite; their catalog, retired-key, and pack coverage remains executable rather than duplicated.
+
+Base44 automation audit result for this repository: 28 committed `function.jsonc` manifests parse successfully and currently contain zero local automation declarations. Local `function.jsonc` files are the automation source of truth. Base44 automations deploy atomically with their function; dashboard changes are overwritten on the next local function deploy and there is no two-way sync. Any future scheduled/entity/connector declaration must pass local type/schedule/trigger/`function_args` validation. Cleanup/integrity automation must be disabled or explicitly dry-run/report-only. Live deployed dashboard state remains manual/external proof.
+
 Primary-source notes used for B6 guidance:
 
 - Base44 backend-function overview documents a maximum of 50 backend functions: https://docs.base44.com/developers/backend/resources/backend-functions/overview
+- Base44 automations documents scheduled/entity/connector configuration in `function.jsonc`, request-body `function_args`, atomic per-function deploy, and local-over-dashboard source-of-truth behavior: https://docs.base44.com/developers/backend/resources/backend-functions/automations
+- Base44 runtime guidance says `waitUntil` is best-effort and not guaranteed for critical must-not-lose work; Kronox currently has no committed Base44 `waitUntil` usage.
 - Base44 SDK guidance recommends latest unversioned installation; Kronox keeps its existing exact 0.8.34 cross-runtime gate until a separate SDK migration/deploy proof is approved.
 - React effect cleanup: https://react.dev/reference/react/useEffect
-- Vite glob/dynamic import behavior: https://vite.dev/guide/features
-- MDN safe-area and visibility lifecycle references: https://developer.mozilla.org/en-US/docs/Web/CSS/env and https://developer.mozilla.org/en-US/docs/Web/API/Document/visibilitychange_event
-- OWASP secrets management: https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html
+- Vite environment variables: `VITE_` values are bundled into client code and cannot contain secrets: https://vite.dev/guide/env-and-mode.html
+- MDN `AbortController.abort()` cancels fetch/response consumption when its signal is supplied: https://developer.mozilla.org/en-US/docs/Web/API/AbortController/abort
+- OWASP logging guidance excludes secrets, access tokens, and sensitive personal data from direct logs: https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html
 
 Official guidance informs Health/docs only; it does not replace live Base44 deployment, device, RLS, secret, index, or store proof.
 

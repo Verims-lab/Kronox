@@ -1338,9 +1338,19 @@ verified against the deployed Base44 environment.
 * Retired comment-scan and duplicate cases must remain absent; the Health Intelligence self-audit fails duplicate IDs, orphan cases, malformed runners, empty packs, and active retired keys.
 * Duplicate concurrent runs are rejected. Closing/unmounting Health invalidates the current run sequence and clears UI progress; completed pack summaries only are persisted locally.
 * Health runs on demand. Scheduled/continuous monitoring requires external automation or future platform support and is not claimed by B6.
+* Run `Health Proof Integrity Suite`: suite/case IDs and packs are executable catalog checks; recent source scans must import active sources/helpers and declare related files; `STATIC_CONTRACT` PASS cannot be promoted to runtime proof.
+* Run `Base44 Automation Health Suite`: every committed `function.jsonc` parses, automation names/types/schedules/triggers are valid, configured `function_args` are handled by the target entry, cleanup automation is disabled or dry-run/report-only, and critical work does not use best-effort `waitUntil`.
+* Local `function.jsonc` is the automation source of truth. Automations deploy atomically with function code; dashboard edits are overwritten by the next local deploy and have no two-way sync. Current repository baseline is 28 manifests and zero local automation declarations.
+* Compare the live Base44 Automations dashboard/logs with local manifests after deploy. Local Health cannot mark deployed automation state PASS.
 * Fix ownership is one of Base44 UI, Codex package/repo, Backend/runtime, Docs/mirror, or Manual/external. Manual/external items never become PASS automatically.
 * Primary guidance: Base44 50-function overview, React effect cleanup, Vite dynamic/glob imports, MDN safe-area/visibility lifecycle, and OWASP secrets management. Official guidance informs the guard; deployed evidence remains separate.
 * No backend function, entity, schema, gameplay, scoring, economy, Daily, Online, or BottomNav behavior changes in B6.
+
+# Data Hygiene Phase 1 Historical Evidence
+
+* The separately approved Phase 1 scope matched exactly 8 `AUTO_SAFE` `UserDailyQuestProgress` groups and removed 31 redundant `UserDailyQuestProgress` rows while preserving canonical progress/source proof. It did not target balances, scores, JokerTransaction, GameInvite, UserJokerInventory, or SoloLeaderboardEntry.
+* The post-cleanup review recorded 4 `UserDailyQuestProgress` groups still `REVIEW_REQUIRED`; JokerTransaction and GameInvite remain `DO_NOT_AUTOMATE`; UserJokerInventory and SoloLeaderboardEntry remain `REVIEW_REQUIRED`.
+* This is historical evidence, not current production proof. Duplicate checks remain FAIL until the AdminUser-gated read-only report is rerun and any additional cleanup receives separate explicit approval.
 
 # 16. Manual Proof Recording
 

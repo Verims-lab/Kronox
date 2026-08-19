@@ -1205,6 +1205,12 @@ Duplicate cleanup is a three-step process: (1) the AdminUser-gated dry-run dupli
 
 `AUTO_SAFE_CANDIDATE` means only that an exact-duplicate group may be proposed for a future separately approved task. `REVIEW_REQUIRED` means runtime-visible state or source proof conflicts must be resolved by a reviewer. `DO_NOT_AUTOMATE` blocks automation, especially for conflicting ledger material fields. P1 Hint, FriendRequest, and GameInvite groups remain summarized without execution planning. Duplicate checks remain FAIL until approved cleanup actually executes and a fresh report verifies zero duplicates. Raw rows, raw IDs, email, owner/player/actor keys, guest proof, and private payloads are never returned; Admin UI receives irreversible group/canonical fingerprints and bounded counts only.
 
+### Data Hygiene Phase 1 Outcome (Historical)
+
+The separately approved `phase1_user_daily_auto_safe` execution was hard-bounded to exactly 8 `AUTO_SAFE` `UserDailyQuestProgress` groups and 31 redundant rows. The executor accepted only the approved fingerprint set, exact Daily state/source-proof fields, and the `user_daily_quest_progress_user_day_task` target; live group/delete count mismatch failed closed. Balances and scores were not mutated, and no non-Daily entity was selected.
+
+The post-cleanup review recorded 4 `UserDailyQuestProgress` groups still `REVIEW_REQUIRED`. `JokerTransaction` and `GameInvite` remain `DO_NOT_AUTOMATE`; `UserJokerInventory` and `SoloLeaderboardEntry` remain `REVIEW_REQUIRED`. This record does not prove current production state. No additional cleanup runs in the Health/automation audit task, and duplicate FAILs stay FAIL until a new AdminUser-gated read-only report plus separately approved execution and fresh verification.
+
 ## Paket B2 — Frontend Runtime Boundaries
 
 Home demand-loads the full Daily Wheel visual module and opt-in diagnostics; Admin remains route-lazy and the Health Simulator remains click-lazy. Daily status stores now dedupe only concurrent identical actor/day reads while retaining the existing TTL, server-owned claim authority, and invalidation rules.
