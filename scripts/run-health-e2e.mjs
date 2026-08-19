@@ -15,8 +15,11 @@ import {
   buildAutomationCounters,
   buildRuntimePermissionDiagnostic,
   classifyRuntimeDiagnostic,
+  classifyRuntimeServiceAction,
   classifyRuntimeServiceRequest,
+  correlateRuntimeConsoleErrors,
   isRuntimeBackendServiceCategory,
+  isOptionalRuntimeActivityRequest,
   normalizeRuntimeE2EReport,
   recordRuntimeServiceObservation,
   resolveRuntimePreflightStatus,
@@ -173,10 +176,17 @@ async function runRuntimePreflight(browser, baseUrl, environment) {
 
   const observeRequest = (request, outcome, status = null) => {
     const category = classifyRuntimeServiceRequest(request.url(), baseUrl, request.resourceType());
-    recordRuntimeServiceObservation(serviceSummary, category, outcome, status);
+    const safeActionLabel = classifyRuntimeServiceAction(request.url(), category);
+    recordRuntimeServiceObservation(serviceSummary, category, outcome, status, {
+      observedAt: new Date().toISOString(),
+      safeActionLabel,
+    });
     if (!isRuntimeBackendServiceCategory(category)) return category;
     backendRequestObserved = true;
-    if (outcome === 'FAILED' || (outcome === 'RESPONSE' && Number(status) >= 400)) {
+    if (
+      !isOptionalRuntimeActivityRequest(request.url())
+      && (outcome === 'FAILED' || outcome === 'ABORTED' || (outcome === 'RESPONSE' && Number(status) >= 400))
+    ) {
       backendRequestFailed = true;
     }
     if (outcome === 'RESPONSE' && Number(status) >= 200 && Number(status) < 400) {
@@ -187,6 +197,7 @@ async function runRuntimePreflight(browser, baseUrl, environment) {
 
   page.on('console', (message) => {
     if (message.type() !== 'error') return;
+    if (isOptionalRuntimeActivityRequest(message.location()?.url || '')) return;
     consoleErrors.push(message.text());
     if (/App not found/i.test(message.text())) appNotFound = true;
   });
@@ -197,7 +208,8 @@ async function runRuntimePreflight(browser, baseUrl, environment) {
     observeRequest(request, 'REQUEST');
   });
   page.on('requestfailed', (request) => {
-    observeRequest(request, 'FAILED');
+    const failureText = String(request.failure()?.errorText || '');
+    observeRequest(request, /abort|cancel/i.test(failureText) ? 'ABORTED' : 'FAILED');
   });
   page.on('response', (response) => {
     const request = response.request();
@@ -261,7 +273,8 @@ async function runRuntimePreflight(browser, baseUrl, environment) {
     && pageState.homeVisible
     && authenticatedOrStoredSession;
   const appConfigAvailable = appIdConfigured || runtimeConfiguredProduction;
-  const consoleErrorSummary = summarizeRuntimeConsoleErrors(consoleErrors);
+  const reportableConsoleErrors = correlateRuntimeConsoleErrors(consoleErrors, permissionDiagnostics);
+  const consoleErrorSummary = summarizeRuntimeConsoleErrors(reportableConsoleErrors);
   const hasCriticalAppDiagnostic = consoleErrorSummary.items.some((item) => (
     item.category === 'BASE44_APP_NOT_FOUND'
     || item.category === 'BASE44_APP_CONFIG_MISSING'
@@ -351,7 +364,7 @@ async function runRuntimePreflight(browser, baseUrl, environment) {
     serviceSummary,
     serviceSummaryUnavailableReason: runtimeServiceSummaryUnavailableReason(serviceSummary),
     permissionDiagnostics,
-    consoleErrors,
+    consoleErrors: reportableConsoleErrors,
     consoleErrorSummary,
     nextAction: directBackendPreflightStatus === BACKEND_PREFLIGHT_STATUS.REACHABLE ? null : preflightNextAction(status),
   };
@@ -564,10 +577,37 @@ function mergeServiceSummaries(...summaries) {
   const merged = {};
   for (const summary of summaries) {
     for (const [category, entry] of Object.entries(summary || {})) {
-      const current = merged[category] || { requests: 0, responses: 0, failures: 0, statusClasses: {} };
+      const current = merged[category] || {
+        category,
+        safeActionLabels: [],
+        requests: 0,
+        responses: 0,
+        failures: 0,
+        aborted: 0,
+        cancelled: 0,
+        noResponseTimeouts: 0,
+        statusClasses: {},
+        requestedAt: null,
+        lastRequestedAt: null,
+        completedAt: null,
+        lastCompletedAt: null,
+        lastOutcome: null,
+      };
+      current.safeActionLabels = [...new Set([
+        ...current.safeActionLabels,
+        ...(Array.isArray(entry?.safeActionLabels) ? entry.safeActionLabels : []),
+      ])];
       current.requests += Number(entry?.requests || 0);
       current.responses += Number(entry?.responses || 0);
       current.failures += Number(entry?.failures || 0);
+      current.aborted += Number(entry?.aborted || 0);
+      current.cancelled += Number(entry?.cancelled || 0);
+      current.noResponseTimeouts += Number(entry?.noResponseTimeouts || 0);
+      current.requestedAt ||= entry?.requestedAt || null;
+      current.lastRequestedAt = entry?.lastRequestedAt || current.lastRequestedAt;
+      current.completedAt ||= entry?.completedAt || null;
+      current.lastCompletedAt = entry?.lastCompletedAt || current.lastCompletedAt;
+      current.lastOutcome = entry?.lastOutcome || current.lastOutcome;
       for (const [statusClass, count] of Object.entries(entry?.statusClasses || {})) {
         current.statusClasses[statusClass] = (current.statusClasses[statusClass] || 0) + Number(count || 0);
       }

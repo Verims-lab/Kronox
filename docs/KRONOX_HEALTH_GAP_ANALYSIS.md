@@ -316,10 +316,35 @@ classified request with no observed response is retained as
 `BACKEND_RUNTIME_RESPONSE_NOT_OBSERVED`, while no request, a rejected response,
 and a network failure remain distinct diagnostics.
 
-HTTP 401/403 observations remain critical `BACKEND_PERMISSION_DENIED` evidence.
-They now include only scenario, service category, status class, sanitized
-endpoint category, safe action label, and redacted fingerprint; there is no
-blanket optional-request downgrade and no raw URL or actor identity. Base44
+The Codex635 production report was core-Health green but not Runtime E2E
+release-green. Codex636 fixes the real Solo route collision: React Router's
+case-insensitive matching allowed legacy `/Game` to capture canonical `/game`
+and replace it with `/solo`; the legacy route is now explicitly
+case-sensitive. The Solo map remains entry state only, and a pass still needs
+the committed `/game` route, gameplay root, question area, interaction target,
+and a successful Solo question response.
+
+Codex636 also scopes backend proof to the action started after each scenario's
+baseline. Leaderboard snapshot, Daily Calendar status, Daily Wheel status,
+Solo question bootstrap, and Online matchmaking waits record safe action,
+request/completion timestamps, status class, abort/cancel state, and a bounded
+no-response timeout. Route visibility never substitutes for the required
+response. This closes the earlier Leaderboard/Daily/Wheel race where the
+scenario navigated away before a legitimate delayed response was observed.
+
+HTTP 401/403 observations remain critical `BACKEND_PERMISSION_DENIED` evidence
+unless the exact bundled `/api/app-logs/{app}/log-user-in-app/...` request is
+proven fire-and-forget page-activity telemetry. That one endpoint remains a
+visible non-blocking diagnostic and cannot provide backend proof. The prior
+`gameplay_entity` label caused by an app-activity route suffix was a classifier
+artifact; exact app-activity detection now runs before gameplay/leaderboard
+keywords. The protected profile and leaderboard denials were genuine direct
+client requests, so direct `User` hydration and `SoloLeaderboardEntry` access
+were removed in favor of already-authorized identity data and the sanitized
+service-role `getSoloLeaderboard` path. Real gameplay/entity denials remain
+critical. Reports include only scenario, service category, status class,
+sanitized endpoint category, safe action label, and redacted fingerprint; there is no blanket
+optional-request downgrade and no raw URL or actor identity. Base44
 `APP_NOT_FOUND` continues to force `backendAvailable: false` and
 `base44AppReachable: false`, and can never preserve a backend-dependent PASS.
 The frontend package, lockfile root/resolution, and critical function imports

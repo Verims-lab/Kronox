@@ -1563,17 +1563,31 @@ Manual release gates that source cannot prove:
   directly or open the map, but a runtime PASS requires committed `/game`, the
   dedicated Solo root, question/card area, and interaction target. A safe
   question bootstrap recovery is NOT_AUTOMATABLE with its precise reason.
+* Codex635 passed core Health but its production Runtime E2E report was not
+  release-green. Codex636 makes the legacy `/Game` redirect case-sensitive so
+  it cannot capture canonical `/game`; the current Solo level must commit the
+  gameplay route and still satisfy the real gameplay/question evidence gate.
+* Leaderboard, Daily Calendar, Daily Wheel, Solo question, and Online
+  matchmaking proof is action-scoped from a scenario baseline. Each lifecycle
+  records safe action/category, request and completion timestamps, status
+  class, abort/cancel state, or a bounded no-response timeout. A visible route
+  or safe UI state without the required successful response is a precise setup
+  gap, never backend-connected PASS.
 * Online `/lobby` or waiting UI alone is not matchmaking proof. The harness
   waits for a classified matchmaking outcome and distinguishes no request,
   request-without-response, rejected response, and network failure. The
   explicit mutation gate authorizes the probe but never substitutes for a
   successful backend response.
-* Permission/RLS denial stays critical. Reports retain only scenario, service,
-  4xx status class, sanitized endpoint category, safe action label, and a
-  redacted fingerprint; raw URLs, credentials, actor identifiers, and raw
-  permission messages remain excluded. `APP_NOT_FOUND` cannot yield a
-  backend-dependent PASS. Keep `@base44/sdk` exactly `0.8.34` in package,
-  lockfile root/resolution, and critical function imports.
+* Permission/RLS denial stays critical. The only non-blocking 401/403 exception
+  is the exact bundled page-activity endpoint, proven fire-and-forget and
+  reported separately; it cannot count as backend proof. Protected profile and
+  leaderboard projection access uses authorized identity/function paths rather
+  than direct client entity reads. Reports retain only scenario, service, 4xx
+  status class, sanitized endpoint category, safe action label, and a redacted
+  fingerprint; raw URLs, credentials, actor identifiers, and raw permission
+  messages remain excluded. `APP_NOT_FOUND` cannot yield a backend-dependent
+  PASS. Keep `@base44/sdk` exactly `0.8.34` in package, lockfile root/resolution,
+  and critical function imports.
 * Create storage state only under ignored `.auth/`, for example with
   `mkdir -p .auth` and
   `npx playwright codegen --save-storage=.auth/kronox-e2e-prod.json https://kronoxgame.com`;

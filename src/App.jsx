@@ -206,7 +206,7 @@ const AuthenticatedApp = () => {
             <Route path="/daily" element={<DailyPage />} />
             <Route path="/solo" element={<SoloChallenge />} />
             <Route path="/SoloChallenge" element={<Navigate to="/solo" replace />} />
-            <Route path="/Game" element={<Navigate to="/solo" replace />} />
+            <Route caseSensitive path="/Game" element={<Navigate to="/solo" replace />} />
             <Route path="/setup" element={<Navigate to="/solo" replace />} />
             <Route path="/game" element={<Game />} />
             <Route path="/duel" element={<SameQuestionDuelPage />} />

@@ -62,6 +62,7 @@ export const RUNTIME_E2E_PREFLIGHT_DEPENDENCY = Object.freeze({
 export const RUNTIME_SERVICE_CATEGORY = Object.freeze({
   APP_DOCUMENT: 'app_document',
   STATIC_ASSETS: 'static_assets',
+  APP_ACTIVITY: 'app_activity',
   BASE44_API: 'base44_api',
   BASE44_FUNCTIONS: 'base44_functions',
   AUTH_OR_USER_BOOTSTRAP: 'auth_or_user_bootstrap',
@@ -73,6 +74,7 @@ export const RUNTIME_SERVICE_CATEGORY = Object.freeze({
 });
 
 export const RUNTIME_ENDPOINT_CATEGORY = Object.freeze({
+  APP_ACTIVITY: 'app_activity',
   AUTH_SESSION: 'auth_session',
   PROFILE_ENTITY: 'profile_entity',
   PRESENCE_ENTITY: 'presence_entity',
@@ -87,6 +89,17 @@ export const RUNTIME_ENDPOINT_CATEGORY = Object.freeze({
   ENTITY_REQUEST: 'entity_request',
   APP_API: 'app_api',
   UNKNOWN: 'unknown',
+});
+
+export const RUNTIME_SERVICE_ACTION = Object.freeze({
+  APP_ACTIVITY: 'record optional app activity',
+  PROFILE_BOOTSTRAP: 'hydrate current profile',
+  LEADERBOARD_SNAPSHOT: 'load leaderboard snapshot',
+  DAILY_CALENDAR_STATUS: 'load Daily Calendar status',
+  DAILY_WHEEL_STATUS: 'load Daily Wheel status',
+  SOLO_QUESTION_BOOTSTRAP: 'load Solo question bootstrap',
+  ONLINE_MATCHMAKING: 'start Online matchmaking',
+  BACKEND_REQUEST: 'observe backend request',
 });
 
 export function resolveRuntimePreflightStatus({
@@ -158,6 +171,7 @@ const BACKEND_SERVICE_CATEGORIES = new Set([
   RUNTIME_SERVICE_CATEGORY.ONLINE_MATCHMAKING,
 ]);
 const STATIC_RESOURCE_TYPES = new Set(['stylesheet', 'script', 'image', 'media', 'font']);
+const OPTIONAL_APP_ACTIVITY_PATH_PATTERN = /^\/api\/app-logs\/[^/]+\/log-user-in-app(?:\/|$)/i;
 
 function nowIso() {
   return new Date().toISOString();
@@ -226,6 +240,33 @@ function diagnosticFingerprint(value) {
   return `diag-${(hash >>> 0).toString(16).padStart(8, '0')}`;
 }
 
+export function isOptionalRuntimeActivityRequest(requestUrl) {
+  try {
+    return OPTIONAL_APP_ACTIVITY_PATH_PATTERN.test(new URL(String(requestUrl)).pathname);
+  } catch (_) {
+    return false;
+  }
+}
+
+export function classifyRuntimeServiceAction(requestUrl, serviceCategory = '') {
+  let pathname = '';
+  try {
+    pathname = new URL(String(requestUrl)).pathname.toLowerCase();
+  } catch (_) {}
+  if (isOptionalRuntimeActivityRequest(requestUrl)) return RUNTIME_SERVICE_ACTION.APP_ACTIVITY;
+  if (/getsololeaderboard|getunifiedleaderboard/.test(pathname)) return RUNTIME_SERVICE_ACTION.LEADERBOARD_SNAPSHOT;
+  if (/getdailywheelstatus/.test(pathname)) return RUNTIME_SERVICE_ACTION.DAILY_WHEEL_STATUS;
+  if (/getdailyqueststatus|getdailycalendarstatus|getdailygoalstatus|getdailystreakstatus/.test(pathname)) {
+    return RUNTIME_SERVICE_ACTION.DAILY_CALENDAR_STATUS;
+  }
+  if (/getquestions|question(?:s|bootstrap)?/.test(pathname)) return RUNTIME_SERVICE_ACTION.SOLO_QUESTION_BOOTSTRAP;
+  if (/randommatchmaking|matchmaking|matchmakingqueue|queue\/(?:join|leave)|findmatch/.test(pathname)) {
+    return RUNTIME_SERVICE_ACTION.ONLINE_MATCHMAKING;
+  }
+  if (serviceCategory === RUNTIME_SERVICE_CATEGORY.AUTH_OR_USER_BOOTSTRAP) return RUNTIME_SERVICE_ACTION.PROFILE_BOOTSTRAP;
+  return RUNTIME_SERVICE_ACTION.BACKEND_REQUEST;
+}
+
 export function classifyRuntimeServiceRequest(requestUrl, configuredBaseUrl, resourceType = '') {
   try {
     const request = new URL(String(requestUrl));
@@ -238,6 +279,7 @@ export function classifyRuntimeServiceRequest(requestUrl, configuredBaseUrl, res
     if (STATIC_RESOURCE_TYPES.has(type) || /\.(?:css|js|mjs|png|jpe?g|gif|webp|svg|ico|woff2?|ttf|mp4|webm|mp3)(?:$|\/)/i.test(pathname)) {
       return RUNTIME_SERVICE_CATEGORY.STATIC_ASSETS;
     }
+    if (isOptionalRuntimeActivityRequest(requestUrl)) return RUNTIME_SERVICE_CATEGORY.APP_ACTIVITY;
     if (/getquestions|question(?:s|bootstrap)?/.test(pathname)) return RUNTIME_SERVICE_CATEGORY.QUESTION_SERVICE;
     if (/randommatchmaking|matchmaking|matchmakingqueue|queue\/(?:join|leave)|findmatch/.test(pathname)) return RUNTIME_SERVICE_CATEGORY.ONLINE_MATCHMAKING;
     if (/leaderboard|ranking/.test(pathname)) return RUNTIME_SERVICE_CATEGORY.LEADERBOARD;
@@ -257,6 +299,7 @@ export function classifyRuntimeServiceRequest(requestUrl, configuredBaseUrl, res
 export function classifyRuntimeEndpointCategory(requestUrl) {
   try {
     const pathname = new URL(String(requestUrl)).pathname.toLowerCase();
+    if (isOptionalRuntimeActivityRequest(requestUrl)) return RUNTIME_ENDPOINT_CATEGORY.APP_ACTIVITY;
     if (/getquestions|question(?:s|bootstrap)?/.test(pathname)) return RUNTIME_ENDPOINT_CATEGORY.QUESTION_SERVICE;
     if (/randommatchmaking|matchmaking|matchmakingqueue|queue\/(?:join|leave)|findmatch/.test(pathname)) {
       return RUNTIME_ENDPOINT_CATEGORY.ONLINE_MATCHMAKING;
@@ -303,6 +346,8 @@ export function buildRuntimePermissionDiagnostic({
     ? String(scenarioId)
     : 'runtime_unknown';
   const readAction = requestMethod === 'GET' || requestMethod === 'HEAD';
+  const optionalActivity = endpointCategory === RUNTIME_ENDPOINT_CATEGORY.APP_ACTIVITY
+    && isOptionalRuntimeActivityRequest(requestUrl);
   const entityMutation = [
     RUNTIME_ENDPOINT_CATEGORY.PROFILE_ENTITY,
     RUNTIME_ENDPOINT_CATEGORY.PRESENCE_ENTITY,
@@ -312,17 +357,25 @@ export function buildRuntimePermissionDiagnostic({
     RUNTIME_ENDPOINT_CATEGORY.ENTITY_REQUEST,
   ].includes(endpointCategory);
   const actionVerb = readAction ? 'read' : entityMutation ? 'mutate' : 'invoke';
-  const actionLabel = `${actionVerb} ${endpointCategory.replace(/_/g, ' ')}`;
+  const actionLabel = optionalActivity
+    ? RUNTIME_SERVICE_ACTION.APP_ACTIVITY
+    : `${actionVerb} ${endpointCategory.replace(/_/g, ' ')}`;
   return sanitizeAutomationValue({
     diagnosticCategory: RUNTIME_DIAGNOSTIC_CATEGORY.BACKEND_PERMISSION_DENIED,
-    critical: true,
+    critical: !optionalActivity,
+    optional: optionalActivity,
+    optionalityProof: optionalActivity
+      ? 'Bundled page-activity telemetry is fire-and-forget and does not gate product state.'
+      : null,
     scenario: safeScenario,
     serviceCategory,
     statusClass,
     endpointCategory,
     actionLabel,
     fingerprint: diagnosticFingerprint(`${safeScenario}|${serviceCategory}|${endpointCategory}|${requestMethod}|${statusClass}`),
-    summary: 'A backend request was denied by authorization or data-access policy.',
+    summary: optionalActivity
+      ? 'Optional page-activity telemetry was denied; product state remains independently backend-proven.'
+      : 'A backend request was denied by authorization or data-access policy.',
   });
 }
 
@@ -330,17 +383,64 @@ export function isRuntimeBackendServiceCategory(category) {
   return BACKEND_SERVICE_CATEGORIES.has(category);
 }
 
-export function recordRuntimeServiceObservation(summary, category, outcome, status = null) {
-  const current = summary[category] || { requests: 0, responses: 0, failures: 0, statusClasses: {} };
-  if (outcome === 'REQUEST') current.requests += 1;
+export function recordRuntimeServiceObservation(summary, category, outcome, status = null, metadata = {}) {
+  const observedAt = metadata?.observedAt || nowIso();
+  const safeActionLabel = Object.values(RUNTIME_SERVICE_ACTION).includes(metadata?.safeActionLabel)
+    ? metadata.safeActionLabel
+    : RUNTIME_SERVICE_ACTION.BACKEND_REQUEST;
+  const current = summary[category] || {
+    category,
+    safeActionLabels: [],
+    requests: 0,
+    responses: 0,
+    failures: 0,
+    aborted: 0,
+    cancelled: 0,
+    noResponseTimeouts: 0,
+    statusClasses: {},
+    requestedAt: null,
+    lastRequestedAt: null,
+    completedAt: null,
+    lastCompletedAt: null,
+    lastOutcome: null,
+  };
+  if (!Array.isArray(current.safeActionLabels)) current.safeActionLabels = [];
+  if (!current.category) current.category = category;
+  if (!Number.isFinite(Number(current.requests))) current.requests = 0;
+  if (!Number.isFinite(Number(current.responses))) current.responses = 0;
+  if (!Number.isFinite(Number(current.failures))) current.failures = 0;
+  if (!Number.isFinite(Number(current.aborted))) current.aborted = 0;
+  if (!Number.isFinite(Number(current.cancelled))) current.cancelled = 0;
+  if (!Number.isFinite(Number(current.noResponseTimeouts))) current.noResponseTimeouts = 0;
+  if (!current.statusClasses || typeof current.statusClasses !== 'object') current.statusClasses = {};
+  if (!current.safeActionLabels.includes(safeActionLabel)) current.safeActionLabels.push(safeActionLabel);
+  if (outcome === 'REQUEST') {
+    current.requests += 1;
+    current.requestedAt ||= observedAt;
+    current.lastRequestedAt = observedAt;
+  }
   if (outcome === 'RESPONSE') {
     current.responses += 1;
+    current.completedAt ||= observedAt;
+    current.lastCompletedAt = observedAt;
     if (Number.isFinite(Number(status))) {
       const statusClass = `${Math.floor(Number(status) / 100)}xx`;
       current.statusClasses[statusClass] = (current.statusClasses[statusClass] || 0) + 1;
     }
   }
-  if (outcome === 'FAILED') current.failures += 1;
+  if (outcome === 'FAILED') {
+    current.failures += 1;
+    current.completedAt ||= observedAt;
+    current.lastCompletedAt = observedAt;
+  }
+  if (outcome === 'ABORTED') {
+    current.aborted += 1;
+    if (metadata?.cancelled === true) current.cancelled += 1;
+    current.completedAt ||= observedAt;
+    current.lastCompletedAt = observedAt;
+  }
+  if (outcome === 'NO_RESPONSE_TIMEOUT') current.noResponseTimeouts += 1;
+  current.lastOutcome = outcome;
   summary[category] = current;
   return summary;
 }
@@ -348,7 +448,7 @@ export function recordRuntimeServiceObservation(summary, category, outcome, stat
 export function runtimeServiceSummaryUnavailableReason(summary = {}) {
   const backendObserved = Object.entries(summary).some(([category, value]) => (
     isRuntimeBackendServiceCategory(category)
-    && ((value?.requests || 0) > 0 || (value?.responses || 0) > 0 || (value?.failures || 0) > 0)
+    && ((value?.requests || 0) > 0 || (value?.responses || 0) > 0 || (value?.failures || 0) > 0 || (value?.aborted || 0) > 0)
   ));
   return backendObserved ? null : 'No classified backend requests observed during preflight window.';
 }
@@ -388,8 +488,9 @@ export function summarizeRuntimeBackendEvidence(summary = {}, preferredCategorie
         safeSummary: `Observed a successful ${category} runtime response.`,
       };
     }
-    if (!responseFallback && ((entry.responses || 0) > 0 || (entry.failures || 0) > 0)) {
-      const statusClass = Object.keys(entry.statusClasses || {})[0] || (entry.failures ? 'network_failure' : 'unknown');
+    if (!responseFallback && ((entry.responses || 0) > 0 || (entry.failures || 0) > 0 || (entry.aborted || 0) > 0)) {
+      const statusClass = Object.keys(entry.statusClasses || {})[0]
+        || (entry.aborted ? 'aborted' : entry.failures ? 'network_failure' : 'unknown');
       responseFallback = {
         observed: true,
         successful: false,
@@ -583,6 +684,23 @@ export function summarizeRuntimeConsoleErrors(values = []) {
     }), {}),
     items,
   };
+}
+
+export function correlateRuntimeConsoleErrors(values = [], permissionDiagnostics = []) {
+  const diagnostics = Array.isArray(permissionDiagnostics) ? permissionDiagnostics : [];
+  const provenOptionalActivity = diagnostics.some((item) => (
+    item?.endpointCategory === RUNTIME_ENDPOINT_CATEGORY.APP_ACTIVITY
+    && item?.optional === true
+    && item?.critical === false
+    && typeof item?.optionalityProof === 'string'
+    && item.optionalityProof.length > 0
+  ));
+  const hasCriticalPermission = diagnostics.some((item) => item?.critical !== false);
+  if (!provenOptionalActivity || hasCriticalPermission) return Array.isArray(values) ? values : [];
+
+  return (Array.isArray(values) ? values : []).filter((value) => (
+    classifyRuntimeDiagnostic(value).category !== RUNTIME_DIAGNOSTIC_CATEGORY.BACKEND_PERMISSION_DENIED
+  ));
 }
 
 export function summarizeRuntimeNetworkErrors(values = []) {

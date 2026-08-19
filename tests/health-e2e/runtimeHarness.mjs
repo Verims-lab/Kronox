@@ -3,7 +3,10 @@ import path from 'node:path';
 import {
   AUTOMATION_STATUS,
   buildRuntimePermissionDiagnostic,
+  classifyRuntimeServiceAction,
   classifyRuntimeServiceRequest,
+  correlateRuntimeConsoleErrors,
+  isOptionalRuntimeActivityRequest,
   recordRuntimeServiceObservation,
   sanitizeAutomationValue,
   summarizeRuntimeBackendEvidence,
@@ -44,6 +47,8 @@ export class RuntimeScenarioHarness {
     this.networkErrors = [];
     this.permissionDiagnostics = [];
     this.serviceSummary = {};
+    this.serviceEvents = [];
+    this.serviceLifecycles = [];
     this.failedStep = null;
     this.setupStep = null;
     this.setupStatus = null;
@@ -52,7 +57,12 @@ export class RuntimeScenarioHarness {
     this.authorityEvidence = null;
 
     page.on('console', (message) => {
-      if (message.type() === 'error' && this.consoleErrors.length < 50) this.consoleErrors.push(message.text());
+      const sourceUrl = message.location()?.url || '';
+      if (
+        message.type() === 'error'
+        && !isOptionalRuntimeActivityRequest(sourceUrl)
+        && this.consoleErrors.length < 50
+      ) this.consoleErrors.push(message.text());
     });
     page.on('pageerror', (error) => {
       if (this.consoleErrors.length < 50) {
@@ -65,7 +75,10 @@ export class RuntimeScenarioHarness {
         this.reportEvidence?.configuredBaseUrl,
         request.resourceType(),
       );
-      recordRuntimeServiceObservation(this.serviceSummary, category, 'REQUEST');
+      const safeActionLabel = classifyRuntimeServiceAction(request.url(), category);
+      const observedAt = new Date().toISOString();
+      recordRuntimeServiceObservation(this.serviceSummary, category, 'REQUEST', null, { observedAt, safeActionLabel });
+      this.serviceEvents.push({ category, safeActionLabel, outcome: 'REQUEST', statusClass: null, observedAt });
     });
     page.on('response', (response) => {
       const request = response.request();
@@ -74,7 +87,11 @@ export class RuntimeScenarioHarness {
         this.reportEvidence?.configuredBaseUrl,
         request.resourceType(),
       );
-      recordRuntimeServiceObservation(this.serviceSummary, category, 'RESPONSE', response.status());
+      const safeActionLabel = classifyRuntimeServiceAction(request.url(), category);
+      const observedAt = new Date().toISOString();
+      const statusClass = `${Math.floor(response.status() / 100)}xx`;
+      recordRuntimeServiceObservation(this.serviceSummary, category, 'RESPONSE', response.status(), { observedAt, safeActionLabel });
+      this.serviceEvents.push({ category, safeActionLabel, outcome: 'RESPONSE', statusClass, observedAt });
       if ((response.status() === 401 || response.status() === 403) && this.permissionDiagnostics.length < 20) {
         const diagnostic = buildRuntimePermissionDiagnostic({
           scenarioId: this.definition.scenarioId,
@@ -95,12 +112,24 @@ export class RuntimeScenarioHarness {
         this.reportEvidence?.configuredBaseUrl,
         request.resourceType(),
       );
-      recordRuntimeServiceObservation(this.serviceSummary, category, 'FAILED');
+      const safeActionLabel = classifyRuntimeServiceAction(request.url(), category);
+      const failureText = String(request.failure()?.errorText || '');
+      const cancelled = /abort|cancel/i.test(failureText);
+      const outcome = cancelled ? 'ABORTED' : 'FAILED';
+      const observedAt = new Date().toISOString();
+      recordRuntimeServiceObservation(this.serviceSummary, category, outcome, null, {
+        observedAt,
+        safeActionLabel,
+        cancelled,
+      });
+      this.serviceEvents.push({ category, safeActionLabel, outcome, statusClass: null, observedAt, cancelled });
       if (this.networkErrors.length >= 50) return;
       this.networkErrors.push({
         method: request.method(),
         category,
-        summary: 'A browser request failed; URL and raw error details were omitted.',
+        summary: cancelled
+          ? 'A browser request was aborted or cancelled; URL and raw details were omitted.'
+          : 'A browser request failed; URL and raw error details were omitted.',
       });
     });
   }
@@ -188,20 +217,76 @@ export class RuntimeScenarioHarness {
     }
   }
 
-  async waitForServiceOutcome(category, timeout = 15000) {
+  captureServiceBaseline(safeActionLabel = null) {
+    return {
+      eventIndex: this.serviceEvents.length,
+      capturedAt: new Date().toISOString(),
+      safeActionLabel,
+    };
+  }
+
+  async waitForServiceOutcome(category, timeout = 15000, baseline = null, safeActionLabel = null) {
+    const eventIndex = Math.max(0, Number(baseline?.eventIndex) || 0);
+    const expectedAction = safeActionLabel || baseline?.safeActionLabel || null;
     const startedAt = Date.now();
+    const matchingEvents = () => this.serviceEvents.slice(eventIndex).filter((event) => (
+      event.category === category && (!expectedAction || event.safeActionLabel === expectedAction)
+    ));
+    const complete = (state, events, terminalEvent = null, noResponseTimeout = false) => {
+      const requestEvent = events.find((event) => event.outcome === 'REQUEST') || null;
+      const lifecycle = {
+        category,
+        safeActionLabel: expectedAction || requestEvent?.safeActionLabel || terminalEvent?.safeActionLabel || null,
+        requestedAt: requestEvent?.observedAt || null,
+        completedAt: terminalEvent?.observedAt || null,
+        responseStatusClass: terminalEvent?.statusClass || null,
+        aborted: terminalEvent?.outcome === 'ABORTED',
+        cancelled: terminalEvent?.cancelled === true,
+        noResponseTimeout,
+        state,
+      };
+      this.serviceLifecycles.push(lifecycle);
+      return {
+        state,
+        lifecycle,
+        entry: this.serviceSummary[category]
+          ? { ...this.serviceSummary[category], statusClasses: { ...(this.serviceSummary[category].statusClasses || {}) } }
+          : null,
+      };
+    };
+
     while (Date.now() - startedAt < timeout) {
-      const entry = this.serviceSummary[category];
-      if ((entry?.responses || 0) > 0 || (entry?.failures || 0) > 0) {
-        return { state: 'completed', entry: { ...entry, statusClasses: { ...(entry.statusClasses || {}) } } };
+      const events = matchingEvents();
+      const requests = events.filter((event) => event.outcome === 'REQUEST');
+      const terminals = events.filter((event) => event.outcome !== 'REQUEST');
+      const successful = requests.length > 0 && terminals.find((event) => (
+        event.outcome === 'RESPONSE' && (event.statusClass === '2xx' || event.statusClass === '3xx')
+      ));
+      if (successful) return complete('successful_response', events, successful);
+      if (requests.length > 0 && terminals.length >= requests.length) {
+        const rejected = terminals.find((event) => event.outcome === 'RESPONSE');
+        if (rejected) return complete('backend_rejected', events, rejected);
+        const aborted = terminals.find((event) => event.outcome === 'ABORTED');
+        if (aborted) return complete('aborted', events, aborted);
+        const failed = terminals.find((event) => event.outcome === 'FAILED');
+        if (failed) return complete('network_failure', events, failed);
       }
       await this.page.waitForTimeout(200);
     }
-    const entry = this.serviceSummary[category];
-    return {
-      state: (entry?.requests || 0) > 0 ? 'request_without_response' : 'request_not_observed',
-      entry: entry ? { ...entry, statusClasses: { ...(entry.statusClasses || {}) } } : null,
-    };
+    const events = matchingEvents();
+    const requestObserved = events.some((event) => event.outcome === 'REQUEST');
+    if (requestObserved) {
+      recordRuntimeServiceObservation(this.serviceSummary, category, 'NO_RESPONSE_TIMEOUT', null, {
+        observedAt: new Date().toISOString(),
+        safeActionLabel: expectedAction,
+      });
+    }
+    return complete(
+      requestObserved ? 'request_without_response' : 'request_not_observed',
+      events,
+      null,
+      requestObserved,
+    );
   }
 
   markRemaining(status, actual) {
@@ -243,7 +328,11 @@ export class RuntimeScenarioHarness {
       ? error.automationStatus
       : (error ? AUTOMATION_STATUS.FAIL : (allRequiredPassed ? AUTOMATION_STATUS.PASS : AUTOMATION_STATUS.NOT_AUTOMATABLE));
 
-    const consoleErrorSummary = summarizeRuntimeConsoleErrors(this.consoleErrors);
+    const reportableConsoleErrors = correlateRuntimeConsoleErrors(
+      this.consoleErrors,
+      this.permissionDiagnostics,
+    );
+    const consoleErrorSummary = summarizeRuntimeConsoleErrors(reportableConsoleErrors);
     const backendEvidence = summarizeRuntimeBackendEvidence(
       this.serviceSummary,
       this.definition.backendServices,
@@ -268,12 +357,13 @@ export class RuntimeScenarioHarness {
       authorityEvidence: this.authorityEvidence,
       backendEvidence,
       serviceSummary: this.serviceSummary,
+      serviceLifecycles: this.serviceLifecycles,
       serviceSummaryUnavailableReason: backendEvidence.observed
         ? null
         : 'No classified backend requests observed during this scenario.',
       permissionDiagnostics: this.permissionDiagnostics,
       steps: this.stepResults,
-      consoleErrors: this.consoleErrors,
+      consoleErrors: reportableConsoleErrors,
       consoleErrorSummary,
       criticalConsoleErrors: consoleErrorSummary.items.filter((item) => item.critical),
       networkErrors: this.networkErrors,

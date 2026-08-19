@@ -230,31 +230,11 @@ export async function publishSoloLeaderboardEntry(user, progress, totalLevels = 
   const payload = buildSoloLeaderboardPayload(user, progress, totalLevels);
   if (!payload.owner_key) return null;
 
-  try {
-    const existing = await base44.entities.SoloLeaderboardEntry.filter(
-      { owner_key: payload.owner_key },
-      '-updated_at',
-      5,
-    );
-    const ownRow = existing?.[0] || null;
-    if (ownRow?.id) {
-      return base44.entities.SoloLeaderboardEntry.update(ownRow.id, payload);
-    }
-    const created = await base44.entities.SoloLeaderboardEntry.create(payload);
-    // Re-read after write: if a concurrent publish raced this create, converge
-    // on the canonical (newest-updated) row for this owner_key instead of
-    // treating the extra row as authoritative. getSoloLeaderboard additionally
-    // dedupes owner_key rows server-side as the read-time safety fallback.
-    const confirmed = await base44.entities.SoloLeaderboardEntry.filter(
-      { owner_key: payload.owner_key },
-      '-updated_at',
-      5,
-    ).catch(() => null);
-    return confirmed?.[0] || created;
-  } catch (error) {
-    if (isMissingSoloLeaderboardEntityError(error)) return null;
-    throw error;
-  }
+  const response = await base44.functions.invoke('getSoloLeaderboard', {
+    action: 'sync_current_projection',
+  });
+  const result = response?.data || response || {};
+  return result?.ok === false ? null : result;
 }
 
 export async function loadSoloLeaderboardEntries(limit = LEADERBOARD_FETCH_LIMIT) {
@@ -262,18 +242,8 @@ export async function loadSoloLeaderboardEntries(limit = LEADERBOARD_FETCH_LIMIT
     const response = await base44.functions.invoke('getSoloLeaderboard', { limit });
     const rows = response?.data?.rows || response?.rows;
     if (Array.isArray(rows)) return rows;
-  } catch {
-    // Fall through to the entity source for older deployments where the
-    // function has not landed yet.
-  }
-
-  try {
-    const rows = await base44.entities.SoloLeaderboardEntry.list('-total_kronox_score', limit);
-    return Array.isArray(rows) ? rows : [];
-  } catch (error) {
-    if (isMissingSoloLeaderboardEntityError(error)) return [];
-    throw error;
-  }
+  } catch {}
+  return [];
 }
 
 export async function loadSoloLeaderboardSnapshot(options = {}) {
@@ -328,13 +298,13 @@ export async function loadSoloLeaderboardSnapshot(options = {}) {
       };
     }
   } catch {
-    // Fall through to the legacy compact client fallback for older deployments.
+    // The public-safe backend function remains the only leaderboard read path.
   }
 
   const rows = await loadSoloLeaderboardEntries(limit);
   return {
     ok: true,
-    source: 'SoloLeaderboardEntry.client_fallback',
+    source: 'getSoloLeaderboard.safe_empty_fallback',
     projection: 'solo_leaderboard_entry_total_kronox_score_projection',
     generatedAt: new Date().toISOString(),
     topRows: [],
@@ -345,14 +315,14 @@ export async function loadSoloLeaderboardSnapshot(options = {}) {
     friendUserKeys: [],
     friendsOutsideTop: [],
     friendCount: 0,
-    rankConfidence: 'client_projection_fallback',
-    rankScope: `top_${limit}_client_projection_window`,
+    rankConfidence: 'backend_response_unavailable',
+    rankScope: `top_${limit}_backend_window_unavailable`,
     projectionFirst: true,
     broadUserListUsed: false,
     broadUserRowsReturned: false,
     serverSideUserRepairUsed: false,
     fallbackUsed: true,
-    fallbackReason: 'client_projection_entity_fallback',
+    fallbackReason: 'backend_function_response_unavailable',
     projectionRowsRead: rows.length,
     positiveScoreRowsRead: null,
     zeroScoreRowsRead: null,

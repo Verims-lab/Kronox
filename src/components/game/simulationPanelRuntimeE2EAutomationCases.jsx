@@ -1,5 +1,7 @@
 import packageSource from '../../../package.json?raw';
 import gitignoreSource from '../../../.gitignore?raw';
+import appSource from '../../App.jsx?raw';
+import authContextSource from '../../lib/AuthContext.jsx?raw';
 import runnerSource from '../../../scripts/run-health-e2e.mjs?raw';
 import handlerSource from '../../../tests/health-e2e/scenarioHandlers.mjs?raw';
 import harnessSource from '../../../tests/health-e2e/runtimeHarness.mjs?raw';
@@ -7,6 +9,9 @@ import simulationPanelSource from './SimulationPanel.jsx?raw';
 import runtimePanelSource from './health/RuntimeE2EAutomationPanel.jsx?raw';
 import soloLevelMapSource from '../solo/LevelMapPath.jsx?raw';
 import soloChallengeSource from '../../pages/SoloChallenge.jsx?raw';
+import leaderboardSource from '../../lib/leaderboard.js?raw';
+import userProfileHydrationSource from '../../lib/userProfileHydration.js?raw';
+import getSoloLeaderboardSource from '../../../base44/functions/getSoloLeaderboard/entry.ts?raw';
 import reportSource from '../../lib/health/runtimeE2EReport.js?raw';
 import capabilitySource from '../../lib/health/runtimeE2ECapabilities.js?raw';
 import scenarioRegistrySource from '../../lib/health/runtimeE2EScenarios.js?raw';
@@ -17,17 +22,22 @@ import {
   RUNTIME_DIAGNOSTIC_CATEGORY,
   RUNTIME_E2E_PREFLIGHT_DEPENDENCY,
   RUNTIME_E2E_PROOF_LEVEL,
+  RUNTIME_SERVICE_ACTION,
+  RUNTIME_SERVICE_CATEGORY,
   buildAllAutomationSetupGapsJson,
   buildAutomationFailureJson,
   buildRuntimePermissionDiagnostic,
   classifyRuntimeDiagnostic,
+  classifyRuntimeServiceAction,
   classifyRuntimeServiceRequest,
+  correlateRuntimeConsoleErrors,
   createNotRunAutomationReport,
   normalizeRuntimeE2EReport,
   recordRuntimeServiceObservation,
   resolveRuntimePreflightStatus,
   runtimeServiceSummaryUnavailableReason,
   summarizeRuntimeBackendEvidence,
+  isOptionalRuntimeActivityRequest,
 } from '@/lib/health/runtimeE2EReport';
 import {
   buildRuntimeCapabilitySummary,
@@ -364,8 +374,10 @@ export const EXTRA_TESTS = [
       : fail('Home Solo entry-path handling is incomplete.', { missing: absent });
   }),
 
-  makeCase('solo_current_level_click_reaches_game_or_precise_setup_gap', 'Current Solo level click deterministically commits gameplay or reports a precise gap', () => {
-    const absent = missing(`${handlerSource}\n${soloLevelMapSource}\n${soloChallengeSource}`, [
+  makeCase('solo_current_level_commits_game_route', 'Current Solo level click deterministically commits the canonical game route', () => {
+    const absent = missing(`${appSource}\n${handlerSource}\n${soloLevelMapSource}\n${soloChallengeSource}`, [
+      '<Route caseSensitive path="/Game"',
+      '<Route path="/game" element={<Game />} />',
       'data-solo-level-number',
       'data-solo-level-playable',
       'scrollIntoViewIfNeeded',
@@ -377,6 +389,18 @@ export const EXTRA_TESTS = [
     return absent.length === 0
       ? pass('The current map node exposes stable metadata, is scrolled into view, and must commit /game after click.')
       : fail('The current Solo level click remains ambiguous.', { missing: absent });
+  }),
+
+  makeCase('solo_no_silent_route_stall', 'Solo route collisions and silent current-level stalls are rejected', () => {
+    const absent = missing(`${appSource}\n${handlerSource}`, [
+      '<Route caseSensitive path="/Game"',
+      '<Route path="/game" element={<Game />} />',
+      'The visible current Solo level entry did not commit /game.',
+      "await expectPath(runtime.page, '/game', 15000)",
+    ]);
+    return absent.length === 0
+      ? pass('Legacy /Game is case-sensitive, canonical /game owns gameplay, and a stalled map click remains an explicit failure.')
+      : fail('Solo can still silently remain on the level map or collide with the legacy redirect.', { missing: absent });
   }),
 
   makeCase('solo_current_level_entry_click_is_deterministic', 'Solo current-level selector is stable and playability-aware', () => {
@@ -400,6 +424,72 @@ export const EXTRA_TESTS = [
     return absent.length === 0
       ? pass('A level-map click alone cannot pass; route, gameplay root, question area, and interaction target remain required.')
       : fail('Solo PASS can bypass a real gameplay root.', { missing: absent });
+  }),
+
+  makeCase('solo_permission_denied_classified', 'Solo permission denial is categorized without being hidden', () => {
+    const diagnostic = buildRuntimePermissionDiagnostic({
+      scenarioId: 'runtime_e2e.solo_gameplay_smoke',
+      requestUrl: 'https://runtime.health.test/api/apps/app-safe/entities/SoloAttempt',
+      configuredBaseUrl: 'https://runtime.health.test',
+      resourceType: 'fetch',
+      method: 'POST',
+      status: 403,
+    });
+    return diagnostic.endpointCategory === 'gameplay_entity'
+      && diagnostic.critical === true
+      && diagnostic.optional === false
+      && diagnostic.actionLabel === 'mutate gameplay entity'
+      ? pass('A genuine Solo gameplay-entity denial remains a critical, actionable permission diagnostic.')
+      : fail('Solo permission denial was hidden, downgraded, or misclassified.', { diagnostic });
+  }),
+
+  makeCase('gameplay_entity_permission_required_for_solo', 'Gameplay entity permission remains required for Solo backend proof', () => {
+    const absent = missing(`${handlerSource}\n${reportSource}`, [
+      'BACKEND_PERMISSION_DENIED',
+      'permissionDiagnostics',
+      "failurePrefix: 'SOLO_QUESTION_BOOTSTRAP'",
+      '`${failurePrefix}_BACKEND_REJECTED`',
+      "outcome.state === 'successful_response'",
+    ]);
+    return absent.length === 0
+      ? pass('Solo backend proof accepts only a successful question lifecycle; real gameplay permission denial remains visible and blocking.')
+      : fail('Solo can pass through a denied gameplay/backend lifecycle.', { missing: absent });
+  }),
+
+  makeCase('solo_gameplay_permission_denied_blocks_gameplay', 'A real Solo permission denial cannot be converted into gameplay PASS', () => {
+    const evidence = summarizeRuntimeBackendEvidence({
+      question_service: { requests: 1, responses: 1, failures: 0, statusClasses: { '4xx': 1 } },
+    }, ['question_service']);
+    return evidence.observed === true && evidence.successful === false && evidence.statusClass === '4xx'
+      ? pass('Denied Solo question/gameplay evidence is unsuccessful and cannot satisfy backend-connected PASS.')
+      : fail('Denied Solo backend traffic can satisfy gameplay proof.', { evidence });
+  }),
+
+  makeCase('profile_entity_read_policy_safe', 'Profile hydration uses an authorized backend result instead of a direct User entity read', () => {
+    const required = missing(`${userProfileHydrationSource}\n${authContextSource}`, [
+      'trustedStoredUser',
+      'hydrateAndPatch(workingUser, kronoxIdentity.user)',
+      'mergeAuthenticatedUserProfile(authUser, storedUser)',
+    ]);
+    const directClientRead = userProfileHydrationSource.includes('.entities.User')
+      || userProfileHydrationSource.includes('userEntity.filter(');
+    return required.length === 0 && directClientRead === false
+      ? pass('Auth hydration consumes the authorized identity response and no longer probes the protected User entity directly.')
+      : fail('Profile hydration can still issue an unauthorized direct User read.', { missing: required, directClientRead });
+  }),
+
+  makeCase('leaderboard_read_permission_policy_safe', 'Leaderboard read/write uses the public-safe backend owner instead of direct client projection access', () => {
+    const required = missing(`${leaderboardSource}\n${getSoloLeaderboardSource}`, [
+      "base44.functions.invoke('getSoloLeaderboard'",
+      "action: 'sync_current_projection'",
+      'base44?.asServiceRole?.entities?.SoloLeaderboardEntry',
+      'authenticated_user_service_role_projection_sync',
+    ]);
+    const directClientProjectionAccess = leaderboardSource.includes('base44.entities.SoloLeaderboardEntry')
+      || leaderboardSource.includes("base44.entities['SoloLeaderboardEntry']");
+    return required.length === 0 && directClientProjectionAccess === false
+      ? pass('The client invokes one sanitized backend function and projection access remains service-role owned.')
+      : fail('Leaderboard projection access can still be denied by client-side entity policy.', { missing: required, directClientProjectionAccess });
   }),
 
   makeCase('solo_question_bootstrap_failure_classified', 'Solo question bootstrap failure becomes a precise setup classification', () => {
@@ -719,7 +809,7 @@ export const EXTRA_TESTS = [
       : fail('Safe console classification leaked raw diagnostic material or lost severity.', { classified });
   }),
 
-  makeCase('permission_denied_has_safe_diagnostic', 'Permission-denied evidence includes only safe correlation fields', () => {
+  makeCase('permission_denied_has_actionable_category', 'Permission-denied evidence includes an actionable safe category', () => {
     const diagnostic = buildRuntimePermissionDiagnostic({
       scenarioId: 'runtime_e2e.profile_navigation_privacy',
       requestUrl: 'https://runtime.health.test/api/entities/UserPresence?owner_key=private&token=top-secret',
@@ -763,13 +853,100 @@ export const EXTRA_TESTS = [
       : fail('Permission-denied evidence can disappear from runtime output.', { missing: absent });
   }),
 
-  makeCase('optional_permission_denied_not_release_blocker_only_if_proven_optional', 'Permission-denied is never optional without explicit proof', () => {
-    const diagnostic = classifyRuntimeDiagnostic('403 forbidden');
-    const noOptionalDowngrade = !reportSource.includes('BACKEND_PERMISSION_DENIED, critical: false')
-      && !reportSource.includes("category === RUNTIME_DIAGNOSTIC_CATEGORY.BACKEND_PERMISSION_DENIED && false");
-    return diagnostic.critical === true && noOptionalDowngrade
-      ? pass('No generic optional-request exemption weakens permission-denied severity.')
-      : fail('Permission-denied can be downgraded without explicit optional-request proof.', { diagnostic, noOptionalDowngrade });
+  makeCase('permission_denied_not_downgraded_without_optional_proof', 'Permission-denied is never downgraded without exact optional-request proof', () => {
+    const activityUrl = 'https://runtime.health.test/api/app-logs/app-safe/log-user-in-app/solo';
+    const optionalActivity = buildRuntimePermissionDiagnostic({
+      scenarioId: 'runtime_e2e.solo_gameplay_smoke',
+      requestUrl: activityUrl,
+      configuredBaseUrl: 'https://runtime.health.test',
+      resourceType: 'fetch',
+      method: 'POST',
+      status: 403,
+    });
+    const realGameplayMutation = buildRuntimePermissionDiagnostic({
+      scenarioId: 'runtime_e2e.solo_gameplay_smoke',
+      requestUrl: 'https://runtime.health.test/api/apps/app-safe/entities/SoloAttempt',
+      configuredBaseUrl: 'https://runtime.health.test',
+      resourceType: 'fetch',
+      method: 'POST',
+      status: 403,
+    });
+    const correlated = correlateRuntimeConsoleErrors(
+      ['request failed with status 403: permission denied'],
+      [optionalActivity, realGameplayMutation],
+    );
+    return isOptionalRuntimeActivityRequest(activityUrl)
+      && classifyRuntimeServiceAction(activityUrl, RUNTIME_SERVICE_CATEGORY.APP_ACTIVITY) === RUNTIME_SERVICE_ACTION.APP_ACTIVITY
+      && optionalActivity.optional === true
+      && optionalActivity.critical === false
+      && Boolean(optionalActivity.optionalityProof)
+      && realGameplayMutation.optional === false
+      && realGameplayMutation.critical === true
+      && correlated.length === 1
+      ? pass('Only the exact fire-and-forget activity endpoint is optional; a real gameplay denial stays critical and visible.')
+      : fail('Permission denial can be downgraded without exact optionality proof.', { optionalActivity, realGameplayMutation, correlated });
+  }),
+
+  makeCase('backend_pending_response_has_bounded_timeout', 'Backend request lifecycles record a bounded no-response timeout', () => {
+    const summary = {};
+    recordRuntimeServiceObservation(summary, RUNTIME_SERVICE_CATEGORY.DAILY_STATUS, 'REQUEST', null, {
+      observedAt: '2026-08-19T10:00:00.000Z',
+      safeActionLabel: RUNTIME_SERVICE_ACTION.DAILY_CALENDAR_STATUS,
+    });
+    recordRuntimeServiceObservation(summary, RUNTIME_SERVICE_CATEGORY.DAILY_STATUS, 'NO_RESPONSE_TIMEOUT', null, {
+      observedAt: '2026-08-19T10:00:15.000Z',
+      safeActionLabel: RUNTIME_SERVICE_ACTION.DAILY_CALENDAR_STATUS,
+    });
+    const lifecycleSourceMissing = missing(`${harnessSource}\n${handlerSource}`, [
+      'captureServiceBaseline',
+      'waitForServiceOutcome',
+      'NO_RESPONSE_TIMEOUT',
+      'serviceLifecycles',
+      'request_without_response',
+      'timeout = 15000',
+    ]);
+    return summary.daily_status?.requestedAt === '2026-08-19T10:00:00.000Z'
+      && summary.daily_status?.completedAt === null
+      && summary.daily_status?.noResponseTimeouts === 1
+      && lifecycleSourceMissing.length === 0
+      ? pass('Pending requests preserve request time/action and become a bounded no-response lifecycle instead of ending silently.')
+      : fail('Pending backend evidence is unbounded or lacks safe lifecycle fields.', { summary, missing: lifecycleSourceMissing });
+  }),
+
+  makeCase('leaderboard_runtime_response_observed_or_precise_gap', 'Leaderboard waits for its own response or reports a precise bounded gap', () => {
+    const absent = missing(handlerSource, [
+      'RUNTIME_SERVICE_ACTION.LEADERBOARD_SNAPSHOT',
+      'leaderboardBaseline',
+      "failurePrefix: 'LEADERBOARD'",
+      "description: 'leaderboard snapshot'",
+    ]);
+    return absent.length === 0
+      ? pass('Leaderboard proof is scoped to a post-baseline snapshot lifecycle and requires a successful response.')
+      : fail('Leaderboard can end before its own response is observed or precisely classified.', { missing: absent });
+  }),
+
+  makeCase('daily_status_runtime_response_observed_or_precise_gap', 'Daily waits for Calendar status or reports a precise bounded gap', () => {
+    const absent = missing(handlerSource, [
+      'RUNTIME_SERVICE_ACTION.DAILY_CALENDAR_STATUS',
+      'dailyStatusBaseline',
+      "failurePrefix: 'DAILY_STATUS'",
+      "description: 'Daily Calendar status'",
+    ]);
+    return absent.length === 0
+      ? pass('Daily proof waits for its own Calendar-status lifecycle before leaving the route.')
+      : fail('Daily can end before Calendar status is observed or precisely classified.', { missing: absent });
+  }),
+
+  makeCase('daily_wheel_status_runtime_response_observed_or_precise_gap', 'Daily Wheel waits for wheel status or reports a precise bounded gap', () => {
+    const absent = missing(handlerSource, [
+      'RUNTIME_SERVICE_ACTION.DAILY_WHEEL_STATUS',
+      'wheelStatusBaseline',
+      "failurePrefix: 'DAILY_WHEEL_STATUS'",
+      "description: 'Daily Wheel status'",
+    ]);
+    return absent.length === 0
+      ? pass('Wheel open/close proof waits for its own status lifecycle without changing rewards or spin weights.')
+      : fail('Daily Wheel can end before wheel status is observed or precisely classified.', { missing: absent });
   }),
 
   makeCase('public_ui_no_raw_permission_error', 'Public runtime screens reject raw permission/RLS transport text', () => {
@@ -881,7 +1058,7 @@ export const EXTRA_TESTS = [
       : fail('Online request-only evidence remains ambiguous or can PASS.', { backendEvidence, result });
   }),
 
-  makeCase('online_route_alone_cannot_pass', 'Online /lobby rendering alone cannot become matchmaking proof', () => {
+  makeCase('route_visibility_alone_not_backend_pass', 'Route visibility alone cannot become backend-connected PASS', () => {
     const definition = RUNTIME_E2E_SCENARIOS.find((item) => item.scenarioId === 'runtime_e2e.online_random_waiting_cancel_smoke');
     const evidence = {
       executionId: 'health-online-route-only',
@@ -913,12 +1090,53 @@ export const EXTRA_TESTS = [
       : fail('Online route rendering was accepted as backend matchmaking proof.', { result });
   }),
 
+  makeCase('online_matchmaking_pass_requires_2xx_evidence', 'Online matchmaking PASS requires a post-action successful backend response', () => {
+    const evidence = summarizeRuntimeBackendEvidence({
+      online_matchmaking: { requests: 1, responses: 1, failures: 0, statusClasses: { '2xx': 1 } },
+    }, ['online_matchmaking']);
+    const absent = missing(handlerSource, [
+      'RUNTIME_SERVICE_ACTION.ONLINE_MATCHMAKING',
+      'matchmakingBaseline',
+      "failurePrefix: 'ONLINE_MATCHMAKING'",
+      "outcome.state === 'successful_response'",
+    ]);
+    return evidence.observed === true && evidence.successful === true && evidence.statusClass === '2xx' && absent.length === 0
+      ? pass('Online waiting UI is accepted only after the scenario action receives successful matchmaking evidence.')
+      : fail('Online can pass without 2xx/3xx matchmaking evidence.', { evidence, missing: absent });
+  }),
+
+  makeCase('online_pass_not_broken_by_permission_diagnostics', 'Proven optional activity denial does not invalidate successful Online evidence', () => {
+    const activityUrl = 'https://runtime.health.test/api/app-logs/app-safe/log-user-in-app/online';
+    const optionalActivity = buildRuntimePermissionDiagnostic({
+      scenarioId: 'runtime_e2e.online_random_waiting_cancel_smoke',
+      requestUrl: activityUrl,
+      configuredBaseUrl: 'https://runtime.health.test',
+      resourceType: 'fetch',
+      method: 'POST',
+      status: 403,
+    });
+    const evidence = summarizeRuntimeBackendEvidence({
+      online_matchmaking: { requests: 1, responses: 1, failures: 0, statusClasses: { '2xx': 1 } },
+    }, ['online_matchmaking']);
+    const correlated = correlateRuntimeConsoleErrors(
+      ['request failed with status 403: permission denied'],
+      [optionalActivity],
+    );
+    return optionalActivity.optional === true
+      && optionalActivity.critical === false
+      && evidence.successful === true
+      && correlated.length === 0
+      ? pass('Exact optional activity telemetry remains reported separately while Online keeps its real 2xx proof.')
+      : fail('Optional telemetry can either hide real denial or break successful Online proof.', { optionalActivity, evidence, correlated });
+  }),
+
   makeCase('online_safe_gate_does_not_bypass_backend_proof', 'Safe matchmaking mutation gate cannot bypass response evidence', () => {
     const absent = missing(`${handlerSource}\n${reportSource}`, [
       'config.allowMatchmaking',
       'waitForServiceOutcome',
-      'ONLINE_MATCHMAKING_REQUEST_NOT_OBSERVED',
-      'ONLINE_MATCHMAKING_RESPONSE_NOT_OBSERVED',
+      "failurePrefix: 'ONLINE_MATCHMAKING'",
+      '`${failurePrefix}_REQUEST_NOT_OBSERVED`',
+      '`${failurePrefix}_RESPONSE_NOT_OBSERVED`',
       'BACKEND_RUNTIME_RESPONSE_NOT_OBSERVED',
     ]);
     return absent.length === 0
@@ -926,7 +1144,7 @@ export const EXTRA_TESTS = [
       : fail('The safe gate can be confused with backend proof.', { missing: absent });
   }),
 
-  makeCase('duello_two_context_still_manual_without_two_actors', 'Duello two-context remains MANUAL_EXTERNAL without two actors and deterministic fixtures', () => {
+  makeCase('duello_still_manual_without_two_actors', 'Duello two-context remains MANUAL_EXTERNAL without two actors and deterministic fixtures', () => {
     const duello = RUNTIME_E2E_SCENARIOS.find((item) => item.scenarioId === 'runtime_e2e.duello_two_context_runtime_sync');
     const capabilitySummary = buildRuntimeCapabilitySummary({
       browserAvailable: true,

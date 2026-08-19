@@ -9,14 +9,19 @@ import {
   buildAllAutomationFailuresJson,
   buildAllAutomationSetupGapsJson,
   buildAutomationFailureJson,
+  buildRuntimePermissionDiagnostic,
   classifyRuntimeDiagnostic,
+  classifyRuntimeServiceAction,
   classifyRuntimeServiceRequest,
+  correlateRuntimeConsoleErrors,
   createNotRunAutomationReport,
   normalizeRuntimeE2EReport,
   recordRuntimeServiceObservation,
   resolveRuntimePreflightStatus,
   runtimeServiceSummaryUnavailableReason,
   sanitizeAutomationValue,
+  isOptionalRuntimeActivityRequest,
+  RUNTIME_SERVICE_ACTION,
 } from '../src/lib/health/runtimeE2EReport.js';
 import {
   buildRuntimeCapabilitySummary,
@@ -177,6 +182,59 @@ assert.equal(serviceSummary.leaderboard.statusClasses['2xx'], 1);
 assert.equal(runtimeServiceSummaryUnavailableReason(serviceSummary), null);
 assert.match(runtimeServiceSummaryUnavailableReason({}), /No classified backend requests observed/);
 
+const appActivityUrl = 'https://kronoxgame.com/api/app-logs/app-safe/log-user-in-app/leaderboard';
+const appActivityCategory = classifyRuntimeServiceRequest(appActivityUrl, 'https://kronoxgame.com', 'fetch');
+const appActivityDiagnostic = buildRuntimePermissionDiagnostic({
+  scenarioId: 'runtime_e2e.leaderboard_smoke_privacy',
+  requestUrl: appActivityUrl,
+  configuredBaseUrl: 'https://kronoxgame.com',
+  resourceType: 'fetch',
+  method: 'POST',
+  status: 403,
+});
+const profileDiagnostic = buildRuntimePermissionDiagnostic({
+  scenarioId: 'runtime_e2e.profile_navigation_privacy',
+  requestUrl: 'https://kronoxgame.com/api/apps/app-safe/entities/User',
+  configuredBaseUrl: 'https://kronoxgame.com',
+  resourceType: 'fetch',
+  method: 'GET',
+  status: 403,
+});
+assert.equal(isOptionalRuntimeActivityRequest(appActivityUrl), true);
+assert.equal(appActivityCategory, 'app_activity');
+assert.equal(classifyRuntimeServiceAction(appActivityUrl, appActivityCategory), RUNTIME_SERVICE_ACTION.APP_ACTIVITY);
+assert.equal(appActivityDiagnostic.optional, true);
+assert.equal(appActivityDiagnostic.critical, false);
+assert.match(appActivityDiagnostic.optionalityProof, /fire-and-forget/i);
+assert.equal(profileDiagnostic.optional, false);
+assert.equal(profileDiagnostic.critical, true);
+assert.equal(profileDiagnostic.endpointCategory, 'profile_entity');
+assert.deepEqual(
+  correlateRuntimeConsoleErrors(['request failed with status 403: permission denied'], [appActivityDiagnostic]),
+  [],
+);
+assert.equal(
+  correlateRuntimeConsoleErrors(
+    ['request failed with status 403: permission denied'],
+    [appActivityDiagnostic, profileDiagnostic],
+  ).length,
+  1,
+);
+
+const lifecycleSummary = {};
+recordRuntimeServiceObservation(lifecycleSummary, 'daily_status', 'REQUEST', null, {
+  observedAt: '2026-08-19T10:00:00.000Z',
+  safeActionLabel: RUNTIME_SERVICE_ACTION.DAILY_CALENDAR_STATUS,
+});
+recordRuntimeServiceObservation(lifecycleSummary, 'daily_status', 'NO_RESPONSE_TIMEOUT', null, {
+  observedAt: '2026-08-19T10:00:15.000Z',
+  safeActionLabel: RUNTIME_SERVICE_ACTION.DAILY_CALENDAR_STATUS,
+});
+assert.equal(lifecycleSummary.daily_status.requestedAt, '2026-08-19T10:00:00.000Z');
+assert.equal(lifecycleSummary.daily_status.completedAt, null);
+assert.equal(lifecycleSummary.daily_status.noResponseTimeouts, 1);
+assert.ok(lifecycleSummary.daily_status.safeActionLabels.includes(RUNTIME_SERVICE_ACTION.DAILY_CALENDAR_STATUS));
+
 const productionCapabilities = buildRuntimeCapabilitySummary({
   browserAvailable: true,
   preflight: {
@@ -325,4 +383,4 @@ try {
 }
 assert.equal(duelloStatus, AUTOMATION_STATUS.MANUAL_EXTERNAL);
 
-process.stdout.write('Runtime E2E V2 contracts: PASS (10 scenarios, production target/preflight model, scenario backend-evidence gate, safe service/console summaries, auth-file ignores, UI/session proof levels, Online gate, Duello manual gate).\n');
+process.stdout.write('Runtime E2E V2 contracts: PASS (10 scenarios, bounded per-action backend lifecycles, proof-only optional app activity, permission safety, Online 2xx gate, Duello manual gate).\n');

@@ -1,5 +1,6 @@
 import {
   AUTOMATION_STATUS,
+  RUNTIME_SERVICE_ACTION,
   RUNTIME_SERVICE_CATEGORY,
 } from '../../src/lib/health/runtimeE2EReport.js';
 import {
@@ -35,6 +36,38 @@ async function expectOnlyActive(page, testId) {
   if (await active.count() !== 1) throw new Error('BottomNav did not expose exactly one active tab.');
   if (await active.first().getAttribute('data-testid') !== testId) throw new Error(`${testId} is not the committed active tab.`);
   return `${testId} is the only active BottomNav tab.`;
+}
+
+async function requireSuccessfulBackendAction(runtime, {
+  category,
+  actionLabel,
+  baseline,
+  timeout = 15000,
+  failurePrefix,
+  description,
+}) {
+  const outcome = await runtime.waitForServiceOutcome(category, timeout, baseline, actionLabel);
+  if (outcome.state === 'successful_response') return outcome;
+
+  const categories = {
+    request_not_observed: `${failurePrefix}_REQUEST_NOT_OBSERVED`,
+    request_without_response: `${failurePrefix}_RESPONSE_NOT_OBSERVED`,
+    backend_rejected: `${failurePrefix}_BACKEND_REJECTED`,
+    aborted: `${failurePrefix}_REQUEST_ABORTED`,
+    network_failure: `${failurePrefix}_NETWORK_FAILURE`,
+  };
+  const messages = {
+    request_not_observed: `No classified ${description} request was observed in the bounded scenario window.`,
+    request_without_response: `A ${description} request was observed, but no terminal response or failure arrived before the bounded timeout.`,
+    backend_rejected: `The ${description} request completed without a successful backend status.`,
+    aborted: `The ${description} request was aborted or cancelled before backend proof completed.`,
+    network_failure: `The ${description} request ended in a browser network failure.`,
+  };
+  throw new AutomationSetupGap(
+    messages[outcome.state] || `The ${description} lifecycle did not produce successful backend proof.`,
+    AUTOMATION_STATUS.NOT_AUTOMATABLE,
+    categories[outcome.state] || `${failurePrefix}_BACKEND_EVIDENCE_MISSING`,
+  );
 }
 
 async function appBootstrapGuestHome(runtime, config) {
@@ -141,12 +174,21 @@ async function profileNavigationPrivacy(runtime, config) {
 }
 
 async function leaderboardSmokePrivacy(runtime, config) {
+  let leaderboardBaseline = null;
   await runtime.step('leaderboard.open', async () => {
+    leaderboardBaseline = runtime.captureServiceBaseline(RUNTIME_SERVICE_ACTION.LEADERBOARD_SNAPSHOT);
     await openHome(runtime, config);
     await clickAndSee(runtime.page, '[data-testid="bottom-nav-leaderboard"]', '[data-testid="leaderboard-screen"]');
     return 'Leaderboard route and heading are visible.';
   });
   await runtime.step('leaderboard.state', async () => {
+    await requireSuccessfulBackendAction(runtime, {
+      category: RUNTIME_SERVICE_CATEGORY.LEADERBOARD,
+      actionLabel: RUNTIME_SERVICE_ACTION.LEADERBOARD_SNAPSHOT,
+      baseline: leaderboardBaseline,
+      failurePrefix: 'LEADERBOARD',
+      description: 'leaderboard snapshot',
+    });
     const text = await runtime.page.locator('[data-testid="leaderboard-screen"]').innerText();
     if (!/(Liderlik|Sıralama|Puan|yüklen|tekrar)/i.test(text)) throw new Error('Leaderboard has no bounded list/own-row/loading/retry state.');
     return 'Leaderboard exposes a user-facing list, score, loading, or retry state.';
@@ -163,7 +205,9 @@ async function leaderboardSmokePrivacy(runtime, config) {
 }
 
 async function dailyScreenSmoke(runtime, config) {
+  let dailyStatusBaseline = null;
   await runtime.step('daily.open', async () => {
+    dailyStatusBaseline = runtime.captureServiceBaseline(RUNTIME_SERVICE_ACTION.DAILY_CALENDAR_STATUS);
     await openHome(runtime, config);
     await clickAndSee(runtime.page, '[data-testid="daily-screen-entry"]', '[data-testid="daily-screen"]');
     return expectPath(runtime.page, '/daily');
@@ -174,6 +218,13 @@ async function dailyScreenSmoke(runtime, config) {
     return 'Daily Calendar root is visible.';
   });
   await runtime.step('daily.tasks', async () => {
+    await requireSuccessfulBackendAction(runtime, {
+      category: RUNTIME_SERVICE_CATEGORY.DAILY_STATUS,
+      actionLabel: RUNTIME_SERVICE_ACTION.DAILY_CALENDAR_STATUS,
+      baseline: dailyStatusBaseline,
+      failurePrefix: 'DAILY_STATUS',
+      description: 'Daily Calendar status',
+    });
     const text = await runtime.page.locator('[data-testid="daily-screen"]').innerText();
     if (!/(Görev|yüklen|tekrar|hazırlan)/i.test(text)) throw new Error('Today tasks did not reach a bounded visible state.');
     return 'Today task area reached a bounded state.';
@@ -190,7 +241,9 @@ async function dailyScreenSmoke(runtime, config) {
 }
 
 async function dailyWheel(runtime, config) {
+  let wheelStatusBaseline = null;
   await runtime.step('wheel.balance_before', async () => {
+    wheelStatusBaseline = runtime.captureServiceBaseline(RUNTIME_SERVICE_ACTION.DAILY_WHEEL_STATUS);
     await openHome(runtime, config);
     const text = await runtime.page.locator('body').innerText();
     const match = text.match(/(?:Elmas|diamond)[^\d]*([\d.]+)/i);
@@ -201,6 +254,13 @@ async function dailyWheel(runtime, config) {
     return 'Daily Wheel modal opened.';
   });
   await runtime.step('wheel.modal', async () => {
+    await requireSuccessfulBackendAction(runtime, {
+      category: RUNTIME_SERVICE_CATEGORY.DAILY_STATUS,
+      actionLabel: RUNTIME_SERVICE_ACTION.DAILY_WHEEL_STATUS,
+      baseline: wheelStatusBaseline,
+      failurePrefix: 'DAILY_WHEEL_STATUS',
+      description: 'Daily Wheel status',
+    });
     await expectVisible(runtime.page, '[data-testid="daily-wheel-close"]');
     return 'Modal and close control are visible.';
   });
@@ -272,7 +332,9 @@ async function storeSmoke(runtime, config) {
 }
 
 async function soloSmoke(runtime, config) {
+  let questionBaseline = null;
   await runtime.step('solo.start', async () => {
+    questionBaseline = runtime.captureServiceBaseline(RUNTIME_SERVICE_ACTION.SOLO_QUESTION_BOOTSTRAP);
     await openHome(runtime, config);
     await runtime.page.locator('[data-testid="home-solo-entry"]').click();
     const gameplayRouteDeadline = Date.now() + 15000;
@@ -328,6 +390,13 @@ async function soloSmoke(runtime, config) {
     const startedAt = Date.now();
     while (Date.now() - startedAt < 35000) {
       if (await gameplay.isVisible().catch(() => false)) {
+        await requireSuccessfulBackendAction(runtime, {
+          category: RUNTIME_SERVICE_CATEGORY.QUESTION_SERVICE,
+          actionLabel: RUNTIME_SERVICE_ACTION.SOLO_QUESTION_BOOTSTRAP,
+          baseline: questionBaseline,
+          failurePrefix: 'SOLO_QUESTION_BOOTSTRAP',
+          description: 'Solo question bootstrap',
+        });
         await assertPublicTextSafe(runtime.page);
         return 'Solo gameplay root rendered after real question preparation.';
       }
@@ -414,33 +483,15 @@ async function onlineRandom(runtime, config) {
   });
   await runtime.step('online.random_start', async () => {
     requireCapability(config.allowMatchmaking, 'KRONOX_E2E_ALLOW_MATCHMAKING is not true; the shared queue was not mutated.');
+    const matchmakingBaseline = runtime.captureServiceBaseline(RUNTIME_SERVICE_ACTION.ONLINE_MATCHMAKING);
     await clickAndSee(runtime.page, '[data-testid="online-random-entry"]', '[data-testid="online-waiting-screen"]', 20000);
-    const outcome = await runtime.waitForServiceOutcome(RUNTIME_SERVICE_CATEGORY.ONLINE_MATCHMAKING, 15000);
-    if (outcome.state === 'request_not_observed') {
-      throw new AutomationSetupGap(
-        'The safe queue button opened waiting UI, but no classified Online matchmaking request was observed.',
-        AUTOMATION_STATUS.NOT_AUTOMATABLE,
-        'ONLINE_MATCHMAKING_REQUEST_NOT_OBSERVED',
-      );
-    }
-    if (outcome.state === 'request_without_response') {
-      throw new AutomationSetupGap(
-        'An Online matchmaking request was observed, but no response or request failure was observed before the evidence window ended.',
-        AUTOMATION_STATUS.NOT_AUTOMATABLE,
-        'ONLINE_MATCHMAKING_RESPONSE_NOT_OBSERVED',
-      );
-    }
-    const successful = (outcome.entry?.statusClasses?.['2xx'] || 0) > 0
-      || (outcome.entry?.statusClasses?.['3xx'] || 0) > 0;
-    if (!successful) {
-      const statusClass = Object.keys(outcome.entry?.statusClasses || {})[0]
-        || (outcome.entry?.failures ? 'network_failure' : 'unknown');
-      throw new AutomationSetupGap(
-        `Online matchmaking completed without a successful backend response (${statusClass}).`,
-        AUTOMATION_STATUS.NOT_AUTOMATABLE,
-        'ONLINE_MATCHMAKING_BACKEND_REJECTED',
-      );
-    }
+    await requireSuccessfulBackendAction(runtime, {
+      category: RUNTIME_SERVICE_CATEGORY.ONLINE_MATCHMAKING,
+      actionLabel: RUNTIME_SERVICE_ACTION.ONLINE_MATCHMAKING,
+      baseline: matchmakingBaseline,
+      failurePrefix: 'ONLINE_MATCHMAKING',
+      description: 'Online matchmaking',
+    });
     return 'Random waiting state opened and a successful Online matchmaking backend response was observed.';
   });
   await runtime.step('online.waiting', async () => {
