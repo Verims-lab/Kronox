@@ -162,12 +162,12 @@ checks that source code and static Health cannot honestly prove alone.
 * Daily status badges remain post-paint and concurrent identical actor/day reads are deduped without changing server authority or cache invalidation.
 * These optimizations must preserve 320/360/390px containment, safe areas, A1 visual quality, gameplay ordering, scoring, economy, Daily, Online, and Solo rules.
 
-## Paket B4 — Admin Release Tracker Mobile Proof
+## Release Gate UI Boundary
 
-* `Yayın Hazırlığı` remains inside the existing scrollable Admin Ekranı and must fit 320/360/390px without horizontal overflow.
-* Status badges, checklist rows, blocker copy, Health groups, and links remain readable and tappable with safe-area and BottomNav clearance.
-* Device rows are checklist visibility only. Android real device, iOS Safari/TestFlight/WebView, low-end Android smoothness, safe-area, keyboard, orientation, and final wrapper/store behavior remain manual proof.
-* The panel triggers no deployment, persistent status write, secret read, RLS/index change, or device test.
+* The former Admin `Yayın Hazırlığı / Release Readiness` checklist panel is removed to reduce static UI clutter.
+* Release readiness is tracked through guarded HealthCenter Release Gate, Security, Deployability, and Full packs plus canonical release-proof documentation.
+* Production deployment, real Android/iOS/WebView devices, RLS/multi-account isolation, platform indexes, production VAPID secrets, and store/release evidence remain manual/external proof.
+* No Admin or public UI panel may imply release completion without attached proof.
 
 ## Paket B6 — Health Automation Mobile Boundary
 

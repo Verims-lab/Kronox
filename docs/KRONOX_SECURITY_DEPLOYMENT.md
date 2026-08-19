@@ -997,15 +997,15 @@ The Question Quality Snapshot is mounted only under guarded Admin Ekranı and ca
 
 Normal and guest gameplay remain on the bounded `getQuestions` projection; direct `Question` reads remain admin-only. B3 adds no public route, function, entity, secret, connector, cleanup executor, or automatic content mutation.
 
-# Paket B4 — Release Readiness Security Boundary
+# Release Readiness Security Boundary
 
-The guarded Admin Ekranı includes a static, read-only `Yayın Hazırlığı` tracker. It reads no user rows, environment variables, secret manager values, production configuration, question rows, or backend errors. It renders requirement labels only; VAPID production provisioning is always `MANUAL_REQUIRED`, and no private/public key value, secret value, email, private actor field, internal row ID, request payload, or stack trace may appear.
+The former Admin `Yayın Hazırlığı / Release Readiness` checklist panel is removed to reduce static UI clutter. Release readiness is tracked through guarded HealthCenter Release Gate, Security, Deployability, and Full packs plus canonical proof documentation.
 
-The tracker does not call a backend function, write checklist state, mutate RLS/indexes, validate secrets automatically, deploy/publish, or claim Full Health PASS. FriendRequest sender/receiver isolation, GameInvite recipient isolation, Lobby participant isolation, non-admin rejection, and public DTO privacy remain two/three-account runtime proof. Production deploy, package-lock resolution, platform unique indexes, real devices, push delivery, account deletion, and store validation remain external/manual release gates.
+Health reads no production secret values and must not expose email, private actor fields, internal row IDs, request payloads, raw errors, or stack traces. It must not fabricate Full Health PASS or convert manual evidence into automated proof. Production deploy, package-layer resolution, platform unique indexes, RLS/multi-account isolation, real devices, production VAPID secrets, push delivery, account deletion, and store validation remain external/manual release gates.
 
 # Paket B5 — Closure Security Statement
 
-B5 keeps Integrity Snapshot, Soru Kalite Raporu, and Yayın Hazırlığı under the guarded Admin route. The tools remain read-only and render aggregate/static output only. The frontend SDK source is exact-aligned with backend policy; package-lock resolution remains external because the workspace does not expose the file.
+B5 keeps Integrity Snapshot and Soru Kalite Raporu under the guarded Admin route while release readiness remains in HealthCenter and canonical proof docs. The remaining tools stay read-only and render aggregate output only. The frontend SDK source policy and package-layer resolution remain separate deployability evidence.
 
 Production deployment, secret provisioning, push delivery, RLS/multi-account isolation, platform indexes, devices, destructive account deletion, and store acceptance remain manual/external. No source-connected Health result may convert these items to PASS without real evidence.
 

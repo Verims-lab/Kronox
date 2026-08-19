@@ -34,10 +34,10 @@ Paket B1 exposes an AdminUser-gated read-only Integrity Snapshot through the
   idempotency coverage, duplicate risk, operation-lock, Daily receipt, Solo streak,
   and Online authority proof with fingerprint-only samples. It never mutates rows,
   balances, rewards, prices, scoring, or gameplay and performs no cleanup.
-Paket B4 adds an Admin-only read-only release tracker that points to B1 and lists
-Daily Wheel, Daily Calendar 200 Diamonds, Solo Streak +3/+5, Store spend, and
-parallel idempotency as pending proof. It reads no ledger, mutates no balance,
-and keeps platform uniqueness and two-device races manual/external.
+The former Admin Yayın Hazırlığı / Release Readiness checklist panel is removed.
+Release readiness remains tracked by HealthCenter Release Gate/Security/Deployability
+packs and canonical proof docs. B1 Integrity remains available, no ledger or balance
+behavior changes, and platform uniqueness plus two-device races stay manual/external.
 Paket B5 changes no economy behavior. B1 remains the read-only source, while
 platform uniqueness and live parallel two-device proof remain manual/external.
 Data Hygiene P0 uses the same AdminUser-gated report for a dry-run plan only.

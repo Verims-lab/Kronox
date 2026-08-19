@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex621 — Remove the static Admin Release Readiness panel, preserve B1/B3, and retarget release gating to active HealthCenter packs plus canonical manual/external proof docs without product/backend behavior changes.
 // Codex620 — VAPID security: migrate sendGameInvitePush to request-time Base44 runtime secrets, preserve fail-closed best-effort invites, and retarget Health/docs without exposing values or changing push UI/Online behavior.
 // Codex619 — BottomNav route-sync regression: derive active tab only from committed pathname and remove overlapping global route exits so lazy/root content cannot appear under another tab; add source-connected Health/docs without product behavior changes.
 // Codex618 — Data Hygiene P0: extend the guarded Integrity Snapshot with a read-only duplicate cleanup plan, canonical candidate fingerprints, risk/eligibility summaries, and source-connected Health/docs; no cleanup or product behavior changes.
@@ -198,7 +199,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex620';
+const BUILD_MARKER = 'Codex621';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

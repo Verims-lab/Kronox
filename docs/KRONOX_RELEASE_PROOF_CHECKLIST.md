@@ -1308,20 +1308,19 @@ verified against the deployed Base44 environment.
 * Run Question Quality, Admin Security, Question Data Model, Category, Solo Question Engine, Online shared-deck/no-category, and deployability Health suites through the Testing Agent.
 * B3 reuses the existing report and keeps the backend function count at 50.
 
-# Paket B4 — Release Readiness / Manual Proof Tracker
+# Release Readiness / Manual Proof Boundary
 
-* `Yayın Hazırlığı` is mounted only inside guarded Admin Ekranı. It is a read-only tracker, not proof by itself, and stores no checklist state.
-* Every item remains pending, blocked, manual, or external until evidence is recorded. The panel must never fabricate Full Health PASS or release completion.
-* Required manual/external gates remain production Base44 publish and backend deploy, real Android/iOS/WebView devices, 320/360/390 layouts, RLS/multi-account probes, VAPID production provisioning, platform unique indexes, account deletion, and final store validation.
-* The panel displays the 50-function ceiling, current SDK compatibility blocker, build marker, compile requirement, and the fact that it never triggers deployment.
-* B1 Integrity Snapshot and B3 Soru Kalite Raporu remain the existing read-only proof tools; B4 links to them instead of duplicating their logic. No cleanup or question mutation is run.
-* Health is a source contract guard, not release proof. Run the targeted Release Readiness suite and affected Admin Security, Security Cleanup/VAPID, Deployability, Integrity, and Question Quality suites separately.
-* Release cannot be marked complete until all required manual and external proof has recorded date, build marker, device/accounts, result, evidence, and remaining risk.
-* B4 adds no backend function, entity, schema, secret reader, deployment action, or product behavior change; function count remains 50.
+* The former Admin `Yayın Hazırlığı / Release Readiness` checklist panel is removed to reduce UI clutter; no replacement Admin card or public route is added.
+* Release readiness is tracked through guarded HealthCenter Release Gate, Security, Deployability, Admin/Proof, and Full packs plus this canonical proof checklist.
+* Health is the release gate, but Health PASS alone is not release-ready proof while manual/external requirements remain.
+* Required manual/external gates remain production Base44 publish/backend deploy, real Android/iOS/WebView devices and 320/360/390 layouts, RLS/multi-account probes, VAPID production provisioning, platform unique indexes, account deletion, and store validation/release evidence.
+* B1 Integrity Snapshot and B3 Soru Kalite Raporu remain guarded Admin read-only proof tools; no cleanup or question mutation is run by release-gate tracking.
+* No UI panel may display `Release Ready` or otherwise imply completion without recorded date, build marker, devices/accounts, result, evidence, and remaining risk.
+* No backend function, entity, schema, secret reader, deployment action, or product behavior changes; function count remains 50.
 
 # Paket B5 — Paket B Closure Proof
 
-* B1 Integrity, B3 Question Quality, and B4 Yayın Hazırlığı remain guarded Admin-only read-only tools. B5 adds no mutation, cleanup, deploy, secret-read, or question-write action.
+* B1 Integrity and B3 Question Quality remain guarded Admin-only read-only tools. Release readiness remains in HealthCenter packs and canonical proof docs; no static Yayın Hazırlığı Admin panel remains. B5 adds no mutation, cleanup, deploy, secret-read, or question-write action.
 * B2 cleanup Health remains connected to active Daily Wheel, random matchmaking, Friend Select, tutorial media, Solo Streak, and Health runner sources.
 * Editable SDK source now matches exact `0.8.34`; unavailable `package-lock.json` resolution remains external package-layer proof. The compile gate must not crash solely because the lockfile is unavailable.
 * Production Base44 deployment, Full Health, VAPID provisioning, real devices/WebViews, RLS/multi-account, platform unique indexes, parallel economy races, account deletion, and store acceptance remain pending manual/external evidence.

@@ -11,7 +11,6 @@ import AdminDiamondGrantTool from '@/components/admin/AdminDiamondGrantTool';
 import AdminDailyWheelResetTool from '@/components/admin/AdminDailyWheelResetTool';
 import IntegritySnapshotTool from '@/components/admin/IntegritySnapshotTool';
 import QuestionQualityTool from '@/components/admin/QuestionQualityTool';
-import ReleaseReadinessTool from '@/components/admin/ReleaseReadinessTool';
 import StandardTopBar from '@/components/layout/StandardTopBar';
 import PullToRefresh from '@/components/mobile/PullToRefresh';
 import { AdminRefreshContext } from '@/lib/AdminRefreshContext';
@@ -185,7 +184,6 @@ export default function AdminPage() {
                 desc="Brutally honest mobile, gameplay, sync, and release-risk checks"
                 onClick={() => setShowSim(true)}
               />
-              <ReleaseReadinessTool />
               <IntegritySnapshotTool />
               <QuestionQualityTool />
               <QuestionAnalyticsReportTool />
