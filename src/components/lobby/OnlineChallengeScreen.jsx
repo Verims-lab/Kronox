@@ -154,6 +154,7 @@ export default function OnlineChallengeScreen({
 
   const handleDuelTimeout = () => {
     if (duel.phase !== 'matched') {
+      void duel.cancel();
       setScreenError('Duello eşleşmesi bulunamadı.');
       setScreen('select');
     }

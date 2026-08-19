@@ -6,7 +6,7 @@ export default function DuelArena({ duel }) {
   return (
     <div className="relative" data-kronox-same-question-duel="active">
       <div className="pointer-events-none fixed left-3 top-3 z-[70] rounded-full border border-cyan-300/30 bg-slate-950/80 px-3 py-1 font-inter text-[10px] font-black text-cyan-100">
-        AYNI SORU · 10 KART
+        DUELLO · 10 KART
       </div>
       {(error || notice || pending) && (
         <div className="pointer-events-none fixed left-1/2 top-[7.4rem] z-[70] w-[min(88vw,22rem)] -translate-x-1/2 rounded-xl border border-amber-300/30 bg-slate-950/90 px-3 py-2 text-center font-inter text-xs font-bold text-amber-100">

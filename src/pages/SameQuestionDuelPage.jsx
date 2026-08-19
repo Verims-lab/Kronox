@@ -10,6 +10,7 @@ export default function SameQuestionDuelPage() {
   if (duel.loading) return <State text="Duello hazırlanıyor..." loading />;
   if (duel.error && !duel.lobby) return <State text={duel.error} onRetry={duel.refresh} />;
   if (duel.lobby?.game_mode !== SAME_QUESTION_DUEL_MODE) return <State text={`Bu lobi ${getOnlineModeDisplayName(SAME_QUESTION_DUEL_MODE)} modunda değil.`} />;
+  if (!duel.myPlayer) return <State text="Duello oyuncu oturumu doğrulanamadı." onRetry={duel.refresh} />;
   if (duel.lobby?.status === 'finished') return <DuelResult duel={duel} />;
   return <DuelArena duel={duel} />;
 }
