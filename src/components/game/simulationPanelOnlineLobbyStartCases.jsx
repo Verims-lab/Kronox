@@ -343,7 +343,8 @@ export const EXTRA_TESTS = [
         'if (!active || inFlight) return false',
         "fresh.status === 'starting' || fresh.status === 'in_game'",
         'navigateToOnlineGameRoute',
-        '/game?',
+        "lobby?.game_mode === 'same_question_duel'",
+        "? '/duel' : '/game'", 
       ]);
       const oldLoops = forbidden(useWaitingRoomSyncSource, [
         'window.setInterval',

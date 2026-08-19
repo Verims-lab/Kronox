@@ -99,6 +99,7 @@ checks that source code and static Health cannot honestly prove alone.
   plus animation smoothness.
 * Gameplay/tutorial source should stay within the Health static heavy
   blur/glow token cap so low-end Android proof starts from a lighter baseline.
+* Duello is the final mobile display name for the stable internal `same_question_duel` key; its entry, waiting, gameplay, and result copy must remain short and fit 320/360/390px without becoming a BottomNav item.
 * Online gameplay loading must wait on Lobby shared deck readiness
   (`online_question_deck` + `current_question_id`), not on the Solo
   `getQuestions`/cache path. A missing Online deck should show retry/back-to-lobby

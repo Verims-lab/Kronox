@@ -11,6 +11,7 @@ import { sounds } from '@/lib/gameSounds';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 import { getLobbySnapshot, leaveLobby, LOBBY_SNAPSHOT_SCOPES } from '@/lib/dbGateway/lobbyGateway';
 import useRandomMatchmaking from '@/hooks/useRandomMatchmaking';
+import { DUELLO_DISPLAY_NAME, SAME_QUESTION_DUEL_MODE } from '@/lib/onlineModeDisplay';
 
 /**
  * Kronox Online — Challenge Screen (Codex591 redesign).
@@ -47,7 +48,7 @@ export default function OnlineChallengeScreen({
   const [screenError, setScreenError] = useState('');
   const [inviteLobby, setInviteLobby] = useState(null);
   const random = useRandomMatchmaking('random_online');
-  const duel = useRandomMatchmaking('same_question_duel');
+  const duel = useRandomMatchmaking(SAME_QUESTION_DUEL_MODE);
 
   const handleConfirmInvite = async (targets) => {
     setScreenError('');
@@ -119,7 +120,7 @@ export default function OnlineChallengeScreen({
     return () => { cancelled = true; };
   }, [screen, random.phase, random.lobbyRef, onEnterLobby]);
 
-  // Same Question Duel has its own mode-scoped queue and cannot pair with the
+  // Duello has its own mode-scoped queue and cannot pair with the
   // existing random Online lane. The matched lobby remains the shared backend
   // authority and is entered through the same sanitized waiting-room snapshot.
   useEffect(() => {
@@ -130,7 +131,7 @@ export default function OnlineChallengeScreen({
         const fresh = res?.data?.lobby;
         if (!cancelled && fresh) onEnterLobby?.(fresh);
       })
-      .catch(() => { if (!cancelled) setScreenError('Düello bağlantısı kurulamadı. Lütfen tekrar dene.'); });
+      .catch(() => { if (!cancelled) setScreenError('Duello bağlantısı kurulamadı. Lütfen tekrar dene.'); });
     return () => { cancelled = true; };
   }, [screen, duel.phase, duel.lobbyRef, onEnterLobby]);
 
@@ -153,7 +154,7 @@ export default function OnlineChallengeScreen({
 
   const handleDuelTimeout = () => {
     if (duel.phase !== 'matched') {
-      setScreenError('Düello eşleşmesi bulunamadı.');
+      setScreenError('Duello eşleşmesi bulunamadı.');
       setScreen('select');
     }
   };
@@ -195,8 +196,8 @@ export default function OnlineChallengeScreen({
   if (screen === 'duel-wait') {
     return (
       <PreGameHourglass
-        title="Aynı Soru ile Kapış"
-        subtitle="Rakip aranıyor · 2 oyuncu · 10 kart hedefi"
+        title={DUELLO_DISPLAY_NAME}
+        subtitle="Rakip aranıyor. Aynı sorularla kapışmaya hazırlan."
         expiresAt={duel.expiresAt}
         durationMs={30 * 1000}
         errorMessage={duel.errorMessage}
@@ -264,11 +265,11 @@ export default function OnlineChallengeScreen({
           />
           <ModeButton
             icon={Target}
-            label="Aynı Soru ile Kapış"
-            ariaLabel="Aynı Soru ile Kapış — Kapışmaya Başla"
-            hint="Aynı soruya aynı anda cevap ver; kartı önce doğru yerleştiren alsın."
+            label={DUELLO_DISPLAY_NAME}
+            ariaLabel="Duello — Duelloya Başla"
+            hint="Aynı soruda rakibinden hızlı ve doğru ol."
             helper="2 oyuncu · 10 kart hedefi · Rastgele rakip"
-            action="Kapışmaya Başla"
+            action="Duelloya Başla"
             disabled={ctaDisabledDuel}
             onClick={handleStartDuel}
           />
@@ -282,7 +283,7 @@ export default function OnlineChallengeScreen({
               message="Diğer Online seçeneklerini kullanmaya devam edebilirsin."
               onAction={screenError === 'Eşleşme bulunamadı.'
                 ? handleStartRandom
-                : screenError === 'Düello eşleşmesi bulunamadı.'
+                : screenError === 'Duello eşleşmesi bulunamadı.'
                   ? handleStartDuel
                   : () => { setScreenError(''); setFriendModalOpen(true); }}
             />

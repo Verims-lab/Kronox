@@ -3,12 +3,13 @@ import { Loader2 } from 'lucide-react';
 import useSameQuestionDuel from '@/hooks/useSameQuestionDuel';
 import DuelArena from '@/components/duel/DuelArena';
 import DuelResult from '@/components/duel/DuelResult';
+import { getOnlineModeDisplayName, SAME_QUESTION_DUEL_MODE } from '@/lib/onlineModeDisplay';
 
 export default function SameQuestionDuelPage() {
   const duel = useSameQuestionDuel();
-  if (duel.loading) return <State text="Düello hazırlanıyor..." loading />;
+  if (duel.loading) return <State text="Duello hazırlanıyor..." loading />;
   if (duel.error && !duel.lobby) return <State text={duel.error} onRetry={duel.refresh} />;
-  if (duel.lobby?.game_mode !== 'same_question_duel') return <State text="Bu lobi Aynı Soru ile Kapış modunda değil." />;
+  if (duel.lobby?.game_mode !== SAME_QUESTION_DUEL_MODE) return <State text={`Bu lobi ${getOnlineModeDisplayName(SAME_QUESTION_DUEL_MODE)} modunda değil.`} />;
   if (duel.lobby?.status === 'finished') return <DuelResult duel={duel} />;
   return <DuelArena duel={duel} />;
 }

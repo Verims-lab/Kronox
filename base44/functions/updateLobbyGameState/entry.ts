@@ -512,7 +512,7 @@ async function claimSameQuestionDuelCard(base44: any, lobby: any, actor: any, bo
   }
   const players = Array.isArray(lobby?.players) ? lobby.players : [];
   if (players.length !== 2 || Number(lobby?.max_players) !== 2) {
-    return json({ ok: false, code: 'same_question_duel_requires_two_players', error: 'Aynı Soru ile Kapış tam olarak 2 oyuncu gerektirir.' }, 409);
+    return json({ ok: false, code: 'same_question_duel_requires_two_players', error: 'Duello tam olarak 2 oyuncu gerektirir.' }, 409);
   }
   const actorIndex = players.findIndex((player: any) => actorMatchesPlayer(actor, player));
   if (actorIndex < 0) return json({ ok: false, code: 'not_lobby_participant', error: 'Bu maçın oyuncusu değilsin.' }, 403);
@@ -539,7 +539,7 @@ async function claimSameQuestionDuelCard(base44: any, lobby: any, actor: any, bo
   try {
     const fresh = await base44.asServiceRole.entities.Lobby.get(rowId(lobby));
     if (!fresh || String(fresh?.game_mode || '') !== SAME_QUESTION_DUEL_MODE) {
-      return json({ ok: false, code: 'wrong_game_mode', error: 'Düello durumu doğrulanamadı.' }, 409);
+      return json({ ok: false, code: 'wrong_game_mode', error: 'Duello durumu doğrulanamadı.' }, 409);
     }
     if (!['starting', 'in_game'].includes(String(fresh?.status || ''))) {
       return json({ ok: false, code: 'invalid_lobby_status', error: 'Oyun aktif değil.' }, 409);
@@ -560,7 +560,7 @@ async function claimSameQuestionDuelCard(base44: any, lobby: any, actor: any, bo
 
     const storedPlayers = Array.isArray(fresh?.players) ? fresh.players : [];
     if (storedPlayers.length !== 2 || Number(fresh?.max_players) !== 2) {
-      return json({ ok: false, code: 'same_question_duel_requires_two_players', error: 'Aynı Soru ile Kapış tam olarak 2 oyuncu gerektirir.' }, 409);
+      return json({ ok: false, code: 'same_question_duel_requires_two_players', error: 'Duello tam olarak 2 oyuncu gerektirir.' }, 409);
     }
     const freshActorIndex = storedPlayers.findIndex((player: any) => actorMatchesPlayer(actor, player));
     if (freshActorIndex < 0) return json({ ok: false, code: 'not_lobby_participant', error: 'Bu maçın oyuncusu değilsin.' }, 403);

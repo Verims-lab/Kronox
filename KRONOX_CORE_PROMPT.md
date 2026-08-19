@@ -48,6 +48,7 @@ Preserve these current contracts unless a task explicitly changes them:
 * Account linking belongs under Profile.
 * BottomNav contains only Ana Sayfa, Liderlik, and Profil.
 * Online is separate from Solo and does not use Solo category preferences.
+* The final user-facing name for internal Online mode key `same_question_duel` is `Duello`; the key remains stable for persisted lobby/session compatibility.
 * Category source of truth is the current DB/current canonical taxonomy.
 * `getCategoryMetadata` is public-by-design and metadata-only.
 * Gameplay must not expose raw `Question.list` fallback or the full question

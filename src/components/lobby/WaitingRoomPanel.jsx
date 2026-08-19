@@ -10,6 +10,7 @@ import { debugLog, debugWarn } from '@/lib/debugLog';
 import { pushAppDiag } from '@/lib/appDiagBus';
 import KronoxAvatar from '@/components/profile/KronoxAvatar';
 import { getLobbySnapshot, startLobbyGame } from '@/lib/dbGateway/lobbyGateway';
+import { DUELLO_DISPLAY_NAME, SAME_QUESTION_DUEL_MODE } from '@/lib/onlineModeDisplay';
 
 // Codex131 — Lobby simplification:
 //   "Oyun Ayarları" host panel and the non-host settings summary were
@@ -18,7 +19,7 @@ import { getLobbySnapshot, startLobbyGame } from '@/lib/dbGateway/lobbyGateway';
 //   game config (year window, turn duration, win card count) reuses the lobby's
 //   existing values or backend defaults — there is no in-lobby edit UI.
 export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, isHost, canStart, onLeave, onCopyCode, copied, navigate }) {
-  const isSameQuestionDuel = lobby?.game_mode === 'same_question_duel';
+  const isSameQuestionDuel = lobby?.game_mode === SAME_QUESTION_DUEL_MODE;
   const {
     startDebug,
     lobbyPhaseState,
@@ -213,7 +214,7 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
               textShadow: '0 0 14px rgba(250,204,21,0.55), 0 2px 4px rgba(0,0,0,0.7)',
             }}
           >
-            {isSameQuestionDuel ? 'Aynı Soru ile Kapış' : 'Lobi'}
+            {isSameQuestionDuel ? DUELLO_DISPLAY_NAME : 'Lobi'}
           </h1>
           <button
             onClick={onLeave}
@@ -365,7 +366,7 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
                 BAŞLATILIYOR
               </span>
             ) : isSameQuestionDuel
-              ? 'KAPIŞMAYI BAŞLAT (2 oyuncu)'
+              ? 'DUELLOYU BAŞLAT (2 oyuncu)'
               : `OYUNU BAŞLAT (${lobby.players?.length || 0} oyuncu)`}
           </GoldButton>
         </div>

@@ -628,6 +628,6 @@ sections. The subsection `Kişi Bazlı Soru Çeşitliliği — Anonim` lives ins
 The report must not output email, provider ids, raw guest id, raw guest token,
 owner key, internal player key, or username as the per-player coverage label.
 
-## Same Question Duel V1 Question Boundary
+## Duello V1 Question Boundary
 
-`same_question_duel` uses `startLobbyGame` to build one bounded server-authored deck from all active Online-eligible categories with difficulty 1/2. Both players receive the same two opening timeline anchors and the same active shared card sequence. Because the current Online card UI safely supports one functional active card, V1 exposes one active shared card at a time; it does not fake two simultaneous active opportunities. Public snapshots expose only that active card plus safe deck metadata, never the remaining deck or full question bank. Solo buffers and category preferences are not used.
+`Duello` uses the stable internal `same_question_duel` key and `startLobbyGame` to build one bounded server-authored deck from all active Online-eligible categories with difficulty 1/2. Both players receive the same two opening timeline anchors and the same active shared card sequence. Because the current Online card UI safely supports one functional active card, V1 exposes one active shared card at a time; it does not fake two simultaneous active opportunities. Public snapshots expose only that active card plus safe deck metadata, never the remaining deck or full question bank. Solo buffers and category preferences are not used.

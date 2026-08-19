@@ -602,7 +602,7 @@ const buildInitialState = ({ players, questions, settings, activeMainCategoryIds
     if (players.length !== 2) {
       return {
         ok: false,
-        message: 'Aynı Soru ile Kapış tam olarak 2 oyuncu gerektirir.',
+        message: 'Duello tam olarak 2 oyuncu gerektirir.',
         reason: 'same_question_duel_requires_two_players',
         neededCount,
         availableCount: sharedDeck.length,
@@ -826,7 +826,7 @@ Deno.serve(async (req) => {
     const gameMode = String(startLobby?.game_mode || 'random_online');
 
     if (gameMode === SAME_QUESTION_DUEL_MODE && players.length !== 2) {
-      return json({ error: 'Aynı Soru ile Kapış tam olarak 2 oyuncu gerektirir.', code: 'same_question_duel_requires_two_players' }, 400);
+      return json({ error: 'Duello tam olarak 2 oyuncu gerektirir.', code: 'same_question_duel_requires_two_players' }, 400);
     }
 
     if (players.length < 2) {

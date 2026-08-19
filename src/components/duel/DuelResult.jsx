@@ -1,5 +1,6 @@
 import React from 'react';
 import { Trophy, Swords } from 'lucide-react';
+import { DUELLO_DISPLAY_NAME } from '@/lib/onlineModeDisplay';
 
 export default function DuelResult({ duel }) {
   const { isWinner, myPlayer, opponent, scoreResult, navigate } = duel;
@@ -10,8 +11,8 @@ export default function DuelResult({ duel }) {
         <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-primary text-primary-foreground">
           {isWinner ? <Trophy className="h-8 w-8" /> : <Swords className="h-8 w-8" />}
         </div>
-        <h1 className="mt-4 font-cinzel text-2xl font-black text-primary">{isWinner ? 'Kazandın' : 'Kaybettin'}</h1>
-        <p className="mt-1 font-inter text-sm text-muted-foreground">Aynı Soru ile Kapış</p>
+        <h1 className="mt-4 font-cinzel text-2xl font-black text-primary">{isWinner ? `${DUELLO_DISPLAY_NAME} kazandın.` : `${DUELLO_DISPLAY_NAME} kaybettin.`}</h1>
+        <p className="mt-1 font-inter text-sm text-muted-foreground">10 kart hedefi</p>
         <div className="mt-5 grid grid-cols-2 gap-3">
           <Stat label="Sen" value={`${myPlayer?.claimed_count || 0}/10`} />
           <Stat label="Rakip" value={`${opponent?.claimed_count || 0}/10`} />

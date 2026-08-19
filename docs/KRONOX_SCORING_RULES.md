@@ -708,6 +708,6 @@ return `display_name`.
 Age and gender must not affect scoring, level unlocks, matchmaking, leaderboard
 rank, Solo question weighting, or Online question selection.
 
-## Same Question Duel V1
+## Duello V1
 
-`same_question_duel` / `Aynı Soru ile Kapış` is a random-opponent, exactly two-player Online mode. The backend-authored shared card sequence and first-correct claim arbitration determine the winner; the first player to reach 10 claimed cards wins. Result persistence reuses `updateLobbyGameState:commit_result`, so winner +15 and loser -6 with checkpoint protection remain unchanged. The client cannot write result, score, profile, or leaderboard state. The mode grants no Diamonds, Daily progress, Store reward, Solo score, or Solo Streak reward.
+`Duello` is the final display name for the stable internal `same_question_duel` key. It is a random-opponent, exactly two-player Online mode. The backend authors the identical shared opening context and active card sequence for both players; first-correct backend confirmation awards the card, and the first player to reach 10 claimed cards wins. Duello has no category selector, draws randomly from all active Online-eligible categories, and never uses Solo question buffers or Solo preferences. Result persistence reuses `updateLobbyGameState:commit_result`, so winner +15 and loser -6 with checkpoint protection remain unchanged. The client cannot write result, score, profile, or leaderboard state. Public snapshots expose only username-safe identity, opaque participant references, safe progress/recent-claim state, and the active shared card—not the remaining deck or private actor data. The mode grants no Diamonds, Daily progress, Store reward, Solo score, or Solo Streak reward.

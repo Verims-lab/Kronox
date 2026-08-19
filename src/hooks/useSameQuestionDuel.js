@@ -33,12 +33,12 @@ export default function useSameQuestionDuel() {
 
   useEffect(() => {
     if (!lobbyId) {
-      setError('Düello bilgisi bulunamadı.');
+      setError('Duello bilgisi bulunamadı.');
       setLoading(false);
       return undefined;
     }
     let cancelled = false;
-    refresh().catch(() => { if (!cancelled) setError('Düello yüklenemedi. Lütfen tekrar dene.'); })
+    refresh().catch(() => { if (!cancelled) setError('Duello yüklenemedi. Lütfen tekrar dene.'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     const poller = createAdaptivePoller({ task: refresh, minDelayMs: 1000, maxDelayMs: 4000 });
     poller.start();
@@ -78,7 +78,7 @@ export default function useSameQuestionDuel() {
         operation_key: `same_question_duel:${activeCard.sequence_id}`,
       });
       const data = response?.data || {};
-      if (!data?.success || data?.error) throw new Error('Düello hamlesi doğrulanamadı.');
+      if (!data?.success || data?.error) throw new Error('Duello hamlesi doğrulanamadı.');
       if (data.lobby) setLobby(data.lobby);
       if (data.claim_result === 'claimed') {
         setFeedback({ result: 'correct', year: Number(activeCard.year) });

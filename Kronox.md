@@ -374,6 +374,7 @@ Preferred visible terms:
 * Ana Sayfa
 * Profil
 * Online Kapışma
+* Duello
 * Solo Meydan Okuma
 
 Avoid visible user-facing `Level`; use `Seviye` in player-facing copy.
@@ -973,6 +974,7 @@ Home should feel:
 Home should clearly lead to:
 
 * Online Kapışma
+* Duello
 * Solo Meydan Okuma
 
 ## Solo Map
@@ -996,7 +998,8 @@ Online main should feel like preparing for a challenge.
 Use:
 
 * clear all-active random-category policy copy
-* clear invite and random-match actions
+* clear invite, random-match, and Duello actions
+* Duello as the final display name for the stable internal `same_question_duel` mode key
 * tactile lobby/invite buttons
 * readable waiting and recovery states
 * stable no-scroll layout if designed as fixed
