@@ -3,7 +3,8 @@ export function buildOnlineGamePath(lobby) {
   params.set('online', '1');
   if (lobby?.id) params.set('lobbyId', lobby.id);
   if (lobby?.code) params.set('lobbyCode', lobby.code);
-  return `${lobby?.game_mode === 'same_question_duel' ? '/duel' : '/game'}?${params.toString()}`;
+  const routePrefix = lobby?.game_mode === 'same_question_duel' ? '/duel?' : '/game?';
+  return `${routePrefix}${params.toString()}`;
 }
 
 export function buildOnlineGameState(lobby, { currentUser, playerName } = {}) {

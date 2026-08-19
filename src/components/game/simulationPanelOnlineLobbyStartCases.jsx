@@ -344,7 +344,8 @@ export const EXTRA_TESTS = [
         "fresh.status === 'starting' || fresh.status === 'in_game'",
         'navigateToOnlineGameRoute',
         "lobby?.game_mode === 'same_question_duel'",
-        "? '/duel' : '/game'", 
+        "? '/duel?' : '/game?'",
+        "params.set('lobbyId'", 
       ]);
       const oldLoops = forbidden(useWaitingRoomSyncSource, [
         'window.setInterval',

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex626 — Restore source-connected navigation Health contracts: explicit /game BottomNav hiding, route-derived root re-taps, and backend-snapshot/adaptive-poll-confirmed canonical /game? Online navigation; runtime behavior is unchanged.
 // Codex625 — Finalize the user-facing Online mode name as Duello across active UI, backend-safe error copy, Health labels, docs, and mirrors while preserving the stable same_question_duel key and all gameplay/matchmaking/scoring/DB contracts.
 // Codex624 — Duello V1: mode-scoped two-player random matchmaking, identical server-authored opening context/shared card sequence, backend first-correct idempotent claims, first-to-10 result, focused gameplay UI, Health, and docs; existing Online and +15/-6 scoring remain unchanged.
 // Codex623 — Zero KRONOX-MSZSZ4YL source blockers: exact-pin package.json/package-lock/Base44 SDK 0.8.34, remove BottomNav's optimistic switchTab setter while preserving route-root re-tap, and retarget source-connected Health/docs. No gameplay, scoring, economy, DB, Online, Daily, or visible BottomNav contract changes.
@@ -203,7 +204,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex625';
+const BUILD_MARKER = 'Codex626';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

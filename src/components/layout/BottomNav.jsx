@@ -23,7 +23,8 @@ const TABS = [
 // route alone. /lobby is NOT here anymore because its visibility depends on
 // the in-page mode/state (see lib/bottomNavVisibility.js). LobbyRoom toggles
 // the runtime override when entering create/join/waiting sub-flows.
-const HIDDEN_ROUTES = ['/game', '/duel'];
+const HIDDEN_ROUTES = ['/game'];
+const ADDITIONAL_IMMERSIVE_ROUTES = ['/duel'];
 
 export default function BottomNav() {
   const location = useLocation();
@@ -42,7 +43,7 @@ export default function BottomNav() {
     rememberRoute(location);
   }, [location.pathname, location.search, location.hash, rememberRoute]);
 
-  if (HIDDEN_ROUTES.includes(location.pathname)) return null;
+  if (HIDDEN_ROUTES.includes(location.pathname) || ADDITIONAL_IMMERSIVE_ROUTES.includes(location.pathname)) return null;
   if (runtimeHidden) return null;
 
   // Codex619 — The committed route is the only active-tab source. Never mark a

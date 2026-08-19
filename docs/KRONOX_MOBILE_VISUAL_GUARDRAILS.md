@@ -24,14 +24,15 @@ checks that source code and static Health cannot honestly prove alone.
 * Pull-to-refresh/overscroll guards are scoped to the relevant container or
   active gameplay drag only.
 * BottomNav visible tabs are exactly `Ana Sayfa`, `Liderlik`, and `Profil`.
-  Tapping any tab opens that tab root, never a cached/sticky subpage. The active
-  tab is derived only from the committed route pathname; rapid taps and browser
-  back/forward cannot maintain a separate optimistic tab state. Lazy route
-  loading replaces prior page content with the route loading shell, so Home,
-  Liderlik, or Profil content is never visible under another tab highlight.
-  Profile subpages, Friends, Settings, Admin, Market, Daily, and similar main-tab
-  subpages use a top-left back arrow with explicit parent/root fallback; the
-  top-right remains reserved for notifications/actions.
+  Tapping or re-tapping any tab opens that tab root, never a cached/sticky
+  subpage. The active tab is derived only from the committed route pathname;
+  rapid taps and browser back/forward cannot maintain a separate optimistic tab
+  state. `/game` is an explicit hidden BottomNav route and remains full-screen.
+  Lazy route loading replaces prior page content with the route loading shell,
+  so Home, Liderlik, or Profil content is never visible under another tab
+  highlight. Profile subpages, Friends, Settings, Admin, Market, Daily, and
+  similar main-tab subpages use a top-left back arrow with explicit parent/root
+  fallback; the top-right remains reserved for notifications/actions.
 * Home is bounded by `100dvh`, safe-area insets, and the known BottomNav height.
   Its content column may scroll vertically inside those bounds at 320px-class
   heights, but must keep both primary CTAs reachable above the three-tab nav
@@ -100,6 +101,11 @@ checks that source code and static Health cannot honestly prove alone.
 * Gameplay/tutorial source should stay within the Health static heavy
   blur/glow token cap so low-end Android proof starts from a lighter baseline.
 * Duello is the final mobile display name for the stable internal `same_question_duel` key; its entry, waiting, gameplay, and result copy must remain short and fit 320/360/390px without becoming a BottomNav item.
+* Waiting-room start uses a backend `getLobbySnapshot` plus the cleanup-safe
+  adaptive fallback poller, never route state alone. Standard Online navigation
+  delegates through the shared route helper to canonical
+  `/game?online=1&lobbyId=...` (with safe optional lobby code) after the backend
+  snapshot confirms `starting` or `in_game`.
 * Online gameplay loading must wait on Lobby shared deck readiness
   (`online_question_deck` + `current_question_id`), not on the Solo
   `getQuestions`/cache path. A missing Online deck should show retry/back-to-lobby

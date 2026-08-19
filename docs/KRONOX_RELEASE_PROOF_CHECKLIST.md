@@ -781,14 +781,14 @@ Checklist:
 * Bottom nav does not collide with home indicator.
 * BottomNav visible tabs are Ana Sayfa, Liderlik, and Profil only. Online is
   launched from Home through Online Kapışma, not from BottomNav. Every
-  BottomNav tab tap opens that tab root (`/`, `/leaderboard`, `/profile`), and
-  the highlight is derived from the committed pathname rather than optimistic
-  local tab state. During lazy loading, the route loading shell replaces old
-  content; rapid taps and browser back/forward must never show Home, Liderlik,
-  or Profil content under another tab highlight. Profile/Friends/Settings
-  subpages must not reopen as sticky hidden tab state after returning Home and
-  tapping Profil again. `/game` remains outside tab stacks and full-screen
-  according to existing gameplay rules.
+  BottomNav tab tap or active-tab re-tap opens that tab root (`/`,
+  `/leaderboard`, `/profile`), and the highlight is derived from the committed
+  pathname rather than optimistic local tab state. During lazy loading, the
+  route loading shell replaces old content; rapid taps and browser back/forward
+  must never show Home, Liderlik, or Profil content under another tab highlight.
+  Profile/Friends/Settings subpages must not reopen as sticky hidden tab state
+  after returning Home and tapping Profil again. `/game` is explicitly hidden
+  from BottomNav, remains outside tab stacks, and stays full-screen.
 * Subpages opened from Profile or another main tab use a top-left back arrow.
   The arrow returns to the immediate parent/root route through explicit
   `parentRoute` / `returnTo` state when needed. It must not be hardcoded to
@@ -1485,9 +1485,12 @@ Automated/source-connected gates:
   accept/decline preserves rows and safe Turkish errors; confirmed terminal
   state removes/closes them.
 * BottomNav still exposes only `Ana Sayfa`, `Liderlik`, and `Profil`.
-* Lobby route snapshots are bootstrap-only; sanitized backend polling plus
-  focus/visibility refresh wins over stale route state. Host start re-fetches
-  the authoritative sanitized Lobby after start.
+* Lobby route snapshots are bootstrap-only; sanitized `getLobbySnapshot`
+  polling through the cleanup-safe adaptive fallback poller plus focus/visibility
+  refresh wins over stale route state. Once the backend snapshot confirms start,
+  the shared navigation helper builds canonical standard Online
+  `/game?online=1&lobbyId=...` routing (with safe optional lobby code). Host start
+  re-fetches the authoritative sanitized Lobby after start.
 * FriendRequest/GameInvite direct entity reads are admin-only. Social snapshots
   scope private service-role queries to the resolved actor and expose only
   opaque public refs and username-safe DTO fields.
