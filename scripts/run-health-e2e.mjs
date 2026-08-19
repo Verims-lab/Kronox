@@ -13,6 +13,7 @@ import {
   RUNTIME_E2E_PREFLIGHT_DEPENDENCY,
   RUNTIME_E2E_PROOF_LEVEL,
   buildAutomationCounters,
+  buildRuntimePermissionDiagnostic,
   classifyRuntimeDiagnostic,
   classifyRuntimeServiceRequest,
   isRuntimeBackendServiceCategory,
@@ -162,6 +163,7 @@ async function runRuntimePreflight(browser, baseUrl, environment) {
   const context = await browser.newContext(contextOptions);
   const page = await context.newPage();
   const consoleErrors = [];
+  const permissionDiagnostics = [];
   const serviceSummary = {};
   const responseInspections = [];
   let appNotFound = false;
@@ -198,7 +200,21 @@ async function runRuntimePreflight(browser, baseUrl, environment) {
     observeRequest(request, 'FAILED');
   });
   page.on('response', (response) => {
-    const category = observeRequest(response.request(), 'RESPONSE', response.status());
+    const request = response.request();
+    const category = observeRequest(request, 'RESPONSE', response.status());
+    if ((response.status() === 401 || response.status() === 403) && permissionDiagnostics.length < 20) {
+      const diagnostic = buildRuntimePermissionDiagnostic({
+        scenarioId: 'runtime_preflight',
+        requestUrl: request.url(),
+        configuredBaseUrl: baseUrl,
+        resourceType: request.resourceType(),
+        method: request.method(),
+        status: response.status(),
+      });
+      if (!permissionDiagnostics.some((item) => item.fingerprint === diagnostic.fingerprint)) {
+        permissionDiagnostics.push(diagnostic);
+      }
+    }
     if (isRuntimeBackendServiceCategory(category) && response.status() === 404) {
       responseInspections.push(response.text()
         .then((body) => {
@@ -334,6 +350,7 @@ async function runRuntimePreflight(browser, baseUrl, environment) {
     preflightLimitations,
     serviceSummary,
     serviceSummaryUnavailableReason: runtimeServiceSummaryUnavailableReason(serviceSummary),
+    permissionDiagnostics,
     consoleErrors,
     consoleErrorSummary,
     nextAction: directBackendPreflightStatus === BACKEND_PREFLIGHT_STATUS.REACHABLE ? null : preflightNextAction(status),
@@ -453,6 +470,7 @@ function unavailablePreflight(baseUrl, environment, error) {
     preflightLimitations,
     serviceSummary,
     serviceSummaryUnavailableReason: runtimeServiceSummaryUnavailableReason(serviceSummary),
+    permissionDiagnostics: [],
     consoleErrors: [diagnostic],
     consoleErrorSummary: summarizeRuntimeConsoleErrors([diagnostic]),
     nextAction: 'Make a compatible headless browser available, then rerun Runtime E2E.',
@@ -570,7 +588,9 @@ function finalizeRuntimeProbe(preflight, scenarios) {
     scenario?.backendEvidence?.observed === true && scenario?.backendEvidence?.successful === true
   ));
   const failed = backendScenarios.some((scenario) => (
-    scenario?.backendEvidence?.observed === true && scenario?.backendEvidence?.successful === false
+    scenario?.backendEvidence?.observed === true
+    && scenario?.backendEvidence?.successful === false
+    && scenario?.backendEvidence?.statusClass !== 'no_response'
   ));
   const attempted = backendScenarios.some((scenario) => scenario?.preflightDependency === RUNTIME_E2E_PREFLIGHT_DEPENDENCY.RUNTIME_PROBE);
   const runtimeBackendProbeStatus = connected

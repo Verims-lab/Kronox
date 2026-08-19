@@ -304,6 +304,27 @@ Critical console output is reduced to safe categories, summaries, actions, and
 fingerprints; raw messages, query values, tokens, identities, and stack traces
 are not exported.
 
+The Codex634 production run established a reachable custom-domain preflight,
+but also exposed three proof-layer gaps now guarded by Codex635. Home `OYNA`
+may commit the current Solo level directly to `/game` or open `/solo`; the map
+is only an entry state, and Solo PASS still requires `/game`,
+`solo-game-screen`, the question area, and an interaction target. A visible
+current map node must commit `/game`; a missing question-service request or
+successful response becomes a precise setup gap rather than a false gameplay
+PASS. Online `/lobby` and waiting UI are likewise not matchmaking proof. A
+classified request with no observed response is retained as
+`BACKEND_RUNTIME_RESPONSE_NOT_OBSERVED`, while no request, a rejected response,
+and a network failure remain distinct diagnostics.
+
+HTTP 401/403 observations remain critical `BACKEND_PERMISSION_DENIED` evidence.
+They now include only scenario, service category, status class, sanitized
+endpoint category, safe action label, and redacted fingerprint; there is no
+blanket optional-request downgrade and no raw URL or actor identity. Base44
+`APP_NOT_FOUND` continues to force `backendAvailable: false` and
+`base44AppReachable: false`, and can never preserve a backend-dependent PASS.
+The frontend package, lockfile root/resolution, and critical function imports
+remain exact-pinned to Base44 SDK `0.8.34`.
+
 Home-owned scenarios may use an isolated completed guest or linked actor from
 `KRONOX_E2E_STORAGE_STATE`; credentials are never hardcoded. Create a local
 fixture with `mkdir -p .auth` and

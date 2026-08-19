@@ -2,6 +2,7 @@ import path from 'node:path';
 
 import {
   AUTOMATION_STATUS,
+  buildRuntimePermissionDiagnostic,
   classifyRuntimeServiceRequest,
   recordRuntimeServiceObservation,
   sanitizeAutomationValue,
@@ -10,10 +11,11 @@ import {
 } from '../../src/lib/health/runtimeE2EReport.js';
 
 export class AutomationSetupGap extends Error {
-  constructor(message, status = AUTOMATION_STATUS.NOT_AUTOMATABLE) {
+  constructor(message, status = AUTOMATION_STATUS.NOT_AUTOMATABLE, failureCategory = 'AUTOMATION_SETUP_GAP') {
     super(message);
     this.name = 'AutomationSetupGap';
     this.automationStatus = status;
+    this.failureCategory = failureCategory;
   }
 }
 
@@ -40,6 +42,7 @@ export class RuntimeScenarioHarness {
     this.stepResults = [];
     this.consoleErrors = [];
     this.networkErrors = [];
+    this.permissionDiagnostics = [];
     this.serviceSummary = {};
     this.failedStep = null;
     this.setupStep = null;
@@ -72,6 +75,19 @@ export class RuntimeScenarioHarness {
         request.resourceType(),
       );
       recordRuntimeServiceObservation(this.serviceSummary, category, 'RESPONSE', response.status());
+      if ((response.status() === 401 || response.status() === 403) && this.permissionDiagnostics.length < 20) {
+        const diagnostic = buildRuntimePermissionDiagnostic({
+          scenarioId: this.definition.scenarioId,
+          requestUrl: request.url(),
+          configuredBaseUrl: this.reportEvidence?.configuredBaseUrl,
+          resourceType: request.resourceType(),
+          method: request.method(),
+          status: response.status(),
+        });
+        if (!this.permissionDiagnostics.some((item) => item.fingerprint === diagnostic.fingerprint)) {
+          this.permissionDiagnostics.push(diagnostic);
+        }
+      }
     });
     page.on('requestfailed', (request) => {
       const category = classifyRuntimeServiceRequest(
@@ -128,7 +144,9 @@ export class RuntimeScenarioHarness {
           actual: error?.message || options.notAutomatableReason || 'Optional capability is unavailable.',
           route: this.safeRoute(),
           durationMs: Date.now() - startedMs,
-          failureCategory: 'AUTOMATION_SETUP_GAP',
+          failureCategory: error instanceof AutomationSetupGap
+            ? error.failureCategory
+            : 'AUTOMATION_SETUP_GAP',
           screenshotPath,
           tracePath: null,
         };
@@ -168,6 +186,22 @@ export class RuntimeScenarioHarness {
     } catch (_) {
       return null;
     }
+  }
+
+  async waitForServiceOutcome(category, timeout = 15000) {
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < timeout) {
+      const entry = this.serviceSummary[category];
+      if ((entry?.responses || 0) > 0 || (entry?.failures || 0) > 0) {
+        return { state: 'completed', entry: { ...entry, statusClasses: { ...(entry.statusClasses || {}) } } };
+      }
+      await this.page.waitForTimeout(200);
+    }
+    const entry = this.serviceSummary[category];
+    return {
+      state: (entry?.requests || 0) > 0 ? 'request_without_response' : 'request_not_observed',
+      entry: entry ? { ...entry, statusClasses: { ...(entry.statusClasses || {}) } } : null,
+    };
   }
 
   markRemaining(status, actual) {
@@ -223,7 +257,7 @@ export class RuntimeScenarioHarness {
       durationMs: Date.now() - this.startedMs,
       failureCategory: this.failedStep
         ? this.definition.failureCategories[0]
-        : (status === AUTOMATION_STATUS.PASS ? null : 'AUTOMATION_SETUP_GAP'),
+        : (status === AUTOMATION_STATUS.PASS ? null : this.setupStep?.failureCategory || 'AUTOMATION_SETUP_GAP'),
       failedStepId: this.failedStep?.id || null,
       failedStepTitle: this.failedStep?.title || null,
       actual: this.failedStep?.actual
@@ -237,6 +271,7 @@ export class RuntimeScenarioHarness {
       serviceSummaryUnavailableReason: backendEvidence.observed
         ? null
         : 'No classified backend requests observed during this scenario.',
+      permissionDiagnostics: this.permissionDiagnostics,
       steps: this.stepResults,
       consoleErrors: this.consoleErrors,
       consoleErrorSummary,
@@ -267,7 +302,7 @@ export async function expectPath(page, pathname, timeout = 12000) {
 export async function assertPublicTextSafe(page) {
   const text = await page.locator('body').innerText();
   const privatePattern = /\b(?:owner_key|guest_token|guest_id|provider_id|auth_id|internal_player_key|player_key)\b|[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/i;
-  const rawErrorPattern = /Request failed with status code|TypeError:|ReferenceError:|\bat\s+\w+[\w.$]*\s*\([^\n]+:\d+:\d+\)/i;
+  const rawErrorPattern = /Request failed with status code|TypeError:|ReferenceError:|permission denied|row.level security|\bforbidden\b|(?:status(?: code)?|http)\s*403|\bat\s+\w+[\w.$]*\s*\([^\n]+:\d+:\d+\)/i;
   if (privatePattern.test(text)) throw new Error('Public screen rendered a private identity token or email.');
   if (rawErrorPattern.test(text)) throw new Error('Public screen rendered a raw backend error or stack trace.');
   return 'No private identity token, email, raw backend error, or stack trace is visible.';

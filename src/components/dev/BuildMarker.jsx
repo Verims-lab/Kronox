@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex635 — Repair Solo direct/map Runtime E2E entry proof, preserve request-only Online evidence, add safe critical permission correlation, restore exact Base44 SDK 0.8.34, and align targeted Health/docs without gameplay, scoring, or backend-function changes.
 // Codex634 — Production custom-domain Runtime E2E target classification, direct-vs-runtime backend proof, safe service/console evidence, targeted Health, and docs without product or backend-function changes.
 // Codex633 — Runtime E2E V2 capability preflight, honest App-not-found/setup-gap classification, diagnostic Solo probing, report/UI exports, targeted Health, and docs without gameplay or backend-function changes.
 // Codex632 — Repair shared Online/Duello queue lock starvation and poll reconciliation, add timeout-safe matched handoff, App-not-found E2E preflight, targeted Health, and docs without changing gameplay or scoring.
@@ -211,7 +212,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex634';
+const BUILD_MARKER = 'Codex635';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

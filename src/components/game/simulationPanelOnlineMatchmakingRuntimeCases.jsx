@@ -62,26 +62,41 @@ const rows = [
 ];
 
 function appNotFoundClassification() {
-  const definition = getRuntimeE2EScenario('runtime_e2e.solo_gameplay_smoke');
+  const definition = getRuntimeE2EScenario('runtime_e2e.online_random_waiting_cancel_smoke');
   const evidence = {
     executionId: 'health-app-not-found',
     browserName: 'chromium health',
-    baseUrlOrigin: '/',
+    baseUrlOrigin: 'https://runtime.health.test',
+    pageOrigin: 'https://runtime.health.test',
     backendPreflight: { status: BACKEND_PREFLIGHT_STATUS.APP_NOT_FOUND },
   };
-  return normalizeRuntimeE2EReport({
+  const report = normalizeRuntimeE2EReport({
     runId: 'health-app-not-found',
     startedAt: '2026-08-19T12:00:00.000Z',
     finishedAt: '2026-08-19T12:00:01.000Z',
+    configuredBaseUrl: 'https://runtime.health.test',
+    pageOrigin: 'https://runtime.health.test',
+    preflight: { status: BACKEND_PREFLIGHT_STATUS.APP_NOT_FOUND },
     executionEvidence: evidence,
     scenarios: [{
       scenarioId: definition.scenarioId,
       status: AUTOMATION_STATUS.PASS,
       executionEvidence: evidence,
+      backendEvidence: {
+        observed: true,
+        successful: true,
+        category: 'online_matchmaking',
+        statusClass: '2xx',
+        safeSummary: 'Fabricated success that App-not-found must override.',
+      },
       consoleErrors: ['[Base44 SDK Error] 404: App not found'],
       steps: definition.steps.map((step) => ({ ...step, status: AUTOMATION_STATUS.PASS, durationMs: 1 })),
     }],
-  }, 'health').scenarios.find((item) => item.scenarioId === definition.scenarioId);
+  }, 'health');
+  return {
+    report,
+    result: report.scenarios.find((item) => item.scenarioId === definition.scenarioId),
+  };
 }
 
 export const EXTRA_SUITES = [{
@@ -167,15 +182,21 @@ export const EXTRA_TESTS = [
   ]), 'Source Health cannot promote the real two-phone pairing gate to PASS.'), ['KRONOX_RELEASE_PROOF_CHECKLIST.md', 'healthAlignmentDocMirrors.js']),
 
   make('runtime_e2e_app_not_found_not_pass', 'Base44 App-not-found cannot produce backend scenario PASS', () => {
-    const result = appNotFoundClassification();
+    const { report, result } = appNotFoundClassification();
     return result?.status === AUTOMATION_STATUS.NOT_AUTOMATABLE
       && result?.failureCategory === 'BACKEND_PREFLIGHT_APP_NOT_FOUND'
+      && report?.backendAvailable === false
+      && report?.base44AppReachable === false
       ? sourceResult(required(runtimeRunner + runtimeReportSource + runtimeScenariosSource, [
-        'runBackendPreflight',
+        'runRuntimePreflight',
         'BACKEND_PREFLIGHT_APP_NOT_FOUND',
         "BACKEND_DEPENDENT: 'BACKEND_DEPENDENT'",
       ]), 'Executable report normalization rejects a backend PASS under Base44 App-not-found.')
-      : fail('Backend-dependent App-not-found evidence was accepted as PASS.', { actual: result });
+      : fail('Backend-dependent App-not-found evidence was accepted as PASS.', {
+        actual: result,
+        backendAvailable: report?.backendAvailable,
+        base44AppReachable: report?.base44AppReachable,
+      });
   }, ['run-health-e2e.mjs', 'runtimeE2EReport.js', 'runtimeE2EScenarios.js']),
 
   make('duello_two_context_not_faked', 'Duello two-context PASS requires deterministic real authority evidence', () => sourceResult(required(runtimeHandlers + runtimeReportSource + runtimeScenariosSource, [
