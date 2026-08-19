@@ -1523,6 +1523,9 @@ Manual release gates that source cannot prove:
 ## Duello V1 Manual Proof
 
 * User A and User B enter `Duello` through the stable internal `same_question_duel` lane; normal random players do not pair into this queue.
+* Use two physical phones with distinct actors and enter within the same 30-second window. Confirm both clients leave `Rakip aranıyor`, fetch the same backend Lobby snapshot, and show the same opaque Lobby/session handoff. Repeat guest/guest and guest/linked where staging data permits.
+* Cancel one attempt, let one attempt time out, then retry. Confirm `Eşleşme bulunamadı, tekrar dene` and `Vazgeç` remain usable, no raw backend detail appears, and neither stale row blocks the next pair.
+* Repeat with normal `Rastgele Eşleş` to prove the repaired shared infrastructure still pairs `random_online` actors without crossing into `same_question_duel`.
 * The matched lobby contains exactly two players, no invite/category selector, and no third/fourth join path.
 * Both clients receive identical two-card opening context and the same active shared card.
 * Submit near-simultaneous correct placements; backend order awards exactly one claim and reconnect preserves it.
@@ -1533,26 +1536,34 @@ Manual release gates that source cannot prove:
 * Confirm public UI and copied snapshots contain no email, guest token/id, owner/actor/internal player IDs, private row IDs, or remaining deck.
 * Run `Duello Health Suite` plus Online, shared-deck, result-authority, Privacy, BottomNav, build, lint, and Base44 function-count checks. Health PASS remains contract proof only.
 
-## Runtime E2E Automation V1
+## Runtime E2E Automation V2
 
 * HealthCheck lists `Runtime E2E Automation Health Suite` as a separate,
   expandable 10-scenario report. Full Run does not execute it, and its failures
   do not alter core Health blocker/fail/warning counts.
 * Run `npm run health:e2e`; set `KRONOX_E2E_BASE_URL` for a deployed/staging
-  target or let the runner start local Vite. Use an isolated completed guest or
-  linked test storage state through `KRONOX_E2E_STORAGE_STATE`; never commit
-  credentials or storage-state files. Local backend-owned Solo proof also needs
-  `VITE_BASE44_APP_BASE_URL`; otherwise that scenario remains NOT_AUTOMATABLE.
+  target or let the runner start local Vite. Base44 app identity requires
+  `VITE_BASE44_APP_ID` or approved `app_id` bootstrap; endpoint selection uses
+  `VITE_BASE44_APP_BASE_URL`/`app_base_url`. An endpoint alone is not app
+  identity. Use `KRONOX_E2E_STORAGE_STATE` for an isolated completed guest or
+  linked test actor; never commit credentials or storage-state files.
+* V2 records safe app/backend/capability preflight evidence. Base44 `App not
+  found`, missing app ID/config, unreachable backend, or unknown backend state
+  cannot yield PASS for a `BACKEND_DEPENDENT` scenario. A `UI_ONLY` PASS must
+  explicitly say it is browser-only and not backend proof.
 * Wheel spin, Diamond purchase, and matchmaking mutations stay disabled unless
   the matching `KRONOX_E2E_ALLOW_*` gate is explicitly enabled for a resettable
   non-production actor. Missing setup is NOT_AUTOMATABLE/NOT_RUN, not PASS.
-* Import `test-results/health-e2e/latest.json` into HealthCheck when the ignored
-  local public report is unavailable. Copy selected/all failures through the
-  redacted Automation Fail JSON controls. Inspect retained failure screenshot,
-  trace, console, and network evidence.
+* Import `test-results/health-e2e/latest.json` into HealthCheck when needed. Copy
+  selected failure/setup-gap JSON, all setup gaps, or the full redacted report.
+  Setup gaps name missing capabilities and safe next actions. Real failures
+  retain route/visible-state, screenshot, trace, and safe console/network
+  summaries.
 * Duello requires two real isolated contexts, deterministic pairing, a
   deterministic correct-claim fixture, one accepted backend claim, and
   reconciled snapshots. Until those capabilities exist, its scenario remains
   MANUAL_EXTERNAL. A route smoke must never be promoted to Duello PASS.
+  `KRONOX_E2E_STORAGE_STATE_A/B` can declare two actor fixtures, but does not
+  replace deterministic pairing or correct-claim proof.
 * Runtime E2E improves repeatable screen proof but does not replace deployed
   Base44, RLS/BOLA, real-device, store, push, race, or release evidence.

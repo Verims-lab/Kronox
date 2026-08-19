@@ -258,41 +258,65 @@ Primary-source notes used for B6 guidance:
 
 Official guidance informs Health/docs only; it does not replace live Base44 deployment, device, RLS, secret, index, or store proof.
 
-## Runtime E2E Automation Health Suite V1
+## Runtime E2E Automation Health Suite V2
 
-HealthCheck now lists a display-only `Runtime E2E Automation Health Suite` with
-10 registry-owned screen scenarios. It is separate from Full Run: Full Run
-does not execute browser automation, and automation results never increment
-Health blocker, fail, or warning counts. Its report owns only
-`automationPassed`, `automationFailed`, `automationNotRun`,
-`automationNotAutomatable`, and `automationManualExternal`.
+HealthCheck lists a display-only `Runtime E2E Automation Health Suite` with 10
+registry-owned screen scenarios. Full Run does not execute browser automation,
+and automation results never increment Health blocker, fail, or warning counts.
+The separate report owns `automationPassed`, `automationFailed`,
+`automationNotRun`, `automationNotAutomatable`, and
+`automationManualExternal` only.
 
-Run it separately with `npm run health:e2e`. The runner uses a real isolated
-Chromium context per scenario, captures bounded console/network diagnostics,
-and retains a screenshot plus trace for real failures under ignored
-`test-results/health-e2e`. HealthCheck can load the local latest report or
-import its JSON. Selected/all failed scenarios can be copied as redacted
-automation-failure JSON with no credentials, private IDs, sensitive URL query
-parameters, or absolute local paths.
+Run it with `npm run health:e2e`. Each executed scenario uses a real isolated
+Chromium context. Real failures retain a screenshot and trace under ignored
+`test-results/health-e2e`. HealthCheck can load/import the latest report and copy
+selected failure/setup-gap JSON, all setup gaps, or the full redacted report.
+Reports exclude credentials, private IDs, raw backend errors, URL query values,
+storage contents, and absolute local paths.
 
-Set `KRONOX_E2E_BASE_URL` for a configured preview/deployment. A local Vite run
-needs `VITE_BASE44_APP_BASE_URL` for backend-owned Solo question preparation;
-without it, the Solo scenario reports `AUTOMATION_NOT_AUTOMATABLE`.
+Set `KRONOX_E2E_BASE_URL` for a preview/deployment or let the runner start local
+Vite. Base44 app identity comes from `VITE_BASE44_APP_ID` or approved `app_id`
+runtime bootstrap; `VITE_BASE44_APP_BASE_URL`/`app_base_url` selects the app
+endpoint. An endpoint alone is not accepted as app identity. This workspace's
+current local setup has an app base URL but no app ID, so V2 reports the exact
+`VITE_BASE44_APP_ID`/`app_id` setup gap instead of accepting backend proof.
 
-Use guest automation where the current route permits it. Home-owned scenarios
-may use an isolated completed guest or linked test actor supplied through
-`KRONOX_E2E_STORAGE_STATE`; credentials are never hardcoded. Mutation-prone
-steps require explicit `KRONOX_E2E_ALLOW_WHEEL_SPIN=true`,
-`KRONOX_E2E_ALLOW_DIAMOND_PURCHASE=true`, or
-`KRONOX_E2E_ALLOW_MATCHMAKING=true`. Missing browser, actor, safe state, or
-fixture is `AUTOMATION_NOT_AUTOMATABLE`/`AUTOMATION_NOT_RUN`, never a fake PASS.
-The Duello scenario remains `AUTOMATION_MANUAL_EXTERNAL` until deterministic
-two-actor pairing and correct-claim fixtures prove one backend winner and
-snapshot reconciliation in two real contexts. Health PASS remains contract
-proof, not release-ready proof while manual/external gates remain.
+V2 preflight records sanitized configured/page URLs, page origin/route, app
+document load, app-config presence, Base44 reachability, safe service-status
+counts, guest/auth bootstrap evidence, fixture presence, and mutation-gate
+booleans. Every scenario declares required/optional capabilities and is
+`UI_ONLY` or `BACKEND_DEPENDENT`. App-not-found, missing app ID/config,
+unreachable, or unknown Base44 state blocks backend-dependent PASS and becomes
+`AUTOMATION_NOT_AUTOMATABLE` with `AUTOMATION_SETUP_GAP`. BottomNav and Store
+are UI-only; PASS under backend outage explicitly says it is browser-only and
+not backend proof. Question and matchmaking availability remain runtime probes
+after the base app passes preflight.
+
+Home-owned scenarios may use an isolated completed guest or linked actor from
+`KRONOX_E2E_STORAGE_STATE`; credentials are never hardcoded. Wheel, Diamond
+purchase, and matchmaking mutations require their explicit
+`KRONOX_E2E_ALLOW_*` gates. Online requires authenticated storage plus
+`KRONOX_E2E_ALLOW_MATCHMAKING=true`. Duello A/B actor fixtures may be declared
+through `KRONOX_E2E_STORAGE_STATE_A/B`, but the scenario remains
+`AUTOMATION_MANUAL_EXTERNAL` until deterministic pairing and correct-claim
+fixtures prove two real contexts, one accepted claim, and reconciled snapshots.
+Missing setup never becomes a fake PASS. Health PASS remains contract proof,
+not release-ready proof while manual/external gates remain.
+
+`Online Matchmaking Runtime Health Suite` adds executable/source-connected
+coverage for canonical mode keys, Duello/normal lane isolation, two-actor
+selection, no self-match, guest/linked compatibility, backend poll
+reconciliation, final timeout poll plus cancel cleanup, safe Turkish UI, the
+two-phone manual gate, App-not-found rejection, and non-fake Duello two-context
+evidence. This suite guards the repaired contract but does not replace two real
+phones against the deployed `randomMatchmaking` function.
 
 ## Manual / Live Probe Checklist
 
+- Two-phone matchmaking: use distinct actors, enter Duello within 30 seconds,
+  confirm both receive the same exactly-two-player Lobby and leave waiting;
+  repeat through normal `Rastgele Eşleş`, then verify timeout/retry/cancel and
+  a second attempt leave no active ghost row.
 - Two-account Online: host creates 4-player lobby, three recipients join by
   code/invite, host starts, every player lands on the same question.
 - Realtime miss: block or delay subscription event for one non-host, confirm

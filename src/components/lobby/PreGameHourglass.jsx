@@ -11,11 +11,13 @@ export default function PreGameHourglass({
   subtitle,
   durationMs = 30000,
   expiresAt = null,
+  phase = '',
   errorMessage = '',
   testId,
   cancelTestId,
   onTimeout,
   onCancel,
+  onRetry,
 }) {
   const reduceMotion = useReducedMotion();
   const startRef = useRef(Date.now());
@@ -24,6 +26,7 @@ export default function PreGameHourglass({
   useEffect(() => { onTimeoutRef.current = onTimeout; }, [onTimeout]);
   const totalMs = expiresAt ? Math.max(1000, (Date.parse(expiresAt) || 0) - startRef.current) : durationMs;
   const [remainingMs, setRemainingMs] = useState(totalMs);
+  const timerPaused = ['error', 'timeout', 'matched'].includes(phase);
 
   useEffect(() => {
     firedRef.current = false;
@@ -31,6 +34,7 @@ export default function PreGameHourglass({
     setRemainingMs(expiresAt
       ? Math.max(0, (Date.parse(expiresAt) || 0) - startRef.current)
       : durationMs);
+    if (timerPaused) return undefined;
     const intervalId = window.setInterval(() => {
       const next = expiresAt
         ? Math.max(0, (Date.parse(expiresAt) || 0) - Date.now())
@@ -43,9 +47,18 @@ export default function PreGameHourglass({
       }
     }, 250);
     return () => window.clearInterval(intervalId);
-  }, [expiresAt, durationMs]);
+  }, [expiresAt, durationMs, timerPaused]);
 
   const seconds = Math.ceil(remainingMs / 1000);
+  const statusTitle = phase === 'waiting'
+    ? 'Rakip aranıyor'
+    : phase === 'checking'
+      ? 'Bağlantı kontrol ediliyor'
+      : phase === 'joining' || phase === 'matched'
+        ? 'Eşleşme kuruluyor'
+        : phase === 'error' || phase === 'timeout'
+          ? 'Eşleşme bulunamadı, tekrar dene'
+          : title;
 
   return (
     <div
@@ -73,10 +86,12 @@ export default function PreGameHourglass({
         />
       </motion.div>
 
-      <p className="mt-6 font-cinzel text-xl font-black tracking-widest text-amber-200 text-center">{title}</p>
+      <p className="mt-6 font-cinzel text-xl font-black tracking-widest text-amber-200 text-center">{statusTitle}</p>
       <p className="mt-2 font-inter text-sm text-blue-100/70 text-center max-w-xs">{subtitle}</p>
 
-      <p className="mt-5 font-bebas text-5xl tracking-widest text-white kronox-timeline-number">{seconds}s</p>
+      {!timerPaused && (
+        <p className="mt-5 font-bebas text-5xl tracking-widest text-white kronox-timeline-number">{seconds}s</p>
+      )}
 
       {errorMessage && (
         <p
@@ -85,6 +100,17 @@ export default function PreGameHourglass({
         >
           {errorMessage}
         </p>
+      )}
+
+      {onRetry && ['error', 'timeout'].includes(phase) && (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="kx-a1-pressable mt-5 min-h-11 rounded-2xl px-6 py-2.5 font-inter text-sm font-black text-slate-950"
+          style={{ background: '#facc15', boxShadow: '0 8px 22px rgba(250,204,21,0.22)' }}
+        >
+          Tekrar dene
+        </button>
       )}
 
       {onCancel && (

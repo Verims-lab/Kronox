@@ -4,14 +4,23 @@ import {
   pollRandomMatchmaking,
   cancelRandomMatchmaking,
 } from '@/lib/randomMatchmakingApi';
+import { STANDARD_RANDOM_MODE } from '@/lib/onlineModeDisplay';
 
 // Codex591 — Random matchmaking (Rastgele Eşleş) lifecycle hook.
 // Owns join → poll → matched/timeout/cancel state so the Pre-game
 // Hourglass screen only needs to render the current phase.
-const POLL_INTERVAL_MS = 1500;
+const POLL_INTERVAL_MS = 1250;
 
-export default function useRandomMatchmaking(mode = 'random_online') {
-  const [phase, setPhase] = useState('idle'); // idle | queuing | matched | timeout | error
+function localExpiryFromServer(data) {
+  const expiresAt = Date.parse(data?.expiresAt || '');
+  const serverNow = Date.parse(data?.serverNow || '');
+  if (!Number.isFinite(expiresAt)) return null;
+  if (!Number.isFinite(serverNow)) return data.expiresAt;
+  return new Date(Date.now() + Math.max(0, expiresAt - serverNow)).toISOString();
+}
+
+export default function useRandomMatchmaking(mode = STANDARD_RANDOM_MODE) {
+  const [phase, setPhase] = useState('idle'); // idle | joining | waiting | checking | matched | timeout | error
   const [expiresAt, setExpiresAt] = useState(null);
   const [lobbyRef, setLobbyRef] = useState('');
   const [lobbyCode, setLobbyCode] = useState('');
@@ -20,71 +29,126 @@ export default function useRandomMatchmaking(mode = 'random_online') {
   const mountedRef = useRef(true);
   const sessionRef = useRef(0);
   const pollPendingRef = useRef(false);
+  const phaseRef = useRef('idle');
 
-  const stopPolling = useCallback(() => {
-    sessionRef.current += 1;
-    pollPendingRef.current = false;
+  const updatePhase = useCallback((nextPhase) => {
+    phaseRef.current = nextPhase;
+    setPhase(nextPhase);
+  }, []);
+
+  const clearPollTimer = useCallback(() => {
     if (pollRef.current) {
       window.clearInterval(pollRef.current);
       pollRef.current = null;
     }
   }, []);
 
+  const stopPolling = useCallback(() => {
+    sessionRef.current += 1;
+    pollPendingRef.current = false;
+    clearPollTimer();
+  }, [clearPollTimer]);
+
   const applyState = useCallback((data) => {
-    if (!data) return;
+    if (!data) return 'unknown';
     if (data.matched || data.status === 'matched') {
       setLobbyRef(data.lobbyRef || '');
       setLobbyCode(data.lobbyCode || '');
-      setPhase('matched');
+      setErrorMessage('');
+      updatePhase('matched');
       stopPolling();
-      return;
+      return 'matched';
     }
     if (['timeout', 'expired', 'cancelled'].includes(data.status)) {
-      setPhase('timeout');
+      setErrorMessage('Eşleşme bulunamadı, tekrar dene.');
+      updatePhase('timeout');
       stopPolling();
-      return;
+      return 'timeout';
     }
-    setExpiresAt(data.expiresAt || null);
-  }, [stopPolling]);
+    setExpiresAt(localExpiryFromServer(data));
+    setErrorMessage('');
+    updatePhase('waiting');
+    return 'waiting';
+  }, [stopPolling, updatePhase]);
+
+  const pollOnce = useCallback(async (sessionId) => {
+    if (!mountedRef.current || sessionRef.current !== sessionId || pollPendingRef.current) return null;
+    pollPendingRef.current = true;
+    try {
+      const data = await pollRandomMatchmaking(mode);
+      if (!mountedRef.current || sessionRef.current !== sessionId) return data;
+      applyState(data);
+      return data;
+    } catch {
+      if (mountedRef.current && sessionRef.current === sessionId) {
+        updatePhase('checking');
+        setErrorMessage('Bağlantı kontrol ediliyor.');
+      }
+      return null;
+    } finally {
+      pollPendingRef.current = false;
+    }
+  }, [applyState, mode, updatePhase]);
 
   const start = useCallback(async () => {
     stopPolling();
     const sessionId = sessionRef.current;
     const isActiveSession = () => mountedRef.current && sessionRef.current === sessionId;
-    setPhase('queuing');
+    updatePhase('joining');
     setErrorMessage('');
+    setExpiresAt(null);
     setLobbyRef('');
     setLobbyCode('');
     try {
       const data = await joinRandomMatchmaking(mode);
       if (!isActiveSession()) return;
-      applyState(data);
-      if (data.status === 'waiting') {
-        pollRef.current = window.setInterval(async () => {
-          if (!isActiveSession() || pollPendingRef.current) return;
-          pollPendingRef.current = true;
-          try {
-            const polled = await pollRandomMatchmaking(mode);
-            if (isActiveSession()) applyState(polled);
-          } catch {
-            if (isActiveSession()) setErrorMessage('Bağlantı kurulamadı. Lütfen tekrar dene.');
-          } finally {
-            pollPendingRef.current = false;
-          }
-        }, POLL_INTERVAL_MS);
+      const next = applyState(data);
+      if (next === 'waiting') {
+        await pollOnce(sessionId);
+        if (isActiveSession() && phaseRef.current !== 'matched' && phaseRef.current !== 'timeout') {
+          pollRef.current = window.setInterval(() => {
+            void pollOnce(sessionId);
+          }, POLL_INTERVAL_MS);
+        }
       }
     } catch {
       if (!isActiveSession()) return;
-      setPhase('error');
-      setErrorMessage('Rastgele eşleşme başlatılamadı. Lütfen tekrar dene.');
+      updatePhase('error');
+      setErrorMessage('Eşleşme başlatılamadı. Lütfen tekrar dene.');
     }
-  }, [applyState, mode, stopPolling]);
+  }, [applyState, mode, pollOnce, stopPolling, updatePhase]);
 
   const cancel = useCallback(async () => {
     stopPolling();
-    setPhase('idle');
+    updatePhase('idle');
+    setErrorMessage('');
     await cancelRandomMatchmaking(mode).catch(() => null);
-  }, [mode, stopPolling]);
+  }, [mode, stopPolling, updatePhase]);
+
+  const resolveTimeout = useCallback(async () => {
+    if (phaseRef.current === 'matched') return true;
+    stopPolling();
+    const sessionId = sessionRef.current;
+    updatePhase('checking');
+    setErrorMessage('Bağlantı kontrol ediliyor.');
+    try {
+      const data = await pollRandomMatchmaking(mode);
+      if (!mountedRef.current || sessionRef.current !== sessionId) return phaseRef.current === 'matched';
+      if (data?.matched || data?.status === 'matched') {
+        applyState(data);
+        return true;
+      }
+    } catch {
+      // A final failed read is followed by best-effort backend cleanup and a
+      // retry state; raw transport details never reach the public screen.
+    }
+    await cancelRandomMatchmaking(mode).catch(() => null);
+    if (mountedRef.current && sessionRef.current === sessionId) {
+      updatePhase('timeout');
+      setErrorMessage('Eşleşme bulunamadı, tekrar dene.');
+    }
+    return false;
+  }, [applyState, mode, stopPolling, updatePhase]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -94,5 +158,5 @@ export default function useRandomMatchmaking(mode = 'random_online') {
     };
   }, [stopPolling]);
 
-  return { phase, expiresAt, lobbyRef, lobbyCode, errorMessage, start, cancel };
+  return { phase, expiresAt, lobbyRef, lobbyCode, errorMessage, start, cancel, resolveTimeout };
 }

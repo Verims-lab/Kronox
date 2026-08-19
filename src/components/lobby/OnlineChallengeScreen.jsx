@@ -11,7 +11,11 @@ import { sounds } from '@/lib/gameSounds';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 import { getLobbySnapshot, leaveLobby, LOBBY_SNAPSHOT_SCOPES } from '@/lib/dbGateway/lobbyGateway';
 import useRandomMatchmaking from '@/hooks/useRandomMatchmaking';
-import { DUELLO_DISPLAY_NAME, SAME_QUESTION_DUEL_MODE } from '@/lib/onlineModeDisplay';
+import {
+  DUELLO_DISPLAY_NAME,
+  SAME_QUESTION_DUEL_MODE,
+  STANDARD_RANDOM_MODE,
+} from '@/lib/onlineModeDisplay';
 
 /**
  * Kronox Online — Challenge Screen (Codex591 redesign).
@@ -28,6 +32,36 @@ import { DUELLO_DISPLAY_NAME, SAME_QUESTION_DUEL_MODE } from '@/lib/onlineModeDi
  */
 const INVITE_WAIT_MS = 60 * 1000;
 const INVITE_POLL_MS = 2500;
+const MATCH_HANDOFF_POLL_MS = 1250;
+
+function useMatchedLobbyHandoff(active, lobbyRef, onEnterLobby, setScreenError, safeError) {
+  useEffect(() => {
+    if (!active || !lobbyRef) return undefined;
+    let cancelled = false;
+    let timerId = null;
+    const refresh = async () => {
+      try {
+        const res = await getLobbySnapshot({ lobbyId: lobbyRef, scope: LOBBY_SNAPSHOT_SCOPES.WAITING_ROOM });
+        const fresh = res?.data?.lobby;
+        if (!fresh) throw new Error('matched_lobby_snapshot_missing');
+        if (!cancelled) {
+          setScreenError('');
+          onEnterLobby?.(fresh);
+        }
+      } catch {
+        if (!cancelled) {
+          setScreenError(safeError);
+          timerId = window.setTimeout(refresh, MATCH_HANDOFF_POLL_MS);
+        }
+      }
+    };
+    void refresh();
+    return () => {
+      cancelled = true;
+      if (timerId) window.clearTimeout(timerId);
+    };
+  }, [active, lobbyRef, onEnterLobby, safeError, setScreenError]);
+}
 
 export default function OnlineChallengeScreen({
   user,
@@ -47,8 +81,23 @@ export default function OnlineChallengeScreen({
   const [creating, setCreating] = useState(false);
   const [screenError, setScreenError] = useState('');
   const [inviteLobby, setInviteLobby] = useState(null);
-  const random = useRandomMatchmaking('random_online');
+  const random = useRandomMatchmaking(STANDARD_RANDOM_MODE);
   const duel = useRandomMatchmaking(SAME_QUESTION_DUEL_MODE);
+
+  useMatchedLobbyHandoff(
+    screen === 'random-wait' && random.phase === 'matched',
+    random.lobbyRef,
+    onEnterLobby,
+    setScreenError,
+    'Bağlantı kontrol ediliyor.',
+  );
+  useMatchedLobbyHandoff(
+    screen === 'duel-wait' && duel.phase === 'matched',
+    duel.lobbyRef,
+    onEnterLobby,
+    setScreenError,
+    'Duello bağlantısı kontrol ediliyor.',
+  );
 
   const handleConfirmInvite = async (targets) => {
     setScreenError('');
@@ -107,57 +156,24 @@ export default function OnlineChallengeScreen({
     duel.start();
   };
 
-  // Random mode: once matched, fetch the full lobby snapshot and enter it.
-  useEffect(() => {
-    if (screen !== 'random-wait' || random.phase !== 'matched' || !random.lobbyRef) return;
-    let cancelled = false;
-    getLobbySnapshot({ lobbyId: random.lobbyRef, scope: LOBBY_SNAPSHOT_SCOPES.WAITING_ROOM })
-      .then((res) => {
-        const fresh = res?.data?.lobby;
-        if (!cancelled && fresh) onEnterLobby?.(fresh);
-      })
-      .catch(() => { if (!cancelled) setScreenError('Bağlantı kurulamadı. Lütfen tekrar dene.'); });
-    return () => { cancelled = true; };
-  }, [screen, random.phase, random.lobbyRef, onEnterLobby]);
-
-  // Duello has its own mode-scoped queue and cannot pair with the
-  // existing random Online lane. The matched lobby remains the shared backend
-  // authority and is entered through the same sanitized waiting-room snapshot.
-  useEffect(() => {
-    if (screen !== 'duel-wait' || duel.phase !== 'matched' || !duel.lobbyRef) return;
-    let cancelled = false;
-    getLobbySnapshot({ lobbyId: duel.lobbyRef, scope: LOBBY_SNAPSHOT_SCOPES.WAITING_ROOM })
-      .then((res) => {
-        const fresh = res?.data?.lobby;
-        if (!cancelled && fresh) onEnterLobby?.(fresh);
-      })
-      .catch(() => { if (!cancelled) setScreenError('Duello bağlantısı kurulamadı. Lütfen tekrar dene.'); });
-    return () => { cancelled = true; };
-  }, [screen, duel.phase, duel.lobbyRef, onEnterLobby]);
-
   const handleRandomCancel = () => {
-    random.cancel();
+    void random.cancel();
+    setScreenError('');
     setScreen('select');
   };
 
   const handleDuelCancel = () => {
-    duel.cancel();
+    void duel.cancel();
+    setScreenError('');
     setScreen('select');
   };
 
   const handleRandomTimeout = () => {
-    if (random.phase !== 'matched') {
-      setScreenError('Eşleşme bulunamadı.');
-      setScreen('select');
-    }
+    void random.resolveTimeout();
   };
 
   const handleDuelTimeout = () => {
-    if (duel.phase !== 'matched') {
-      void duel.cancel();
-      setScreenError('Duello eşleşmesi bulunamadı.');
-      setScreen('select');
-    }
+    void duel.resolveTimeout();
   };
 
   // Codex593 — Named ctaDisabled state per CTA. Neither button is ever
@@ -191,9 +207,11 @@ export default function OnlineChallengeScreen({
         subtitle="Rastgele bir oyuncuyla eşleştiriliyorsun."
         expiresAt={random.expiresAt}
         durationMs={30 * 1000}
-        errorMessage={random.errorMessage}
+        phase={random.phase}
+        errorMessage={screenError || random.errorMessage}
         onTimeout={handleRandomTimeout}
         onCancel={handleRandomCancel}
+        onRetry={() => { setScreenError(''); void random.start(); }}
       />
     );
   }
@@ -207,9 +225,11 @@ export default function OnlineChallengeScreen({
         subtitle="Rakip aranıyor. Aynı sorularla kapışmaya hazırlan."
         expiresAt={duel.expiresAt}
         durationMs={30 * 1000}
-        errorMessage={duel.errorMessage}
+        phase={duel.phase}
+        errorMessage={screenError || duel.errorMessage}
         onTimeout={handleDuelTimeout}
         onCancel={handleDuelCancel}
+        onRetry={() => { setScreenError(''); void duel.start(); }}
       />
     );
   }

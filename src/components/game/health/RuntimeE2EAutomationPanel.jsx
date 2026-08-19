@@ -11,7 +11,9 @@ import {
 import {
   AUTOMATION_STATUS,
   buildAllAutomationFailuresJson,
+  buildAllAutomationSetupGapsJson,
   buildAutomationFailureJson,
+  buildFullAutomationReportJson,
   createNotRunAutomationReport,
   normalizeRuntimeE2EReport,
 } from '@/lib/health/runtimeE2EReport';
@@ -115,6 +117,16 @@ export default function RuntimeE2EAutomationPanel() {
     () => report.scenarios.filter((item) => item.status === AUTOMATION_STATUS.FAIL),
     [report.scenarios],
   );
+  const setupGapResults = useMemo(
+    () => report.scenarios.filter((item) => (
+      item.status === AUTOMATION_STATUS.NOT_AUTOMATABLE
+      || item.status === AUTOMATION_STATUS.MANUAL_EXTERNAL
+    )),
+    [report.scenarios],
+  );
+  const selectedIsIssue = selectedResult?.status === AUTOMATION_STATUS.FAIL
+    || selectedResult?.status === AUTOMATION_STATUS.NOT_AUTOMATABLE
+    || selectedResult?.status === AUTOMATION_STATUS.MANUAL_EXTERNAL;
 
   const copyRunCommand = async () => {
     await copyText(RUNTIME_E2E_RUN_COMMAND);
@@ -124,11 +136,25 @@ export default function RuntimeE2EAutomationPanel() {
   const copySelectedFailure = async () => {
     const payload = buildAutomationFailureJson(report, selectedScenarioId);
     if (!payload) {
-      setMessage('Seçili senaryo için kopyalanabilir bir otomasyon hatası yok.');
+      setMessage('Seçili senaryo için kopyalanabilir hata veya kurulum eksiği yok.');
       return;
     }
     await copyText(payload);
-    setMessage('Seçili otomasyon hatası güvenli JSON olarak kopyalandı.');
+    setMessage('Seçili otomasyon hatası/kurulum eksiği güvenli JSON olarak kopyalandı.');
+  };
+
+  const copySetupGaps = async () => {
+    if (!setupGapResults.length) {
+      setMessage('Kopyalanabilir kurulum eksiği yok.');
+      return;
+    }
+    await copyText(buildAllAutomationSetupGapsJson(report));
+    setMessage('Tüm otomasyon kurulum eksikleri güvenli JSON olarak kopyalandı.');
+  };
+
+  const copyFullReport = async () => {
+    await copyText(buildFullAutomationReportJson(report));
+    setMessage('Tam otomasyon raporu güvenli JSON olarak kopyalandı.');
   };
 
   const copyAllFailures = async () => {
@@ -212,6 +238,34 @@ export default function RuntimeE2EAutomationPanel() {
         </div>
       </section>
 
+      <section
+        data-health-runtime-preflight="visible"
+        className="rounded-md border border-cyan-300/20 bg-black/25 p-3 text-xs text-white/65"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <strong className="text-white">Backend preflight</strong>
+          <span
+            data-health-runtime-preflight-status={report.preflight?.status || 'NOT_RUN'}
+            className="rounded-md border border-white/15 px-2 py-1 font-mono text-[10px] text-cyan-100"
+          >
+            {report.preflight?.status || 'NOT RUN'}
+          </span>
+        </div>
+        <dl className="mt-2 grid gap-1 sm:grid-cols-2">
+          <div><dt className="inline font-semibold text-white/80">App config: </dt><dd className="inline">{report.appConfigAvailable ? 'AVAILABLE' : 'MISSING'}</dd></div>
+          <div><dt className="inline font-semibold text-white/80">Backend: </dt><dd className="inline">{report.backendAvailable ? 'AVAILABLE' : 'UNAVAILABLE'}</dd></div>
+          <div className="break-all"><dt className="inline font-semibold text-white/80">Base URL: </dt><dd className="inline">{report.configuredBaseUrl || 'not recorded'}</dd></div>
+          <div className="break-all"><dt className="inline font-semibold text-white/80">Page origin: </dt><dd className="inline">{report.pageOrigin || 'not recorded'}</dd></div>
+          <div><dt className="inline font-semibold text-white/80">Critical console summaries: </dt><dd className="inline">{report.criticalConsoleErrorCount || 0}</dd></div>
+          <div><dt className="inline font-semibold text-white/80">Route: </dt><dd className="inline">{report.appRoute || 'not recorded'}</dd></div>
+        </dl>
+        {report.preflight?.nextAction && (
+          <p className="mt-2 rounded-md border border-amber-300/20 bg-amber-300/[0.06] p-2 text-amber-100/80">
+            {report.preflight.nextAction}
+          </p>
+        )}
+      </section>
+
       <div className="space-y-2" data-health-runtime-scenario-list="10">
         {RUNTIME_E2E_SCENARIOS.map((scenario, index) => {
           const result = report.scenarios.find((item) => item.scenarioId === scenario.scenarioId);
@@ -231,7 +285,7 @@ export default function RuntimeE2EAutomationPanel() {
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-semibold leading-tight text-white">{scenario.title}</span>
                   <span className="mt-1 block text-[10px] text-white/50">
-                    {durationLabel(result?.durationMs)}{failedStep ? ` · Hata: ${failedStep.title}` : ''}
+                    {result?.uiOnly ? 'UI ONLY' : 'BACKEND DEPENDENT'} · {result?.preflightDecision || 'NOT RECORDED'} · {durationLabel(result?.durationMs)}{failedStep ? ` · Hata: ${failedStep.title}` : ''}
                   </span>
                 </span>
                 <StatusBadge status={result?.status} />
@@ -244,6 +298,22 @@ export default function RuntimeE2EAutomationPanel() {
                   <span>Risk: {scenario.riskArea}</span>
                   <span>Maksimum: {durationLabel(scenario.maxExpectedDuration)}</span>
                   <span className="sm:col-span-2">Test kullanıcısı: {scenario.testUserStrategy}</span>
+                  <span className="sm:col-span-2">Status reason: {result?.statusReason || result?.actual || 'Not recorded.'}</span>
+                </div>
+
+                <div
+                  data-health-runtime-capabilities={result?.uiOnly ? 'ui-only' : 'backend-dependent'}
+                  className="mt-3 flex flex-wrap gap-1.5"
+                >
+                  {(result?.capabilityStatus || []).map((capability) => (
+                    <span
+                      key={capability.name}
+                      title={capability.reason}
+                      className="rounded-md border border-white/10 bg-black/25 px-2 py-1 text-[9px] text-white/65"
+                    >
+                      {capability.name}: {capability.status}
+                    </span>
+                  ))}
                 </div>
 
                 <div className="mt-3 space-y-2" data-health-runtime-step-details="visible">
@@ -283,15 +353,32 @@ export default function RuntimeE2EAutomationPanel() {
         <button
           type="button"
           onClick={copySelectedFailure}
-          disabled={selectedResult?.status !== AUTOMATION_STATUS.FAIL}
+          disabled={!selectedIsIssue}
           className="flex min-h-11 items-center justify-center gap-2 rounded-md border border-rose-300/25 bg-rose-300/10 px-3 text-sm font-semibold text-rose-100 disabled:opacity-40"
         >
           <FileJson className="h-4 w-4" /> Copy JSON - Automation Fail
         </button>
         <button
           type="button"
+          onClick={copySetupGaps}
+          disabled={!setupGapResults.length}
+          data-health-copy-automation-setup-gap="true"
+          className="flex min-h-11 items-center justify-center gap-2 rounded-md border border-amber-300/25 bg-amber-300/10 px-3 text-sm font-semibold text-amber-100 disabled:opacity-40"
+        >
+          <FileJson className="h-4 w-4" /> Copy JSON - Setup Gap
+        </button>
+        <button
+          type="button"
+          onClick={copyFullReport}
+          data-health-copy-full-automation-report="true"
+          className="flex min-h-11 items-center justify-center gap-2 rounded-md border border-white/15 bg-white/[0.05] px-3 text-sm font-semibold text-white"
+        >
+          <FileJson className="h-4 w-4" /> Copy JSON - Full Automation Report
+        </button>
+        <button
+          type="button"
           onClick={copyAllFailures}
-          disabled={!failedResults.length}
+          disabled={!failedResults.length && !setupGapResults.length}
           className="flex min-h-11 items-center justify-center gap-2 rounded-md border border-white/15 bg-white/[0.05] px-3 text-sm font-semibold text-white disabled:opacity-40"
         >
           <FileJson className="h-4 w-4" /> Copy JSON - All Automation Failures

@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex633 — Runtime E2E V2 capability preflight, honest App-not-found/setup-gap classification, diagnostic Solo probing, report/UI exports, targeted Health, and docs without gameplay or backend-function changes.
+// Codex632 — Repair shared Online/Duello queue lock starvation and poll reconciliation, add timeout-safe matched handoff, App-not-found E2E preflight, targeted Health, and docs without changing gameplay or scoring.
 // Codex631 — Add the separate Runtime E2E Automation Health Suite, real browser harness, evidence-safe reporting, and 10 screen scenarios.
 // Codex629 — Health proof and Base44 automation audit: evidence classification, manifest/argument/cleanup/logging gates, Phase 1 hygiene reflection, docs/mirrors, and no product or cleanup behavior change.
 // Codex628 — Notification artifact recovery proof: Admin-only dry-run/report-only backend flags, bounded fingerprint UI, explicit non-destructive/Yürütme engelli state, Health, and docs; no cleanup or notification behavior change.
@@ -208,7 +210,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex631';
+const BUILD_MARKER = 'Codex633';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
