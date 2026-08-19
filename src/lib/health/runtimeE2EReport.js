@@ -72,6 +72,23 @@ export const RUNTIME_SERVICE_CATEGORY = Object.freeze({
   UNKNOWN_EXTERNAL: 'unknown_external',
 });
 
+export const RUNTIME_ENDPOINT_CATEGORY = Object.freeze({
+  AUTH_SESSION: 'auth_session',
+  PROFILE_ENTITY: 'profile_entity',
+  PRESENCE_ENTITY: 'presence_entity',
+  SOCIAL_ENTITY: 'social_entity',
+  LEADERBOARD_READ: 'leaderboard_read',
+  DAILY_STATUS: 'daily_status',
+  QUESTION_SERVICE: 'question_service',
+  ONLINE_MATCHMAKING: 'online_matchmaking',
+  ECONOMY_ENTITY: 'economy_entity',
+  GAMEPLAY_ENTITY: 'gameplay_entity',
+  BACKEND_FUNCTION: 'backend_function',
+  ENTITY_REQUEST: 'entity_request',
+  APP_API: 'app_api',
+  UNKNOWN: 'unknown',
+});
+
 export function resolveRuntimePreflightStatus({
   productionCustomDomainMode = false,
   directBackendPreflightStatus = BACKEND_PREFLIGHT_STATUS.OBSERVATION_INCONCLUSIVE,
@@ -237,6 +254,78 @@ export function classifyRuntimeServiceRequest(requestUrl, configuredBaseUrl, res
   }
 }
 
+export function classifyRuntimeEndpointCategory(requestUrl) {
+  try {
+    const pathname = new URL(String(requestUrl)).pathname.toLowerCase();
+    if (/getquestions|question(?:s|bootstrap)?/.test(pathname)) return RUNTIME_ENDPOINT_CATEGORY.QUESTION_SERVICE;
+    if (/randommatchmaking|matchmaking|matchmakingqueue|queue\/(?:join|leave)|findmatch/.test(pathname)) {
+      return RUNTIME_ENDPOINT_CATEGORY.ONLINE_MATCHMAKING;
+    }
+    if (/leaderboard|ranking/.test(pathname)) return RUNTIME_ENDPOINT_CATEGORY.LEADERBOARD_READ;
+    if (/dailywheel|daily[-_/]?(?:status|calendar|quest|goal|streak)/.test(pathname)) {
+      return RUNTIME_ENDPOINT_CATEGORY.DAILY_STATUS;
+    }
+    if (/auth|currentuser|user\/me|\/me(?:\/|$)/.test(pathname)) return RUNTIME_ENDPOINT_CATEGORY.AUTH_SESSION;
+    if (/presence/.test(pathname)) return RUNTIME_ENDPOINT_CATEGORY.PRESENCE_ENTITY;
+    if (/notification|gameinvite|friendrequest|friendship|friend/.test(pathname)) {
+      return RUNTIME_ENDPOINT_CATEGORY.SOCIAL_ENTITY;
+    }
+    if (/guestprofile|playerprofile|userprofile|\/entities\/user(?:\/|$)/.test(pathname)) {
+      return RUNTIME_ENDPOINT_CATEGORY.PROFILE_ENTITY;
+    }
+    if (/diamond|joker|hint|inventory|transaction/.test(pathname)) return RUNTIME_ENDPOINT_CATEGORY.ECONOMY_ENTITY;
+    if (/solo|lobby|matchresult|questionattempt|exposure/.test(pathname)) {
+      return RUNTIME_ENDPOINT_CATEGORY.GAMEPLAY_ENTITY;
+    }
+    if (/\/functions?\//.test(pathname)) return RUNTIME_ENDPOINT_CATEGORY.BACKEND_FUNCTION;
+    if (/\/entities?\//.test(pathname)) return RUNTIME_ENDPOINT_CATEGORY.ENTITY_REQUEST;
+    if (/\/api\//.test(pathname)) return RUNTIME_ENDPOINT_CATEGORY.APP_API;
+    return RUNTIME_ENDPOINT_CATEGORY.UNKNOWN;
+  } catch (_) {
+    return RUNTIME_ENDPOINT_CATEGORY.UNKNOWN;
+  }
+}
+
+export function buildRuntimePermissionDiagnostic({
+  scenarioId = 'runtime_preflight',
+  requestUrl,
+  configuredBaseUrl,
+  resourceType = '',
+  method = 'GET',
+  status = 403,
+} = {}) {
+  const serviceCategory = classifyRuntimeServiceRequest(requestUrl, configuredBaseUrl, resourceType);
+  const endpointCategory = classifyRuntimeEndpointCategory(requestUrl);
+  const numericStatus = Number(status);
+  const statusClass = Number.isFinite(numericStatus) ? `${Math.floor(numericStatus / 100)}xx` : 'unknown';
+  const requestMethod = String(method || 'GET').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 10) || 'GET';
+  const safeScenario = /^[a-z0-9._-]+$/i.test(String(scenarioId || ''))
+    ? String(scenarioId)
+    : 'runtime_unknown';
+  const readAction = requestMethod === 'GET' || requestMethod === 'HEAD';
+  const entityMutation = [
+    RUNTIME_ENDPOINT_CATEGORY.PROFILE_ENTITY,
+    RUNTIME_ENDPOINT_CATEGORY.PRESENCE_ENTITY,
+    RUNTIME_ENDPOINT_CATEGORY.SOCIAL_ENTITY,
+    RUNTIME_ENDPOINT_CATEGORY.ECONOMY_ENTITY,
+    RUNTIME_ENDPOINT_CATEGORY.GAMEPLAY_ENTITY,
+    RUNTIME_ENDPOINT_CATEGORY.ENTITY_REQUEST,
+  ].includes(endpointCategory);
+  const actionVerb = readAction ? 'read' : entityMutation ? 'mutate' : 'invoke';
+  const actionLabel = `${actionVerb} ${endpointCategory.replace(/_/g, ' ')}`;
+  return sanitizeAutomationValue({
+    diagnosticCategory: RUNTIME_DIAGNOSTIC_CATEGORY.BACKEND_PERMISSION_DENIED,
+    critical: true,
+    scenario: safeScenario,
+    serviceCategory,
+    statusClass,
+    endpointCategory,
+    actionLabel,
+    fingerprint: diagnosticFingerprint(`${safeScenario}|${serviceCategory}|${endpointCategory}|${requestMethod}|${statusClass}`),
+    summary: 'A backend request was denied by authorization or data-access policy.',
+  });
+}
+
 export function isRuntimeBackendServiceCategory(category) {
   return BACKEND_SERVICE_CATEGORIES.has(category);
 }
@@ -284,7 +373,8 @@ export function summarizeRuntimeBackendEvidence(summary = {}, preferredCategorie
   const candidates = preferred.length
     ? (domainSpecificPreferred.length ? domainSpecificPreferred : specificPreferred.length ? specificPreferred : preferred)
     : Object.keys(summary).filter((category) => isRuntimeBackendServiceCategory(category));
-  let fallback = null;
+  let responseFallback = null;
+  let requestOnlyFallback = null;
   for (const category of candidates) {
     const entry = summary[category];
     if (!entry) continue;
@@ -298,9 +388,9 @@ export function summarizeRuntimeBackendEvidence(summary = {}, preferredCategorie
         safeSummary: `Observed a successful ${category} runtime response.`,
       };
     }
-    if (!fallback && ((entry.responses || 0) > 0 || (entry.failures || 0) > 0)) {
+    if (!responseFallback && ((entry.responses || 0) > 0 || (entry.failures || 0) > 0)) {
       const statusClass = Object.keys(entry.statusClasses || {})[0] || (entry.failures ? 'network_failure' : 'unknown');
-      fallback = {
+      responseFallback = {
         observed: true,
         successful: false,
         category,
@@ -308,8 +398,17 @@ export function summarizeRuntimeBackendEvidence(summary = {}, preferredCategorie
         safeSummary: `Observed ${category} runtime traffic without a successful response.`,
       };
     }
+    if (!requestOnlyFallback && (entry.requests || 0) > 0) {
+      requestOnlyFallback = {
+        observed: true,
+        successful: false,
+        category,
+        statusClass: 'no_response',
+        safeSummary: `Observed a ${category} runtime request, but no response or request failure before the scenario ended.`,
+      };
+    }
   }
-  return fallback || {
+  return responseFallback || requestOnlyFallback || {
     observed: false,
     successful: false,
     category: null,
@@ -699,6 +798,20 @@ export function backendPreflightBlock(report, result) {
       expected: 'Backend preflight status REACHABLE before backend-dependent browser steps run.',
     };
   }
+  if (result?.backendEvidence?.observed === true && result?.backendEvidence?.successful === false) {
+    if (result.backendEvidence.statusClass === 'no_response') {
+      return {
+        category: 'BACKEND_RUNTIME_RESPONSE_NOT_OBSERVED',
+        actual: `Backend-dependent scenario was not accepted: a ${result.backendEvidence.category || 'backend'} request was observed, but no response or request failure was observed before the scenario ended.`,
+        expected: 'A successful classified backend response during the scenario, or a precise setup gap when the request remains pending.',
+      };
+    }
+    return {
+      category: 'BACKEND_RUNTIME_RESPONSE_UNSUCCESSFUL',
+      actual: `Backend-dependent scenario was not accepted: ${result.backendEvidence.category || 'backend'} traffic completed without a successful response (${result.backendEvidence.statusClass || 'unknown'}).`,
+      expected: 'A successful classified backend response during the scenario.',
+    };
+  }
   const sessionRestored = result?.scenarioId === 'runtime_e2e.app_bootstrap_guest_home'
     && result?.proofLevel === RUNTIME_E2E_PROOF_LEVEL.SESSION_RESTORED
     && Boolean(report?.homeVisible || report?.preflight?.homeVisible)
@@ -905,6 +1018,7 @@ export function normalizeRuntimeE2EReport(input, buildMarker = 'unknown') {
   const serviceSummaryUnavailableReason = input.serviceSummaryUnavailableReason
     || preflight?.serviceSummaryUnavailableReason
     || runtimeServiceSummaryUnavailableReason(serviceSummary);
+  const permissionDiagnostics = input.permissionDiagnostics || preflight?.permissionDiagnostics || [];
   const homeVisible = Boolean(input.homeVisible ?? preflight?.homeVisible);
   const authenticatedOrStoredSession = Boolean(
     input.authenticatedOrStoredSession ?? preflight?.authenticatedOrStoredSession,
@@ -938,6 +1052,7 @@ export function normalizeRuntimeE2EReport(input, buildMarker = 'unknown') {
     preflightStatusReason: input.preflightStatusReason || preflight?.preflightStatusReason || null,
     serviceSummary,
     serviceSummaryUnavailableReason,
+    permissionDiagnostics,
     backendProofLevel,
     homeVisible,
     authenticatedOrStoredSession,

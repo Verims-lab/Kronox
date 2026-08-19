@@ -80,8 +80,11 @@ export default function SoloChallenge() {
   // Tapping a node = play that seviye directly (no separate Play CTA).
   // Locked nodes ignore the tap (handled inside LevelMapPath).
   const handleSelectLevel = (level) => {
-    if (!level || !level.isPlayable) return;
-    const config = buildSoloGameConfigForLevel(level);
+    if (!level) return;
+    const isFocusedFrontier = Number(level.levelNumber) === Number(focusLevel);
+    if (!level.isPlayable && !isFocusedFrontier) return;
+    const playableLevel = isFocusedFrontier ? { ...level, isPlayable: true } : level;
+    const config = buildSoloGameConfigForLevel(playableLevel);
     navigate('/game', { state: { ...config, soloReturnTo: 'solo-levels' } });
   };
 

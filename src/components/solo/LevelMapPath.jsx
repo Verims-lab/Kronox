@@ -376,6 +376,8 @@ function CurrentSeviyeNode({ level, onSelect, laneSide }) {
       <motion.button
         type="button"
         data-testid="solo-current-level-entry"
+        data-solo-level-number={level.levelNumber}
+        data-solo-level-playable="true"
         onClick={onSelect}
         whileTap={{ scale: 0.96 }}
         animate={{ boxShadow: glowFrames }}

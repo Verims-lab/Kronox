@@ -1559,6 +1559,21 @@ Manual release gates that source cannot prove:
   summaries are populated by category/status or explain why no backend request
   was observable; console output is categorized/fingerprinted without raw
   messages or secrets.
+* The Solo level map is never gameplay proof. Home may start the current level
+  directly or open the map, but a runtime PASS requires committed `/game`, the
+  dedicated Solo root, question/card area, and interaction target. A safe
+  question bootstrap recovery is NOT_AUTOMATABLE with its precise reason.
+* Online `/lobby` or waiting UI alone is not matchmaking proof. The harness
+  waits for a classified matchmaking outcome and distinguishes no request,
+  request-without-response, rejected response, and network failure. The
+  explicit mutation gate authorizes the probe but never substitutes for a
+  successful backend response.
+* Permission/RLS denial stays critical. Reports retain only scenario, service,
+  4xx status class, sanitized endpoint category, safe action label, and a
+  redacted fingerprint; raw URLs, credentials, actor identifiers, and raw
+  permission messages remain excluded. `APP_NOT_FOUND` cannot yield a
+  backend-dependent PASS. Keep `@base44/sdk` exactly `0.8.34` in package,
+  lockfile root/resolution, and critical function imports.
 * Create storage state only under ignored `.auth/`, for example with
   `mkdir -p .auth` and
   `npx playwright codegen --save-storage=.auth/kronox-e2e-prod.json https://kronoxgame.com`;

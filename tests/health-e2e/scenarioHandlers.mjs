@@ -1,5 +1,6 @@
 import {
   AUTOMATION_STATUS,
+  RUNTIME_SERVICE_CATEGORY,
 } from '../../src/lib/health/runtimeE2EReport.js';
 import {
   AutomationSetupGap,
@@ -274,10 +275,46 @@ async function soloSmoke(runtime, config) {
   await runtime.step('solo.start', async () => {
     await openHome(runtime, config);
     await runtime.page.locator('[data-testid="home-solo-entry"]').click();
-    await expectVisible(runtime.page, '[data-testid="solo-current-level-entry"]', 15000);
+    const gameplayRouteDeadline = Date.now() + 15000;
+    let entryPath = '';
+    while (Date.now() < gameplayRouteDeadline) {
+      const route = runtime.safeRoute();
+      if (route === '/game') {
+        entryPath = 'direct_game';
+        break;
+      }
+      if (await runtime.page.locator('[data-testid="solo-current-level-entry"]').first().isVisible().catch(() => false)) {
+        entryPath = 'level_map';
+        break;
+      }
+      await runtime.page.waitForTimeout(200);
+    }
+    if (entryPath === 'direct_game') {
+      await expectPath(runtime.page, '/game');
+      return 'Home OYNA committed the current Solo level directly to /game.';
+    }
+    if (entryPath !== 'level_map') {
+      throw new Error(`Home OYNA reached neither /game nor the real Solo level map. Route: ${runtime.safeRoute() || 'unknown'}.`);
+    }
+
     await expectPath(runtime.page, '/solo');
-    await runtime.page.locator('[data-testid="solo-current-level-entry"]').click();
-    return 'Home OYNA opened the real Solo level map and the current playable level requested /game.';
+    const currentLevel = runtime.page.locator('[data-testid="solo-current-level-entry"]').first();
+    await currentLevel.scrollIntoViewIfNeeded();
+    const playable = await currentLevel.getAttribute('data-solo-level-playable');
+    if (playable === 'false') {
+      throw new AutomationSetupGap(
+        'The Solo map current-level entry is explicitly non-playable for this actor.',
+        AUTOMATION_STATUS.NOT_AUTOMATABLE,
+        'SOLO_CURRENT_LEVEL_NOT_PLAYABLE',
+      );
+    }
+    await currentLevel.click();
+    try {
+      await expectPath(runtime.page, '/game', 15000);
+    } catch (_) {
+      throw new Error(`The visible current Solo level entry did not commit /game. Route remained ${runtime.safeRoute() || 'unknown'}.`);
+    }
+    return 'Home opened the real Solo level map; the deterministic current playable entry committed /game.';
   });
   await runtime.step('solo.root', async () => {
     requireCapability(
@@ -291,19 +328,36 @@ async function soloSmoke(runtime, config) {
     const startedAt = Date.now();
     while (Date.now() - startedAt < 35000) {
       if (await gameplay.isVisible().catch(() => false)) {
+        await assertPublicTextSafe(runtime.page);
         return 'Solo gameplay root rendered after real question preparation.';
       }
       if (await safeRecovery.isVisible().catch(() => false)) {
+        await assertPublicTextSafe(runtime.page);
         const blockingText = String(await safeRecovery.innerText().catch(() => 'Question bootstrap recovery state'))
           .replace(/\s+/g, ' ')
           .slice(0, 180);
         throw new AutomationSetupGap(
           `Solo question bootstrap reached a safe recovery state on ${runtime.safeRoute() || 'unknown route'}: ${blockingText}.`,
+          AUTOMATION_STATUS.NOT_AUTOMATABLE,
+          'SOLO_QUESTION_BOOTSTRAP_UNAVAILABLE',
         );
       }
       await runtime.page.waitForTimeout(250);
     }
     const route = runtime.safeRoute() || 'unknown route';
+    const questionTraffic = runtime.serviceSummary[RUNTIME_SERVICE_CATEGORY.QUESTION_SERVICE];
+    const successfulQuestionResponse = (questionTraffic?.statusClasses?.['2xx'] || 0) > 0
+      || (questionTraffic?.statusClasses?.['3xx'] || 0) > 0;
+    if (route === '/game' && !successfulQuestionResponse) {
+      const reason = (questionTraffic?.requests || 0) > 0
+        ? 'a question-service request was observed, but no successful response completed'
+        : 'no classified question-service request was observed';
+      throw new AutomationSetupGap(
+        `Solo question bootstrap could not be proven because ${reason} within the bounded window.`,
+        AUTOMATION_STATUS.NOT_AUTOMATABLE,
+        'SOLO_QUESTION_BOOTSTRAP_UNAVAILABLE',
+      );
+    }
     const visibleText = String(await runtime.page.locator('body').innerText().catch(() => 'No visible blocking text.'))
       .replace(/\s+/g, ' ')
       .slice(0, 240);
@@ -361,7 +415,33 @@ async function onlineRandom(runtime, config) {
   await runtime.step('online.random_start', async () => {
     requireCapability(config.allowMatchmaking, 'KRONOX_E2E_ALLOW_MATCHMAKING is not true; the shared queue was not mutated.');
     await clickAndSee(runtime.page, '[data-testid="online-random-entry"]', '[data-testid="online-waiting-screen"]', 20000);
-    return 'Random waiting state opened under the explicit safe queue gate.';
+    const outcome = await runtime.waitForServiceOutcome(RUNTIME_SERVICE_CATEGORY.ONLINE_MATCHMAKING, 15000);
+    if (outcome.state === 'request_not_observed') {
+      throw new AutomationSetupGap(
+        'The safe queue button opened waiting UI, but no classified Online matchmaking request was observed.',
+        AUTOMATION_STATUS.NOT_AUTOMATABLE,
+        'ONLINE_MATCHMAKING_REQUEST_NOT_OBSERVED',
+      );
+    }
+    if (outcome.state === 'request_without_response') {
+      throw new AutomationSetupGap(
+        'An Online matchmaking request was observed, but no response or request failure was observed before the evidence window ended.',
+        AUTOMATION_STATUS.NOT_AUTOMATABLE,
+        'ONLINE_MATCHMAKING_RESPONSE_NOT_OBSERVED',
+      );
+    }
+    const successful = (outcome.entry?.statusClasses?.['2xx'] || 0) > 0
+      || (outcome.entry?.statusClasses?.['3xx'] || 0) > 0;
+    if (!successful) {
+      const statusClass = Object.keys(outcome.entry?.statusClasses || {})[0]
+        || (outcome.entry?.failures ? 'network_failure' : 'unknown');
+      throw new AutomationSetupGap(
+        `Online matchmaking completed without a successful backend response (${statusClass}).`,
+        AUTOMATION_STATUS.NOT_AUTOMATABLE,
+        'ONLINE_MATCHMAKING_BACKEND_REJECTED',
+      );
+    }
+    return 'Random waiting state opened and a successful Online matchmaking backend response was observed.';
   });
   await runtime.step('online.waiting', async () => {
     await expectVisible(runtime.page, '[data-testid="online-waiting-cancel"]');
