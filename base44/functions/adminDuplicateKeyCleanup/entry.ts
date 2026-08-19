@@ -33,6 +33,14 @@ const SCAN_CAP = 20000;
 const DELETE_CHUNK = 20;
 const MAX_DELETES_PER_RUN = 3000;
 const CONFIRM_TOKEN = 'DELETE_DUPLICATES';
+const PHASE1_DAILY_SCOPE = 'phase1_user_daily_auto_safe';
+const PHASE1_EXPECTED_GROUP_COUNT = 8;
+const PHASE1_EXPECTED_DELETE_COUNT = 31;
+const DAILY_EXACT_FIELDS = [
+  'status', 'progress_value', 'target_value', 'last_event_key',
+  'daily_calendar_current_streak', 'daily_calendar_streak_anchor_date',
+  'daily_calendar_streak_reward_claim_count', 'metadata',
+];
 
 function json(payload: unknown, status = 200) {
   return Response.json(payload, { status });
@@ -74,6 +82,36 @@ function maskPrivateKeys(value: unknown) {
     .replace(/guest:[A-Za-z0-9_-]+/g, 'guest:<key>')
     .replace(/\bg_[A-Za-z0-9]+/g, 'g_<key>')
     .replace(/\bu_[A-Za-z0-9]+/g, 'u_<key>');
+}
+
+function keyFingerprint(value: unknown) {
+  const text = String(value || '');
+  let hash = 2166136261;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `key_${(hash >>> 0).toString(36)}`;
+}
+
+function logicalGroupFingerprint(entity: string, group: any[]) {
+  const memberIdentitySet = group
+    .map((row) => String(row?.id || row?._id || `${createdTime(row)}|${JSON.stringify(row)}`))
+    .sort()
+    .join('|');
+  return keyFingerprint(`members|${entity}|${memberIdentitySet}`);
+}
+
+function normalizedSourceProof(row: any) {
+  return String(row?.last_event_key || row?.metadata?.source_receipt || row?.metadata?.last_event_key || '').trim();
+}
+
+function isPhase1ExactDailyGroup(group: any[]) {
+  const fieldsMatch = DAILY_EXACT_FIELDS.every((field) => (
+    new Set(group.map((row) => JSON.stringify(row?.[field] ?? null))).size === 1
+  ));
+  const sourceProofs = new Set(group.map(normalizedSourceProof).filter(Boolean));
+  return fieldsMatch && sourceProofs.size <= 1;
 }
 
 function rowTime(row: any, fields: string[]) {
@@ -136,9 +174,8 @@ function pickNewestUpdated(group: any[]) {
 }
 function pickBestQuestRow(group: any[]) {
   return [...group].sort((a, b) => {
-    const aCompleted = String(a?.status || '') !== 'active' ? 1 : 0;
-    const bCompleted = String(b?.status || '') !== 'active' ? 1 : 0;
-    if (aCompleted !== bCompleted) return bCompleted - aCompleted;
+    const rank = (row: any) => String(row?.status || '') === 'claimed' ? 2 : String(row?.status || '') === 'completed' ? 1 : 0;
+    if (rank(a) !== rank(b)) return rank(b) - rank(a);
     const aProgress = Number(a?.progress_value) || 0;
     const bProgress = Number(b?.progress_value) || 0;
     if (aProgress !== bProgress) return bProgress - aProgress;
@@ -214,12 +251,27 @@ Deno.serve(async (req: Request) => {
     // Batch cap per run: large cleanups are executed over multiple calls to
     // stay under the function timeout. Re-run until totalPlannedDeletes = 0.
     const maxDeletes = Math.max(20, Math.min(MAX_DELETES_PER_RUN, Math.floor(Number(body?.maxDeletes) || 200)));
+    const scope = String(body?.scope || '').trim();
+    const isPhase1Daily = scope === PHASE1_DAILY_SCOPE;
+    const expectedGroupFingerprints = Array.isArray(body?.expectedGroupFingerprints)
+      ? body.expectedGroupFingerprints.map((value: unknown) => String(value || '').trim()).filter(Boolean)
+      : [];
+    const expectedFingerprintSet = new Set(expectedGroupFingerprints);
+    if (isPhase1Daily && (
+      expectedGroupFingerprints.length !== PHASE1_EXPECTED_GROUP_COUNT
+      || expectedFingerprintSet.size !== PHASE1_EXPECTED_GROUP_COUNT
+      || Number(body?.expectedDeleteCount) !== PHASE1_EXPECTED_DELETE_COUNT
+    )) {
+      return json({ ok: false, code: 'phase1_approval_boundary_mismatch', error: 'Onaylanan Phase 1 sınırı doğrulanamadı.' }, 409);
+    }
     const requestedTargetIds = Array.isArray(body?.targets)
       ? body.targets.map((id: unknown) => String(id || '').trim()).filter(Boolean)
       : [];
-    const activeTargets = requestedTargetIds.length
-      ? CLEANUP_TARGETS.filter((target) => requestedTargetIds.includes(target.id))
-      : CLEANUP_TARGETS;
+    const activeTargets = isPhase1Daily
+      ? CLEANUP_TARGETS.filter((target) => target.id === 'user_daily_quest_progress_user_day_task')
+      : requestedTargetIds.length
+        ? CLEANUP_TARGETS.filter((target) => requestedTargetIds.includes(target.id))
+        : CLEANUP_TARGETS;
 
     const results: any[] = [];
     let totalPlanned = 0;
@@ -231,11 +283,18 @@ Deno.serve(async (req: Request) => {
       const groups = groupRows(window.rows, target.keyFn);
       const deleteIds: string[] = [];
       const sampleGroups: any[] = [];
+      const eligibleGroupFingerprints: string[] = [];
       let duplicateGroupCount = 0;
 
       for (const [key, group] of groups.entries()) {
         if (group.length < 2) continue;
         duplicateGroupCount += 1;
+        const groupFingerprint = logicalGroupFingerprint(target.entity, group);
+        if (isPhase1Daily) {
+          if (!isPhase1ExactDailyGroup(group)) continue;
+          eligibleGroupFingerprints.push(groupFingerprint);
+          if (!expectedFingerprintSet.has(groupFingerprint)) continue;
+        }
         const keepRow = target.pickCanonical(group);
         const keepId = String(keepRow?.id || keepRow?._id || '');
         const removeIds = group
@@ -245,9 +304,28 @@ Deno.serve(async (req: Request) => {
         if (sampleGroups.length < 5) {
           sampleGroups.push({
             key: maskPrivateKeys(key),
+            fingerprint: groupFingerprint,
             groupSize: group.length,
             deleteCount: removeIds.length,
           });
+        }
+      }
+
+      if (isPhase1Daily) {
+        const actualFingerprintSet = new Set(eligibleGroupFingerprints);
+        const exactApprovalMatch = actualFingerprintSet.size === PHASE1_EXPECTED_GROUP_COUNT
+          && [...actualFingerprintSet].every((fingerprint) => expectedFingerprintSet.has(fingerprint))
+          && [...expectedFingerprintSet].every((fingerprint) => actualFingerprintSet.has(fingerprint));
+        if (!exactApprovalMatch || deleteIds.length !== PHASE1_EXPECTED_DELETE_COUNT) {
+          return json({
+            ok: false,
+            code: 'phase1_live_group_mismatch',
+            error: 'Canlı duplicate grupları onaylanan Phase 1 sınırıyla eşleşmiyor.',
+            expectedGroupCount: PHASE1_EXPECTED_GROUP_COUNT,
+            actualEligibleGroupCount: actualFingerprintSet.size,
+            expectedDeleteCount: PHASE1_EXPECTED_DELETE_COUNT,
+            actualDeleteCount: deleteIds.length,
+          }, 409);
         }
       }
 
@@ -260,6 +338,12 @@ Deno.serve(async (req: Request) => {
         scannedRows: window.rows.length,
         duplicateGroupCount,
         plannedDeleteCount: deleteIds.length,
+        approvedGroupCount: isPhase1Daily ? eligibleGroupFingerprints.length : duplicateGroupCount,
+        phase1ExactOnly: isPhase1Daily,
+        canonicalPreservation: isPhase1Daily
+          ? 'claimed/completed first, then highest progress_value, then earliest equivalent row; exact source-proof metadata preserved'
+          : target.strategy,
+        approvedGroupFingerprints: isPhase1Daily ? eligibleGroupFingerprints : undefined,
         sampleGroups,
       };
 
@@ -290,6 +374,7 @@ Deno.serve(async (req: Request) => {
     return json({
       ok: true,
       mode,
+      scope: isPhase1Daily ? PHASE1_DAILY_SCOPE : 'legacy_target_selection',
       executed: mode === 'execute',
       balancesMutated: false,
       scoresMutated: false,
