@@ -262,3 +262,21 @@ status class, error category, queue-state, cleanup, match, direct-start, and
 no-lobby booleans. The active flow remains `/online` search, same-screen match
 found, then direct `/game` or `/duel`; Online/Duello `+15`/`-6`, Duello
 first-to-10, Solo, Daily, Store, and Leaderboard contracts are unchanged.
+
+## Codex642 Queue Read Compatibility
+
+The Codex641 production trace narrowed the remaining Online failure to an
+authenticated `random_online` `find_waiting` request classified as
+`ONLINE_QUEUE_READ_FAILED`; it was not a no-opponent or pairing-lock failure.
+The queue/lock read boundary now prefers the scoped Base44 filter and falls back
+to a bounded service-role `list` plus exact local field matching when that
+filter is rejected. Both failures still fail closed with the same safe 5xx
+classification, so permissions and unavailable storage are not hidden.
+
+The client still stops its single poll/retry lifecycle before cancel, timeout,
+or retry. Timeout performs one final authoritative poll, a committed match wins
+the boundary, and only an unmatched caller row is settled under the mode lock.
+The active flow remains same-screen search followed by direct `/game` or
+`/duel`; no lobby, score, reward, pricing, or gameplay rule changed. The root
+and lockfile SDK specs are restored to exact `0.8.34`, aligned with function
+imports.

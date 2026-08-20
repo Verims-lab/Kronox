@@ -179,6 +179,18 @@ Runtime evidence contains only allowlisted category/mode/operation/status/error,
 queue-state, cleanup, match/direct-start, no-lobby, and two-actor booleans. No
 lobby, score, reward, pricing, Solo, Daily, Store, or Leaderboard rule changed.
 
+Codex642 narrows the remaining production failure to authenticated
+random_online find_waiting queue-read rejection. Queue and lock reads prefer
+the scoped Base44 filter, then use a bounded service-role list with exact local
+matching; if both reads fail, the safe classified 5xx remains release-blocking.
+Cancel, timeout, retry, match, and unmount clear the ref-owned poll/retry/countdown
+handles. Timeout performs one final authoritative poll, a boundary match wins,
+and only an unmatched caller row is settled under the mode lock. No opponent is
+still 2xx waiting; active Online/Duello stays no-lobby and direct-start. Duello
+remains MANUAL_EXTERNAL / TWO_ACTOR_REQUIRED without A/B fixtures, Runtime E2E
+remains separate from Full Health, Health IDs remain unique, and package/lock/
+function SDK pins remain exact 0.8.34.
+
 Full architecture/performance cleanup keeps the root package.json @base44/sdk spec exactly at 0.8.34, matching backend Deno imports. The package-lock root and resolved SDK must also remain exact 0.8.34; source-connected Health validates both when the lockfile is available. Transient Friends, legacy Online-selection, and active debug notice timers are ref-owned, clear previous timers before rescheduling, and clean up on unmount. Legacy LobbyRoom is redirect-only and owns no copied-state timer. No broad runtime refactor, unused-code deletion, or Base44 migration work was attempted during this safe pass.
 `;
 
@@ -1067,6 +1079,7 @@ remain manual/NOT_AUTOMATABLE.
 - Online requires a completed linked or token-proven guest actor and KRONOX_E2E_ALLOW_MATCHMAKING=true; production search/cancel may run as a runtime probe but requires observed matchmaking backend evidence. Matched proof must remain on /online, reject /lobby, and enter /game directly. Duello A/B actor storage may be declared through KRONOX_E2E_STORAGE_STATE_A/B; pairing/direct-start proof requires both isolated actors, while one-winner/scoring proof remains MANUAL_EXTERNAL until a deterministic correct-claim fixture and reconciled snapshots exist. Full Run does not execute E2E and E2E counters never alter Health blocker/fail/warning counts.
 - Codex639 Duello pairing uses canonical same_question_duel scope, reciprocal private pairing rows, exactly two distinct actors, and one backend session. Normal waiting/recoverable contention stays searching; only classified DUELLO_* failures show safe start-failure copy. The UI lifecycle is idle, starting, searching, matched, directStarting, timeout, failed, or cancelled; retry/cancel/unmount settle only owned state and clear timers. Both actors must see Rakip bulundu on /online and enter /duel with no /lobby. With KRONOX_E2E_STORAGE_STATE_A/B, Runtime E2E must prove both contexts and matching redacted session/card fingerprints; without both it reports MANUAL_EXTERNAL / TWO_ACTOR_REQUIRED. Public evidence is username-only and excludes private IDs, raw session/card values, answer years, and the full question bank. First-correct claim racing, RLS, reconnect, and physical-device proof remain external.
 - Codex641 removes no-opponent lock churn from shared Online/Duello join/poll: candidate lookup precedes the mode lock, one actor receives 2xx waiting, and only a distinct same-mode candidate triggers pairing arbitration. Retry/cancel/timeout cleanup is caller/mode-scoped and idempotent; real actor/RLS/queue/lock/session failure retains safe 4xx/5xx evidence. Runtime authority evidence exports only allowlisted matching category/mode/operation/status/error/queue-state/cleanup/direct-start/no-lobby/two-actor fields. One-actor search/cancel can be automated; match remains NOT_AUTOMATABLE / TWO_ACTOR_REQUIRED, and Duello remains MANUAL_EXTERNAL without both A/B fixtures. Runtime E2E stays separate from Full Health.
+- Codex642 adds a bounded service-role list fallback when Base44 rejects a scoped matchmaking queue/lock filter, while retaining fail-closed 5xx classification if storage remains unreadable. Ref-owned countdown/poll/retry handles clear on cancel, timeout, retry, match, and unmount; timeout performs a final backend poll and a boundary match wins before own-row locked cleanup. Exact SDK 0.8.34, no-lobby direct start, unique Health IDs, Full Health/E2E separation, and the Duello two-actor manual gate remain mandatory.
 `;
 
 export const CATEGORY_TAXONOMY_DOC = `# Kronox Category Taxonomy

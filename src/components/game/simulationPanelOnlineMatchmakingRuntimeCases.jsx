@@ -180,8 +180,11 @@ export const EXTRA_TESTS = [
 
   make('timeout_cancel_cleanup_safe', 'Timeout performs a final snapshot read before serialized cleanup', () => sourceResult(required(randomHook + randomBackend + onlineScreen, [
     'resolveTimeout',
+    'stopPolling()',
     'await pollRandomMatchmaking(mode)',
-    'await cancelRandomMatchmaking(mode)',
+    "await cancelRandomMatchmaking(mode, 'cancel')",
+    "await cancelRandomMatchmaking(mode, 'timeout')",
+    "await cancelRandomMatchmaking(mode, 'retry')",
     "status: 'cancelled'",
     "status: 'expired'",
     'withPairingLock(base44, mode',
@@ -229,6 +232,9 @@ export const EXTRA_TESTS = [
   ]), 'Route rendering cannot fake Duello proof; two isolated contexts, backend responses, same-screen match-found, and matching fingerprints are mandatory.'), ['scenarioHandlers.mjs', 'runtimeE2EReport.js', 'runtimeE2EScenarios.js']),
 
   makeMatchmaking('online_matchmaking_no_5xx_for_valid_actor', 'A valid lone Online actor uses the successful no-candidate path', () => sourceResult(required(randomBackend, [
+    'readRowsWithFallback',
+    "entity.list('-created_date', fallbackLimit)",
+    "throw matchmakingOperationError(errorCode, operation, queueStateBefore)",
     'if (!candidate)',
     'candidateFound: false',
     'lockAttempted: false',

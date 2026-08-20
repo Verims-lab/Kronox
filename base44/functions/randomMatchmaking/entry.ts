@@ -23,6 +23,7 @@ const MATCHED_HANDOFF_TTL_MS = 2 * 60 * 1000;
 const PAIR_LOCK_TTL_MS = 8 * 1000;
 const PAIRING_RECONCILE_GRACE_MS = 3 * 1000;
 const QUEUE_READ_LIMIT = 100;
+const QUEUE_FALLBACK_READ_LIMIT = 500;
 const LOCK_READ_LIMIT = 25;
 const PAIR_READ_LIMIT = 10;
 const INTERNAL_PAIRING_STATUS = 'pairing';
@@ -176,6 +177,41 @@ function matchmakingOperationError(code: string, operation: string, queueStateBe
   return error;
 }
 
+const matchesExactFilter = (row: any, filter: Record<string, unknown>) => (
+  Object.entries(filter).every(([key, value]) => (
+    key === 'mode'
+      ? normalizeMode(row?.mode) === normalizeMode(value)
+      : String(row?.[key] ?? '') === String(value ?? '')
+  ))
+);
+
+async function readRowsWithFallback({
+  entity,
+  filter,
+  sort,
+  limit,
+  fallbackLimit = limit,
+  errorCode,
+  operation,
+  queueStateBefore = 'unknown',
+}: any) {
+  try {
+    const rows = await entity.filter(filter, sort, limit);
+    if (Array.isArray(rows)) return rows;
+  } catch {
+    // Base44 can reject an otherwise valid compound entity filter while a
+    // bounded service-role list remains available. Keep the read backend-
+    // authoritative and filter locally; fail closed if both reads fail.
+  }
+
+  try {
+    const rows = await entity.list('-created_date', fallbackLimit);
+    return Array.isArray(rows) ? rows.filter((row: any) => matchesExactFilter(row, filter)) : [];
+  } catch {
+    throw matchmakingOperationError(errorCode, operation, queueStateBefore);
+  }
+}
+
 const isRecoverablePairingContention = (error: any) => (
   String(error?.message || '').includes('random_matchmaking_lock_unavailable')
 );
@@ -277,8 +313,14 @@ async function withPairingLock(
     // Query by the stable key, then elect only live active rows locally. This
     // matches the proven lobby lock pattern and avoids a brittle compound
     // status filter while keeping historical rows out of the election.
-    const active = await entity.filter({ lock_key: lockKey }, '-acquired_at', LOCK_READ_LIMIT).catch(() => {
-      throw matchmakingOperationError('random_matchmaking_lock_read_failed', operation);
+    const active = await readRowsWithFallback({
+      entity,
+      filter: { lock_key: lockKey },
+      sort: '-acquired_at',
+      limit: LOCK_READ_LIMIT,
+      fallbackLimit: LOCK_READ_LIMIT * 4,
+      errorCode: 'random_matchmaking_lock_read_failed',
+      operation,
     });
     if (selectLiveLockWinner(active, now.getTime())) {
       await new Promise((resolve) => setTimeout(resolve, 90 + attempt * 80));
@@ -296,8 +338,14 @@ async function withPairingLock(
       throw matchmakingOperationError('random_matchmaking_lock_write_failed', operation);
     });
     await new Promise((resolve) => setTimeout(resolve, 70));
-    const contenders = await entity.filter({ lock_key: lockKey }, '-acquired_at', LOCK_READ_LIMIT).catch(() => {
-      throw matchmakingOperationError('random_matchmaking_lock_read_failed', operation);
+    const contenders = await readRowsWithFallback({
+      entity,
+      filter: { lock_key: lockKey },
+      sort: '-acquired_at',
+      limit: LOCK_READ_LIMIT,
+      fallbackLimit: LOCK_READ_LIMIT * 4,
+      errorCode: 'random_matchmaking_lock_read_failed',
+      operation,
     });
     const winner = selectLiveLockWinner(contenders, Date.now());
     if (rowId(winner) !== rowId(lock)) {
@@ -315,7 +363,7 @@ async function withPairingLock(
 
 function queueStore(base44: any) {
   const entity = base44?.asServiceRole?.entities?.RandomMatchQueue;
-  if (!entity?.filter || !entity?.create || !entity?.get || !entity?.update) {
+  if (!entity?.filter || !entity?.list || !entity?.create || !entity?.get || !entity?.update) {
     throw new Error('random_matchmaking_queue_store_unavailable');
   }
   return entity;
@@ -330,12 +378,15 @@ function lobbyStore(base44: any) {
 }
 
 async function findOwnActiveRow(base44: any, actorKeyHash: string, mode: string) {
-  const rows = await queueStore(base44).filter(
-    { actor_key_hash: actorKeyHash, mode },
-    '-created_at',
-    QUEUE_READ_LIMIT,
-  ).catch(() => {
-    throw matchmakingOperationError('random_matchmaking_queue_read_failed', 'find_waiting');
+  const queue = queueStore(base44);
+  const rows = await readRowsWithFallback({
+    entity: queue,
+    filter: { actor_key_hash: actorKeyHash, mode },
+    sort: '-created_at',
+    limit: QUEUE_READ_LIMIT,
+    fallbackLimit: QUEUE_FALLBACK_READ_LIMIT,
+    errorCode: 'random_matchmaking_queue_read_failed',
+    operation: 'find_waiting',
   });
   const selected = selectOwnActiveQueueRow(rows, actorKeyHash, mode);
   const duplicateWaitingRows = (rows || []).filter((row: any) => (
@@ -343,7 +394,7 @@ async function findOwnActiveRow(base44: any, actorKeyHash: string, mode: string)
     && row?.status === 'waiting'
     && normalizeMode(row?.mode) === mode
   ));
-  await Promise.allSettled(duplicateWaitingRows.map((row: any) => queueStore(base44).update(rowId(row), {
+  await Promise.allSettled(duplicateWaitingRows.map((row: any) => queue.update(rowId(row), {
     status: 'cancelled',
     cancelled_at: new Date().toISOString(),
   })));
@@ -389,12 +440,15 @@ async function ensureOwnQueueRow(base44: any, actor: any, mode: string) {
 async function resolvePairingRow(base44: any, row: any, mode: string) {
   if (row?.status !== INTERNAL_PAIRING_STATUS) return row;
   const queue = queueStore(base44);
-  const pairRows = await queue.filter(
-    { lobby_id: String(row?.lobby_id || ''), mode },
-    '-created_at',
-    PAIR_READ_LIMIT,
-  ).catch(() => {
-    throw matchmakingOperationError('random_matchmaking_queue_read_failed', 'poll_status', 'pairing');
+  const pairRows = await readRowsWithFallback({
+    entity: queue,
+    filter: { lobby_id: String(row?.lobby_id || ''), mode },
+    sort: '-created_at',
+    limit: PAIR_READ_LIMIT,
+    fallbackLimit: QUEUE_FALLBACK_READ_LIMIT,
+    errorCode: 'random_matchmaking_queue_read_failed',
+    operation: 'poll_status',
+    queueStateBefore: 'pairing',
   });
   const peer = selectCommittedPairingPeer(pairRows, row, mode);
   if (peer) return { ...row, status: 'matched' };
@@ -560,12 +614,15 @@ async function pairWaitingRows(base44: any, actor: any, mode: string, ownRow: an
 }
 
 async function findWaitingCandidate(base44: any, actorKeyHash: string, mode: string) {
-  const waitingRows = await queueStore(base44).filter(
-    { status: 'waiting', mode },
-    '-created_at',
-    QUEUE_READ_LIMIT,
-  ).catch(() => {
-    throw matchmakingOperationError('random_matchmaking_queue_read_failed', 'find_waiting', 'waiting');
+  const waitingRows = await readRowsWithFallback({
+    entity: queueStore(base44),
+    filter: { status: 'waiting', mode },
+    sort: '-created_at',
+    limit: QUEUE_READ_LIMIT,
+    fallbackLimit: QUEUE_FALLBACK_READ_LIMIT,
+    errorCode: 'random_matchmaking_queue_read_failed',
+    operation: 'find_waiting',
+    queueStateBefore: 'waiting',
   });
   return selectCompatibleWaitingRow(waitingRows, actorKeyHash, mode, Date.now());
 }

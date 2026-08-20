@@ -22,6 +22,7 @@ export default function PreGameHourglass({
   const reduceMotion = useReducedMotion();
   const startRef = useRef(Date.now());
   const firedRef = useRef(false);
+  const intervalRef = useRef(null);
   const onTimeoutRef = useRef(onTimeout);
   useEffect(() => { onTimeoutRef.current = onTimeout; }, [onTimeout]);
   const totalMs = expiresAt ? Math.max(1000, (Date.parse(expiresAt) || 0) - startRef.current) : durationMs;
@@ -29,24 +30,34 @@ export default function PreGameHourglass({
   const timerPaused = ['failed', 'timeout', 'matched', 'directStarting', 'cancelled'].includes(phase);
 
   useEffect(() => {
+    if (intervalRef.current) {
+      window.clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
     firedRef.current = false;
     startRef.current = Date.now();
     setRemainingMs(expiresAt
       ? Math.max(0, (Date.parse(expiresAt) || 0) - startRef.current)
       : durationMs);
     if (timerPaused) return undefined;
-    const intervalId = window.setInterval(() => {
+    intervalRef.current = window.setInterval(() => {
       const next = expiresAt
         ? Math.max(0, (Date.parse(expiresAt) || 0) - Date.now())
         : Math.max(0, durationMs - (Date.now() - startRef.current));
       setRemainingMs(next);
       if (next <= 0 && !firedRef.current) {
         firedRef.current = true;
-        window.clearInterval(intervalId);
+        window.clearInterval(intervalRef.current);
+        intervalRef.current = null;
         onTimeoutRef.current?.();
       }
     }, 250);
-    return () => window.clearInterval(intervalId);
+    return () => {
+      if (intervalRef.current) {
+        window.clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
   }, [expiresAt, durationMs, timerPaused]);
 
   const seconds = Math.ceil(remainingMs / 1000);

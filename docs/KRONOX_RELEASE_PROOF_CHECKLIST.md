@@ -1704,3 +1704,22 @@ Manual release gates that source cannot prove:
   category/mode/operation/status/error/queue-state/cleanup/direct-start booleans;
   never export URLs, credentials, actor/session IDs, private storage metadata,
   answer data, raw backend errors, or stacks.
+
+## Queue Read And Cleanup Gate (Codex642)
+
+* Keep `@base44/sdk` exactly `0.8.34` in `package.json`, lockfile root/resolved
+  entry, and critical Base44 Deno imports. Caret or tilde drift fails release.
+* A scoped `RandomMatchQueue.filter` rejection may use only the bounded
+  service-role list fallback with exact local matching. If both reads fail,
+  retain classified 5xx evidence; do not turn storage/RLS failure into waiting.
+* Cancel, timeout, and retry must stop the ref-owned poll/retry/countdown
+  handles before mutation. Timeout performs one final snapshot; a boundary
+  match wins, otherwise only the caller's mode-scoped row is settled under the
+  mode lock. Retry first settles stale own state and cannot leave duplicate
+  pollers or active rows.
+* No opponent remains a 2xx `waiting` state. `Eşleşme başlatılamadı` is reserved
+  for a classified backend failure. Active Online/Duello remains no-lobby and
+  direct-start only.
+* Full Health and Runtime E2E remain separate, and Health suite/case IDs remain
+  globally unique. One-actor production E2E must clear the critical 5xx gate;
+  Duello stays manual/two-actor-required without both isolated A/B states.
