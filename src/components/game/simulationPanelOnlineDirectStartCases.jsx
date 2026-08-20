@@ -165,6 +165,30 @@ export const EXTRA_TESTS = [
     'Online Kapış renders the approved search state and cancel action.',
   ), ['src/components/lobby/OnlineChallengeScreen.jsx', 'src/components/lobby/PreGameHourglass.jsx']),
 
+  make(ONLINE_SUITE, 'online_kapis_start_returns_2xx_or_searching', 'A valid Online Kapış start becomes a successful waiting/search response', () => sourceContract(
+    `${randomBackendSource}\n${randomHookSource}\n${randomApiSource}`,
+    ['ok: true', 'attemptCandidatePairing', 'candidateFound: false', 'lockAttempted: false', "type: 'SEARCH_STARTED'", 'matchmakingStatusClass'],
+    'A valid lone actor receives backend waiting state and the client enters searching without lock churn.',
+  ), ['base44/functions/randomMatchmaking/entry.ts', 'src/hooks/useRandomMatchmaking.js', 'src/lib/randomMatchmakingApi.js']),
+
+  make(ONLINE_SUITE, 'online_kapis_no_opponent_is_searching_not_failed', 'No available Online Kapış opponent remains searching', () => sourceContract(
+    `${randomBackendSource}\n${randomHookSource}\n${preGameSource}`,
+    ['if (!candidate)', 'candidateFound: false', 'lockAttempted: false', "status: matched ? 'matched' : 'waiting'", 'return MATCHMAKING_PHASE.SEARCHING', 'Rakip aranıyor'],
+    'An empty compatible queue is represented as waiting/searching, never as a start failure.',
+  ), ['base44/functions/randomMatchmaking/entry.ts', 'src/hooks/useRandomMatchmaking.js', 'src/components/lobby/PreGameHourglass.jsx']),
+
+  make(ONLINE_SUITE, 'online_kapis_backend_5xx_is_not_hidden', 'Online Kapış preserves genuine backend 5xx classification', () => sourceContract(
+    `${randomBackendSource}\n${randomApiSource}\n${randomHookSource}`,
+    ["statusClass: permissionDenied ? '4xx' : '5xx'", 'matchmakingStatusClass', "type: 'FAILED'", 'NETWORK_FAILURE'],
+    'Server failures retain safe 5xx/error classification and cannot be reported as a successful queue start.',
+  ), ['base44/functions/randomMatchmaking/entry.ts', 'src/lib/randomMatchmakingApi.js', 'src/hooks/useRandomMatchmaking.js']),
+
+  make(ONLINE_SUITE, 'online_kapis_permission_denied_is_not_hidden', 'Online Kapış preserves product-critical permission failures', () => sourceContract(
+    `${randomBackendSource}\n${randomApiSource}`,
+    ['PERMISSION_DENIED', 'permissionDenied ? 403', "fallbackSuffix = status === 401 || status === 403", 'matchmakingErrorCategory'],
+    'Actor/RLS denial remains a safe terminal permission category rather than waiting or optional telemetry.',
+  ), ['base44/functions/randomMatchmaking/entry.ts', 'src/lib/randomMatchmakingApi.js']),
+
   make(ONLINE_SUITE, 'online_kapis_match_found_same_screen', 'Online Kapış shows Rakip bulundu on the same transition surface', () => sourceContract(
     `${onlinePageSource}\n${onlineScreenSource}\n${directMatchSource}\n${preGameSource}`,
     ['onMatchFound', 'setMatch(nextMatch)', 'testId={isDuello ? \'duello-match-found-screen\' : \'online-match-found-screen\'}', "phase === 'matched' || phase === 'directStarting'", "? 'Rakip bulundu'", 'Oyun başlıyor'],
@@ -177,11 +201,24 @@ export const EXTRA_TESTS = [
     'Online Kapış keeps the approved 800-1500ms matched phase and then enters /game.',
   ), ['src/hooks/useDirectOnlineGameHandoff.js', 'src/lib/onlineGameNavigation.js']),
 
-  make(ONLINE_SUITE, 'online_kapis_cancel_cleans_queue', 'Online Kapış cancel settles the queue before returning to selection', () => sourceContract(
+  make(ONLINE_SUITE, 'online_kapis_cancel_cleans_own_queue', 'Online Kapış cancel settles only the caller queue before returning to selection', () => sourceContract(
     `${onlineScreenSource}\n${directMatchSource}\n${randomHookSource}\n${randomApiSource}\n${randomBackendSource}`,
-    ['const cancelled = await random.cancel()', 'if (!cancelled) return', 'await cancelRandomMatchmaking(mode)', "data?.status === 'matched'", 'cancelled: false', 'publicQueueState(row,', 'await consumeRandomMatchmaking(match.queueMode)', "invoke('cancel'", "invoke('consume'", "status: 'cancelled'", "status: 'consumed'", 'withPairingLock(base44, mode'],
+    ['const cancelled = await random.cancel()', 'if (!cancelled) return', "await cancelRandomMatchmaking(mode, 'cancel')", "data?.status === 'matched'", 'cancelled: false', 'publicQueueState(row,', 'await consumeRandomMatchmaking(match.queueMode)', "invoke('cancel'", "invoke('consume'", "status: 'cancelled'", "status: 'consumed'", 'withPairingLock(base44, mode'],
     'Pre-match cancel is serialized, a concurrent match is reconciled instead of orphaned, and post-match error exit consumes its queue row.',
   ), ['src/components/lobby/OnlineChallengeScreen.jsx', 'src/components/online/DirectOnlineMatchScreen.jsx', 'src/hooks/useRandomMatchmaking.js', 'base44/functions/randomMatchmaking/entry.ts']),
+
+  make(ONLINE_SUITE, 'online_kapis_retry_cleans_stale_attempt', 'Online Kapış retry confirms own stale-attempt cleanup before rejoin', () => sourceContract(
+    `${randomHookSource}\n${randomApiSource}\n${randomBackendSource}`,
+    ["cancelRandomMatchmaking(mode, 'retry')", "cleanup_reason: ['cancel', 'retry', 'timeout']", "queueAction = cleanupReason === 'retry'", 'retryCleanupObserved', 'duplicateWaitingRows'],
+    'Retry is actor/mode scoped, idempotent, and cannot create a second active waiting row.',
+  ), ['src/hooks/useRandomMatchmaking.js', 'src/lib/randomMatchmakingApi.js', 'base44/functions/randomMatchmaking/entry.ts']),
+
+  make(ONLINE_SUITE, 'online_kapis_no_lobby', 'Online Kapış search, match-found, and direct start preserve no-lobby flow', () => sourceContract(
+    `${directFlowSources}\n${runtimeHandlersSource}`,
+    ['online-kapis-search-screen', 'online-match-found-screen', "runtime.safeRoute() === '/game'", 'LOBBY_STILL_PRESENT'],
+    'Online Kapış remains /online search to same-screen match-found to direct /game.',
+    ["navigate('/lobby')", 'WaitingRoomPanel'],
+  ), ['src/components/lobby/OnlineChallengeScreen.jsx', 'src/components/online/DirectOnlineMatchScreen.jsx', 'tests/health-e2e/scenarioHandlers.mjs']),
 
   make(ONLINE_SUITE, 'online_kapis_timeout_safe_copy', 'Online timeout exposes safe retry copy and expires stale queue state', () => {
     const contract = sourceContract(

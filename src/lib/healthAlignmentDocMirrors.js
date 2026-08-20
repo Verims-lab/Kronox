@@ -167,6 +167,18 @@ active /lobby evidence fails. A/B Runtime E2E contexts compare only redacted
 session/card fingerprints. Missing A/B remains MANUAL_EXTERNAL /
 TWO_ACTOR_REQUIRED, and deterministic first-correct racing remains external.
 
+Codex641 hardens the same shared backend against production 5xx pressure. Join
+and poll now query the actor row and compatible same-mode candidate first; a
+lone actor returns 2xx waiting without lock arbitration, and only a real
+candidate attempts the mode lock. True contention stays searching, while
+queue/lock/session and actor/RLS failures retain safe 4xx/5xx classification.
+Retry, cancel, and timeout carry an allowlisted reason and idempotently settle
+only the caller row. The client uses one 2s poller, presence writes are coalesced,
+and a proven presence-only rate limit returns safe 429 instead of raw 500.
+Runtime evidence contains only allowlisted category/mode/operation/status/error,
+queue-state, cleanup, match/direct-start, no-lobby, and two-actor booleans. No
+lobby, score, reward, pricing, Solo, Daily, Store, or Leaderboard rule changed.
+
 Full architecture/performance cleanup keeps the root package.json @base44/sdk spec exactly at 0.8.34, matching backend Deno imports. The package-lock root and resolved SDK must also remain exact 0.8.34; source-connected Health validates both when the lockfile is available. Transient Friends, legacy Online-selection, and active debug notice timers are ref-owned, clear previous timers before rescheduling, and clean up on unmount. Legacy LobbyRoom is redirect-only and owns no copied-state timer. No broad runtime refactor, unused-code deletion, or Base44 migration work was attempted during this safe pass.
 `;
 
@@ -359,7 +371,7 @@ device, and store proof remain manual/live probes.
 B6 retires obsolete orchestration-comment suites and duplicate Timeline/visual/manual rows only where stronger active-source or executable coverage remains. Grouped Health packs run on demand from guarded Admin; scheduled/continuous monitoring is external. Proof quality is EXECUTABLE, SOURCE_CONNECTED, STATIC_ONLY, or MANUAL_EXTERNAL, and failures carry fix ownership plus next action. Committed function.jsonc is the automation source of truth: Base44 automations deploy atomically with their function, dashboard changes are overwritten by the next local deploy, and there is no two-way sync. The repository currently has 28 valid manifests and zero local automation declarations; waitUntil is best-effort and is not used for critical work. Official guidance: docs.base44.com/developers/backend/resources/backend-functions/automations, docs.base44.com/developers/backend/resources/backend-functions/overview, react.dev/reference/react/useEffect, vite.dev/guide/env-and-mode.html, developer.mozilla.org/en-US/docs/Web/API/AbortController/abort, cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html, and the Base44 maximum of 50 backend functions.
 The Online direct-search/start/reconnect contract remains a manual two-device
 live-proof area even when reducer/static Health checks pass.
-Codex639 adds fourteen duello_flow and ten runtime_e2e_automation cases for
+Codex639 adds focused duello_flow and runtime_e2e_automation cases for
 reciprocal mode-scoped pairing, normal waiting, self-match rejection, safe
 retry/cancel/timer cleanup, same-screen Rakip bulundu, direct /duel, no /lobby,
 classified errors, and identity/question privacy. With both ignored A/B storage
@@ -367,6 +379,12 @@ states the runtime scenario must prove two contexts, both search/match states,
 direct /duel, no lobby, and matching redacted session/card fingerprints.
 Without both actors it remains MANUAL_EXTERNAL / TWO_ACTOR_REQUIRED; live
 device/RLS/reconnect and first-correct claim racing remain external proof.
+Codex641 adds the shared matchmaking_health suite and exact Online/Duello/E2E
+guards for candidate-first 2xx waiting, non-hidden permission/5xx diagnostics,
+actor/mode-scoped cleanup, safe direct payload, and unique catalog IDs. One
+actor proves search/cancel and remains NOT_AUTOMATABLE / TWO_ACTOR_REQUIRED for
+match; Duello remains MANUAL_EXTERNAL without both isolated A/B states. Runtime
+E2E remains separate from Full Health.
 Static Health coverage now exists for the strongest current UX contracts:
 Profile/Settings route ownership, BottomNav ownership, own leaderboard-row
 navigation, global avatar propagation with safe public avatar fields, profile-save
@@ -645,7 +663,7 @@ Status: Active manual visual/platform release gate.
 - Paket B6 grouped Health controls, intelligence summaries, and report details remain 320/360/390px-safe; close/unmount clears local progress. Real-device and scheduled monitoring remain external.
 - Health proof labels are EXECUTABLE, SOURCE_CONNECTED, STATIC_ONLY, and MANUAL_EXTERNAL; source inspection cannot claim runtime/device proof.
 - Codex637 removes lobby from the active Online/Duello journey: /online owns selection, bounded search, same-screen Rakip bulundu/Oyun başlıyor, and backend-authoritative direct /game or /duel handoff. Legacy /lobby is redirect-only and Runtime E2E fails LOBBY_STILL_PRESENT if a lobby route or surface appears.
-- Twenty-five focused direct-start cases protect queue cleanup, fixed Turkish recovery copy, private-identity/question-bank boundaries, route-only proof rejection, and Full Health separation. Duello remains MANUAL_EXTERNAL until two isolated actors and deterministic pairing/claim fixtures prove one accepted backend claim and reconciled snapshots.
+- Focused direct-start and shared-matchmaking cases protect candidate-first waiting, queue cleanup, fixed Turkish recovery copy, precise 4xx/5xx diagnostics, private-identity/question-bank boundaries, route-only proof rejection, unique Health IDs, and Full Health separation. Duello remains MANUAL_EXTERNAL until two isolated actors and deterministic pairing/claim fixtures prove one accepted backend claim and reconciled snapshots.
 `;
 
 export const SECURITY_DEPLOYMENT_DOC = `# Kronox Security & Deployment
@@ -1048,6 +1066,7 @@ remain manual/NOT_AUTOMATABLE.
 - Import test-results/health-e2e/latest.json into HealthCheck when needed. Selected failure/setup-gap, all setup gaps, and the full sanitized report are copyable; real failures retain route/text plus screenshot/trace evidence.
 - Online requires a completed linked or token-proven guest actor and KRONOX_E2E_ALLOW_MATCHMAKING=true; production search/cancel may run as a runtime probe but requires observed matchmaking backend evidence. Matched proof must remain on /online, reject /lobby, and enter /game directly. Duello A/B actor storage may be declared through KRONOX_E2E_STORAGE_STATE_A/B; pairing/direct-start proof requires both isolated actors, while one-winner/scoring proof remains MANUAL_EXTERNAL until a deterministic correct-claim fixture and reconciled snapshots exist. Full Run does not execute E2E and E2E counters never alter Health blocker/fail/warning counts.
 - Codex639 Duello pairing uses canonical same_question_duel scope, reciprocal private pairing rows, exactly two distinct actors, and one backend session. Normal waiting/recoverable contention stays searching; only classified DUELLO_* failures show safe start-failure copy. The UI lifecycle is idle, starting, searching, matched, directStarting, timeout, failed, or cancelled; retry/cancel/unmount settle only owned state and clear timers. Both actors must see Rakip bulundu on /online and enter /duel with no /lobby. With KRONOX_E2E_STORAGE_STATE_A/B, Runtime E2E must prove both contexts and matching redacted session/card fingerprints; without both it reports MANUAL_EXTERNAL / TWO_ACTOR_REQUIRED. Public evidence is username-only and excludes private IDs, raw session/card values, answer years, and the full question bank. First-correct claim racing, RLS, reconnect, and physical-device proof remain external.
+- Codex641 removes no-opponent lock churn from shared Online/Duello join/poll: candidate lookup precedes the mode lock, one actor receives 2xx waiting, and only a distinct same-mode candidate triggers pairing arbitration. Retry/cancel/timeout cleanup is caller/mode-scoped and idempotent; real actor/RLS/queue/lock/session failure retains safe 4xx/5xx evidence. Runtime authority evidence exports only allowlisted matching category/mode/operation/status/error/queue-state/cleanup/direct-start/no-lobby/two-actor fields. One-actor search/cancel can be automated; match remains NOT_AUTOMATABLE / TWO_ACTOR_REQUIRED, and Duello remains MANUAL_EXTERNAL without both A/B fixtures. Runtime E2E stays separate from Full Health.
 `;
 
 export const CATEGORY_TAXONOMY_DOC = `# Kronox Category Taxonomy

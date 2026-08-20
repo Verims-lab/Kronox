@@ -91,6 +91,10 @@ function normalizeGuestToken(value: unknown) {
   return safeCredentialText(value, 220);
 }
 
+function isBackendRateLimit(error: unknown) {
+  return /rate\s*limit|too\s*many\s*requests|\b429\b/i.test(String((error as any)?.message || error || ''));
+}
+
 function bytesToBase64Url(bytes: Uint8Array) {
   let binary = '';
   bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
@@ -123,7 +127,7 @@ async function verifyGuestProfile(base44: any, body: any) {
     return { ok: false, response: json({ ok: false, error: 'GuestProfile unavailable' }, 503), actor: null };
   }
 
-  const rows = await entity.filter({ guest_id: guestId }, '-created_at', 5).catch(() => []);
+  const rows = await entity.filter({ guest_id: guestId }, '-created_at', 5);
   const guest = Array.isArray(rows) && rows[0] ? rows[0] : null;
   const expectedHash = String(guest?.guest_token_hash || '');
   const providedHash = await hashGuestToken(guestId, guestToken);
@@ -236,7 +240,19 @@ Deno.serve(async (req) => {
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown presence update error';
-    return json({ ok: false, error: message }, 500);
+    if (isBackendRateLimit(error)) {
+      return json({
+        ok: false,
+        code: 'presence_rate_limited',
+        retryable: true,
+        error: 'Çevrimiçi durum daha sonra yenilenecek.',
+      }, 429);
+    }
+    return json({
+      ok: false,
+      code: 'presence_update_unavailable',
+      retryable: true,
+      error: 'Çevrimiçi durum güncellenemedi.',
+    }, 503);
   }
 });

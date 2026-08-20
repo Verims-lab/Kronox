@@ -63,6 +63,7 @@ export default function OnlineChallengeScreen({
       lobbyRef: match.state.lobbyRef,
       queueMode: match.mode,
       source: match.mode === SAME_QUESTION_DUEL_MODE ? 'duello' : 'online_kapis',
+      diagnostics: match.state.diagnostics,
     });
   }, [duel.lobbyRef, duel.phase, onMatchFound, random.lobbyRef, random.phase, screen]);
 
@@ -179,6 +180,7 @@ export default function OnlineChallengeScreen({
         phase={random.phase}
         errorMessage={screenError || random.errorMessage}
         errorCategory={random.errorCategory}
+        diagnostics={random.diagnostics}
         onTimeout={handleRandomTimeout}
         onCancel={handleRandomCancel}
         onRetry={() => { setScreenError(''); void random.start(); }}
@@ -198,6 +200,7 @@ export default function OnlineChallengeScreen({
         phase={duel.phase}
         errorMessage={screenError || duel.errorMessage}
         errorCategory={duel.errorCategory}
+        diagnostics={duel.diagnostics}
         onTimeout={handleDuelTimeout}
         onCancel={handleDuelCancel}
         onRetry={() => { setScreenError(''); void duel.start(); }}

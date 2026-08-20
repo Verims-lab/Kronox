@@ -12,6 +12,7 @@ export default function PreGameHourglass({
   phase = '',
   errorMessage = '',
   errorCategory = null,
+  diagnostics = null,
   testId,
   cancelTestId,
   onTimeout,
@@ -64,6 +65,17 @@ export default function PreGameHourglass({
       data-testid={testId}
       data-matchmaking-phase={phase || 'idle'}
       data-matchmaking-error-category={errorCategory || undefined}
+      data-matchmaking-function-category={diagnostics?.onlineMatchmakingFunctionCategory || undefined}
+      data-matchmaking-mode={diagnostics?.matchmakingMode || undefined}
+      data-matchmaking-operation={diagnostics?.matchmakingOperation || undefined}
+      data-matchmaking-status-class={diagnostics?.matchmakingStatusClass || undefined}
+      data-matchmaking-backend-error-category={diagnostics?.matchmakingErrorCategory || undefined}
+      data-matchmaking-queue-state-before={diagnostics?.queueStateBefore || undefined}
+      data-matchmaking-queue-state-after={diagnostics?.queueStateAfter || undefined}
+      data-matchmaking-retry-cleanup-observed={diagnostics?.retryCleanupObserved ? 'true' : 'false'}
+      data-matchmaking-cancel-cleanup-observed={diagnostics?.cancelCleanupObserved ? 'true' : 'false'}
+      data-matchmaking-direct-start-payload={diagnostics?.directGamePayloadAvailable ? 'true' : 'false'}
+      data-matchmaking-match-found-observed={diagnostics?.matchFoundObserved ? 'true' : 'false'}
       className="kx-a1-screen kx-a1-online fixed inset-0 flex w-full max-w-full flex-col items-center justify-center overflow-x-hidden overflow-y-auto px-4 text-white"
       data-kronox-pre-game-hourglass="mobile-safe"
       style={{

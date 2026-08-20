@@ -486,3 +486,25 @@ production RLS/reconnect behavior, and Duello's simultaneous first-correct
 claim race remain manual/external. Public evidence remains username-safe and
 cannot include private actor fields, raw session/card values, answer years, or
 the full question bank.
+
+## Codex641 Shared Matchmaking Backend Coverage
+
+The focused catalog now covers every requested `online_flow`, `duello_flow`,
+`matchmaking_health`, and `runtime_e2e_automation` contract without registering
+a duplicate suite/case key. Source-connected checks protect the candidate-first
+2xx waiting path, mode/actor isolation, no self-match, retry/cancel/timeout
+cleanup, precise non-hidden 4xx/5xx classification, backend-owned direct-start
+payload, same-screen match found, and the hard no-lobby rule. Runtime E2E remains
+separate from Full Health.
+
+The sanitized runtime authority evidence now carries
+`onlineMatchmakingFunctionCategory`, canonical mode/operation/status/error,
+queue state before/after, retry/cancel cleanup booleans, direct payload, lobby,
+match-found, direct-game, and two-actor-required fields. It contains no URL,
+credential, raw actor/session identifier, question answer, or stack. One actor
+must prove Online search 2xx and confirmed cancel; match/direct-game remains
+`NOT_AUTOMATABLE / TWO_ACTOR_REQUIRED` without an opponent. Duello remains
+`MANUAL_EXTERNAL / TWO_ACTOR_REQUIRED` without two isolated A/B states, and
+real RLS/reconnect/physical-device and deterministic claim-race proof remains
+external. Ordinary no-opponent waiting is never `Eşleşme başlatılamadı`; that
+copy is reserved for a real classified backend failure.

@@ -32,6 +32,7 @@ export default function DirectOnlineMatchScreen({ match, onGameReady, onBack }) 
         phase={handoff.phase}
         errorMessage={handoff.errorMessage}
         errorCategory={handoff.errorCategory}
+        diagnostics={match?.diagnostics}
         onRetry={handoff.retry}
         onCancel={handoff.phase === 'failed' ? handleBack : undefined}
       />

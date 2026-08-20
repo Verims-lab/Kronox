@@ -61,12 +61,20 @@ const queueRows = [
 export const EXTRA_SUITES = [];
 
 export const EXTRA_TESTS = [
-  make(PRODUCT_SUITE, 'duello_start_does_not_fail_for_normal_waiting', 'Normal Duello waiting remains searching', () => {
+  make(PRODUCT_SUITE, 'duello_no_opponent_is_searching_not_failed', 'Normal Duello waiting remains searching', () => {
     const state = randomMatchmakingReducer(initialRandomMatchmakingState, { type: 'SEARCH_STARTED' });
     return state.phase === MATCHMAKING_PHASE.SEARCHING && !state.errorMessage
       ? sourceResult(required(randomBackend, ['recoverable: true', "status: matched ? 'matched' : 'waiting'", 'random_matchmaking_lock_unavailable']), 'Normal waiting and recoverable lock contention stay in searching.')
       : fail('SEARCH_STARTED produced a terminal failure.', { actual: state });
   }, PRODUCT_FILES),
+
+  make(PRODUCT_SUITE, 'duello_start_returns_2xx_or_searching', 'A valid Duello start returns waiting/searching or matched', () => sourceResult(required(randomBackend + randomHook, [
+    'attemptCandidatePairing',
+    'candidateFound: false',
+    'lockAttempted: false',
+    "type: 'SEARCH_STARTED'",
+    'SAME_QUESTION_DUEL_MODE',
+  ]), 'A valid Duello actor enters its canonical queue lane without treating an absent opponent as failure.'), PRODUCT_FILES),
 
   make(PRODUCT_SUITE, 'duello_queue_mode_key_canonical', 'Duello mode key is canonical end to end', () => (
     normalizeMatchmakingMode('same_question_duel') === SAME_QUESTION_DUEL_MODE
@@ -88,7 +96,7 @@ export const EXTRA_TESTS = [
       : fail('Executable pairing did not select the distinct actor.');
   }, PRODUCT_FILES),
 
-  make(PRODUCT_SUITE, 'duello_no_self_match_false_positive', 'Self-match protection does not reject a real opponent', () => {
+  make(PRODUCT_SUITE, 'duello_self_match_false_positive_prevented', 'Self-match protection does not reject a real opponent', () => {
     const candidate = selectCompatibleWaitingRow(queueRows, 'actor-a', SAME_QUESTION_DUEL_MODE, now);
     const selfOnly = selectCompatibleWaitingRow([queueRows[0]], 'actor-a', SAME_QUESTION_DUEL_MODE, now);
     return candidate?.id === 'duel-b' && selfOnly === null
@@ -115,7 +123,7 @@ export const EXTRA_TESTS = [
   ], 'Active search, match-found, and navigation sources contain no lobby transition.'), PRODUCT_FILES),
 
   make(PRODUCT_SUITE, 'duello_retry_cleans_stale_attempt', 'Retry settles stale own queue before rejoin', () => sourceResult(required(randomHook + randomBackend, [
-    'await cancelRandomMatchmaking(mode)',
+    "await cancelRandomMatchmaking(mode, 'retry')",
     'cleanup?.cancelled !== true',
     'clearRetryWait()',
     'duplicateWaitingRows',
@@ -134,7 +142,7 @@ export const EXTRA_TESTS = [
       : fail('Timeout reducer copy drifted.', { actual: state });
   }, PRODUCT_FILES),
 
-  make(PRODUCT_SUITE, 'duello_error_copy_safe_and_classified', 'Duello terminal errors are safe and classified', () => sourceResult([
+  make(PRODUCT_SUITE, 'duello_start_failure_has_precise_category', 'Duello terminal errors are safe and classified', () => sourceResult([
     ...required(randomApi + randomBackend + preGame, ['SAFE_ERROR_SUFFIXES', 'DUELLO', 'errorCategory', 'Eşleşme başlatılamadı', 'Lütfen tekrar dene']),
     ...forbidden(preGame + onlineScreen, ['error?.message', 'Request failed with status code']),
   ], 'Public copy is fixed while automation receives an allowlisted DUELLO_* category.'), PRODUCT_FILES),
@@ -165,7 +173,7 @@ export const EXTRA_TESTS = [
     'duello-match-found-screen',
   ]), 'Mutation observers preserve same-screen search/match evidence on both actors.'), RUNTIME_FILES),
 
-  make(RUNTIME_SUITE, 'duello_two_actor_direct_game_start', 'Two-actor E2E proves direct shared /duel start', () => sourceResult(required(handlers + duelArena, [
+  make(RUNTIME_SUITE, 'duello_two_actor_direct_start_when_fixtures_exist', 'Two-actor E2E proves direct shared /duel start', () => sourceResult(required(handlers + duelArena, [
     "route === '/duel'",
     'sharedSessionFingerprintMatched',
     'sharedActiveCardFingerprintMatched',
@@ -188,7 +196,7 @@ export const EXTRA_TESTS = [
 
   make(RUNTIME_SUITE, 'duello_retry_does_not_duplicate_queue', 'Duello retry cannot duplicate an active own row', () => sourceResult(required(randomHook + randomBackend, [
     'clearRetryWait()',
-    'await cancelRandomMatchmaking(mode)',
+    "await cancelRandomMatchmaking(mode, 'retry')",
     'duplicateWaitingRows',
     'createWaitingRow',
   ]), 'Client retry cleanup and backend own-row reconciliation prevent duplicate active waits.'), RUNTIME_FILES),
@@ -210,6 +218,19 @@ export const EXTRA_TESTS = [
     "runtime.safeRoute() === '/game'",
     "? '/duel?' : '/game?'",
   ]), 'The existing Online scenario still fails on lobby and requires direct /game.'), RUNTIME_FILES),
+
+  make(RUNTIME_SUITE, 'online_start_search_requires_2xx', 'Online search proof requires a successful matchmaking response', () => sourceResult(required(handlers, [
+    'requireSuccessfulBackendAction',
+    "category: RUNTIME_SERVICE_CATEGORY.ONLINE_MATCHMAKING",
+    'statusClass: outcome.lifecycle?.responseStatusClass',
+    'search opened after a successful matchmaking backend response',
+  ]), 'Online route visibility alone cannot pass the search step without a 2xx/3xx backend response.'), RUNTIME_FILES),
+
+  make(RUNTIME_SUITE, 'online_5xx_classified_backend_rejected', 'Online matchmaking 5xx remains backend-rejected evidence', () => sourceResult(required(handlers, [
+    "failurePrefix: 'ONLINE_MATCHMAKING'",
+    'requireSuccessfulBackendAction',
+    'backend_rejected: `${failurePrefix}_BACKEND_REJECTED`',
+  ]), 'A completed 5xx lifecycle cannot be downgraded to searching or TWO_ACTOR_REQUIRED.'), RUNTIME_FILES),
 
   make(RUNTIME_SUITE, 'full_run_excludes_e2e_after_duello_update', 'Duello update preserves Full Health and Runtime E2E separation', () => sourceResult(required(runtimeScenarios + simulationPanel, [
     'fullRunExcluded: true',
