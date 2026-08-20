@@ -641,6 +641,10 @@ const SAFE_MATCHMAKING_OPERATIONS = new Set([
 const SAFE_MATCHMAKING_QUEUE_STATES = new Set([
   'none', 'waiting', 'pairing', 'matched', 'consumed', 'cancelled', 'expired', 'timeout', 'unknown',
 ]);
+const SAFE_MATCHMAKING_ACTOR_KINDS = new Set(['guest', 'authenticated', 'unknown']);
+const SAFE_MATCHMAKING_START_RESPONSE_SHAPES = new Set([
+  'waiting', 'searching', 'matched', 'direct_start_ready', 'timeout', 'cancelled', 'failed_safe',
+]);
 const SAFE_MATCHMAKING_ERROR_CATEGORIES = new Set([
   'MATCHMAKING_QUEUE_CREATE_FAILED',
   'MATCHMAKING_QUEUE_WRITE_FAILED',
@@ -667,8 +671,13 @@ async function readSafeMatchmakingEvidence(page, selector) {
     operation,
     statusClass,
     errorCategory,
+    actorKind,
     queueStateBefore,
     queueStateAfter,
+    startResponseShape,
+    noOpponentYetClassifiedAsWaiting,
+    staleOwnRowHandled,
+    duplicateOwnRowHandled,
     retryCleanupObserved,
     cancelCleanupObserved,
     directStartPayloadAvailable,
@@ -679,8 +688,13 @@ async function readSafeMatchmakingEvidence(page, selector) {
     read('data-matchmaking-operation'),
     read('data-matchmaking-status-class'),
     read('data-matchmaking-backend-error-category'),
+    read('data-matchmaking-actor-kind'),
     read('data-matchmaking-queue-state-before'),
     read('data-matchmaking-queue-state-after'),
+    read('data-matchmaking-start-response-shape'),
+    read('data-matchmaking-no-opponent-waiting'),
+    read('data-matchmaking-stale-own-row-handled'),
+    read('data-matchmaking-duplicate-own-row-handled'),
     read('data-matchmaking-retry-cleanup-observed'),
     read('data-matchmaking-cancel-cleanup-observed'),
     read('data-matchmaking-direct-start-payload'),
@@ -696,8 +710,15 @@ async function readSafeMatchmakingEvidence(page, selector) {
     matchmakingErrorCategory: SAFE_MATCHMAKING_ERROR_CATEGORIES.has(errorCategory)
       ? errorCategory
       : null,
+    actorKind: SAFE_MATCHMAKING_ACTOR_KINDS.has(actorKind) ? actorKind : 'unknown',
     queueStateBefore: SAFE_MATCHMAKING_QUEUE_STATES.has(queueStateBefore) ? queueStateBefore : 'unknown',
     queueStateAfter: SAFE_MATCHMAKING_QUEUE_STATES.has(queueStateAfter) ? queueStateAfter : 'unknown',
+    startResponseShape: SAFE_MATCHMAKING_START_RESPONSE_SHAPES.has(startResponseShape)
+      ? startResponseShape
+      : 'failed_safe',
+    noOpponentYetClassifiedAsWaiting: noOpponentYetClassifiedAsWaiting === 'true',
+    staleOwnRowHandled: staleOwnRowHandled === 'true',
+    duplicateOwnRowHandled: duplicateOwnRowHandled === 'true',
     retryCleanupObserved: retryCleanupObserved === 'true',
     cancelCleanupObserved: cancelCleanupObserved === 'true',
     directStartPayloadAvailable: directStartPayloadAvailable === 'true',
@@ -713,19 +734,25 @@ function mergeSafeMatchmakingEvidence(target, observed) {
     'matchmakingOperation',
     'matchmakingStatusClass',
     'matchmakingErrorCategory',
+    'actorKind',
     'queueStateBefore',
     'queueStateAfter',
+    'startResponseShape',
   ]) {
     if (observed[key] != null) target[key] = observed[key];
   }
   target.retryCleanupObserved ||= observed.retryCleanupObserved;
   target.cancelCleanupObserved ||= observed.cancelCleanupObserved;
+  target.noOpponentYetClassifiedAsWaiting ||= observed.noOpponentYetClassifiedAsWaiting;
+  target.staleOwnRowHandled ||= observed.staleOwnRowHandled;
+  target.duplicateOwnRowHandled ||= observed.duplicateOwnRowHandled;
   target.directStartPayloadAvailable ||= observed.directStartPayloadAvailable;
   target.matchFoundObserved ||= observed.matchFoundObserved;
   return target;
 }
 
 async function onlineRandom(runtime, config) {
+  let matchmakingSessionBaseline = null;
   const evidence = {
     lobbyRouteObserved: false,
     lobbyScreenObserved: false,
@@ -740,8 +767,13 @@ async function onlineRandom(runtime, config) {
     matchmakingOperation: null,
     matchmakingStatusClass: null,
     matchmakingErrorCategory: null,
+    actorKind: 'unknown',
     queueStateBefore: 'unknown',
     queueStateAfter: 'unknown',
+    startResponseShape: 'failed_safe',
+    noOpponentYetClassifiedAsWaiting: false,
+    staleOwnRowHandled: false,
+    duplicateOwnRowHandled: false,
     retryCleanupObserved: false,
     cancelCleanupObserved: false,
     directStartPayloadAvailable: false,
@@ -773,6 +805,31 @@ async function onlineRandom(runtime, config) {
       fail('LOBBY_STILL_PRESENT: active Online flow reached a lobby route or waiting-room surface.', 'LOBBY_STILL_PRESENT');
     }
   };
+  const assertNoMatchmakingBackendRejection = async () => {
+    if (!matchmakingSessionBaseline) return;
+    const rejection = runtime.findServiceRejection(
+      RUNTIME_SERVICE_CATEGORY.ONLINE_MATCHMAKING,
+      matchmakingSessionBaseline,
+      RUNTIME_SERVICE_ACTION.ONLINE_MATCHMAKING,
+    );
+    if (!rejection) return;
+    mergeSafeMatchmakingEvidence(evidence, await readSafeMatchmakingEvidence(
+      runtime.page,
+      '[data-testid="online-kapis-search-screen"]',
+    ));
+    evidence.backendMatchEvidence = {
+      observed: true,
+      successful: false,
+      category: RUNTIME_SERVICE_CATEGORY.ONLINE_MATCHMAKING,
+      statusClass: rejection.statusClass || '5xx',
+      safeSummary: 'Online matchmaking returned a rejected backend response during the active search session.',
+    };
+    throw new AutomationSetupGap(
+      'The Online matchmaking request completed without a successful backend status.',
+      AUTOMATION_STATUS.NOT_AUTOMATABLE,
+      'ONLINE_MATCHMAKING_BACKEND_REJECTED',
+    );
+  };
 
   await runtime.step('online.open', async () => {
     await openHome(runtime, config);
@@ -796,6 +853,7 @@ async function onlineRandom(runtime, config) {
   await runtime.step('online.random_start', async () => {
     requireCapability(config.allowMatchmaking, 'KRONOX_E2E_ALLOW_MATCHMAKING is not true; the shared queue was not mutated.');
     const matchmakingBaseline = runtime.captureServiceBaseline(RUNTIME_SERVICE_ACTION.ONLINE_MATCHMAKING);
+    matchmakingSessionBaseline = matchmakingBaseline;
     await clickAndSee(runtime.page, '[data-testid="online-kapis-entry"]', '[data-testid="online-kapis-search-screen"]', 20000);
     const outcome = await requireSuccessfulBackendAction(runtime, {
       category: RUNTIME_SERVICE_CATEGORY.ONLINE_MATCHMAKING,
@@ -827,12 +885,19 @@ async function onlineRandom(runtime, config) {
       runtime.page,
       '[data-testid="online-kapis-search-screen"]',
     ));
+    await assertNoMatchmakingBackendRejection();
     await inspectNoLobby();
     return 'Rakip aranıyor, bounded countdown, and Vazgeç are visible.';
   });
   await runtime.step('online.cancel', async () => {
     const baseline = runtime.captureServiceBaseline(RUNTIME_SERVICE_ACTION.ONLINE_MATCHMAKING);
-    await clickAndSee(runtime.page, '[data-testid="online-kapis-search-cancel"]', '[data-testid="online-screen"]');
+    try {
+      await clickAndSee(runtime.page, '[data-testid="online-kapis-search-cancel"]', '[data-testid="online-screen"]');
+    } catch (error) {
+      await assertNoMatchmakingBackendRejection();
+      throw error;
+    }
+    await assertNoMatchmakingBackendRejection();
     await requireSuccessfulBackendAction(runtime, {
       category: RUNTIME_SERVICE_CATEGORY.ONLINE_MATCHMAKING,
       actionLabel: RUNTIME_SERVICE_ACTION.ONLINE_MATCHMAKING,
@@ -852,6 +917,7 @@ async function onlineRandom(runtime, config) {
   });
   await runtime.step('online.restart', async () => {
     const baseline = runtime.captureServiceBaseline(RUNTIME_SERVICE_ACTION.ONLINE_MATCHMAKING);
+    matchmakingSessionBaseline = baseline;
     await clickAndSee(runtime.page, '[data-testid="online-kapis-entry"]', '[data-testid="online-kapis-search-screen"]', 20000);
     const outcome = await requireSuccessfulBackendAction(runtime, {
       category: RUNTIME_SERVICE_CATEGORY.ONLINE_MATCHMAKING,
@@ -878,6 +944,7 @@ async function onlineRandom(runtime, config) {
   await runtime.step('online.matched', async () => {
     const deadline = Date.now() + 35_000;
     while (Date.now() < deadline) {
+      await assertNoMatchmakingBackendRejection();
       await inspectNoLobby();
       if (await runtime.page.locator('[data-testid="online-match-found-screen"]').isVisible().catch(() => false)) {
         const text = await runtime.page.locator('[data-testid="online-match-found-screen"]').innerText();

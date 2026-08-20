@@ -72,6 +72,15 @@ const SAFE_MATCHMAKING_ERROR_CATEGORIES = new Set([
   'MATCHMAKING_UNKNOWN_START_FAILURE',
   'MATCHMAKING_UNKNOWN_BACKEND_REJECTION',
 ]);
+const SAFE_START_RESPONSE_SHAPES = new Set([
+  'waiting',
+  'searching',
+  'matched',
+  'direct_start_ready',
+  'timeout',
+  'cancelled',
+  'failed_safe',
+]);
 
 function safeQueueState(value) {
   const state = String(value || 'unknown');
@@ -97,7 +106,21 @@ function safeErrorCategory(value, mode, fallbackSuffix = 'UNKNOWN_START_FAILURE'
 function safeDiagnostics(value, mode, action) {
   const source = value && typeof value === 'object' ? value : {};
   const queueAction = String(source.queueAction || action || 'find_waiting');
+  const operation = String(source.operation || source.matchmakingOperation || queueAction);
+  const responseStatusClass = String(source.responseStatusClass || source.matchmakingStatusClass || 'unknown');
+  const startResponseShape = String(source.startResponseShape || 'failed_safe');
   return {
+    functionCategory: source.functionCategory === 'shared_matchmaking_backend'
+      ? source.functionCategory
+      : 'shared_matchmaking_backend',
+    operation: SAFE_QUEUE_ACTIONS.has(operation) ? operation : 'find_waiting',
+    mode: normalizeOnlineMatchmakingMode(source.mode || mode),
+    responseStatusClass: ['2xx', '4xx', '5xx'].includes(responseStatusClass)
+      ? responseStatusClass
+      : 'unknown',
+    startResponseShape: SAFE_START_RESPONSE_SHAPES.has(startResponseShape)
+      ? startResponseShape
+      : 'failed_safe',
     modeKeySent: normalizeOnlineMatchmakingMode(source.modeKeySent || mode),
     canonicalModeKey: normalizeOnlineMatchmakingMode(source.canonicalModeKey || mode),
     queueScope: normalizeOnlineMatchmakingMode(source.queueScope || mode),
@@ -124,6 +147,9 @@ function safeDiagnostics(value, mode, action) {
     pairingLockAttempted: Boolean(source.pairingLockAttempted),
     retryCleanupObserved: Boolean(source.retryCleanupObserved),
     cancelCleanupObserved: Boolean(source.cancelCleanupObserved),
+    noOpponentYetClassifiedAsWaiting: Boolean(source.noOpponentYetClassifiedAsWaiting),
+    staleOwnRowHandled: Boolean(source.staleOwnRowHandled),
+    duplicateOwnRowHandled: Boolean(source.duplicateOwnRowHandled),
     matchFoundObserved: Boolean(source.matchFoundObserved),
     errorCategory: source.errorCategory
       ? safeErrorCategory(source.errorCategory, mode)

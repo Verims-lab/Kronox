@@ -478,6 +478,15 @@ export function summarizeRuntimeBackendEvidence(summary = {}, preferredCategorie
   for (const category of candidates) {
     const entry = summary[category];
     if (!entry) continue;
+    if ((entry.statusClasses?.['5xx'] || 0) > 0) {
+      return {
+        observed: true,
+        successful: false,
+        category,
+        statusClass: '5xx',
+        safeSummary: `Observed a rejected ${category} runtime response after backend processing began.`,
+      };
+    }
     const successfulStatusClass = ['2xx', '3xx'].find((statusClass) => (entry.statusClasses?.[statusClass] || 0) > 0);
     if (successfulStatusClass) {
       return {
