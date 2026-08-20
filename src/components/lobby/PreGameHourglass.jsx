@@ -11,6 +11,7 @@ export default function PreGameHourglass({
   expiresAt = null,
   phase = '',
   errorMessage = '',
+  errorCategory = null,
   testId,
   cancelTestId,
   onTimeout,
@@ -24,7 +25,7 @@ export default function PreGameHourglass({
   useEffect(() => { onTimeoutRef.current = onTimeout; }, [onTimeout]);
   const totalMs = expiresAt ? Math.max(1000, (Date.parse(expiresAt) || 0) - startRef.current) : durationMs;
   const [remainingMs, setRemainingMs] = useState(totalMs);
-  const timerPaused = ['error', 'timeout', 'matched', 'starting'].includes(phase);
+  const timerPaused = ['failed', 'timeout', 'matched', 'directStarting', 'cancelled'].includes(phase);
 
   useEffect(() => {
     firedRef.current = false;
@@ -48,13 +49,13 @@ export default function PreGameHourglass({
   }, [expiresAt, durationMs, timerPaused]);
 
   const seconds = Math.ceil(remainingMs / 1000);
-  const statusTitle = phase === 'waiting' || phase === 'checking' || phase === 'joining'
+  const statusTitle = phase === 'starting' || phase === 'searching'
     ? 'Rakip aranıyor'
-    : phase === 'matched' || phase === 'starting'
+    : phase === 'matched' || phase === 'directStarting'
       ? 'Rakip bulundu'
       : phase === 'timeout'
         ? 'Rakip bulunamadı'
-        : phase === 'error'
+        : phase === 'failed'
           ? 'Eşleşme başlatılamadı'
           : title;
 
@@ -62,6 +63,7 @@ export default function PreGameHourglass({
     <div
       data-testid={testId}
       data-matchmaking-phase={phase || 'idle'}
+      data-matchmaking-error-category={errorCategory || undefined}
       className="kx-a1-screen kx-a1-online fixed inset-0 flex w-full max-w-full flex-col items-center justify-center overflow-x-hidden overflow-y-auto px-4 text-white"
       data-kronox-pre-game-hourglass="mobile-safe"
       style={{
@@ -92,7 +94,7 @@ export default function PreGameHourglass({
         <p className="mt-5 font-bebas text-5xl tracking-widest text-white kronox-timeline-number">{seconds}s</p>
       )}
 
-      {errorMessage && ['error', 'timeout'].includes(phase) && (
+      {errorMessage && ['failed', 'timeout'].includes(phase) && (
         <p
           className="mt-4 rounded-xl px-3 py-2 font-inter text-xs text-rose-100/90"
           style={{ background: 'rgba(244,63,94,0.10)', boxShadow: 'inset 0 0 0 1px rgba(244,63,94,0.35)' }}
@@ -101,7 +103,7 @@ export default function PreGameHourglass({
         </p>
       )}
 
-      {onRetry && ['error', 'timeout'].includes(phase) && (
+      {onRetry && ['failed', 'timeout'].includes(phase) && (
         <button
           type="button"
           onClick={onRetry}
@@ -112,7 +114,7 @@ export default function PreGameHourglass({
         </button>
       )}
 
-      {onCancel && !['matched', 'starting'].includes(phase) && (
+      {onCancel && !['matched', 'directStarting'].includes(phase) && (
         <button
           type="button"
           data-testid={cancelTestId}

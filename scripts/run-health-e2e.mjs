@@ -163,6 +163,7 @@ async function runRuntimePreflight(browser, baseUrl, environment) {
     colorScheme: 'dark',
   };
   if (environment.hasStorageState) contextOptions.storageState = STORAGE_STATE_PATH;
+  else if (environment.hasStorageStateA) contextOptions.storageState = STORAGE_STATE_A_PATH;
   const context = await browser.newContext(contextOptions);
   const page = await context.newPage();
   const consoleErrors = [];
@@ -265,7 +266,7 @@ async function runRuntimePreflight(browser, baseUrl, environment) {
     homeVisible: false,
   }));
   const authenticatedOrStoredSession = Boolean(
-    environment.hasStorageState || pageState.guestCredentialPairInStorage,
+    environment.hasStorageState || environment.hasStorageStateA || pageState.guestCredentialPairInStorage,
   );
   const appIdConfigured = environment.appIdEnvConfigured || pageState.appIdInRuntimeStorage;
   const appBaseUrlConfigured = environment.appBaseUrlEnvConfigured || pageState.appBaseUrlInRuntimeStorage;
@@ -492,19 +493,35 @@ function unavailablePreflight(baseUrl, environment, error) {
 }
 
 async function runScenario(browser, definition, config, evidence, decision, runArtifactDir) {
+  const isTwoActorDuello = definition.scenarioId === 'runtime_e2e.duello_two_context_runtime_sync'
+    && config.hasTwoStorageStates;
   const contextOptions = {
     viewport: { width: 390, height: 844 },
     locale: 'tr-TR',
     colorScheme: 'dark',
   };
-  if (config.hasStorageState) contextOptions.storageState = STORAGE_STATE_PATH;
+  if (isTwoActorDuello) contextOptions.storageState = STORAGE_STATE_A_PATH;
+  else if (config.hasStorageState) contextOptions.storageState = STORAGE_STATE_PATH;
+  else if (config.hasStorageStateA) contextOptions.storageState = STORAGE_STATE_A_PATH;
   const context = await browser.newContext(contextOptions);
   await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
   const page = await context.newPage();
+  let secondaryContext = null;
+  let secondaryPage = null;
+  if (isTwoActorDuello) {
+    secondaryContext = await browser.newContext({
+      ...contextOptions,
+      storageState: STORAGE_STATE_B_PATH,
+    });
+    await secondaryContext.tracing.start({ screenshots: true, snapshots: true, sources: true });
+    secondaryPage = await secondaryContext.newPage();
+  }
   const harness = new RuntimeScenarioHarness({
     definition,
     context,
     page,
+    secondaryContext,
+    secondaryPage,
     reportEvidence: evidence,
     artifactDir: runArtifactDir,
   });
@@ -524,12 +541,24 @@ async function runScenario(browser, definition, config, evidence, decision, runA
       await context.tracing.stop({ path: tracePath });
       harness.attachTrace(tracePath);
     } catch (_) {}
+    if (secondaryContext) {
+      const secondaryTracePath = path.join(runArtifactDir, `${definition.scenarioId.replace(/[^a-z0-9]+/gi, '-')}-actor-b.zip`);
+      try {
+        await secondaryContext.tracing.stop({ path: secondaryTracePath });
+      } catch (_) {}
+    }
     result = harness.result(error);
   } else {
     try {
       await context.tracing.stop();
     } catch (_) {}
+    if (secondaryContext) {
+      try {
+        await secondaryContext.tracing.stop();
+      } catch (_) {}
+    }
   }
+  if (secondaryContext) await secondaryContext.close();
   await context.close();
   const uiOnly = definition.executionScope === RUNTIME_E2E_EXECUTION_SCOPE.UI_ONLY;
   const backendConnected = result.backendEvidence?.observed === true
@@ -697,6 +726,9 @@ async function main() {
   const config = {
     baseUrl,
     hasStorageState: environment.hasStorageState,
+    hasStorageStateA: environment.hasStorageStateA,
+    hasStorageStateB: environment.hasStorageStateB,
+    hasTwoStorageStates: environment.hasStorageStateA && environment.hasStorageStateB,
     hasBackendService: false,
     canRunBackendProbe: false,
     allowWheelSpin: environment.allowWheelSpin,
@@ -735,7 +767,7 @@ async function main() {
       pageOrigin: preflight.pageOrigin,
       baseUrlOrigin: preflight.pageOrigin,
       appRoute: preflight.appRoute,
-      contextCount: 1,
+      contextCount: environment.hasStorageStateA && environment.hasStorageStateB ? 2 : 1,
       deterministicPairing: false,
       deterministicClaimFixture: false,
       preflight,

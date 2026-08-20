@@ -178,6 +178,7 @@ export default function OnlineChallengeScreen({
         durationMs={30 * 1000}
         phase={random.phase}
         errorMessage={screenError || random.errorMessage}
+        errorCategory={random.errorCategory}
         onTimeout={handleRandomTimeout}
         onCancel={handleRandomCancel}
         onRetry={() => { setScreenError(''); void random.start(); }}
@@ -196,6 +197,7 @@ export default function OnlineChallengeScreen({
         durationMs={30 * 1000}
         phase={duel.phase}
         errorMessage={screenError || duel.errorMessage}
+        errorCategory={duel.errorCategory}
         onTimeout={handleDuelTimeout}
         onCancel={handleDuelCancel}
         onRetry={() => { setScreenError(''); void duel.start(); }}

@@ -7,6 +7,7 @@ export default function DuelArena({ duel }) {
     <div
       className="relative"
       data-kronox-same-question-duel="active"
+      data-kronox-duello-sequence={activeCard?.sequence_id ?? 'pending'}
       data-testid="duello-active-card"
     >
       <span className="sr-only" data-testid="duello-player-progress">

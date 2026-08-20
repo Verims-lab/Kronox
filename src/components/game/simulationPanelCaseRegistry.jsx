@@ -80,6 +80,7 @@ import * as uiConsolidationCases from './simulationPanelUiConsolidationCases';
 import * as onlineChallengeCases from './simulationPanelOnlineChallengeCases';
 import * as sameQuestionDuelCases from './simulationPanelSameQuestionDuelCases';
 import * as onlineMatchmakingRuntimeCases from './simulationPanelOnlineMatchmakingRuntimeCases';
+import * as duelloTwoDeviceCases from './simulationPanelDuelloTwoDeviceCases';
 // Direct Online/Duello start: no active lobby route or waiting-room UI,
 // same-screen match-found, backend-authoritative handoff, and E2E honesty.
 import * as onlineDirectStartCases from './simulationPanelOnlineDirectStartCases';
@@ -301,6 +302,7 @@ const MODULES = [
   onlineChallengeCases,
   sameQuestionDuelCases,
   onlineMatchmakingRuntimeCases,
+  duelloTwoDeviceCases,
   onlineDirectStartCases,
   onlineRankingCases,
   inviteDeliveryCases,

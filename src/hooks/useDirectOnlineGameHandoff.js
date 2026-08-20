@@ -39,10 +39,12 @@ export default function useDirectOnlineGameHandoff({
 }) {
   const [phase, setPhase] = useState(active ? 'matched' : 'idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [errorCategory, setErrorCategory] = useState(null);
   const [retryVersion, setRetryVersion] = useState(0);
   const readyRef = useRef(false);
   const initialLobbyRef = useRef(initialLobby);
   const onGameReadyRef = useRef(onGameReady);
+  const errorPrefix = queueMode === 'same_question_duel' ? 'DUELLO' : 'ONLINE';
 
   useEffect(() => { initialLobbyRef.current = initialLobby; }, [initialLobby]);
   useEffect(() => { onGameReadyRef.current = onGameReady; }, [onGameReady]);
@@ -50,6 +52,7 @@ export default function useDirectOnlineGameHandoff({
   const retry = useCallback(() => {
     readyRef.current = false;
     setErrorMessage('');
+    setErrorCategory(null);
     setPhase('matched');
     setRetryVersion((value) => value + 1);
   }, []);
@@ -64,6 +67,7 @@ export default function useDirectOnlineGameHandoff({
     readyRef.current = false;
     setPhase('matched');
     setErrorMessage('');
+    setErrorCategory(null);
 
     const schedule = (task, delayMs) => {
       timerId = window.setTimeout(task, delayMs);
@@ -72,6 +76,7 @@ export default function useDirectOnlineGameHandoff({
     const finish = async (lobby) => {
       if (cancelled || readyRef.current) return;
       readyRef.current = true;
+      setPhase('directStarting');
       const delayMs = Math.max(0, MATCH_FOUND_DISPLAY_MS - (Date.now() - matchedAt));
       schedule(async () => {
         if (cancelled) return;
@@ -84,8 +89,9 @@ export default function useDirectOnlineGameHandoff({
     const reconcile = async () => {
       if (cancelled || readyRef.current) return;
       if (Date.now() >= deadline) {
-        setPhase('error');
+        setPhase('failed');
         setErrorMessage('Lütfen tekrar dene.');
+        setErrorCategory(`${errorPrefix}_DIRECT_START_PAYLOAD_MISSING`);
         return;
       }
 
@@ -97,8 +103,9 @@ export default function useDirectOnlineGameHandoff({
         let lobby = response?.data?.lobby || initialLobbyRef.current;
         if (!lobby?.id) throw new Error('match_snapshot_missing');
         if (['cancelled', 'expired'].includes(String(lobby.status || ''))) {
-          setPhase('error');
+          setPhase('failed');
           setErrorMessage('Lütfen tekrar dene.');
+          setErrorCategory(`${errorPrefix}_DIRECT_START_PAYLOAD_MISSING`);
           return;
         }
 
@@ -108,7 +115,7 @@ export default function useDirectOnlineGameHandoff({
         }
 
         if (lobby.status === 'waiting' && lobby.current_actor_is_host === true) {
-          setPhase('starting');
+          setPhase('directStarting');
           const started = await startLobbyGame(lobby.id, lobby.state_revision);
           lobby = started?.data?.lobby || lobby;
           if (hasAuthoritativeOnlineGamePayload(lobby)) {
@@ -128,7 +135,7 @@ export default function useDirectOnlineGameHandoff({
       cancelled = true;
       if (timerId) window.clearTimeout(timerId);
     };
-  }, [active, lobbyRef, queueMode, retryVersion]);
+  }, [active, errorPrefix, lobbyRef, queueMode, retryVersion]);
 
-  return { phase, errorMessage, retry };
+  return { phase, errorMessage, errorCategory, retry };
 }

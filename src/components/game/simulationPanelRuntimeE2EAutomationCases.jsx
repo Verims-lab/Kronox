@@ -226,19 +226,19 @@ export const EXTRA_TESTS = [
       : pass('Scenario metadata, browser behavior, evidence model, and Health UI are separate extensible layers.');
   }),
 
-  makeCase('duello_two_context_not_faked', 'Duello remains MANUAL_EXTERNAL until deterministic two-context authority evidence exists', () => {
+  makeCase('duello_two_context_not_faked', 'Duello remains MANUAL_EXTERNAL without A/B and requires real direct-start evidence with A/B', () => {
     const duello = RUNTIME_E2E_SCENARIOS.find((item) => item.scenarioId === 'runtime_e2e.duello_two_context_runtime_sync');
     const absent = missing(`${handlerSource}\n${reportSource}`, [
       'AUTOMATION_STATUS.MANUAL_EXTERNAL',
-      'No deterministic two-actor pairing and correct-claim fixture exists',
+      'TWO_ACTOR_REQUIRED',
       'contextCount >= 2',
-      'deterministicPairing === true',
-      'deterministicClaimFixture === true',
-      'singleAcceptedClaim === true',
-      'snapshotReconciled === true',
+      'sharedSessionFingerprintMatched === true',
+      'sharedActiveCardFingerprintMatched === true',
+      "directStartRouteA === '/duel'",
+      "directStartRouteB === '/duel'",
     ]);
     return duello && absent.length === 0
-      ? pass('Duello cannot PASS on route smoke; it requires two contexts plus deterministic authority evidence and otherwise stays MANUAL_EXTERNAL.')
+      ? pass('Duello cannot PASS on route smoke; it requires two contexts, successful backend evidence, matched UI, and matching direct-game fingerprints.')
       : fail('Duello two-context proof can be faked or lacks an explicit manual boundary.', { missing: absent });
   }),
 
@@ -543,12 +543,13 @@ export const EXTRA_TESTS = [
       : fail('Online actor/matchmaking setup gate drifted.', { missing: absent });
   }),
 
-  makeCase('duello_two_context_requires_real_pairing', 'Duello two-context proof requires real pairing and claim fixtures', () => {
+  makeCase('duello_two_context_requires_real_pairing', 'Duello two-context proof requires real A/B pairing; claim proof stays optional', () => {
     const duello = RUNTIME_E2E_SCENARIOS.find((item) => item.scenarioId === 'runtime_e2e.duello_two_context_runtime_sync');
-    const required = ['twoBrowserContexts', 'twoIsolatedActors', 'deterministicTwoActorPairing', 'deterministicClaimFixture'];
+    const required = ['safeMatchmakingQueue', 'twoBrowserContexts', 'twoIsolatedActors', 'deterministicTwoActorPairing'];
     const absent = required.filter((item) => !duello?.requiredCapabilities.includes(item));
-    return !absent.length && handlerSource.includes('AUTOMATION_STATUS.MANUAL_EXTERNAL')
-      ? pass('Duello remains manual/external until two real actors, deterministic pairing, and claim proof exist.')
+    const claimOptional = duello?.optionalCapabilities?.includes('deterministicClaimFixture');
+    return !absent.length && claimOptional && handlerSource.includes('AUTOMATION_STATUS.MANUAL_EXTERNAL')
+      ? pass('Duello pairing/direct-start can run with two real actors while claim-race score proof remains an honest optional manual gate.')
       : fail('Duello can be promoted without real two-actor authority evidence.', { missing: absent });
   }),
 
@@ -1156,7 +1157,7 @@ export const EXTRA_TESTS = [
       : fail('The safe gate can be confused with backend proof.', { missing: absent });
   }),
 
-  makeCase('duello_still_manual_without_two_actors', 'Duello two-context remains MANUAL_EXTERNAL without two actors and deterministic fixtures', () => {
+  makeCase('duello_still_manual_without_two_actors', 'Duello two-context remains MANUAL_EXTERNAL without two actor fixtures', () => {
     const duello = RUNTIME_E2E_SCENARIOS.find((item) => item.scenarioId === 'runtime_e2e.duello_two_context_runtime_sync');
     const capabilitySummary = buildRuntimeCapabilitySummary({
       browserAvailable: true,
@@ -1176,7 +1177,7 @@ export const EXTRA_TESTS = [
     return decision.canRun === false
       && decision.status === AUTOMATION_STATUS.MANUAL_EXTERNAL
       && decision.decision === 'MANUAL_EXTERNAL_REQUIRED'
-      ? pass('Production preflight changes do not promote Duello without two isolated actors and deterministic authority fixtures.')
+      ? pass('Production preflight changes do not promote Duello without two isolated A/B actor fixtures.')
       : fail('Duello manual/external boundary was weakened.', { decision });
   }),
 

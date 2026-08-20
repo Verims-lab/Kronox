@@ -455,3 +455,34 @@ browser automation. Question-service success remains mandatory gameplay proof.
   until the sender cancels/deletes the expired row, then confirms a new invite
   can be sent after cancel/delete. Parallel rapid submits should create at most
   one pending FriendRequest; lock conflicts return a safe retry message.
+
+## Codex639 Duello Two-Device Matchmaking Coverage
+
+The shared `randomMatchmaking` authority now binds its queue store before every
+candidate read and stages reciprocal, mode-scoped `pairing` rows before
+committing the exactly-two-player private session.
+Recoverable pair-lock contention and ordinary no-opponent waiting stay
+`waiting`; only an unrecoverable classified failure can enter the public safe
+`Eşleşme başlatılamadı` state. The pure client reducer owns `idle`, `starting`,
+`searching`, `matched`, `directStarting`, `timeout`, `failed`, and `cancelled`.
+Retry/cancel/unmount clear owned timers and stale caller rows without deleting a
+committed opponent session.
+
+Fourteen focused `duello_flow` cases and ten `runtime_e2e_automation` cases
+protect canonical `same_question_duel` isolation, distinct-actor pairing,
+self-match rejection, same-screen `Rakip bulundu`, authoritative direct
+`/duel`, no active `/lobby`, stale retry cleanup, safe timeout/error copy,
+private-identity/question-bank boundaries, two-context evidence, and Full
+Health separation. Existing `random_online` direct `/game` coverage remains
+active. These are executable/source-connected contract checks, not deployed
+two-phone release proof.
+
+When both ignored A/B storage states are configured, Runtime E2E opens two
+isolated browser contexts and requires both actors to search, match on the same
+surface, enter `/duel` without `/lobby`, and agree on redacted session/card
+fingerprints. Missing A/B state remains `MANUAL_EXTERNAL` /
+`TWO_ACTOR_REQUIRED`; it is never promoted to PASS. Real-device delivery,
+production RLS/reconnect behavior, and Duello's simultaneous first-correct
+claim race remain manual/external. Public evidence remains username-safe and
+cannot include private actor fields, raw session/card values, answer years, or
+the full question bank.

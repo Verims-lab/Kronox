@@ -28,11 +28,12 @@ export default function DirectOnlineMatchScreen({ match, onGameReady, onBack }) 
       <PreGameHourglass
         testId={isDuello ? 'duello-match-found-screen' : 'online-match-found-screen'}
         title="Rakip bulundu"
-        subtitle={handoff.phase === 'error' ? 'Lütfen tekrar dene.' : 'Oyun başlıyor'}
+        subtitle={handoff.phase === 'failed' ? 'Lütfen tekrar dene.' : 'Oyun başlıyor'}
         phase={handoff.phase}
         errorMessage={handoff.errorMessage}
+        errorCategory={handoff.errorCategory}
         onRetry={handoff.retry}
-        onCancel={handoff.phase === 'error' ? handleBack : undefined}
+        onCancel={handoff.phase === 'failed' ? handleBack : undefined}
       />
     </div>
   );
