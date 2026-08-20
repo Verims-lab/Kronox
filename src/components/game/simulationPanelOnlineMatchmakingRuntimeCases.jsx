@@ -157,13 +157,14 @@ export const EXTRA_TESTS = [
 
   make('waiting_poll_uses_backend_snapshot', 'Matched handoff reconciles backend queue and authoritative game snapshots', () => sourceResult(required(randomHook + randomBackend + onlineScreen + directHandoff + onlinePage, [
     'pollRandomMatchmaking(mode)',
-    'await pollOnce(sessionId)',
+    'void pollOnce(sessionId)',
+    'pollPendingRef.current',
     'reconcileWaitingActor(base44, actor, mode, false)',
     'getLobbySnapshot',
     'LOBBY_SNAPSHOT_SCOPES.GAME',
     'startLobbyGame(lobby.id, lobby.state_revision)',
     'onGameReady={handleGameReady}',
-  ]), 'Join performs an immediate poll, waiting polls can pair rows, and direct handoff waits for one backend-authored GAME snapshot.'), ['useRandomMatchmaking.js', 'useDirectOnlineGameHandoff.js', 'randomMatchmaking/entry.ts', 'OnlinePage.jsx']),
+  ]), 'A single recursive poller reconciles pairing while direct handoff waits for one backend-authored GAME snapshot.'), ['useRandomMatchmaking.js', 'useDirectOnlineGameHandoff.js', 'randomMatchmaking/entry.ts', 'OnlinePage.jsx']),
 
   make('timeout_cancel_cleanup_safe', 'Timeout performs a final snapshot read before serialized cleanup', () => sourceResult(required(randomHook + randomBackend + onlineScreen, [
     'resolveTimeout',
@@ -204,12 +205,14 @@ export const EXTRA_TESTS = [
       });
   }, ['run-health-e2e.mjs', 'runtimeE2EReport.js', 'runtimeE2EScenarios.js']),
 
-  make('duello_two_context_not_faked', 'Duello two-context PASS requires deterministic real authority evidence', () => sourceResult(required(runtimeHandlers + runtimeReportSource + runtimeScenariosSource, [
-    'No deterministic two-actor pairing and correct-claim fixture exists',
+  make('duello_two_context_not_faked', 'Duello two-context PASS requires real paired direct-start evidence', () => sourceResult(required(runtimeHandlers + runtimeReportSource + runtimeScenariosSource, [
+    'KRONOX_E2E_STORAGE_STATE_A',
+    'KRONOX_E2E_STORAGE_STATE_B',
     'AUTOMATION_STATUS.MANUAL_EXTERNAL',
     'evidence?.contextCount >= 2',
-    'evidence?.deterministicPairing === true',
-    'result?.authorityEvidence?.singleAcceptedClaim === true',
+    'authority?.sharedSessionFingerprintMatched === true',
+    'authority?.sharedActiveCardFingerprintMatched === true',
+    "authority?.directStartRouteA === '/duel'",
     "scenarioId: 'runtime_e2e.duello_two_context_runtime_sync'",
-  ]), 'Route rendering cannot fake Duello proof; two isolated contexts and backend claim reconciliation remain mandatory.'), ['scenarioHandlers.mjs', 'runtimeE2EReport.js', 'runtimeE2EScenarios.js']),
+  ]), 'Route rendering cannot fake Duello proof; two isolated contexts, backend responses, same-screen match-found, and matching fingerprints are mandatory.'), ['scenarioHandlers.mjs', 'runtimeE2EReport.js', 'runtimeE2EScenarios.js']),
 ];

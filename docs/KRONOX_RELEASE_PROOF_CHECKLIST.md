@@ -1563,6 +1563,17 @@ Manual release gates that source cannot prove:
   directly or open the map, but a runtime PASS requires committed `/game`, the
   dedicated Solo root, question/card area, and interaction target. A safe
   question bootstrap recovery is NOT_AUTOMATABLE with its precise reason.
+* Codex638 requires a visible, enabled `[data-testid="solo-back-home"]` control.
+  If the optional tutorial is visible, automation closes it through
+  `solo-tutorial-continue` or `solo-tutorial-close` after a bounded 750ms
+  discovery check; it never spends a default 30-second absent/hidden wait.
+  Exit evidence includes only control count/visibility/enabled state/bounds,
+  pointer events, overlay/dialog flags, and safe route names. Missing, hidden,
+  tutorial-blocked, overlay-blocked, click-timeout, and route-stall states keep
+  distinct failure categories.
+* Verify direct Home `OYNA` exits to Home and a `/solo` map launch exits to the
+  map. Neither exit may evaluate a placement, change HAMLE/Puan, grant a reward,
+  spend inventory, or weaken the successful question-service proof gate.
 * Codex635 passed core Health but its production Runtime E2E report was not
   release-green. Codex636 makes the legacy `/Game` redirect case-sensitive so
   it cannot capture canonical `/game`; the current Solo level must commit the
@@ -1634,5 +1645,38 @@ Manual release gates that source cannot prove:
   may be public, while email, provider/owner/raw guest/auth/internal actor
   identifiers, tokens, answer data, raw errors, and stacks remain forbidden.
 * The 25 direct-start Health cases are source/executable contract proof. Duello
-  stays `MANUAL_EXTERNAL` until two isolated actors, deterministic pairing,
-  deterministic correct-claim input, and reconciled backend snapshots exist.
+  pairing/direct-start stays `MANUAL_EXTERNAL` until two isolated actors and
+  deterministic pairing evidence exist; correct-claim/result proof additionally
+  requires a deterministic answer fixture and reconciled backend snapshots.
+
+## Duello Two-Device Matchmaking Gate (Codex639)
+
+* Duello uses only the canonical `same_question_duel` queue lane. Normal
+  `random_online` actors cannot cross-match, and the backend rejects self-match
+  while still allowing two distinct guest/linked actor combinations.
+* Pairing is staged under the mode lock with reciprocal `pairing` rows before
+  the private two-player session is committed. A recoverable lock/contention
+  gap returns `waiting`; normal waiting must never render
+  `Eşleşme başlatılamadı`.
+* The client lifecycle is `idle`, `starting`, `searching`, `matched`,
+  `directStarting`, `timeout`, `failed`, or `cancelled`. Retry first settles the
+  caller's stale active row and clears old timers; cancel/timeout settles only
+  the caller's queue state and cannot cancel a committed peer session.
+* Both matched clients show `Rakip bulundu` on the same `/online` search
+  surface, then enter `/duel` only after the backend-owned direct-start payload
+  is complete. Any active `/lobby` route/surface is `LOBBY_STILL_PRESENT` and a
+  failed Runtime E2E result. Online Kapış preserves the same no-lobby rule and
+  enters `/game` directly.
+* Public UI uses username/avatar only. Safe diagnostics expose allowlisted
+  action/category/boolean fields; email, owner/provider/auth/raw guest/internal
+  actor identifiers, tokens, raw URLs/errors, the full question bank, and the
+  answer year remain forbidden.
+* Runtime E2E uses `KRONOX_E2E_STORAGE_STATE_A` and
+  `KRONOX_E2E_STORAGE_STATE_B` as isolated contexts. With both fixtures it must
+  prove search and match-found on both screens, direct `/duel`, no `/lobby`, and
+  matching redacted session/active-card fingerprints. Without both fixtures it
+  remains `MANUAL_EXTERNAL` with `TWO_ACTOR_REQUIRED`; no route-only fake PASS
+  is allowed.
+* Real-device reconnect/RLS behavior and the near-simultaneous first-correct
+  claim race remain external release proof. Matchmaking/direct-start proof does
+  not change Duello/Online `+15`/`-6`, first-to-10, or no-speed-bonus rules.

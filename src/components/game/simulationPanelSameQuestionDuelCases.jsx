@@ -191,9 +191,9 @@ export const EXTRA_TESTS = [
 
   make('waiting_cancel_timeout_cleanup', 'Duello cancel and timeout close waiting state', () => sourceResult([
     ...required(onlineScreen, ['handleDuelCancel', 'handleDuelTimeout', 'await duel.cancel()', 'duel.resolveTimeout()']),
-    ...required(randomHook, ['stopPolling()', 'window.clearInterval(pollRef.current)', 'await pollRandomMatchmaking(mode)', 'await cancelRandomMatchmaking(mode)']),
+    ...required(randomHook, ['stopPolling()', 'window.clearTimeout(pollRef.current)', 'clearRetryWait()', 'await pollRandomMatchmaking(mode)', 'await cancelRandomMatchmaking(mode)']),
     ...required(randomBackend, ["status: 'cancelled'", "status: 'expired'", "action === 'cancel'"]),
-  ], 'Explicit cancel settles immediately; timeout first checks the backend once more, then settles the waiting row when no match exists.'), ['OnlineChallengeScreen.jsx', 'useRandomMatchmaking.js', 'randomMatchmaking/entry.ts']),
+  ], 'Explicit cancel settles its own row; timeout checks once more, and every poll/retry timer is cleared.'), ['OnlineChallengeScreen.jsx', 'useRandomMatchmaking.js', 'randomMatchmaking/entry.ts']),
 
   make('existing_online_modes_unchanged', 'Invite and normal random Online entries remain active', () => sourceResult(required(onlineScreen, [
     'Arkadaşını Davet Et',

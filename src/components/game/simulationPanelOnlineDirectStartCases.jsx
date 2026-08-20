@@ -167,7 +167,7 @@ export const EXTRA_TESTS = [
 
   make(ONLINE_SUITE, 'online_kapis_match_found_same_screen', 'Online Kapış shows Rakip bulundu on the same transition surface', () => sourceContract(
     `${onlinePageSource}\n${onlineScreenSource}\n${directMatchSource}\n${preGameSource}`,
-    ['onMatchFound', 'setMatch(nextMatch)', 'testId={isDuello ? \'duello-match-found-screen\' : \'online-match-found-screen\'}', "phase === 'matched' || phase === 'starting'", "? 'Rakip bulundu'", 'Oyun başlıyor'],
+    ['onMatchFound', 'setMatch(nextMatch)', 'testId={isDuello ? \'duello-match-found-screen\' : \'online-match-found-screen\'}', "phase === 'matched' || phase === 'directStarting'", "? 'Rakip bulundu'", 'Oyun başlıyor'],
     'Match-found is a phase of the same /online search experience, not a new lobby.',
   ), ['src/pages/OnlinePage.jsx', 'src/components/online/DirectOnlineMatchScreen.jsx', 'src/components/lobby/PreGameHourglass.jsx']),
 
@@ -179,14 +179,14 @@ export const EXTRA_TESTS = [
 
   make(ONLINE_SUITE, 'online_kapis_cancel_cleans_queue', 'Online Kapış cancel settles the queue before returning to selection', () => sourceContract(
     `${onlineScreenSource}\n${directMatchSource}\n${randomHookSource}\n${randomApiSource}\n${randomBackendSource}`,
-    ['const cancelled = await random.cancel()', 'if (!cancelled) return', 'await cancelRandomMatchmaking(mode)', "data?.status === 'matched'", 'cancelled: false', 'publicQueueState(row)', 'await consumeRandomMatchmaking(match.queueMode)', "invoke('cancel'", "invoke('consume'", "status: 'cancelled'", "status: 'consumed'", 'withPairingLock(base44, mode'],
+    ['const cancelled = await random.cancel()', 'if (!cancelled) return', 'await cancelRandomMatchmaking(mode)', "data?.status === 'matched'", 'cancelled: false', 'publicQueueState(row,', 'await consumeRandomMatchmaking(match.queueMode)', "invoke('cancel'", "invoke('consume'", "status: 'cancelled'", "status: 'consumed'", 'withPairingLock(base44, mode'],
     'Pre-match cancel is serialized, a concurrent match is reconciled instead of orphaned, and post-match error exit consumes its queue row.',
   ), ['src/components/lobby/OnlineChallengeScreen.jsx', 'src/components/online/DirectOnlineMatchScreen.jsx', 'src/hooks/useRandomMatchmaking.js', 'base44/functions/randomMatchmaking/entry.ts']),
 
   make(ONLINE_SUITE, 'online_kapis_timeout_safe_copy', 'Online timeout exposes safe retry copy and expires stale queue state', () => {
     const contract = sourceContract(
       `${preGameSource}\n${randomHookSource}\n${randomBackendSource}`,
-      ['Rakip bulunamadı', 'Tekrar dene', "updatePhase('timeout')", "status: 'expired'", "status: 'timeout'"],
+      ['Rakip bulunamadı', 'Tekrar dene', "type: 'TIMED_OUT'", "status: 'expired'", "status: 'timeout'"],
       'Timeout has bounded Turkish recovery copy and an expired backend queue state.',
     );
     const rawUiError = present(`${preGameSource}\n${randomHookSource}`, ['Request failed with status code', 'error?.message']);
@@ -222,8 +222,8 @@ export const EXTRA_TESTS = [
 
   make(DUELLO_SUITE, 'duello_two_actor_proof_still_manual_without_fixtures', 'Duello cannot PASS without two isolated deterministic actors', () => sourceContract(
     runtimeSources,
-    ['AUTOMATION_STATUS.MANUAL_EXTERNAL', 'No deterministic two-actor pairing and correct-claim fixture exists', "'TWO_ACTOR_REQUIRED'", 'twoIsolatedActors', 'deterministicClaimFixture'],
-    'Duello remains MANUAL_EXTERNAL until real two-actor pairing and claim evidence exists.',
+    ['AUTOMATION_STATUS.MANUAL_EXTERNAL', 'KRONOX_E2E_STORAGE_STATE_A and KRONOX_E2E_STORAGE_STATE_B', "'TWO_ACTOR_REQUIRED'", 'twoIsolatedActors', 'deterministicClaimFixture'],
+    'Duello remains MANUAL_EXTERNAL without two isolated actors; claim-race proof stays optional and separate.',
   ), ['src/lib/health/runtimeE2EScenarios.js', 'tests/health-e2e/scenarioHandlers.mjs']),
 
   make(RUNTIME_SUITE, 'online_no_lobby_route_for_pass', 'Runtime Online PASS excludes every lobby route and surface', () => sourceContract(

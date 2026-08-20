@@ -403,6 +403,8 @@ export default function GameLayout({
                   type="button"
                   data-testid="solo-back-home"
                   aria-label="Geri dön"
+                  aria-disabled="false"
+                  disabled={false}
                   onClick={() => {
                     sounds.tap();
                     onSoloBack();
@@ -413,10 +415,14 @@ export default function GameLayout({
                     border: '1px solid rgba(167, 196, 229, 0.52)',
                     boxShadow: '0 0 12px rgba(56, 189, 248, 0.12), inset 0 1px 0 rgba(255,255,255,0.06)',
                     color: '#D7E7FF',
+                    position: 'relative',
+                    zIndex: 2,
+                    pointerEvents: 'auto',
                     touchAction: 'manipulation',
                     WebkitTapHighlightColor: 'transparent',
                   }}
                   data-kronox-solo-back-button="true"
+                  data-kronox-solo-back-enabled="true"
                 >
                   <ArrowLeft className="h-5 w-5" strokeWidth={2.4} aria-hidden="true" />
                 </button>

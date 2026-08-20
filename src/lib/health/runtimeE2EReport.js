@@ -874,11 +874,23 @@ export function hasRealAutomationEvidence(report, result) {
       && result?.backendEvidence?.observed === true
       && result?.backendEvidence?.successful === true;
   }
+  const authority = result?.authorityEvidence || {};
   return evidence?.contextCount >= 2
-    && evidence?.deterministicPairing === true
-    && evidence?.deterministicClaimFixture === true
-    && result?.authorityEvidence?.singleAcceptedClaim === true
-    && result?.authorityEvidence?.snapshotReconciled === true;
+    && result?.proofLevel === RUNTIME_E2E_PROOF_LEVEL.BACKEND_CONNECTED
+    && result?.backendEvidence?.observed === true
+    && result?.backendEvidence?.successful === true
+    && authority?.actorA?.searchObserved === true
+    && authority?.actorB?.searchObserved === true
+    && authority?.actorA?.matchFoundObserved === true
+    && authority?.actorB?.matchFoundObserved === true
+    && authority?.actorA?.directGameObserved === true
+    && authority?.actorB?.directGameObserved === true
+    && authority?.actorA?.lobbyRouteObserved === false
+    && authority?.actorB?.lobbyRouteObserved === false
+    && authority?.sharedSessionFingerprintMatched === true
+    && authority?.sharedActiveCardFingerprintMatched === true
+    && authority?.directStartRouteA === '/duel'
+    && authority?.directStartRouteB === '/duel';
 }
 
 export function backendPreflightBlock(report, result) {

@@ -172,9 +172,11 @@ export function buildRuntimeCapabilitySummary({
       'Provide and verify two distinct non-production actors without exporting their identities.',
     ),
     [RUNTIME_E2E_CAPABILITY.DETERMINISTIC_TWO_ACTOR_PAIRING]: capability(
-      RUNTIME_E2E_CAPABILITY_STATUS.MANUAL_EXTERNAL,
-      'The repository has no deterministic two-actor Duello pairing fixture.',
-      'Keep the two-device proof manual until a safe deterministic pairing fixture exists.',
+      hasTwoStorageStates ? RUNTIME_E2E_CAPABILITY_STATUS.PROBE_REQUIRED : RUNTIME_E2E_CAPABILITY_STATUS.MANUAL_EXTERNAL,
+      hasTwoStorageStates
+        ? 'Two isolated actor fixtures are configured; the same-session Duello pairing must now be proved at runtime.'
+        : 'The repository has no configured two-actor Duello pairing fixtures.',
+      'Provide distinct KRONOX_E2E_STORAGE_STATE_A and KRONOX_E2E_STORAGE_STATE_B fixtures.',
     ),
     [RUNTIME_E2E_CAPABILITY.DETERMINISTIC_CLAIM_FIXTURE]: capability(
       RUNTIME_E2E_CAPABILITY_STATUS.MANUAL_EXTERNAL,

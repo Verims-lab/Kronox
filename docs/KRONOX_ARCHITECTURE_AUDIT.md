@@ -201,3 +201,35 @@ score write was added, and the pre-game UI receives no deck/answer payload.
 The new 25-case focused Health layer plus Runtime E2E contracts rejects lobby
 route/screen evidence and route-only PASS. Two-client delivery, Duello claim
 races, RLS, and production permission behavior remain external proof gates.
+
+## Codex639 Duello Matchmaking Stabilization
+
+The concrete production failure path was an unbound queue-store reference in
+`reconcileWaitingActor`: once a second candidate existed, the backend candidate
+read threw and the client received a generic start failure. The same audit also
+found transient mode-lock/storage contention surfaced as terminal, sequential
+matched-row writes, and a client lifecycle that flattened recoverable states.
+The canonical mode was already `same_question_duel`, actor proof was compatible
+for guest/linked combinations, and self-match prevention was not the cause.
+
+`randomMatchmaking` now uses a private `pairing` phase under the canonical mode
+lock. Both actor rows must be reciprocal before the backend exposes the one
+exactly-two-player session as matched; poll/join/cancel reconciliation uses the same lock,
+and recoverable contention returns stable `waiting` rather than a public start
+failure. Duplicate/stale own waits are settled idempotently. No backend
+function was added and the client still cannot invent a session, deck, result,
+or final score.
+
+`randomMatchmakingState.js` is the pure client phase owner. Network/timer
+effects remain in `useRandomMatchmaking`, which uses one recursive timeout,
+clears retry/poll timers before rescheduling, and settles stale own state before
+retry. `useDirectOnlineGameHandoff` owns the `directStarting` transition and
+navigates only after an authoritative payload. Duello stays on the same search
+surface for `searching` and `matched`, then enters `/duel`; Online Kapış enters
+`/game`. Neither active path uses `/lobby`.
+
+Runtime E2E can now create two isolated A/B contexts, fail on any lobby route,
+and compare only redacted session/active-card fingerprints after both reach
+`/duel`. Missing A/B fixtures remains `MANUAL_EXTERNAL` /
+`TWO_ACTOR_REQUIRED`. Deterministic first-correct claim racing, real-device
+reconnect, and deployed RLS remain separate external release gates.

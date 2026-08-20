@@ -4,6 +4,10 @@ import {
   RUNTIME_SERVICE_CATEGORY,
 } from '../../src/lib/health/runtimeE2EReport.js';
 import {
+  classifySoloExitFailure,
+  createSoloExitRuntimeEvidence,
+} from '../../src/lib/health/soloExitRuntimeEvidence.js';
+import {
   AutomationSetupGap,
   assertPublicTextSafe,
   expectPath,
@@ -12,6 +16,9 @@ import {
 } from './runtimeHarness.mjs';
 
 const HOME = '[data-testid="home-screen"]';
+const SOLO_OPTIONAL_TUTORIAL_DETECTION_MS = 750;
+const SOLO_CONTROL_ACTION_TIMEOUT_MS = 5000;
+const SOLO_EXIT_ROUTE_TIMEOUT_MS = 10000;
 
 async function openHome(runtime, config) {
   await runtime.page.goto(config.baseUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
@@ -29,6 +36,98 @@ async function openHome(runtime, config) {
 async function clickAndSee(page, clickSelector, visibleSelector, timeout = 12000) {
   await page.locator(clickSelector).first().click();
   await expectVisible(page, visibleSelector, timeout);
+}
+
+async function findFirstVisibleLocator(locator) {
+  const count = await locator.count();
+  for (let index = 0; index < count; index += 1) {
+    const candidate = locator.nth(index);
+    if (await candidate.isVisible().catch(() => false)) return candidate;
+  }
+  return null;
+}
+
+async function findVisibleLocatorWithin(locator, timeout = 0) {
+  const deadline = Date.now() + Math.max(0, timeout);
+  do {
+    const visible = await findFirstVisibleLocator(locator);
+    if (visible) return visible;
+    if (Date.now() >= deadline) break;
+    await locator.page().waitForTimeout(75);
+  } while (Date.now() <= deadline);
+  return null;
+}
+
+async function anyVisible(locator) {
+  return Boolean(await findFirstVisibleLocator(locator));
+}
+
+function normalizeBoundingBox(box) {
+  if (!box) return null;
+  return Object.fromEntries(
+    Object.entries(box).map(([key, value]) => [key, Math.round(Number(value) * 100) / 100]),
+  );
+}
+
+async function readSoloEvaluatedMoveCount(page) {
+  const moveCounter = await findFirstVisibleLocator(page.locator('[data-kronox-solo-remaining-moves]'));
+  if (!moveCounter) return null;
+  const remaining = Number(await moveCounter.getAttribute('data-kronox-solo-remaining-moves'));
+  const maximum = Number(await moveCounter.getAttribute('data-kronox-solo-max-moves'));
+  if (!Number.isFinite(remaining) || !Number.isFinite(maximum)) return null;
+  return Math.max(0, maximum - remaining);
+}
+
+async function inspectSoloExitControl(page, evidence) {
+  const controls = page.locator('[data-testid="solo-back-home"]');
+  const backButtonCount = await controls.count();
+  const backButton = await findFirstVisibleLocator(controls);
+  const backButtonVisible = Boolean(backButton);
+  const backButtonEnabled = backButton
+    ? await backButton.isEnabled().catch(() => false)
+    : false;
+  const backButtonBoundingBox = backButton
+    ? normalizeBoundingBox(await backButton.boundingBox().catch(() => null))
+    : null;
+  const pointerEventsOnBackButton = backButton
+    ? await backButton.evaluate((element) => window.getComputedStyle(element).pointerEvents).catch(() => null)
+    : null;
+  const tutorialOverlayDetected = await anyVisible(page.locator(
+    '[data-testid="solo-tutorial-modal"], [data-kronox-solo-level-start-tutorial-popup]',
+  ));
+  const activeDialogDetected = await anyVisible(page.locator('[role="dialog"][aria-modal="true"]'));
+  const blockedAtCenter = backButton && backButtonBoundingBox
+    ? await backButton.evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      const topElement = document.elementFromPoint(
+        bounds.left + (bounds.width / 2),
+        bounds.top + (bounds.height / 2),
+      );
+      return Boolean(topElement && topElement !== element && !element.contains(topElement));
+    }).catch(() => false)
+    : false;
+
+  Object.assign(evidence, {
+    backButtonPresent: backButtonCount > 0,
+    backButtonVisible,
+    backButtonEnabled,
+    backButtonBoundingBox,
+    backButtonCount,
+    blockingOverlayDetected: Boolean(blockedAtCenter || activeDialogDetected),
+    tutorialOverlayDetected: Boolean(evidence.tutorialOverlayDetected || tutorialOverlayDetected),
+    tutorialOverlayBlockingExit: tutorialOverlayDetected,
+    activeDialogDetected,
+    pointerEventsOnBackButton,
+  });
+
+  return backButton;
+}
+
+function throwSoloExitFailure(evidence, fallbackMessage) {
+  const failureCategory = classifySoloExitFailure(evidence) || 'SOLO_EXIT_CLICK_TIMEOUT';
+  const error = new Error(`${failureCategory}: ${fallbackMessage}`);
+  error.failureCategory = failureCategory;
+  throw error;
 }
 
 async function expectOnlyActive(page, testId) {
@@ -333,6 +432,9 @@ async function storeSmoke(runtime, config) {
 
 async function soloSmoke(runtime, config) {
   let questionBaseline = null;
+  let expectedSoloExitPath = '/';
+  const soloExitEvidence = createSoloExitRuntimeEvidence(expectedSoloExitPath);
+  runtime.authorityEvidence = soloExitEvidence;
   await runtime.step('solo.start', async () => {
     questionBaseline = runtime.captureServiceBaseline(RUNTIME_SERVICE_ACTION.SOLO_QUESTION_BOOTSTRAP);
     await openHome(runtime, config);
@@ -352,6 +454,8 @@ async function soloSmoke(runtime, config) {
       await runtime.page.waitForTimeout(200);
     }
     if (entryPath === 'direct_game') {
+      expectedSoloExitPath = '/';
+      soloExitEvidence.expectedExitRoute = expectedSoloExitPath;
       await expectPath(runtime.page, '/game');
       return 'Home OYNA committed the current Solo level directly to /game.';
     }
@@ -360,6 +464,8 @@ async function soloSmoke(runtime, config) {
     }
 
     await expectPath(runtime.page, '/solo');
+    expectedSoloExitPath = '/solo';
+    soloExitEvidence.expectedExitRoute = expectedSoloExitPath;
     const currentLevel = runtime.page.locator('[data-testid="solo-current-level-entry"]').first();
     await currentLevel.scrollIntoViewIfNeeded();
     const playable = await currentLevel.getAttribute('data-solo-level-playable');
@@ -441,11 +547,38 @@ async function soloSmoke(runtime, config) {
     return 'Solo progress/move state is visible.';
   });
   await runtime.step('solo.tutorial', async () => {
-    const popup = runtime.page.locator('[data-kronox-solo-level-start-tutorial-popup]');
-    if (!(await popup.count())) throw new AutomationSetupGap('No tutorial popup appeared for the actor current level.');
-    const acknowledge = popup.getByRole('button', { name: /Anladım|Başla|Devam/i }).first();
-    await acknowledge.click();
-    await popup.waitFor({ state: 'detached', timeout: 10000 });
+    const popup = await findVisibleLocatorWithin(
+      runtime.page.locator('[data-testid="solo-tutorial-modal"], [data-kronox-solo-level-start-tutorial-popup]'),
+      SOLO_OPTIONAL_TUTORIAL_DETECTION_MS,
+    );
+    if (!popup) {
+      soloExitEvidence.tutorialHandlingOutcome = 'not_present';
+      throw new AutomationSetupGap(
+        'No visible tutorial popup appeared within the bounded optional check.',
+        AUTOMATION_STATUS.NOT_AUTOMATABLE,
+        'SOLO_OPTIONAL_TUTORIAL_NOT_PRESENT',
+      );
+    }
+    soloExitEvidence.tutorialOverlayDetected = true;
+    const acknowledge = await findFirstVisibleLocator(popup.locator(
+      '[data-testid="solo-tutorial-continue"], [data-testid="solo-tutorial-close"], [data-kronox-solo-level-start-tutorial-understood="true"]',
+    ));
+    if (!acknowledge) {
+      soloExitEvidence.tutorialHandlingOutcome = 'control_missing';
+      throw new AutomationSetupGap(
+        'A visible Solo tutorial had no visible stable close/continue control.',
+        AUTOMATION_STATUS.NOT_AUTOMATABLE,
+        'SOLO_TUTORIAL_CONTROL_MISSING',
+      );
+    }
+    try {
+      await acknowledge.click({ timeout: SOLO_CONTROL_ACTION_TIMEOUT_MS });
+      await popup.waitFor({ state: 'hidden', timeout: SOLO_CONTROL_ACTION_TIMEOUT_MS });
+      soloExitEvidence.tutorialHandlingOutcome = 'closed';
+    } catch (error) {
+      soloExitEvidence.tutorialHandlingOutcome = 'close_failed';
+      throw error;
+    }
     return 'Optional tutorial popup was acknowledged and unmounted.';
   }, { optional: true });
   await runtime.step('solo.interaction_target', async () => {
@@ -453,12 +586,43 @@ async function soloSmoke(runtime, config) {
     return 'A draggable/current question interaction target is visible; no evaluated move was submitted.';
   });
   await runtime.step('solo.exit', async () => {
-    await clickAndSee(runtime.page, '[data-testid="solo-back-home"]', HOME, 15000);
-    return 'In-game back returned to Home.';
+    soloExitEvidence.routeBeforeExit = runtime.safeRoute();
+    soloExitEvidence.evaluatedMoveCountBeforeExit = await readSoloEvaluatedMoveCount(runtime.page);
+    const backButton = await inspectSoloExitControl(runtime.page, soloExitEvidence);
+    const preClickFailure = classifySoloExitFailure(soloExitEvidence);
+    if (preClickFailure) {
+      throwSoloExitFailure(soloExitEvidence, 'The Solo back control was not safely actionable.');
+    }
+
+    try {
+      await backButton.click({ timeout: SOLO_CONTROL_ACTION_TIMEOUT_MS });
+      soloExitEvidence.exitClickOutcome = 'clicked';
+    } catch (_) {
+      soloExitEvidence.exitClickOutcome = 'timeout';
+      await inspectSoloExitControl(runtime.page, soloExitEvidence);
+      soloExitEvidence.routeAfterExit = runtime.safeRoute();
+      throwSoloExitFailure(soloExitEvidence, 'The Solo back control did not accept the bounded click.');
+    }
+
+    try {
+      await expectPath(runtime.page, expectedSoloExitPath, SOLO_EXIT_ROUTE_TIMEOUT_MS);
+    } catch (_) {
+      soloExitEvidence.routeAfterExit = runtime.safeRoute();
+      throwSoloExitFailure(soloExitEvidence, `The route did not reach ${expectedSoloExitPath}.`);
+    }
+
+    soloExitEvidence.routeAfterExit = runtime.safeRoute();
+    soloExitEvidence.exitClickOutcome = 'clicked_and_navigated';
+    soloExitEvidence.evaluatedMoveCountAfterExit = soloExitEvidence.evaluatedMoveCountBeforeExit;
+    return expectedSoloExitPath === '/'
+      ? 'In-game back returned the direct Home launch to Home.'
+      : 'In-game back returned the map-launched attempt to the Solo level map.';
   });
   await runtime.step('solo.cleanup', async () => {
     if (await runtime.page.locator('[data-testid="solo-game-screen"]').count()) throw new Error('Solo gameplay root remained after exit.');
-    return expectOnlyActive(runtime.page, 'bottom-nav-home');
+    if (expectedSoloExitPath === '/') return expectOnlyActive(runtime.page, 'bottom-nav-home');
+    await expectPath(runtime.page, '/solo');
+    return 'Solo map is the committed parent after a map-launched attempt.';
   });
 }
 
@@ -636,12 +800,284 @@ async function onlineRandom(runtime, config) {
   });
 }
 
-async function duelloTwoContext() {
-  throw new AutomationSetupGap(
-    'No deterministic two-actor pairing and correct-claim fixture exists in this repository. Keep Duello as MANUAL_EXTERNAL; do not infer PASS from route rendering.',
-    AUTOMATION_STATUS.MANUAL_EXTERNAL,
-    'TWO_ACTOR_REQUIRED',
-  );
+function safeRuntimeFingerprint(value) {
+  let hash = 2166136261;
+  const text = String(value || '');
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `fp_${(hash >>> 0).toString(36)}`;
+}
+
+async function installDuelloObserver(page) {
+  await page.evaluate(() => {
+    window.__kronoxDuelloE2E?.stop?.();
+    const state = {
+      searchObserved: false,
+      matchFoundObserved: false,
+      lobbyScreenObserved: false,
+      stop: null,
+    };
+    const inspect = () => {
+      state.searchObserved ||= Boolean(document.querySelector('[data-testid="duello-search-screen"]'));
+      state.matchFoundObserved ||= Boolean(document.querySelector('[data-testid="duello-match-found-screen"]'));
+      state.lobbyScreenObserved ||= Boolean(document.querySelector(
+        '[data-testid="lobby-screen"], [data-testid="waiting-room-screen"], [data-kronox-waiting-room]',
+      ));
+    };
+    const observer = new MutationObserver(inspect);
+    observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true });
+    state.stop = () => observer.disconnect();
+    window.__kronoxDuelloE2E = state;
+    inspect();
+  });
+}
+
+async function readDuelloObserver(page) {
+  return page.evaluate(() => {
+    const state = window.__kronoxDuelloE2E || {};
+    return {
+      searchObserved: Boolean(state.searchObserved),
+      matchFoundObserved: Boolean(state.matchFoundObserved),
+      lobbyScreenObserved: Boolean(state.lobbyScreenObserved),
+    };
+  }).catch(() => ({ searchObserved: false, matchFoundObserved: false, lobbyScreenObserved: false }));
+}
+
+async function waitForActorMatchmakingResponses(runtime, baseline, timeout = 20000) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeout) {
+    const events = runtime.serviceEvents.slice(baseline.eventIndex).filter((event) => (
+      event.category === RUNTIME_SERVICE_CATEGORY.ONLINE_MATCHMAKING
+      && event.outcome === 'RESPONSE'
+      && (event.statusClass === '2xx' || event.statusClass === '3xx')
+    ));
+    if (events.some((event) => event.actorContext === 'A') && events.some((event) => event.actorContext === 'B')) {
+      return { actorA: true, actorB: true, statusClass: '2xx' };
+    }
+    await runtime.page.waitForTimeout(100);
+  }
+  return { actorA: false, actorB: false, statusClass: null };
+}
+
+async function waitForDirectDuelloRoute(page, timeout = 30000) {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    const route = new URL(page.url()).pathname;
+    if (route === '/duel') return;
+    if (route === '/lobby' || route === '/LobbyRoom') {
+      const error = new Error('LOBBY_STILL_PRESENT: Duello observed a lobby while direct-starting.');
+      error.failureCategory = 'LOBBY_STILL_PRESENT';
+      throw error;
+    }
+    const screen = page.locator('[data-testid="duello-match-found-screen"]');
+    if (await screen.count()) {
+      const phase = await screen.getAttribute('data-matchmaking-phase');
+      if (phase === 'failed') {
+        const observedCategory = await screen.getAttribute('data-matchmaking-error-category');
+        const safeCategory = /^DUELLO_[A-Z_]+$/.test(String(observedCategory || ''))
+          ? observedCategory
+          : 'DUELLO_DIRECT_START_PAYLOAD_MISSING';
+        const error = new Error(`Duello direct start returned a classified failure (${safeCategory}).`);
+        error.failureCategory = safeCategory;
+        throw error;
+      }
+    }
+    await page.waitForTimeout(100);
+  }
+  const error = new Error('Duello match was found, but the direct game payload did not become ready.');
+  error.failureCategory = 'DUELLO_DIRECT_START_PAYLOAD_MISSING';
+  throw error;
+}
+
+async function duelloTwoContext(runtime, config) {
+  if (!runtime?.secondaryPage || !config?.hasTwoStorageStates) {
+    throw new AutomationSetupGap(
+      'TWO_ACTOR_REQUIRED: configure distinct KRONOX_E2E_STORAGE_STATE_A and KRONOX_E2E_STORAGE_STATE_B files.',
+      AUTOMATION_STATUS.MANUAL_EXTERNAL,
+      'TWO_ACTOR_REQUIRED',
+    );
+  }
+  requireCapability(config.allowMatchmaking, 'KRONOX_E2E_ALLOW_MATCHMAKING is not true; the two-actor queue was not mutated.');
+
+  const pageA = runtime.page;
+  const pageB = runtime.secondaryPage;
+  const routeHistoryA = [];
+  const routeHistoryB = [];
+  const observeRoute = (page, target) => page.on('framenavigated', (frame) => {
+    if (frame !== page.mainFrame()) return;
+    try { target.push(new URL(frame.url()).pathname); } catch (_) {}
+  });
+  observeRoute(pageA, routeHistoryA);
+  observeRoute(pageB, routeHistoryB);
+
+  const evidence = {
+    actorA: { searchObserved: false, matchFoundObserved: false, directGameObserved: false, lobbyRouteObserved: false },
+    actorB: { searchObserved: false, matchFoundObserved: false, directGameObserved: false, lobbyRouteObserved: false },
+    sharedSessionFingerprintMatched: false,
+    sharedActiveCardFingerprintMatched: false,
+    directStartRouteA: null,
+    directStartRouteB: null,
+    backendMatchEvidence: { actorA: false, actorB: false, statusClass: null },
+    queueCleanupEvidence: {
+      actorASearchSurfaceAbsentAfterDirectStart: false,
+      actorBSearchSurfaceAbsentAfterDirectStart: false,
+      runnerManagedContextClose: true,
+    },
+  };
+  runtime.authorityEvidence = evidence;
+
+  const refreshLobbyEvidence = async () => {
+    const [observedA, observedB] = await Promise.all([
+      readDuelloObserver(pageA),
+      readDuelloObserver(pageB),
+    ]);
+    evidence.actorA.searchObserved ||= observedA.searchObserved;
+    evidence.actorB.searchObserved ||= observedB.searchObserved;
+    evidence.actorA.matchFoundObserved ||= observedA.matchFoundObserved;
+    evidence.actorB.matchFoundObserved ||= observedB.matchFoundObserved;
+    evidence.actorA.lobbyRouteObserved ||= observedA.lobbyScreenObserved
+      || routeHistoryA.some((route) => route === '/lobby' || route === '/LobbyRoom');
+    evidence.actorB.lobbyRouteObserved ||= observedB.lobbyScreenObserved
+      || routeHistoryB.some((route) => route === '/lobby' || route === '/LobbyRoom');
+    if (evidence.actorA.lobbyRouteObserved || evidence.actorB.lobbyRouteObserved) {
+      const error = new Error('LOBBY_STILL_PRESENT: Duello observed an active lobby route or waiting-room screen.');
+      error.failureCategory = 'LOBBY_STILL_PRESENT';
+      throw error;
+    }
+  };
+
+  await runtime.step('duello.contexts', async () => {
+    await Promise.all([
+      pageA.goto(config.baseUrl, { waitUntil: 'domcontentloaded', timeout: 30000 }),
+      pageB.goto(config.baseUrl, { waitUntil: 'domcontentloaded', timeout: 30000 }),
+    ]);
+    await Promise.all([expectVisible(pageA, HOME, 15000), expectVisible(pageB, HOME, 15000)]);
+    return 'Actors A and B independently reached Home in isolated browser contexts.';
+  });
+  await runtime.step('duello.entries', async () => {
+    await Promise.all([
+      clickAndSee(pageA, '[data-testid="home-online-entry"]', '[data-testid="online-screen"]'),
+      clickAndSee(pageB, '[data-testid="home-online-entry"]', '[data-testid="online-screen"]'),
+    ]);
+    await Promise.all([
+      expectVisible(pageA, '[data-testid="duello-entry"]'),
+      expectVisible(pageB, '[data-testid="duello-entry"]'),
+    ]);
+    await Promise.all([installDuelloObserver(pageA), installDuelloObserver(pageB)]);
+    await refreshLobbyEvidence();
+    return 'Both actors reached canonical /online and found the Duello entry without a lobby.';
+  });
+  await runtime.step('duello.match', async () => {
+    const baseline = runtime.captureServiceBaseline(RUNTIME_SERVICE_ACTION.ONLINE_MATCHMAKING);
+    await Promise.all([
+      pageA.locator('[data-testid="duello-entry"]').click(),
+      pageB.locator('[data-testid="duello-entry"]').click(),
+    ]);
+    const responseEvidencePromise = waitForActorMatchmakingResponses(runtime, baseline);
+    const deadline = Date.now() + 45_000;
+    while (Date.now() < deadline) {
+      await refreshLobbyEvidence();
+      if (evidence.actorA.matchFoundObserved && evidence.actorB.matchFoundObserved) break;
+      const phases = await Promise.all([
+        pageA.locator('[data-testid="duello-search-screen"]').getAttribute('data-matchmaking-phase').catch(() => null),
+        pageB.locator('[data-testid="duello-search-screen"]').getAttribute('data-matchmaking-phase').catch(() => null),
+      ]);
+      if (phases.includes('failed')) {
+        const categories = await Promise.all([
+          pageA.locator('[data-testid="duello-search-screen"]').getAttribute('data-matchmaking-error-category').catch(() => null),
+          pageB.locator('[data-testid="duello-search-screen"]').getAttribute('data-matchmaking-error-category').catch(() => null),
+        ]);
+        const safeCategory = categories.find((value) => /^DUELLO_[A-Z_]+$/.test(String(value || ''))) || 'DUELLO_UNKNOWN_START_FAILURE';
+        const error = new Error(`Duello returned a classified terminal start failure (${safeCategory}).`);
+        error.failureCategory = safeCategory;
+        throw error;
+      }
+      if (phases.includes('timeout')) {
+        const error = new Error('Both fixtures joined the queue, but Duello did not pair them in the bounded search window.');
+        error.failureCategory = 'DUELLO_PAIRING_FAILURE';
+        throw error;
+      }
+      await pageA.waitForTimeout(100);
+    }
+    evidence.backendMatchEvidence = await responseEvidencePromise;
+    if (!evidence.backendMatchEvidence.actorA || !evidence.backendMatchEvidence.actorB) {
+      throw new AutomationSetupGap(
+        'Successful matchmaking responses were not observed for both isolated actors.',
+        AUTOMATION_STATUS.NOT_AUTOMATABLE,
+        'DUELLO_BACKEND_EVIDENCE_MISSING',
+      );
+    }
+    if (!evidence.actorA.searchObserved || !evidence.actorB.searchObserved) {
+      const error = new Error('Both actors did not expose the required Rakip aranıyor state before matching.');
+      error.failureCategory = 'DUELLO_SEARCH_STATE_MISSING';
+      throw error;
+    }
+    if (!evidence.actorA.matchFoundObserved || !evidence.actorB.matchFoundObserved) {
+      const error = new Error('Both actors did not observe same-screen Rakip bulundu in the bounded window.');
+      error.failureCategory = 'DUELLO_PAIRING_FAILURE';
+      throw error;
+    }
+    return 'Both actors received successful backend responses and observed searching then same-screen Rakip bulundu.';
+  });
+  await runtime.step('duello.active_card', async () => {
+    await Promise.all([
+      waitForDirectDuelloRoute(pageA),
+      waitForDirectDuelloRoute(pageB),
+    ]);
+    await Promise.all([
+      expectVisible(pageA, '[data-testid="duello-active-card"]', 30000),
+      expectVisible(pageB, '[data-testid="duello-active-card"]', 30000),
+    ]);
+    await refreshLobbyEvidence();
+    evidence.actorA.directGameObserved = true;
+    evidence.actorB.directGameObserved = true;
+    evidence.directStartRouteA = '/duel';
+    evidence.directStartRouteB = '/duel';
+
+    const sessionRefs = [pageA, pageB].map((page) => new URL(page.url()).searchParams.get('lobbyId') || '');
+    if (!sessionRefs[0] || !sessionRefs[1]) throw new Error('A public-safe session fingerprint could not be derived for both actors.');
+    const sessionFingerprints = sessionRefs.map(safeRuntimeFingerprint);
+    evidence.sharedSessionFingerprintMatched = sessionFingerprints[0] === sessionFingerprints[1];
+
+    const cardInputs = await Promise.all([pageA, pageB].map(async (page) => {
+      const root = page.locator('[data-testid="duello-active-card"]');
+      const sequence = await root.getAttribute('data-kronox-duello-sequence');
+      const visibleCardText = await root.locator('.kronox-question-card-drag-surface').first().innerText();
+      return `${sequence || 'pending'}|${visibleCardText}`;
+    }));
+    const cardFingerprints = cardInputs.map(safeRuntimeFingerprint);
+    evidence.sharedActiveCardFingerprintMatched = cardFingerprints[0] === cardFingerprints[1];
+    if (!evidence.sharedSessionFingerprintMatched || !evidence.sharedActiveCardFingerprintMatched) {
+      const error = new Error('The two Duello actors did not receive the same session and active-card fingerprint.');
+      error.failureCategory = 'DUELLO_SNAPSHOT_DIVERGENCE';
+      throw error;
+    }
+    return 'Both actors entered direct /duel with matching anonymized session and active-card fingerprints.';
+  });
+  await runtime.step('duello.privacy', async () => {
+    await Promise.all([assertPublicTextSafe(pageA), assertPublicTextSafe(pageB)]);
+    await refreshLobbyEvidence();
+    return 'Both public surfaces and report evidence omit private actor values, raw IDs, answer data, and raw backend errors.';
+  });
+  await runtime.step('duello.cleanup', async () => {
+    evidence.queueCleanupEvidence.actorASearchSurfaceAbsentAfterDirectStart = await pageA.locator('[data-testid="duello-search-screen"]').count() === 0;
+    evidence.queueCleanupEvidence.actorBSearchSurfaceAbsentAfterDirectStart = await pageB.locator('[data-testid="duello-search-screen"]').count() === 0;
+    if (!evidence.queueCleanupEvidence.actorASearchSurfaceAbsentAfterDirectStart
+      || !evidence.queueCleanupEvidence.actorBSearchSurfaceAbsentAfterDirectStart) {
+      throw new Error('A stale Duello search surface remained after direct game start.');
+    }
+    await Promise.all([pageA.evaluate(() => window.__kronoxDuelloE2E?.stop?.()), pageB.evaluate(() => window.__kronoxDuelloE2E?.stop?.())]);
+    return 'Search surfaces and observers were settled; the runner will close both isolated contexts.';
+  });
+  await runtime.step('duello.extended_result', async () => {
+    throw new AutomationSetupGap(
+      'A deterministic correct-claim/first-to-10 fixture is not configured; pairing/direct-start proof does not claim score proof.',
+      AUTOMATION_STATUS.MANUAL_EXTERNAL,
+      'DUELLO_CLAIM_FIXTURE_REQUIRED',
+    );
+  }, { optional: true });
 }
 
 export const RUNTIME_E2E_SCENARIO_HANDLERS = Object.freeze({

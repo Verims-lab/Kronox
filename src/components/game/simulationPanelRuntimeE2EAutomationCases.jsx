@@ -7,6 +7,10 @@ import handlerSource from '../../../tests/health-e2e/scenarioHandlers.mjs?raw';
 import harnessSource from '../../../tests/health-e2e/runtimeHarness.mjs?raw';
 import simulationPanelSource from './SimulationPanel.jsx?raw';
 import runtimePanelSource from './health/RuntimeE2EAutomationPanel.jsx?raw';
+import gameSource from '../../pages/Game.jsx?raw';
+import mainMenuSource from '../../pages/MainMenu.jsx?raw';
+import gameLayoutSource from './GameLayout.jsx?raw';
+import soloTutorialSource from './SoloLevelStartTutorialPopup.jsx?raw';
 import soloLevelMapSource from '../solo/LevelMapPath.jsx?raw';
 import soloChallengeSource from '../../pages/SoloChallenge.jsx?raw';
 import leaderboardSource from '../../lib/leaderboard.js?raw';
@@ -51,6 +55,11 @@ import {
   RUNTIME_E2E_SUITE,
   RUNTIME_E2E_SUITE_ID,
 } from '@/lib/health/runtimeE2EScenarios';
+import {
+  SOLO_EXIT_FAILURE_CATEGORY,
+  classifySoloExitFailure,
+  createSoloExitRuntimeEvidence,
+} from '@/lib/health/soloExitRuntimeEvidence';
 
 const SUITE_ID = 'runtime_e2e_automation';
 const SUITE_NAME = 'Runtime E2E Automation Framework Health Suite';
@@ -60,6 +69,9 @@ const RELATED_FILES = [
   'scripts/run-health-e2e.mjs',
   'tests/health-e2e/runtimeHarness.mjs',
   'tests/health-e2e/scenarioHandlers.mjs',
+  'src/lib/health/soloExitRuntimeEvidence.js',
+  'src/components/game/GameLayout.jsx',
+  'src/components/game/SoloLevelStartTutorialPopup.jsx',
   'src/components/game/health/RuntimeE2EAutomationPanel.jsx',
   'src/components/game/SimulationPanel.jsx',
 ];
@@ -214,19 +226,19 @@ export const EXTRA_TESTS = [
       : pass('Scenario metadata, browser behavior, evidence model, and Health UI are separate extensible layers.');
   }),
 
-  makeCase('duello_two_context_not_faked', 'Duello remains MANUAL_EXTERNAL until deterministic two-context authority evidence exists', () => {
+  makeCase('duello_two_context_not_faked', 'Duello remains MANUAL_EXTERNAL without A/B and requires real direct-start evidence with A/B', () => {
     const duello = RUNTIME_E2E_SCENARIOS.find((item) => item.scenarioId === 'runtime_e2e.duello_two_context_runtime_sync');
     const absent = missing(`${handlerSource}\n${reportSource}`, [
       'AUTOMATION_STATUS.MANUAL_EXTERNAL',
-      'No deterministic two-actor pairing and correct-claim fixture exists',
+      'TWO_ACTOR_REQUIRED',
       'contextCount >= 2',
-      'deterministicPairing === true',
-      'deterministicClaimFixture === true',
-      'singleAcceptedClaim === true',
-      'snapshotReconciled === true',
+      'sharedSessionFingerprintMatched === true',
+      'sharedActiveCardFingerprintMatched === true',
+      "directStartRouteA === '/duel'",
+      "directStartRouteB === '/duel'",
     ]);
     return duello && absent.length === 0
-      ? pass('Duello cannot PASS on route smoke; it requires two contexts plus deterministic authority evidence and otherwise stays MANUAL_EXTERNAL.')
+      ? pass('Duello cannot PASS on route smoke; it requires two contexts, successful backend evidence, matched UI, and matching direct-game fingerprints.')
       : fail('Duello two-context proof can be faked or lacks an explicit manual boundary.', { missing: absent });
   }),
 
@@ -531,12 +543,13 @@ export const EXTRA_TESTS = [
       : fail('Online actor/matchmaking setup gate drifted.', { missing: absent });
   }),
 
-  makeCase('duello_two_context_requires_real_pairing', 'Duello two-context proof requires real pairing and claim fixtures', () => {
+  makeCase('duello_two_context_requires_real_pairing', 'Duello two-context proof requires real A/B pairing; claim proof stays optional', () => {
     const duello = RUNTIME_E2E_SCENARIOS.find((item) => item.scenarioId === 'runtime_e2e.duello_two_context_runtime_sync');
-    const required = ['twoBrowserContexts', 'twoIsolatedActors', 'deterministicTwoActorPairing', 'deterministicClaimFixture'];
+    const required = ['safeMatchmakingQueue', 'twoBrowserContexts', 'twoIsolatedActors', 'deterministicTwoActorPairing'];
     const absent = required.filter((item) => !duello?.requiredCapabilities.includes(item));
-    return !absent.length && handlerSource.includes('AUTOMATION_STATUS.MANUAL_EXTERNAL')
-      ? pass('Duello remains manual/external until two real actors, deterministic pairing, and claim proof exist.')
+    const claimOptional = duello?.optionalCapabilities?.includes('deterministicClaimFixture');
+    return !absent.length && claimOptional && handlerSource.includes('AUTOMATION_STATUS.MANUAL_EXTERNAL')
+      ? pass('Duello pairing/direct-start can run with two real actors while claim-race score proof remains an honest optional manual gate.')
       : fail('Duello can be promoted without real two-actor authority evidence.', { missing: absent });
   }),
 
@@ -1144,7 +1157,7 @@ export const EXTRA_TESTS = [
       : fail('The safe gate can be confused with backend proof.', { missing: absent });
   }),
 
-  makeCase('duello_still_manual_without_two_actors', 'Duello two-context remains MANUAL_EXTERNAL without two actors and deterministic fixtures', () => {
+  makeCase('duello_still_manual_without_two_actors', 'Duello two-context remains MANUAL_EXTERNAL without two actor fixtures', () => {
     const duello = RUNTIME_E2E_SCENARIOS.find((item) => item.scenarioId === 'runtime_e2e.duello_two_context_runtime_sync');
     const capabilitySummary = buildRuntimeCapabilitySummary({
       browserAvailable: true,
@@ -1164,8 +1177,165 @@ export const EXTRA_TESTS = [
     return decision.canRun === false
       && decision.status === AUTOMATION_STATUS.MANUAL_EXTERNAL
       && decision.decision === 'MANUAL_EXTERNAL_REQUIRED'
-      ? pass('Production preflight changes do not promote Duello without two isolated actors and deterministic authority fixtures.')
+      ? pass('Production preflight changes do not promote Duello without two isolated A/B actor fixtures.')
       : fail('Duello manual/external boundary was weakened.', { decision });
+  }),
+
+  makeCase('solo_back_control_has_stable_testid', 'Solo back control has a stable Runtime E2E test id', () => {
+    const absent = missing(gameLayoutSource, [
+      'data-testid="solo-back-home"',
+      'data-kronox-solo-back-button="true"',
+      'aria-label="Geri dön"',
+    ]);
+    return absent.length === 0
+      ? pass('The canonical in-game Solo back control exposes one stable selector and accessible label.')
+      : fail('The Solo back selector contract drifted.', { missing: absent });
+  }),
+
+  makeCase('solo_back_control_visible_and_enabled', 'Solo back control is visibly actionable in normal gameplay', () => {
+    const absent = missing(gameLayoutSource, [
+      'disabled={false}',
+      'aria-disabled="false"',
+      "pointerEvents: 'auto'",
+      'data-kronox-solo-back-enabled="true"',
+      'h-11 w-11',
+    ]);
+    return absent.length === 0
+      ? pass('The normal Solo header renders a stable-size, enabled, pointer-actionable back control.')
+      : fail('The Solo back control can become hidden or disabled by source contract.', { missing: absent });
+  }),
+
+  makeCase('solo_back_control_not_blocked_by_overlay', 'Solo exit diagnoses overlay obstruction before clicking', () => {
+    const actionable = {
+      ...createSoloExitRuntimeEvidence('/'),
+      backButtonPresent: true,
+      backButtonVisible: true,
+      backButtonEnabled: true,
+      backButtonBoundingBox: { x: 16, y: 96, width: 44, height: 44 },
+      backButtonCount: 1,
+      pointerEventsOnBackButton: 'auto',
+    };
+    const absent = missing(handlerSource, [
+      'blockingOverlayDetected',
+      'tutorialOverlayDetected',
+      'activeDialogDetected',
+      'elementFromPoint',
+    ]);
+    const overlayCategory = classifySoloExitFailure({
+      ...actionable,
+      blockingOverlayDetected: true,
+    });
+    return absent.length === 0 && overlayCategory === SOLO_EXIT_FAILURE_CATEGORY.BLOCKED_BY_OVERLAY
+      ? pass('The visible control is center-point checked and any active obstruction receives an explicit overlay category.')
+      : fail('Solo exit can wait blindly behind an overlay.', { missing: absent, overlayCategory });
+  }),
+
+  makeCase('solo_exit_returns_expected_parent', 'Solo exit returns to the launch-specific parent route', () => {
+    const absent = missing(`${mainMenuSource}\n${soloChallengeSource}\n${gameSource}\n${handlerSource}`, [
+      "soloReturnTo: 'home'",
+      "soloReturnTo: 'solo-levels'",
+      "if (source === 'home' || source === '/') return '/'",
+      "return '/solo'",
+      "expectedSoloExitPath = '/solo'",
+      'await expectPath(runtime.page, expectedSoloExitPath',
+    ]);
+    return absent.length === 0
+      ? pass('Direct Home starts return Home, while map-launched attempts return only to the Solo map.')
+      : fail('Solo exit parent ownership drifted.', { missing: absent });
+  }),
+
+  makeCase('solo_exit_does_not_evaluate_move', 'Solo exit does not evaluate a move or mutate score', () => {
+    const start = gameSource.indexOf('const handleSoloGameplayBack = useCallback');
+    const end = gameSource.indexOf('const handleSoloBackToPath = useCallback', start);
+    const handlerBody = start >= 0 && end > start ? gameSource.slice(start, end) : '';
+    const forbidden = [
+      'evaluateSoloPlacement(',
+      'recordSoloJokerUse(',
+      'markSoloAttemptSucceeded(',
+      'persistSolo',
+      'award',
+    ].filter((token) => handlerBody.includes(token));
+    const required = missing(handlerBody, [
+      'resetSoloJokers()',
+      'resetGame()',
+      'navigate(resolveSoloGameReturnPath(routeState), { replace: true })',
+    ]);
+    return handlerBody && forbidden.length === 0 && required.length === 0
+      && createSoloExitRuntimeEvidence('/').exitMoveEvaluationObserved === false
+      ? pass('The exit path only clears local attempt UI and navigates; it submits no placement, score, reward, or persistence action.')
+      : fail('Solo exit can drift into evaluated gameplay behavior.', { forbidden, missing: required });
+  }),
+
+  makeCase('solo_exit_failure_has_precise_category', 'Solo exit failures preserve all precise control and route categories', () => {
+    const actionable = {
+      ...createSoloExitRuntimeEvidence('/'),
+      backButtonPresent: true,
+      backButtonVisible: true,
+      backButtonEnabled: true,
+      backButtonBoundingBox: { x: 16, y: 96, width: 44, height: 44 },
+      backButtonCount: 1,
+      pointerEventsOnBackButton: 'auto',
+    };
+    const actual = [
+      classifySoloExitFailure(createSoloExitRuntimeEvidence('/')),
+      classifySoloExitFailure({ ...actionable, backButtonVisible: false, backButtonBoundingBox: null }),
+      classifySoloExitFailure({ ...actionable, blockingOverlayDetected: true }),
+      classifySoloExitFailure({ ...actionable, tutorialOverlayDetected: true }),
+      classifySoloExitFailure({ ...actionable, exitClickOutcome: 'timeout' }),
+      classifySoloExitFailure({ ...actionable, exitClickOutcome: 'clicked', routeAfterExit: '/game' }),
+    ];
+    const expected = [
+      SOLO_EXIT_FAILURE_CATEGORY.CONTROL_MISSING,
+      SOLO_EXIT_FAILURE_CATEGORY.CONTROL_HIDDEN,
+      SOLO_EXIT_FAILURE_CATEGORY.BLOCKED_BY_OVERLAY,
+      SOLO_EXIT_FAILURE_CATEGORY.BLOCKED_BY_TUTORIAL,
+      SOLO_EXIT_FAILURE_CATEGORY.CLICK_TIMEOUT,
+      SOLO_EXIT_FAILURE_CATEGORY.ROUTE_STALL,
+    ];
+    return actual.every((value, index) => value === expected[index])
+      ? pass('All six Solo exit failure classes are executable, deterministic, and report-safe.')
+      : fail('Solo exit failure classification is incomplete or ambiguous.', { expected, actual });
+  }),
+
+  makeCase('solo_optional_tutorial_check_bounded', 'Optional Solo tutorial handling is bounded and does not wait 30 seconds when absent', () => {
+    const absent = missing(handlerSource, [
+      'SOLO_OPTIONAL_TUTORIAL_DETECTION_MS = 750',
+      'findVisibleLocatorWithin(',
+      'SOLO_OPTIONAL_TUTORIAL_NOT_PRESENT',
+      'SOLO_CONTROL_ACTION_TIMEOUT_MS = 5000',
+      "}, { optional: true })",
+    ]);
+    const legacyWaitPresent = handlerSource.includes("popup.waitFor({ state: 'detached', timeout: 10000 })")
+      || handlerSource.includes("getByRole('button', { name: /Anladım|Başla|Devam/i }).first() ");
+    return absent.length === 0 && !legacyWaitPresent
+      ? pass('Tutorial discovery ends in 750ms and any visible close action uses a separate bounded timeout.')
+      : fail('Optional tutorial handling can still consume an unbounded/default locator wait.', { missing: absent, legacyWaitPresent });
+  }),
+
+  makeCase('solo_tutorial_close_selector_stable_if_present', 'Solo tutorial exposes stable modal and close selectors when present', () => {
+    const absent = missing(`${soloTutorialSource}\n${handlerSource}`, [
+      'data-testid="solo-tutorial-modal"',
+      'data-testid="solo-tutorial-close"',
+      'data-testid="solo-tutorial-continue"',
+      '[data-testid="solo-tutorial-continue"]',
+      '[data-testid="solo-tutorial-close"]',
+    ]);
+    return absent.length === 0
+      ? pass('The modal and both close paths have stable selectors; the harness chooses a visible action.')
+      : fail('Solo tutorial close ownership remains text- or timing-dependent.', { missing: absent });
+  }),
+
+  makeCase('solo_gameplay_open_still_proved_by_question_service', 'Solo gameplay open still requires successful question-service proof', () => {
+    const absent = missing(handlerSource, [
+      'RUNTIME_SERVICE_ACTION.SOLO_QUESTION_BOOTSTRAP',
+      'RUNTIME_SERVICE_CATEGORY.QUESTION_SERVICE',
+      "failurePrefix: 'SOLO_QUESTION_BOOTSTRAP'",
+      'await requireSuccessfulBackendAction(runtime',
+      "route === '/game' && !successfulQuestionResponse",
+    ]);
+    return absent.length === 0
+      ? pass('Exit hardening leaves the real /game, Solo root, and successful question-response gate intact.')
+      : fail('Solo exit changes weakened question-service gameplay proof.', { missing: absent });
   }),
 
   makeCase('full_run_still_excludes_e2e', 'Full Health Run still excludes Runtime E2E automation', () => {

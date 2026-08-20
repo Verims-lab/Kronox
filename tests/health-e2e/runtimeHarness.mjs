@@ -34,10 +34,12 @@ function relativeArtifactPath(value) {
 }
 
 export class RuntimeScenarioHarness {
-  constructor({ definition, context, page, reportEvidence, artifactDir }) {
+  constructor({ definition, context, page, secondaryContext = null, secondaryPage = null, reportEvidence, artifactDir }) {
     this.definition = definition;
     this.context = context;
     this.page = page;
+    this.secondaryContext = secondaryContext;
+    this.secondaryPage = secondaryPage;
     this.reportEvidence = reportEvidence;
     this.artifactDir = artifactDir;
     this.startedAt = new Date().toISOString();
@@ -56,6 +58,11 @@ export class RuntimeScenarioHarness {
     this.tracePath = null;
     this.authorityEvidence = null;
 
+    this.observePage(page, 'A');
+    if (secondaryPage) this.observePage(secondaryPage, 'B');
+  }
+
+  observePage(page, actorContext) {
     page.on('console', (message) => {
       const sourceUrl = message.location()?.url || '';
       if (
@@ -78,7 +85,7 @@ export class RuntimeScenarioHarness {
       const safeActionLabel = classifyRuntimeServiceAction(request.url(), category);
       const observedAt = new Date().toISOString();
       recordRuntimeServiceObservation(this.serviceSummary, category, 'REQUEST', null, { observedAt, safeActionLabel });
-      this.serviceEvents.push({ category, safeActionLabel, outcome: 'REQUEST', statusClass: null, observedAt });
+      this.serviceEvents.push({ actorContext, category, safeActionLabel, outcome: 'REQUEST', statusClass: null, observedAt });
     });
     page.on('response', (response) => {
       const request = response.request();
@@ -91,7 +98,7 @@ export class RuntimeScenarioHarness {
       const observedAt = new Date().toISOString();
       const statusClass = `${Math.floor(response.status() / 100)}xx`;
       recordRuntimeServiceObservation(this.serviceSummary, category, 'RESPONSE', response.status(), { observedAt, safeActionLabel });
-      this.serviceEvents.push({ category, safeActionLabel, outcome: 'RESPONSE', statusClass, observedAt });
+      this.serviceEvents.push({ actorContext, category, safeActionLabel, outcome: 'RESPONSE', statusClass, observedAt });
       if ((response.status() === 401 || response.status() === 403) && this.permissionDiagnostics.length < 20) {
         const diagnostic = buildRuntimePermissionDiagnostic({
           scenarioId: this.definition.scenarioId,
@@ -122,9 +129,10 @@ export class RuntimeScenarioHarness {
         safeActionLabel,
         cancelled,
       });
-      this.serviceEvents.push({ category, safeActionLabel, outcome, statusClass: null, observedAt, cancelled });
+      this.serviceEvents.push({ actorContext, category, safeActionLabel, outcome, statusClass: null, observedAt, cancelled });
       if (this.networkErrors.length >= 50) return;
       this.networkErrors.push({
+        actorContext,
         method: request.method(),
         category,
         summary: cancelled
