@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex642 — Restore the exact Base44 SDK pin, add bounded queue-read fallback for production matchmaking, and align cancel/timeout Health proof with explicit cleanup reasons.
 // Codex641 — Remove no-opponent matchmaking lock churn, classify shared Online/Duello backend failures safely, harden caller-only cleanup/presence pressure, and extend Runtime E2E/Health/docs without scoring or lobby changes.
 // Codex640 — Deduplicate Duello suite/case registration while preserving direct-start and Full Health/Runtime E2E separation coverage without product changes.
 // Codex639 — Stabilize two-device Duello reciprocal pairing, classified search/retry/cancel state, direct no-lobby handoff, two-context Runtime E2E proof, Health, and docs without scoring changes.
@@ -220,7 +221,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex641';
+const BUILD_MARKER = 'Codex642';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

@@ -508,3 +508,19 @@ must prove Online search 2xx and confirmed cancel; match/direct-game remains
 real RLS/reconnect/physical-device and deterministic claim-race proof remains
 external. Ordinary no-opponent waiting is never `Eşleşme başlatılamadı`; that
 copy is reserved for a real classified backend failure.
+
+## Codex642 Matchmaking Cleanup And SDK Coverage
+
+The existing Duello and Online cleanup cases now prove the explicit
+`cancel`/`timeout`/`retry` calls rather than the removed one-argument API token.
+They continue to require poll/retry clearing, the timeout final snapshot,
+caller/mode-scoped locked cleanup, and committed-match precedence. The existing
+valid-actor matchmaking case also requires the bounded queue-read fallback and
+its fail-closed error path; no suite or case key was duplicated.
+
+Security Cleanup and Backend Deployability continue to require exact
+`@base44/sdk` `0.8.34` in `package.json`, the lockfile root/resolution, and
+critical Deno imports. Runtime E2E remains outside Full Health. A one-actor
+production run must observe a 2xx waiting response and safe cancel with no
+critical 5xx before this runtime gap is release-green; Duello remains
+`MANUAL_EXTERNAL / TWO_ACTOR_REQUIRED` without both isolated A/B fixtures.
