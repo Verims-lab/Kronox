@@ -10,6 +10,7 @@ import {
   selectLiveLockWinner,
   selectOwnActiveQueueRow,
 } from '../base44/shared/randomMatchmakingPolicy.js';
+import { readMatchmakingRows } from '../base44/shared/randomMatchmakingRead.js';
 
 const now = Date.parse('2026-08-19T12:00:00.000Z');
 const freshExpiry = '2026-08-19T12:00:30.000Z';
@@ -80,4 +81,63 @@ const liveLocks = [
 ];
 assert.equal(selectLiveLockWinner(liveLocks, now)?.id, 'live-winner');
 
-process.stdout.write('Online matchmaking runtime contracts: PASS (canonical modes, mode isolation, no self-match, reciprocal pair commit, active-row priority, expiry fallback, live-lock election).\n');
+const readCalls = [];
+const scopedRows = await readMatchmakingRows({
+  entity: {
+    filter: async (query, sort) => {
+      readCalls.push({ query, sort });
+      if (Object.keys(query).length > 1) throw new Error('compound_filter_rejected');
+      return rows;
+    },
+    list: async () => {
+      throw new Error('broad_list_rejected');
+    },
+  },
+  filter: { status: 'waiting', mode: SAME_QUESTION_DUEL_MODE },
+  scopedFallbackFilters: [{ status: 'waiting' }],
+  sort: '-created_at',
+  limit: 100,
+  fallbackLimit: 500,
+});
+assert.equal(scopedRows.strategy, 'scoped_filter_sorted');
+assert.deepEqual(scopedRows.rows.map((row) => row.id), ['duel-a', 'duel-b']);
+assert.deepEqual(readCalls.map((call) => call.query), [
+  { status: 'waiting', mode: SAME_QUESTION_DUEL_MODE },
+  { status: 'waiting' },
+]);
+
+await assert.rejects(() => readMatchmakingRows({
+  entity: {
+    filter: async () => {
+      throw new Error('filter_rejected');
+    },
+    list: async () => {
+      throw new Error('list_rejected');
+    },
+  },
+  filter: { status: 'waiting', mode: STANDARD_RANDOM_MODE },
+  scopedFallbackFilters: [{ status: 'waiting' }],
+  sort: '-created_at',
+  limit: 100,
+  fallbackLimit: 500,
+}), /matchmaking_read_unavailable/);
+
+await assert.rejects(() => readMatchmakingRows({
+  entity: {
+    filter: async () => {
+      const error = new Error('backend_rejected');
+      error.response = { status: 403 };
+      throw error;
+    },
+    list: async () => {
+      throw new Error('fallback_rejected');
+    },
+  },
+  filter: { status: 'waiting', mode: STANDARD_RANDOM_MODE },
+  scopedFallbackFilters: [{ status: 'waiting' }],
+  sort: '-created_at',
+  limit: 100,
+  fallbackLimit: 500,
+}), /matchmaking_read_permission_denied/);
+
+process.stdout.write('Online matchmaking runtime contracts: PASS (canonical modes, mode isolation, no self-match, reciprocal pair commit, active-row priority, scoped compound-filter fallback, fail-closed and permission-classified reads, expiry fallback, live-lock election).\n');

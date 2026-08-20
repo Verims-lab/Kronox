@@ -1,4 +1,5 @@
 import randomBackend from '../../../base44/functions/randomMatchmaking/entry.ts?raw';
+import randomRead from '../../../base44/shared/randomMatchmakingRead.js?raw';
 import queueEntity from '../../../base44/entities/RandomMatchQueue.jsonc?raw';
 import releaseProof from '../../../docs/KRONOX_RELEASE_PROOF_CHECKLIST.md?raw';
 import onlineScreen from '@/components/lobby/OnlineChallengeScreen.jsx?raw';
@@ -231,16 +232,23 @@ export const EXTRA_TESTS = [
     "scenarioId: 'runtime_e2e.duello_two_context_runtime_sync'",
   ]), 'Route rendering cannot fake Duello proof; two isolated contexts, backend responses, same-screen match-found, and matching fingerprints are mandatory.'), ['scenarioHandlers.mjs', 'runtimeE2EReport.js', 'runtimeE2EScenarios.js']),
 
-  makeMatchmaking('online_matchmaking_no_5xx_for_valid_actor', 'A valid lone Online actor uses the successful no-candidate path', () => sourceResult(required(randomBackend, [
+  makeMatchmaking('online_matchmaking_no_5xx_for_valid_actor', 'A valid lone Online actor uses the successful no-candidate path', () => sourceResult(required(randomBackend + randomRead + randomApi, [
     'readRowsWithFallback',
-    "entity.list('-created_date', fallbackLimit)",
-    "throw matchmakingOperationError(errorCode, operation, queueStateBefore)",
+    'readMatchmakingRows',
+    'scopedFallbackFilters',
+    "scopedFallbackFilters: [{ status: 'waiting' }]",
+    'scoped_filter_sorted',
+    'matchmaking_read_unavailable',
+    'throw matchmakingOperationError(classifiedCode, operation, queueStateBefore)',
     'if (!candidate)',
     'candidateFound: false',
     'lockAttempted: false',
     'ok: true',
     "status: matched ? 'matched' : 'waiting'",
-  ]), 'No-opponent Online admission returns waiting without attempting the shared pairing lock.'), ['base44/functions/randomMatchmaking/entry.ts']),
+    'noOpponentYetClassifiedAsWaiting',
+    'startResponseShape',
+    'duplicateOwnRowHandled',
+  ]), 'A rejected compound candidate query falls back to the proven status-scoped backend read; no-opponent Online admission returns waiting without attempting the shared pairing lock.'), ['base44/functions/randomMatchmaking/entry.ts', 'base44/shared/randomMatchmakingRead.js']),
 
   makeMatchmaking('duello_matchmaking_no_5xx_for_valid_actor', 'A valid lone Duello actor uses the same safe waiting path', () => sourceResult(required(randomBackend + modeDisplay, [
     'SAME_QUESTION_DUEL_MODE',

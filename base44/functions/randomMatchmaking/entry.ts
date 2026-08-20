@@ -11,6 +11,7 @@ import {
   selectCommittedPairingPeer,
   selectLiveLockWinner,
 } from '../../shared/randomMatchmakingPolicy.js';
+import { readMatchmakingRows } from '../../shared/randomMatchmakingRead.js';
 
 // Codex591 — Online Kapışma random matchmaking (RASTGELE EŞLEŞ).
 // Backend-authoritative queue + pairing for linked and guest actors.
@@ -51,6 +52,15 @@ const SAFE_QUEUE_STATES = new Set([
   'unknown',
 ]);
 const SAFE_CLEANUP_REASONS = new Set(['cancel', 'retry', 'timeout']);
+const SAFE_START_RESPONSE_SHAPES = new Set([
+  'waiting',
+  'searching',
+  'matched',
+  'direct_start_ready',
+  'timeout',
+  'cancelled',
+  'failed_safe',
+]);
 const normalizeMode = normalizeMatchmakingMode;
 const KRONOX_ID_PATTERN = /^KX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
 
@@ -115,42 +125,62 @@ const safeDiagnostics = ({
   pairingLockAttempted = false,
   retryCleanupObserved = false,
   cancelCleanupObserved = false,
+  noOpponentYetClassifiedAsWaiting = false,
+  staleOwnRowHandled = false,
+  duplicateOwnRowHandled = false,
   statusClass = '2xx',
   errorCategory = null,
 }: any) => {
   const safeModeKeySent = MATCHMAKING_MODES.includes(requestedMode)
     ? requestedMode
     : (MATCHMAKING_MODES.includes(mode) ? mode : STANDARD_RANDOM_MODE);
+  const startResponseShape = statusClass !== '2xx'
+    ? 'failed_safe'
+    : (queueAction === 'cleanup_timeout'
+      ? 'timeout'
+      : (queueAction === 'cleanup_cancel' || queueAction === 'cleanup_retry'
+        ? 'cancelled'
+        : (queueStateAfter === 'matched'
+          ? (directGamePayloadAvailable ? 'direct_start_ready' : 'matched')
+          : (['waiting', 'pairing'].includes(queueStateAfter) ? 'waiting' : 'searching'))));
   return ({
-  modeKeySent: safeModeKeySent,
-  canonicalModeKey: mode || STANDARD_RANDOM_MODE,
-  queueScope: mode || STANDARD_RANDOM_MODE,
-  queueAction: SAFE_QUEUE_ACTIONS.has(queueAction) ? queueAction : 'find_waiting',
-  actorKind: actorKind === 'linked'
-    ? 'authenticated'
-    : (actorKind === 'guest' ? 'guest' : 'unknown'),
-  selfMatchPrevented: Boolean(selfMatchPrevented),
-  staleQueueDetected: Boolean(staleQueueDetected),
-  matchedOpponentPublicSafe: Boolean(matchCreated),
-  matchCreated: Boolean(matchCreated),
-  directGamePayloadAvailable: Boolean(directGamePayloadAvailable),
-  routeAfterMatch: mode === SAME_QUESTION_DUEL_MODE ? '/duel' : '/game',
-  lobbyRouteObserved: false,
-  onlineMatchmakingFunctionCategory: 'shared_matchmaking_backend',
-  matchmakingMode: mode || STANDARD_RANDOM_MODE,
-  matchmakingOperation: SAFE_QUEUE_ACTIONS.has(queueAction) ? queueAction : 'find_waiting',
-  matchmakingStatusClass: ['2xx', '4xx', '5xx'].includes(statusClass) ? statusClass : 'unknown',
-  matchmakingErrorCategory: errorCategory
-    ? `MATCHMAKING_${String(errorCategory).replace(/^(?:ONLINE|DUELLO)_/, '').replace('UNKNOWN_START_FAILURE', 'UNKNOWN_BACKEND_REJECTION')}`
-    : null,
-  queueStateBefore: SAFE_QUEUE_STATES.has(queueStateBefore) ? queueStateBefore : 'unknown',
-  queueStateAfter: SAFE_QUEUE_STATES.has(queueStateAfter) ? queueStateAfter : 'unknown',
-  pairingLockAttempted: Boolean(pairingLockAttempted),
-  retryCleanupObserved: Boolean(retryCleanupObserved),
-  cancelCleanupObserved: Boolean(cancelCleanupObserved),
-  matchFoundObserved: Boolean(matchCreated),
-  errorCategory,
-  requestAction: ['join', 'poll', 'cancel', 'consume'].includes(action) ? action : 'unknown',
+    functionCategory: 'shared_matchmaking_backend',
+    operation: SAFE_QUEUE_ACTIONS.has(queueAction) ? queueAction : 'find_waiting',
+    mode: mode || STANDARD_RANDOM_MODE,
+    responseStatusClass: ['2xx', '4xx', '5xx'].includes(statusClass) ? statusClass : 'unknown',
+    startResponseShape: SAFE_START_RESPONSE_SHAPES.has(startResponseShape) ? startResponseShape : 'failed_safe',
+    modeKeySent: safeModeKeySent,
+    canonicalModeKey: mode || STANDARD_RANDOM_MODE,
+    queueScope: mode || STANDARD_RANDOM_MODE,
+    queueAction: SAFE_QUEUE_ACTIONS.has(queueAction) ? queueAction : 'find_waiting',
+    actorKind: actorKind === 'linked'
+      ? 'authenticated'
+      : (actorKind === 'guest' ? 'guest' : 'unknown'),
+    selfMatchPrevented: Boolean(selfMatchPrevented),
+    staleQueueDetected: Boolean(staleQueueDetected),
+    matchedOpponentPublicSafe: Boolean(matchCreated),
+    matchCreated: Boolean(matchCreated),
+    directGamePayloadAvailable: Boolean(directGamePayloadAvailable),
+    routeAfterMatch: mode === SAME_QUESTION_DUEL_MODE ? '/duel' : '/game',
+    lobbyRouteObserved: false,
+    onlineMatchmakingFunctionCategory: 'shared_matchmaking_backend',
+    matchmakingMode: mode || STANDARD_RANDOM_MODE,
+    matchmakingOperation: SAFE_QUEUE_ACTIONS.has(queueAction) ? queueAction : 'find_waiting',
+    matchmakingStatusClass: ['2xx', '4xx', '5xx'].includes(statusClass) ? statusClass : 'unknown',
+    matchmakingErrorCategory: errorCategory
+      ? `MATCHMAKING_${String(errorCategory).replace(/^(?:ONLINE|DUELLO)_/, '').replace('UNKNOWN_START_FAILURE', 'UNKNOWN_BACKEND_REJECTION')}`
+      : null,
+    queueStateBefore: SAFE_QUEUE_STATES.has(queueStateBefore) ? queueStateBefore : 'unknown',
+    queueStateAfter: SAFE_QUEUE_STATES.has(queueStateAfter) ? queueStateAfter : 'unknown',
+    pairingLockAttempted: Boolean(pairingLockAttempted),
+    retryCleanupObserved: Boolean(retryCleanupObserved),
+    cancelCleanupObserved: Boolean(cancelCleanupObserved),
+    noOpponentYetClassifiedAsWaiting: Boolean(noOpponentYetClassifiedAsWaiting),
+    staleOwnRowHandled: Boolean(staleOwnRowHandled),
+    duplicateOwnRowHandled: Boolean(duplicateOwnRowHandled),
+    matchFoundObserved: Boolean(matchCreated),
+    errorCategory,
+    requestAction: ['join', 'poll', 'cancel', 'consume'].includes(action) ? action : 'unknown',
   });
 };
 
@@ -177,17 +207,10 @@ function matchmakingOperationError(code: string, operation: string, queueStateBe
   return error;
 }
 
-const matchesExactFilter = (row: any, filter: Record<string, unknown>) => (
-  Object.entries(filter).every(([key, value]) => (
-    key === 'mode'
-      ? normalizeMode(row?.mode) === normalizeMode(value)
-      : String(row?.[key] ?? '') === String(value ?? '')
-  ))
-);
-
 async function readRowsWithFallback({
   entity,
   filter,
+  scopedFallbackFilters = [],
   sort,
   limit,
   fallbackLimit = limit,
@@ -196,19 +219,20 @@ async function readRowsWithFallback({
   queueStateBefore = 'unknown',
 }: any) {
   try {
-    const rows = await entity.filter(filter, sort, limit);
-    if (Array.isArray(rows)) return rows;
-  } catch {
-    // Base44 can reject an otherwise valid compound entity filter while a
-    // bounded service-role list remains available. Keep the read backend-
-    // authoritative and filter locally; fail closed if both reads fail.
-  }
-
-  try {
-    const rows = await entity.list('-created_date', fallbackLimit);
-    return Array.isArray(rows) ? rows.filter((row: any) => matchesExactFilter(row, filter)) : [];
-  } catch {
-    throw matchmakingOperationError(errorCode, operation, queueStateBefore);
+    const result = await readMatchmakingRows({
+      entity,
+      filter,
+      scopedFallbackFilters,
+      sort,
+      limit,
+      fallbackLimit,
+    });
+    return result.rows;
+  } catch (error) {
+    const classifiedCode = String(error?.message || '').includes('permission_denied')
+      ? `${errorCode}_permission_denied`
+      : errorCode;
+    throw matchmakingOperationError(classifiedCode, operation, queueStateBefore);
   }
 }
 
@@ -377,11 +401,17 @@ function lobbyStore(base44: any) {
   return entity;
 }
 
-async function findOwnActiveRow(base44: any, actorKeyHash: string, mode: string) {
+async function findOwnActiveRow(
+  base44: any,
+  actorKeyHash: string,
+  mode: string,
+  reconciliationContext: any = null,
+) {
   const queue = queueStore(base44);
   const rows = await readRowsWithFallback({
     entity: queue,
     filter: { actor_key_hash: actorKeyHash, mode },
+    scopedFallbackFilters: [{ actor_key_hash: actorKeyHash }],
     sort: '-created_at',
     limit: QUEUE_READ_LIMIT,
     fallbackLimit: QUEUE_FALLBACK_READ_LIMIT,
@@ -394,10 +424,13 @@ async function findOwnActiveRow(base44: any, actorKeyHash: string, mode: string)
     && row?.status === 'waiting'
     && normalizeMode(row?.mode) === mode
   ));
-  await Promise.allSettled(duplicateWaitingRows.map((row: any) => queue.update(rowId(row), {
+  const duplicateResults = await Promise.allSettled(duplicateWaitingRows.map((row: any) => queue.update(rowId(row), {
     status: 'cancelled',
     cancelled_at: new Date().toISOString(),
   })));
+  if (reconciliationContext && typeof reconciliationContext === 'object') {
+    reconciliationContext.duplicateOwnRowHandled = duplicateResults.every((result) => result.status === 'fulfilled');
+  }
   return selected;
 }
 
@@ -424,17 +457,25 @@ async function createWaitingRow(base44: any, actor: any, mode: string) {
 
 async function ensureOwnQueueRow(base44: any, actor: any, mode: string) {
   const queue = queueStore(base44);
-  let row = await findOwnActiveRow(base44, actor.actorKeyHash, mode);
+  const reconciliationContext: any = {};
+  let row = await findOwnActiveRow(base44, actor.actorKeyHash, mode, reconciliationContext);
   let staleQueueDetected = false;
+  let staleOwnRowHandled = false;
   if (row && isExpired(row, Date.now())) {
     staleQueueDetected = true;
     await queue.update(rowId(row), { status: 'expired' }).catch(() => {
       throw matchmakingOperationError('random_matchmaking_queue_write_failed', 'cleanup_timeout', row?.status || 'unknown');
     });
+    staleOwnRowHandled = true;
     row = null;
   }
   if (!row) row = await createWaitingRow(base44, actor, mode);
-  return { row, staleQueueDetected };
+  return {
+    row,
+    staleQueueDetected,
+    staleOwnRowHandled,
+    duplicateOwnRowHandled: reconciliationContext.duplicateOwnRowHandled === true,
+  };
 }
 
 async function resolvePairingRow(base44: any, row: any, mode: string) {
@@ -443,6 +484,7 @@ async function resolvePairingRow(base44: any, row: any, mode: string) {
   const pairRows = await readRowsWithFallback({
     entity: queue,
     filter: { lobby_id: String(row?.lobby_id || ''), mode },
+    scopedFallbackFilters: [{ lobby_id: String(row?.lobby_id || '') }],
     sort: '-created_at',
     limit: PAIR_READ_LIMIT,
     fallbackLimit: QUEUE_FALLBACK_READ_LIMIT,
@@ -617,6 +659,7 @@ async function findWaitingCandidate(base44: any, actorKeyHash: string, mode: str
   const waitingRows = await readRowsWithFallback({
     entity: queueStore(base44),
     filter: { status: 'waiting', mode },
+    scopedFallbackFilters: [{ status: 'waiting' }],
     sort: '-created_at',
     limit: QUEUE_READ_LIMIT,
     fallbackLimit: QUEUE_FALLBACK_READ_LIMIT,
@@ -666,6 +709,8 @@ async function handleJoin(base44: any, actor: any, mode: string, diagnosticConte
         ...diagnosticContext,
         queueAction: 'direct_start',
         staleQueueDetected: admitted.staleQueueDetected,
+        staleOwnRowHandled: admitted.staleOwnRowHandled,
+        duplicateOwnRowHandled: admitted.duplicateOwnRowHandled,
         queueStateBefore: admitted.row?.status || 'unknown',
         queueStateAfter: 'matched',
       }),
@@ -684,6 +729,9 @@ async function handleJoin(base44: any, actor: any, mode: string, diagnosticConte
         : (pairing.candidateFound ? 'pair_waiting' : 'find_waiting'),
       selfMatchPrevented: true,
       staleQueueDetected: admitted.staleQueueDetected,
+      staleOwnRowHandled: admitted.staleOwnRowHandled,
+      duplicateOwnRowHandled: admitted.duplicateOwnRowHandled,
+      noOpponentYetClassifiedAsWaiting: !pairing.candidateFound && row?.status !== 'matched',
       pairingLockAttempted: pairing.lockAttempted,
       queueStateBefore: admittedRow?.status || 'unknown',
       queueStateAfter: row?.status || 'waiting',
