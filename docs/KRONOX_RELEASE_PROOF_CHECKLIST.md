@@ -1563,6 +1563,17 @@ Manual release gates that source cannot prove:
   directly or open the map, but a runtime PASS requires committed `/game`, the
   dedicated Solo root, question/card area, and interaction target. A safe
   question bootstrap recovery is NOT_AUTOMATABLE with its precise reason.
+* Codex638 requires a visible, enabled `[data-testid="solo-back-home"]` control.
+  If the optional tutorial is visible, automation closes it through
+  `solo-tutorial-continue` or `solo-tutorial-close` after a bounded 750ms
+  discovery check; it never spends a default 30-second absent/hidden wait.
+  Exit evidence includes only control count/visibility/enabled state/bounds,
+  pointer events, overlay/dialog flags, and safe route names. Missing, hidden,
+  tutorial-blocked, overlay-blocked, click-timeout, and route-stall states keep
+  distinct failure categories.
+* Verify direct Home `OYNA` exits to Home and a `/solo` map launch exits to the
+  map. Neither exit may evaluate a placement, change HAMLE/Puan, grant a reward,
+  spend inventory, or weaken the successful question-service proof gate.
 * Codex635 passed core Health but its production Runtime E2E report was not
   release-green. Codex636 makes the legacy `/Game` redirect case-sensitive so
   it cannot capture canonical `/game`; the current Solo level must commit the

@@ -62,6 +62,7 @@ export default function SoloLevelStartTutorialPopup({
       {open && (
         <motion.div
           className="fixed inset-0 z-[88] flex items-center justify-center overflow-hidden px-3"
+          data-testid="solo-tutorial-modal"
           data-kronox-solo-level-start-tutorial-popup="true"
           data-kronox-solo-level-start-tutorial-key={config.key}
           role="dialog"
@@ -96,6 +97,7 @@ export default function SoloLevelStartTutorialPopup({
           >
             <button
               type="button"
+              data-testid="solo-tutorial-close"
               aria-label="Eğitim penceresini kapat"
               onClick={handleClose}
               className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full transition-transform active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300/70"
@@ -176,6 +178,7 @@ export default function SoloLevelStartTutorialPopup({
             </div>
             <button
               type="button"
+              data-testid="solo-tutorial-continue"
               onClick={handleClose}
               className="mt-auto min-h-12 w-full rounded-2xl px-5 py-3 font-inter text-base font-black tracking-[0.18em] text-slate-950 transition-transform active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-200"
               data-kronox-solo-level-start-tutorial-understood="true"

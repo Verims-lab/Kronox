@@ -37,6 +37,11 @@ import {
   RUNTIME_E2E_SUITE_ID,
 } from '../src/lib/health/runtimeE2EScenarios.js';
 import { RUNTIME_E2E_SCENARIO_HANDLERS } from '../tests/health-e2e/scenarioHandlers.mjs';
+import {
+  SOLO_EXIT_FAILURE_CATEGORY,
+  classifySoloExitFailure,
+  createSoloExitRuntimeEvidence,
+} from '../src/lib/health/soloExitRuntimeEvidence.js';
 
 assert.equal(RUNTIME_E2E_SUITE.id, RUNTIME_E2E_SUITE_ID);
 assert.equal(RUNTIME_E2E_SUITE.externalAutomation, true);
@@ -49,6 +54,38 @@ for (const scenario of RUNTIME_E2E_SCENARIOS) {
   assert.ok(scenario.requiredCapabilities.length >= 3);
   assert.ok(Object.values(RUNTIME_E2E_EXECUTION_SCOPE).includes(scenario.executionScope));
 }
+
+const actionableSoloExit = {
+  ...createSoloExitRuntimeEvidence('/'),
+  backButtonPresent: true,
+  backButtonVisible: true,
+  backButtonEnabled: true,
+  backButtonBoundingBox: { x: 16, y: 100, width: 44, height: 44 },
+  backButtonCount: 1,
+  pointerEventsOnBackButton: 'auto',
+};
+assert.equal(classifySoloExitFailure(actionableSoloExit), null);
+assert.equal(
+  classifySoloExitFailure({ ...actionableSoloExit, tutorialOverlayDetected: true }),
+  SOLO_EXIT_FAILURE_CATEGORY.BLOCKED_BY_TUTORIAL,
+);
+assert.equal(
+  classifySoloExitFailure({ ...actionableSoloExit, blockingOverlayDetected: true }),
+  SOLO_EXIT_FAILURE_CATEGORY.BLOCKED_BY_OVERLAY,
+);
+assert.equal(
+  classifySoloExitFailure({ ...actionableSoloExit, exitClickOutcome: 'timeout' }),
+  SOLO_EXIT_FAILURE_CATEGORY.CLICK_TIMEOUT,
+);
+assert.equal(
+  classifySoloExitFailure({
+    ...actionableSoloExit,
+    exitClickOutcome: 'clicked',
+    routeBeforeExit: '/game',
+    routeAfterExit: '/game',
+  }),
+  SOLO_EXIT_FAILURE_CATEGORY.ROUTE_STALL,
+);
 
 const fakePass = createNotRunAutomationReport('contract-test');
 fakePass.scenarios[0] = {

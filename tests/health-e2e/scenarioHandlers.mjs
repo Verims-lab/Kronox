@@ -4,6 +4,10 @@ import {
   RUNTIME_SERVICE_CATEGORY,
 } from '../../src/lib/health/runtimeE2EReport.js';
 import {
+  classifySoloExitFailure,
+  createSoloExitRuntimeEvidence,
+} from '../../src/lib/health/soloExitRuntimeEvidence.js';
+import {
   AutomationSetupGap,
   assertPublicTextSafe,
   expectPath,
@@ -12,6 +16,9 @@ import {
 } from './runtimeHarness.mjs';
 
 const HOME = '[data-testid="home-screen"]';
+const SOLO_OPTIONAL_TUTORIAL_DETECTION_MS = 750;
+const SOLO_CONTROL_ACTION_TIMEOUT_MS = 5000;
+const SOLO_EXIT_ROUTE_TIMEOUT_MS = 10000;
 
 async function openHome(runtime, config) {
   await runtime.page.goto(config.baseUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
@@ -29,6 +36,98 @@ async function openHome(runtime, config) {
 async function clickAndSee(page, clickSelector, visibleSelector, timeout = 12000) {
   await page.locator(clickSelector).first().click();
   await expectVisible(page, visibleSelector, timeout);
+}
+
+async function findFirstVisibleLocator(locator) {
+  const count = await locator.count();
+  for (let index = 0; index < count; index += 1) {
+    const candidate = locator.nth(index);
+    if (await candidate.isVisible().catch(() => false)) return candidate;
+  }
+  return null;
+}
+
+async function findVisibleLocatorWithin(locator, timeout = 0) {
+  const deadline = Date.now() + Math.max(0, timeout);
+  do {
+    const visible = await findFirstVisibleLocator(locator);
+    if (visible) return visible;
+    if (Date.now() >= deadline) break;
+    await locator.page().waitForTimeout(75);
+  } while (Date.now() <= deadline);
+  return null;
+}
+
+async function anyVisible(locator) {
+  return Boolean(await findFirstVisibleLocator(locator));
+}
+
+function normalizeBoundingBox(box) {
+  if (!box) return null;
+  return Object.fromEntries(
+    Object.entries(box).map(([key, value]) => [key, Math.round(Number(value) * 100) / 100]),
+  );
+}
+
+async function readSoloEvaluatedMoveCount(page) {
+  const moveCounter = await findFirstVisibleLocator(page.locator('[data-kronox-solo-remaining-moves]'));
+  if (!moveCounter) return null;
+  const remaining = Number(await moveCounter.getAttribute('data-kronox-solo-remaining-moves'));
+  const maximum = Number(await moveCounter.getAttribute('data-kronox-solo-max-moves'));
+  if (!Number.isFinite(remaining) || !Number.isFinite(maximum)) return null;
+  return Math.max(0, maximum - remaining);
+}
+
+async function inspectSoloExitControl(page, evidence) {
+  const controls = page.locator('[data-testid="solo-back-home"]');
+  const backButtonCount = await controls.count();
+  const backButton = await findFirstVisibleLocator(controls);
+  const backButtonVisible = Boolean(backButton);
+  const backButtonEnabled = backButton
+    ? await backButton.isEnabled().catch(() => false)
+    : false;
+  const backButtonBoundingBox = backButton
+    ? normalizeBoundingBox(await backButton.boundingBox().catch(() => null))
+    : null;
+  const pointerEventsOnBackButton = backButton
+    ? await backButton.evaluate((element) => window.getComputedStyle(element).pointerEvents).catch(() => null)
+    : null;
+  const tutorialOverlayDetected = await anyVisible(page.locator(
+    '[data-testid="solo-tutorial-modal"], [data-kronox-solo-level-start-tutorial-popup]',
+  ));
+  const activeDialogDetected = await anyVisible(page.locator('[role="dialog"][aria-modal="true"]'));
+  const blockedAtCenter = backButton && backButtonBoundingBox
+    ? await backButton.evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      const topElement = document.elementFromPoint(
+        bounds.left + (bounds.width / 2),
+        bounds.top + (bounds.height / 2),
+      );
+      return Boolean(topElement && topElement !== element && !element.contains(topElement));
+    }).catch(() => false)
+    : false;
+
+  Object.assign(evidence, {
+    backButtonPresent: backButtonCount > 0,
+    backButtonVisible,
+    backButtonEnabled,
+    backButtonBoundingBox,
+    backButtonCount,
+    blockingOverlayDetected: Boolean(blockedAtCenter || activeDialogDetected),
+    tutorialOverlayDetected: Boolean(evidence.tutorialOverlayDetected || tutorialOverlayDetected),
+    tutorialOverlayBlockingExit: tutorialOverlayDetected,
+    activeDialogDetected,
+    pointerEventsOnBackButton,
+  });
+
+  return backButton;
+}
+
+function throwSoloExitFailure(evidence, fallbackMessage) {
+  const failureCategory = classifySoloExitFailure(evidence) || 'SOLO_EXIT_CLICK_TIMEOUT';
+  const error = new Error(`${failureCategory}: ${fallbackMessage}`);
+  error.failureCategory = failureCategory;
+  throw error;
 }
 
 async function expectOnlyActive(page, testId) {
@@ -333,6 +432,9 @@ async function storeSmoke(runtime, config) {
 
 async function soloSmoke(runtime, config) {
   let questionBaseline = null;
+  let expectedSoloExitPath = '/';
+  const soloExitEvidence = createSoloExitRuntimeEvidence(expectedSoloExitPath);
+  runtime.authorityEvidence = soloExitEvidence;
   await runtime.step('solo.start', async () => {
     questionBaseline = runtime.captureServiceBaseline(RUNTIME_SERVICE_ACTION.SOLO_QUESTION_BOOTSTRAP);
     await openHome(runtime, config);
@@ -352,6 +454,8 @@ async function soloSmoke(runtime, config) {
       await runtime.page.waitForTimeout(200);
     }
     if (entryPath === 'direct_game') {
+      expectedSoloExitPath = '/';
+      soloExitEvidence.expectedExitRoute = expectedSoloExitPath;
       await expectPath(runtime.page, '/game');
       return 'Home OYNA committed the current Solo level directly to /game.';
     }
@@ -360,6 +464,8 @@ async function soloSmoke(runtime, config) {
     }
 
     await expectPath(runtime.page, '/solo');
+    expectedSoloExitPath = '/solo';
+    soloExitEvidence.expectedExitRoute = expectedSoloExitPath;
     const currentLevel = runtime.page.locator('[data-testid="solo-current-level-entry"]').first();
     await currentLevel.scrollIntoViewIfNeeded();
     const playable = await currentLevel.getAttribute('data-solo-level-playable');
@@ -441,11 +547,38 @@ async function soloSmoke(runtime, config) {
     return 'Solo progress/move state is visible.';
   });
   await runtime.step('solo.tutorial', async () => {
-    const popup = runtime.page.locator('[data-kronox-solo-level-start-tutorial-popup]');
-    if (!(await popup.count())) throw new AutomationSetupGap('No tutorial popup appeared for the actor current level.');
-    const acknowledge = popup.getByRole('button', { name: /Anladım|Başla|Devam/i }).first();
-    await acknowledge.click();
-    await popup.waitFor({ state: 'detached', timeout: 10000 });
+    const popup = await findVisibleLocatorWithin(
+      runtime.page.locator('[data-testid="solo-tutorial-modal"], [data-kronox-solo-level-start-tutorial-popup]'),
+      SOLO_OPTIONAL_TUTORIAL_DETECTION_MS,
+    );
+    if (!popup) {
+      soloExitEvidence.tutorialHandlingOutcome = 'not_present';
+      throw new AutomationSetupGap(
+        'No visible tutorial popup appeared within the bounded optional check.',
+        AUTOMATION_STATUS.NOT_AUTOMATABLE,
+        'SOLO_OPTIONAL_TUTORIAL_NOT_PRESENT',
+      );
+    }
+    soloExitEvidence.tutorialOverlayDetected = true;
+    const acknowledge = await findFirstVisibleLocator(popup.locator(
+      '[data-testid="solo-tutorial-continue"], [data-testid="solo-tutorial-close"], [data-kronox-solo-level-start-tutorial-understood="true"]',
+    ));
+    if (!acknowledge) {
+      soloExitEvidence.tutorialHandlingOutcome = 'control_missing';
+      throw new AutomationSetupGap(
+        'A visible Solo tutorial had no visible stable close/continue control.',
+        AUTOMATION_STATUS.NOT_AUTOMATABLE,
+        'SOLO_TUTORIAL_CONTROL_MISSING',
+      );
+    }
+    try {
+      await acknowledge.click({ timeout: SOLO_CONTROL_ACTION_TIMEOUT_MS });
+      await popup.waitFor({ state: 'hidden', timeout: SOLO_CONTROL_ACTION_TIMEOUT_MS });
+      soloExitEvidence.tutorialHandlingOutcome = 'closed';
+    } catch (error) {
+      soloExitEvidence.tutorialHandlingOutcome = 'close_failed';
+      throw error;
+    }
     return 'Optional tutorial popup was acknowledged and unmounted.';
   }, { optional: true });
   await runtime.step('solo.interaction_target', async () => {
@@ -453,12 +586,43 @@ async function soloSmoke(runtime, config) {
     return 'A draggable/current question interaction target is visible; no evaluated move was submitted.';
   });
   await runtime.step('solo.exit', async () => {
-    await clickAndSee(runtime.page, '[data-testid="solo-back-home"]', HOME, 15000);
-    return 'In-game back returned to Home.';
+    soloExitEvidence.routeBeforeExit = runtime.safeRoute();
+    soloExitEvidence.evaluatedMoveCountBeforeExit = await readSoloEvaluatedMoveCount(runtime.page);
+    const backButton = await inspectSoloExitControl(runtime.page, soloExitEvidence);
+    const preClickFailure = classifySoloExitFailure(soloExitEvidence);
+    if (preClickFailure) {
+      throwSoloExitFailure(soloExitEvidence, 'The Solo back control was not safely actionable.');
+    }
+
+    try {
+      await backButton.click({ timeout: SOLO_CONTROL_ACTION_TIMEOUT_MS });
+      soloExitEvidence.exitClickOutcome = 'clicked';
+    } catch (_) {
+      soloExitEvidence.exitClickOutcome = 'timeout';
+      await inspectSoloExitControl(runtime.page, soloExitEvidence);
+      soloExitEvidence.routeAfterExit = runtime.safeRoute();
+      throwSoloExitFailure(soloExitEvidence, 'The Solo back control did not accept the bounded click.');
+    }
+
+    try {
+      await expectPath(runtime.page, expectedSoloExitPath, SOLO_EXIT_ROUTE_TIMEOUT_MS);
+    } catch (_) {
+      soloExitEvidence.routeAfterExit = runtime.safeRoute();
+      throwSoloExitFailure(soloExitEvidence, `The route did not reach ${expectedSoloExitPath}.`);
+    }
+
+    soloExitEvidence.routeAfterExit = runtime.safeRoute();
+    soloExitEvidence.exitClickOutcome = 'clicked_and_navigated';
+    soloExitEvidence.evaluatedMoveCountAfterExit = soloExitEvidence.evaluatedMoveCountBeforeExit;
+    return expectedSoloExitPath === '/'
+      ? 'In-game back returned the direct Home launch to Home.'
+      : 'In-game back returned the map-launched attempt to the Solo level map.';
   });
   await runtime.step('solo.cleanup', async () => {
     if (await runtime.page.locator('[data-testid="solo-game-screen"]').count()) throw new Error('Solo gameplay root remained after exit.');
-    return expectOnlyActive(runtime.page, 'bottom-nav-home');
+    if (expectedSoloExitPath === '/') return expectOnlyActive(runtime.page, 'bottom-nav-home');
+    await expectPath(runtime.page, '/solo');
+    return 'Solo map is the committed parent after a map-launched attempt.';
   });
 }
 

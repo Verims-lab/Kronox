@@ -403,6 +403,30 @@ one accepted claim, first-to-10 result, and single backend `+15`/`-6` commit.
 Online also retains `+15`/`-6`; neither mode has a speed bonus. Permission/RLS
 diagnostics remain visible and blocking where applicable.
 
+## Codex638 Solo Exit Runtime Coverage
+
+The Codex637 production run proved Solo question preparation and gameplay, but
+the Level 1 tutorial remained as the active modal during `solo.exit`. The old
+optional tutorial step selected by role/text and consumed Playwright's default
+30-second click timeout; the following back click then waited behind the same
+overlay and inherited the generic `SOLO_LOAD_FAILURE` category.
+
+Codex638 gives the tutorial modal, close button, and `ANLADIM` action stable
+selectors. Optional tutorial discovery is bounded to 750ms and the visible
+action has a separate 5-second ceiling. Solo exit records only safe control
+state, geometry, overlay/dialog presence, pointer events, and before/after
+routes. Failures resolve to `SOLO_EXIT_CONTROL_MISSING`,
+`SOLO_EXIT_CONTROL_HIDDEN`, `SOLO_EXIT_BLOCKED_BY_OVERLAY`,
+`SOLO_EXIT_BLOCKED_BY_TUTORIAL`, `SOLO_EXIT_CLICK_TIMEOUT`, or
+`SOLO_EXIT_ROUTE_STALL`; no credential, actor identity, question, or answer
+data enters the report.
+
+Direct Home `OYNA` attempts return to Home. A level selected from `/solo`
+returns to the Solo map. The exit action does not submit or evaluate a move and
+does not mutate score, rewards, inventory, or persistence. Ten focused Runtime
+E2E Health cases protect this contract while Full Health continues to exclude
+browser automation. Question-service success remains mandatory gameplay proof.
+
 ## Manual / Live Probe Checklist
 
 - Two-phone matchmaking: use distinct actors, enter Duello within 30 seconds,

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex638 — Clear SDK, transient-timer, and Health catalog identity blockers while preserving the lobby-free Online/Duello direct-start journey and separate Runtime E2E boundary.
+// Codex638 — Clear SDK, transient-timer, and Health catalog identity blockers; harden the Solo in-game exit/tutorial Runtime E2E proof while preserving gameplay and the lobby-free Online/Duello journey.
 // Codex637 — Remove the active Online/Duello lobby journey, add backend-authoritative same-screen match-found direct start, and align focused Health, Runtime E2E, docs, and mirrors without scoring changes.
 // Codex636 — Fix the legacy /Game versus canonical /game route collision,
 // move protected profile/leaderboard access behind authorized backend paths,
