@@ -20,6 +20,7 @@ import {
   resolveRuntimePreflightStatus,
   runtimeServiceSummaryUnavailableReason,
   sanitizeAutomationValue,
+  summarizeRuntimeBackendEvidence,
   isOptionalRuntimeActivityRequest,
   RUNTIME_SERVICE_ACTION,
 } from '../src/lib/health/runtimeE2EReport.js';
@@ -37,6 +38,10 @@ import {
   RUNTIME_E2E_SUITE_ID,
 } from '../src/lib/health/runtimeE2EScenarios.js';
 import { RUNTIME_E2E_SCENARIO_HANDLERS } from '../tests/health-e2e/scenarioHandlers.mjs';
+import {
+  findBoundedServiceRejection,
+  resolveBoundedServiceOutcome,
+} from '../tests/health-e2e/runtimeHarness.mjs';
 import {
   SOLO_EXIT_FAILURE_CATEGORY,
   classifySoloExitFailure,
@@ -219,6 +224,18 @@ assert.equal(serviceSummary.leaderboard.statusClasses['2xx'], 1);
 assert.equal(runtimeServiceSummaryUnavailableReason(serviceSummary), null);
 assert.match(runtimeServiceSummaryUnavailableReason({}), /No classified backend requests observed/);
 
+const mixedMatchmakingEvidence = summarizeRuntimeBackendEvidence({
+  online_matchmaking: {
+    requests: 2,
+    responses: 2,
+    failures: 0,
+    statusClasses: { '2xx': 1, '5xx': 1 },
+  },
+}, ['online_matchmaking']);
+assert.equal(mixedMatchmakingEvidence.observed, true);
+assert.equal(mixedMatchmakingEvidence.successful, false);
+assert.equal(mixedMatchmakingEvidence.statusClass, '5xx');
+
 const appActivityUrl = 'https://kronoxgame.com/api/app-logs/app-safe/log-user-in-app/leaderboard';
 const appActivityCategory = classifyRuntimeServiceRequest(appActivityUrl, 'https://kronoxgame.com', 'fetch');
 const appActivityDiagnostic = buildRuntimePermissionDiagnostic({
@@ -294,6 +311,58 @@ assert.equal(productionCapabilities.base44Backend.status, RUNTIME_E2E_CAPABILITY
 const onlineDefinition = RUNTIME_E2E_SCENARIOS.find((item) => item.scenarioId === 'runtime_e2e.online_random_waiting_cancel_smoke');
 assert.equal(evaluateScenarioCapabilities(onlineDefinition, productionCapabilities).canRun, true);
 assert.equal(evaluateScenarioCapabilities(onlineDefinition, productionCapabilities).decision, 'RUN_WITH_RUNTIME_PROBES');
+
+const restartOutcome = resolveBoundedServiceOutcome([
+  {
+    category: 'online_matchmaking',
+    safeActionLabel: RUNTIME_SERVICE_ACTION.ONLINE_MATCHMAKING,
+    requestId: 'cancel-before-baseline',
+    outcome: 'RESPONSE',
+    statusClass: '2xx',
+  },
+  {
+    category: 'online_matchmaking',
+    safeActionLabel: RUNTIME_SERVICE_ACTION.ONLINE_MATCHMAKING,
+    requestId: 'restart-after-baseline',
+    outcome: 'REQUEST',
+    statusClass: null,
+  },
+  {
+    category: 'online_matchmaking',
+    safeActionLabel: RUNTIME_SERVICE_ACTION.ONLINE_MATCHMAKING,
+    requestId: 'restart-after-baseline',
+    outcome: 'RESPONSE',
+    statusClass: '5xx',
+  },
+]);
+assert.equal(restartOutcome.state, 'backend_rejected');
+assert.equal(restartOutcome.terminalEvent.requestId, 'restart-after-baseline');
+assert.equal(restartOutcome.terminalEvent.statusClass, '5xx');
+
+const activeSearchRejection = findBoundedServiceRejection([
+  {
+    requestId: 'join',
+    outcome: 'REQUEST',
+    statusClass: null,
+  },
+  {
+    requestId: 'join',
+    outcome: 'RESPONSE',
+    statusClass: '2xx',
+  },
+  {
+    requestId: 'poll',
+    outcome: 'REQUEST',
+    statusClass: null,
+  },
+  {
+    requestId: 'poll',
+    outcome: 'RESPONSE',
+    statusClass: '5xx',
+  },
+]);
+assert.equal(activeSearchRejection.requestId, 'poll');
+assert.equal(activeSearchRejection.statusClass, '5xx');
 
 const productionEvidence = {
   executionId: 'contract-production-runtime',

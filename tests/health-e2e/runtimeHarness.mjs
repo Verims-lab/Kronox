@@ -26,6 +26,45 @@ export function requireCapability(condition, message, status) {
   if (!condition) throw new AutomationSetupGap(message, status);
 }
 
+function correlateBoundedServiceEvents(events = []) {
+  const requests = events.filter((event) => event.outcome === 'REQUEST');
+  const requestIds = new Set(requests.map((event) => event.requestId).filter(Boolean));
+  const terminals = events.filter((event) => (
+    event.outcome !== 'REQUEST'
+    && event.requestId
+    && requestIds.has(event.requestId)
+  ));
+  return { requests, terminals };
+}
+
+export function findBoundedServiceRejection(events = []) {
+  const { terminals } = correlateBoundedServiceEvents(events);
+  return [...terminals].reverse().find((event) => (
+    event.outcome === 'RESPONSE'
+    && event.statusClass !== '2xx'
+    && event.statusClass !== '3xx'
+  )) || null;
+}
+
+export function resolveBoundedServiceOutcome(events = []) {
+  const { requests, terminals } = correlateBoundedServiceEvents(events);
+  const successful = requests.length > 0 && terminals.find((event) => (
+    event.outcome === 'RESPONSE' && (event.statusClass === '2xx' || event.statusClass === '3xx')
+  ));
+  if (successful) return { state: 'successful_response', terminalEvent: successful, requests, terminals };
+
+  if (requests.length > 0 && terminals.length >= requests.length) {
+    const rejected = terminals.find((event) => event.outcome === 'RESPONSE');
+    if (rejected) return { state: 'backend_rejected', terminalEvent: rejected, requests, terminals };
+    const aborted = terminals.find((event) => event.outcome === 'ABORTED');
+    if (aborted) return { state: 'aborted', terminalEvent: aborted, requests, terminals };
+    const failed = terminals.find((event) => event.outcome === 'FAILED');
+    if (failed) return { state: 'network_failure', terminalEvent: failed, requests, terminals };
+  }
+
+  return { state: null, terminalEvent: null, requests, terminals };
+}
+
 function relativeArtifactPath(value) {
   if (!value) return null;
   const normalized = String(value).replace(/\\/g, '/');
@@ -51,6 +90,8 @@ export class RuntimeScenarioHarness {
     this.serviceSummary = {};
     this.serviceEvents = [];
     this.serviceLifecycles = [];
+    this.serviceRequestIds = new WeakMap();
+    this.nextServiceRequestId = 1;
     this.failedStep = null;
     this.setupStep = null;
     this.setupStatus = null;
@@ -84,8 +125,10 @@ export class RuntimeScenarioHarness {
       );
       const safeActionLabel = classifyRuntimeServiceAction(request.url(), category);
       const observedAt = new Date().toISOString();
+      const requestId = `service-${this.nextServiceRequestId++}`;
+      this.serviceRequestIds.set(request, requestId);
       recordRuntimeServiceObservation(this.serviceSummary, category, 'REQUEST', null, { observedAt, safeActionLabel });
-      this.serviceEvents.push({ actorContext, category, safeActionLabel, outcome: 'REQUEST', statusClass: null, observedAt });
+      this.serviceEvents.push({ actorContext, category, safeActionLabel, requestId, outcome: 'REQUEST', statusClass: null, observedAt });
     });
     page.on('response', (response) => {
       const request = response.request();
@@ -97,8 +140,9 @@ export class RuntimeScenarioHarness {
       const safeActionLabel = classifyRuntimeServiceAction(request.url(), category);
       const observedAt = new Date().toISOString();
       const statusClass = `${Math.floor(response.status() / 100)}xx`;
+      const requestId = this.serviceRequestIds.get(request) || null;
       recordRuntimeServiceObservation(this.serviceSummary, category, 'RESPONSE', response.status(), { observedAt, safeActionLabel });
-      this.serviceEvents.push({ actorContext, category, safeActionLabel, outcome: 'RESPONSE', statusClass, observedAt });
+      this.serviceEvents.push({ actorContext, category, safeActionLabel, requestId, outcome: 'RESPONSE', statusClass, observedAt });
       if ((response.status() === 401 || response.status() === 403) && this.permissionDiagnostics.length < 20) {
         const diagnostic = buildRuntimePermissionDiagnostic({
           scenarioId: this.definition.scenarioId,
@@ -124,12 +168,13 @@ export class RuntimeScenarioHarness {
       const cancelled = /abort|cancel/i.test(failureText);
       const outcome = cancelled ? 'ABORTED' : 'FAILED';
       const observedAt = new Date().toISOString();
+      const requestId = this.serviceRequestIds.get(request) || null;
       recordRuntimeServiceObservation(this.serviceSummary, category, outcome, null, {
         observedAt,
         safeActionLabel,
         cancelled,
       });
-      this.serviceEvents.push({ actorContext, category, safeActionLabel, outcome, statusClass: null, observedAt, cancelled });
+      this.serviceEvents.push({ actorContext, category, safeActionLabel, requestId, outcome, statusClass: null, observedAt, cancelled });
       if (this.networkErrors.length >= 50) return;
       this.networkErrors.push({
         actorContext,
@@ -233,15 +278,27 @@ export class RuntimeScenarioHarness {
     };
   }
 
-  async waitForServiceOutcome(category, timeout = 15000, baseline = null, safeActionLabel = null) {
+  serviceEventsAfter(category, baseline = null, safeActionLabel = null) {
     const eventIndex = Math.max(0, Number(baseline?.eventIndex) || 0);
     const expectedAction = safeActionLabel || baseline?.safeActionLabel || null;
-    const startedAt = Date.now();
-    const matchingEvents = () => this.serviceEvents.slice(eventIndex).filter((event) => (
+    return this.serviceEvents.slice(eventIndex).filter((event) => (
       event.category === category && (!expectedAction || event.safeActionLabel === expectedAction)
     ));
+  }
+
+  findServiceRejection(category, baseline = null, safeActionLabel = null) {
+    return findBoundedServiceRejection(this.serviceEventsAfter(category, baseline, safeActionLabel));
+  }
+
+  async waitForServiceOutcome(category, timeout = 15000, baseline = null, safeActionLabel = null) {
+    const expectedAction = safeActionLabel || baseline?.safeActionLabel || null;
+    const startedAt = Date.now();
+    const matchingEvents = () => this.serviceEventsAfter(category, baseline, expectedAction);
     const complete = (state, events, terminalEvent = null, noResponseTimeout = false) => {
-      const requestEvent = events.find((event) => event.outcome === 'REQUEST') || null;
+      const requestEvent = events.find((event) => (
+        event.outcome === 'REQUEST'
+        && (!terminalEvent?.requestId || event.requestId === terminalEvent.requestId)
+      )) || null;
       const lifecycle = {
         category,
         safeActionLabel: expectedAction || requestEvent?.safeActionLabel || terminalEvent?.safeActionLabel || null,
@@ -265,19 +322,9 @@ export class RuntimeScenarioHarness {
 
     while (Date.now() - startedAt < timeout) {
       const events = matchingEvents();
-      const requests = events.filter((event) => event.outcome === 'REQUEST');
-      const terminals = events.filter((event) => event.outcome !== 'REQUEST');
-      const successful = requests.length > 0 && terminals.find((event) => (
-        event.outcome === 'RESPONSE' && (event.statusClass === '2xx' || event.statusClass === '3xx')
-      ));
-      if (successful) return complete('successful_response', events, successful);
-      if (requests.length > 0 && terminals.length >= requests.length) {
-        const rejected = terminals.find((event) => event.outcome === 'RESPONSE');
-        if (rejected) return complete('backend_rejected', events, rejected);
-        const aborted = terminals.find((event) => event.outcome === 'ABORTED');
-        if (aborted) return complete('aborted', events, aborted);
-        const failed = terminals.find((event) => event.outcome === 'FAILED');
-        if (failed) return complete('network_failure', events, failed);
+      const outcome = resolveBoundedServiceOutcome(events);
+      if (outcome.state) {
+        return complete(outcome.state, events, outcome.terminalEvent);
       }
       await this.page.waitForTimeout(200);
     }
