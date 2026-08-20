@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex640 — Deduplicate Duello suite/case registration while preserving direct-start and Full Health/Runtime E2E separation coverage without product changes.
 // Codex639 — Stabilize two-device Duello reciprocal pairing, classified search/retry/cancel state, direct no-lobby handoff, two-context Runtime E2E proof, Health, and docs without scoring changes.
 // Codex638 — Clear SDK, transient-timer, and Health catalog identity blockers; harden the Solo in-game exit/tutorial Runtime E2E proof while preserving gameplay and the lobby-free Online/Duello journey.
 // Codex637 — Remove the active Online/Duello lobby journey, add backend-authoritative same-screen match-found direct start, and align focused Health, Runtime E2E, docs, and mirrors without scoring changes.
@@ -218,7 +219,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex639';
+const BUILD_MARKER = 'Codex640';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

@@ -40,7 +40,7 @@ const sourceResult = (missing, reason) => missing.length ? fail(reason, { missin
 const make = (suiteId, id, name, run, relatedFiles) => ({
   key: `${suiteId}.${id}`,
   suiteId,
-  suiteName: suiteId === PRODUCT_SUITE ? 'Duello Two-Device Flow Health Suite' : 'Runtime E2E Automation Framework Health Suite',
+  suiteName: suiteId === PRODUCT_SUITE ? 'Duello Direct Start Health Suite' : 'Runtime E2E Automation Framework Health Suite',
   id,
   name,
   critical: true,
@@ -56,7 +56,9 @@ const queueRows = [
   { id: 'online-c', actor_key_hash: 'actor-c', mode: STANDARD_RANDOM_MODE, status: 'waiting', created_at: '2026-08-20T11:59:54.000Z', expires_at: '2026-08-20T12:00:30.000Z' },
 ];
 
-export const EXTRA_SUITES = [{ id: PRODUCT_SUITE, name: 'Duello Two-Device Flow Health Suite', critical: true, color: '#22d3ee' }];
+// Additional Codex639 cases extend the canonical duello_flow and
+// runtime_e2e_automation suites; they must not register either suite again.
+export const EXTRA_SUITES = [];
 
 export const EXTRA_TESTS = [
   make(PRODUCT_SUITE, 'duello_start_does_not_fail_for_normal_waiting', 'Normal Duello waiting remains searching', () => {
@@ -101,7 +103,7 @@ export const EXTRA_TESTS = [
     "source: match.mode === SAME_QUESTION_DUEL_MODE ? 'duello'",
   ]), 'The same Online-owned flow renders searching then matched without a waiting-room screen.'), PRODUCT_FILES),
 
-  make(PRODUCT_SUITE, 'duello_direct_game_after_match', 'Matched Duello enters direct game', () => sourceResult(required(directMatch + directHandoff + navigation, [
+  make(PRODUCT_SUITE, 'duello_direct_game_after_match_phase_contract', 'Matched Duello enters direct game through the direct-start phase', () => sourceResult(required(directMatch + directHandoff + navigation, [
     "setPhase('directStarting')",
     'hasAuthoritativeOnlineGamePayload',
     "? '/duel?' : '/game?'",
@@ -209,7 +211,7 @@ export const EXTRA_TESTS = [
     "? '/duel?' : '/game?'",
   ]), 'The existing Online scenario still fails on lobby and requires direct /game.'), RUNTIME_FILES),
 
-  make(RUNTIME_SUITE, 'full_run_still_excludes_e2e', 'Full Health still excludes Runtime E2E', () => sourceResult(required(runtimeScenarios + simulationPanel, [
+  make(RUNTIME_SUITE, 'full_run_excludes_e2e_after_duello_update', 'Duello update preserves Full Health and Runtime E2E separation', () => sourceResult(required(runtimeScenarios + simulationPanel, [
     'fullRunExcluded: true',
     "const runAll = () => runPack('full')",
     'if (runtimeAutomationSelected) return',
