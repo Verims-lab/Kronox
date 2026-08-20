@@ -1680,3 +1680,27 @@ Manual release gates that source cannot prove:
 * Real-device reconnect/RLS behavior and the near-simultaneous first-correct
   claim race remain external release proof. Matchmaking/direct-start proof does
   not change Duello/Online `+15`/`-6`, first-to-10, or no-speed-bonus rules.
+
+## Shared Matchmaking Backend 5xx Gate (Codex641)
+
+* A completed actor starting `random_online` or `same_question_duel` must receive
+  2xx waiting/matched state. No compatible opponent means `Rakip aranıyor`, not
+  `Eşleşme başlatılamadı`, and must not acquire the pairing lock merely to prove
+  an empty candidate set.
+* Queue/lock/session or actor/RLS failure remains a safe classified 4xx/5xx and
+  is release-blocking. Do not mark any 5xx optional or downgrade product-critical
+  permission denial. The exact fire-and-forget app-activity endpoint remains the
+  only proven optional 401/403 exception.
+* Retry, cancel, and timeout must confirm idempotent cleanup of the caller's own
+  mode-scoped row. No broad production queue cleanup is permitted. A committed
+  match wins over cancel/timeout, and both clients require the same backend
+  session before direct start.
+* One-actor production E2E must prove successful matchmaking response, search,
+  cancel, no critical 5xx/permission diagnostic, and no `/lobby`; match/direct
+  game may remain `NOT_AUTOMATABLE / TWO_ACTOR_REQUIRED`. Duello pairing remains
+  `MANUAL_EXTERNAL / TWO_ACTOR_REQUIRED` unless both ignored A/B storage states
+  are present. Runtime E2E stays separate from Full Health.
+* Keep Health suite/case keys globally unique. Export only allowlisted matching
+  category/mode/operation/status/error/queue-state/cleanup/direct-start booleans;
+  never export URLs, credentials, actor/session IDs, private storage metadata,
+  answer data, raw backend errors, or stacks.

@@ -214,9 +214,9 @@ for guest/linked combinations, and self-match prevention was not the cause.
 
 `randomMatchmaking` now uses a private `pairing` phase under the canonical mode
 lock. Both actor rows must be reciprocal before the backend exposes the one
-exactly-two-player session as matched; poll/join/cancel reconciliation uses the same lock,
-and recoverable contention returns stable `waiting` rather than a public start
-failure. Duplicate/stale own waits are settled idempotently. No backend
+exactly-two-player session as matched; candidate pairing and cancel reconciliation
+use the same lock, and recoverable contention returns stable `waiting` rather
+than a public start failure. Duplicate/stale own waits are settled idempotently. No backend
 function was added and the client still cannot invent a session, deck, result,
 or final score.
 
@@ -233,3 +233,32 @@ and compare only redacted session/active-card fingerprints after both reach
 `/duel`. Missing A/B fixtures remains `MANUAL_EXTERNAL` /
 `TWO_ACTOR_REQUIRED`. Deterministic first-correct claim racing, real-device
 reconnect, and deployed RLS remain separate external release gates.
+
+## Codex641 Shared Matchmaking 5xx Hardening
+
+The Codex639 production report showed that a valid lone actor could still reach
+`online_matchmaking` 5xx. The shared function was taking the mode pairing lock
+on every join/poll even when no compatible candidate existed, while the 1.25s
+client poll cadence and duplicate presence lifecycle writes amplified Base44
+entity/lock traffic. A backend rate-limit rejection from `updatePlayerPresence`
+was also being flattened into a raw 500. These were backend pressure and error
+classification defects, not self-match, canonical-mode, lobby, or scoring
+defects.
+
+Join/poll now reads the caller row and compatible waiting candidates first. A
+lone actor returns a normal 2xx `waiting` snapshot without lock arbitration;
+the mode lock is attempted only after a distinct same-mode candidate exists.
+True lock contention remains recoverable searching, while queue/lock/session
+storage and actor/RLS failures remain classified 4xx/5xx and are never hidden as
+waiting. Retry, cancel, and timeout carry an allowlisted cleanup reason and
+settle only the caller's mode-scoped row idempotently. No broad production
+cleanup was added.
+
+The client poll cadence is now 2s with one pending request. Presence lifecycle
+writes are coalesced and overlapping calls are blocked; a proven presence-only
+rate limit returns fixed safe 429 copy, while other failures remain safe 503.
+Runtime evidence exports only allowlisted function category, mode, operation,
+status class, error category, queue-state, cleanup, match, direct-start, and
+no-lobby booleans. The active flow remains `/online` search, same-screen match
+found, then direct `/game` or `/duel`; Online/Duello `+15`/`-6`, Duello
+first-to-10, Solo, Daily, Store, and Leaderboard contracts are unchanged.

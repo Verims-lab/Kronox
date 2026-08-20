@@ -28,6 +28,7 @@ import {
 import { getRuntimeE2EScenario } from '@/lib/health/runtimeE2EScenarios';
 
 const SUITE = 'online_matchmaking';
+const MATCHMAKING_SUITE = 'matchmaking_health';
 const required = (source, tokens) => tokens.filter((token) => !source.includes(token));
 const forbidden = (source, tokens) => tokens.filter((token) => source.includes(token));
 const pass = (reason, extra = {}) => ({
@@ -45,10 +46,12 @@ const fail = (reason, extra = {}) => ({
   ...extra,
 });
 const sourceResult = (missing, reason) => missing.length ? fail(reason, { missing }) : pass(reason);
-const make = (id, name, run, relatedFiles) => ({
-  key: `${SUITE}.${id}`,
-  suiteId: SUITE,
-  suiteName: 'Online Matchmaking Runtime Health Suite',
+const makeForSuite = (suiteId, id, name, run, relatedFiles) => ({
+  key: `${suiteId}.${id}`,
+  suiteId,
+  suiteName: suiteId === MATCHMAKING_SUITE
+    ? 'Shared Matchmaking Backend Health Suite'
+    : 'Online Matchmaking Runtime Health Suite',
   id,
   name,
   critical: true,
@@ -56,6 +59,10 @@ const make = (id, name, run, relatedFiles) => ({
   relatedFiles,
   run,
 });
+const make = (id, name, run, relatedFiles) => makeForSuite(SUITE, id, name, run, relatedFiles);
+const makeMatchmaking = (id, name, run, relatedFiles) => (
+  makeForSuite(MATCHMAKING_SUITE, id, name, run, relatedFiles)
+);
 
 const now = Date.parse('2026-08-19T12:00:00.000Z');
 const rows = [
@@ -107,6 +114,11 @@ export const EXTRA_SUITES = [{
   name: 'Online Matchmaking Runtime Health Suite',
   critical: true,
   color: '#22d3ee',
+}, {
+  id: MATCHMAKING_SUITE,
+  name: 'Shared Matchmaking Backend Health Suite',
+  critical: true,
+  color: '#facc15',
 }];
 
 export const EXTRA_TESTS = [
@@ -135,7 +147,7 @@ export const EXTRA_TESTS = [
     const bOpponent = selectCompatibleWaitingRow(rows, 'b', SAME_QUESTION_DUEL_MODE, now);
     return sourceResult([
       ...(aOpponent?.id === 'duel-b' && bOpponent?.id === 'duel-a' ? [] : ['executable:two_actor_pair']),
-      ...required(randomBackend, ['withPairingLock', 'reconcileWaitingActor', 'pairWaitingRows', 'const lobby = await lobbies.create', 'players: [selfPlayer, opponentPlayer]', 'max_players: 2']),
+      ...required(randomBackend, ['attemptCandidatePairing', 'findWaitingCandidate', 'withPairingLock', 'pairWaitingRows', 'const lobby = await lobbies.create', 'players: [selfPlayer, opponentPlayer]', 'max_players: 2']),
     ], 'Two distinct actors converge under one backend lock into one Lobby with exactly two players.');
   }, ['randomMatchmakingPolicy.js', 'randomMatchmaking/entry.ts']),
 
@@ -159,7 +171,7 @@ export const EXTRA_TESTS = [
     'pollRandomMatchmaking(mode)',
     'void pollOnce(sessionId)',
     'pollPendingRef.current',
-    'reconcileWaitingActor(base44, actor, mode, false)',
+    'attemptCandidatePairing(base44, actor, mode, currentRow)',
     'getLobbySnapshot',
     'LOBBY_SNAPSHOT_SCOPES.GAME',
     'startLobbyGame(lobby.id, lobby.state_revision)',
@@ -215,4 +227,49 @@ export const EXTRA_TESTS = [
     "authority?.directStartRouteA === '/duel'",
     "scenarioId: 'runtime_e2e.duello_two_context_runtime_sync'",
   ]), 'Route rendering cannot fake Duello proof; two isolated contexts, backend responses, same-screen match-found, and matching fingerprints are mandatory.'), ['scenarioHandlers.mjs', 'runtimeE2EReport.js', 'runtimeE2EScenarios.js']),
+
+  makeMatchmaking('online_matchmaking_no_5xx_for_valid_actor', 'A valid lone Online actor uses the successful no-candidate path', () => sourceResult(required(randomBackend, [
+    'if (!candidate)',
+    'candidateFound: false',
+    'lockAttempted: false',
+    'ok: true',
+    "status: matched ? 'matched' : 'waiting'",
+  ]), 'No-opponent Online admission returns waiting without attempting the shared pairing lock.'), ['base44/functions/randomMatchmaking/entry.ts']),
+
+  makeMatchmaking('duello_matchmaking_no_5xx_for_valid_actor', 'A valid lone Duello actor uses the same safe waiting path', () => sourceResult(required(randomBackend + modeDisplay, [
+    'SAME_QUESTION_DUEL_MODE',
+    'attemptCandidatePairing',
+    'candidateFound: false',
+    'lockAttempted: false',
+    'matchmakingMode',
+  ]), 'Canonical Duello admission remains a successful waiting response when no opponent exists.'), ['base44/functions/randomMatchmaking/entry.ts', 'src/lib/onlineModeDisplay.js']),
+
+  makeMatchmaking('matchmaking_permission_denied_not_hidden', 'Matchmaking authorization failures remain critical and classified', () => sourceResult(required(randomBackend + randomApi, [
+    'PERMISSION_DENIED',
+    'permissionDenied ? 403',
+    "statusClass: permissionDenied ? '4xx' : '5xx'",
+    "fallbackSuffix = status === 401 || status === 403",
+  ]), 'Product-critical actor/RLS denial cannot be converted to waiting or optional telemetry.'), ['base44/functions/randomMatchmaking/entry.ts', 'src/lib/randomMatchmakingApi.js']),
+
+  makeMatchmaking('matchmaking_queue_mode_scoped', 'Shared queue and lock remain mode scoped', () => sourceResult(required(randomBackend, [
+    '{ actor_key_hash: actorKeyHash, mode }',
+    "{ status: 'waiting', mode }",
+    'random_matchmaking:pair:${mode}',
+    'game_mode: mode',
+  ]), 'Queue reads, pairing lock, and created session all use the canonical mode key.'), ['base44/functions/randomMatchmaking/entry.ts']),
+
+  makeMatchmaking('matchmaking_queue_cleanup_idempotent', 'Retry, cancel, and timeout settle only the caller row idempotently', () => sourceResult(required(randomBackend + randomApi + randomHook, [
+    'findOwnActiveRow(base44, actor.actorKeyHash, mode)',
+    'duplicateWaitingRows',
+    "cleanupReason === 'retry'",
+    "cleanupReason === 'timeout'",
+    'cancelCleanupObserved',
+    'retryCleanupObserved',
+  ]), 'Cleanup is actor/mode scoped, repeatable, and records a safe reason without touching another actor queue.'), ['base44/functions/randomMatchmaking/entry.ts', 'src/lib/randomMatchmakingApi.js', 'src/hooks/useRandomMatchmaking.js']),
+
+  makeMatchmaking('direct_start_payload_safe', 'Direct-start evidence is backend-owned and public safe', () => sourceResult([
+    ...required(randomBackend + randomApi + directHandoff, ['directGamePayloadAvailable', 'hasAuthoritativeOnlineGamePayload', 'LOBBY_SNAPSHOT_SCOPES.GAME', 'routeAfterMatch']),
+    ...required(randomApi, ['safeDiagnostics', 'matchedOpponentPublicSafe', 'lobbyRouteObserved: false']),
+    ...forbidden(preGame + directHandoff, ['guest_token', 'owner_key', 'actor_key_hash', 'provider_id', 'auth_id']),
+  ], 'Direct navigation requires an authoritative GAME snapshot while exported diagnostics remain allowlisted.'), ['base44/functions/randomMatchmaking/entry.ts', 'src/lib/randomMatchmakingApi.js', 'src/hooks/useDirectOnlineGameHandoff.js']),
 ];

@@ -22,6 +22,7 @@ function withActorProof(payload = {}) {
 
 const SAFE_ERROR_SUFFIXES = new Set([
   'QUEUE_CREATE_FAILED',
+  'QUEUE_WRITE_FAILED',
   'QUEUE_READ_FAILED',
   'PAIRING_RACE',
   'SELF_MATCH_FALSE_POSITIVE',
@@ -43,7 +44,44 @@ const SAFE_QUEUE_ACTIONS = new Set([
   'poll_status',
   'cleanup_cancel',
   'cleanup_timeout',
+  'cleanup_retry',
 ]);
+const SAFE_QUEUE_STATES = new Set([
+  'none',
+  'waiting',
+  'pairing',
+  'matched',
+  'consumed',
+  'cancelled',
+  'expired',
+  'timeout',
+  'unknown',
+]);
+const SAFE_MATCHMAKING_ERROR_CATEGORIES = new Set([
+  'MATCHMAKING_QUEUE_CREATE_FAILED',
+  'MATCHMAKING_QUEUE_WRITE_FAILED',
+  'MATCHMAKING_QUEUE_READ_FAILED',
+  'MATCHMAKING_PAIRING_RACE',
+  'MATCHMAKING_SELF_MATCH_FALSE_POSITIVE',
+  'MATCHMAKING_STALE_QUEUE',
+  'MATCHMAKING_SESSION_CREATE_FAILED',
+  'MATCHMAKING_DIRECT_START_PAYLOAD_MISSING',
+  'MATCHMAKING_PERMISSION_DENIED',
+  'MATCHMAKING_TIMEOUT',
+  'MATCHMAKING_NETWORK_FAILURE',
+  'MATCHMAKING_UNKNOWN_START_FAILURE',
+  'MATCHMAKING_UNKNOWN_BACKEND_REJECTION',
+]);
+
+function safeQueueState(value) {
+  const state = String(value || 'unknown');
+  return SAFE_QUEUE_STATES.has(state) ? state : 'unknown';
+}
+
+function safeMatchmakingErrorCategory(value) {
+  const category = String(value || '').trim().toUpperCase();
+  return SAFE_MATCHMAKING_ERROR_CATEGORIES.has(category) ? category : null;
+}
 
 function modePrefix(mode) {
   return normalizeOnlineMatchmakingMode(mode) === 'same_question_duel' ? 'DUELLO' : 'ONLINE';
@@ -72,6 +110,21 @@ function safeDiagnostics(value, mode, action) {
     directGamePayloadAvailable: Boolean(source.directGamePayloadAvailable),
     routeAfterMatch: source.routeAfterMatch === '/duel' ? '/duel' : '/game',
     lobbyRouteObserved: false,
+    onlineMatchmakingFunctionCategory: 'shared_matchmaking_backend',
+    matchmakingMode: normalizeOnlineMatchmakingMode(source.matchmakingMode || mode),
+    matchmakingOperation: SAFE_QUEUE_ACTIONS.has(source.matchmakingOperation)
+      ? source.matchmakingOperation
+      : (SAFE_QUEUE_ACTIONS.has(queueAction) ? queueAction : 'find_waiting'),
+    matchmakingStatusClass: ['2xx', '4xx', '5xx'].includes(source.matchmakingStatusClass)
+      ? source.matchmakingStatusClass
+      : 'unknown',
+    matchmakingErrorCategory: safeMatchmakingErrorCategory(source.matchmakingErrorCategory),
+    queueStateBefore: safeQueueState(source.queueStateBefore),
+    queueStateAfter: safeQueueState(source.queueStateAfter),
+    pairingLockAttempted: Boolean(source.pairingLockAttempted),
+    retryCleanupObserved: Boolean(source.retryCleanupObserved),
+    cancelCleanupObserved: Boolean(source.cancelCleanupObserved),
+    matchFoundObserved: Boolean(source.matchFoundObserved),
     errorCategory: source.errorCategory
       ? safeErrorCategory(source.errorCategory, mode)
       : null,
@@ -99,7 +152,7 @@ async function invoke(action, extra = {}) {
       throw new MatchmakingRequestError({
         category,
         mode,
-        recoverable: category.endsWith('_PAIRING_RACE') || category.endsWith('_NETWORK_FAILURE'),
+        recoverable: category.endsWith('_PAIRING_RACE'),
         diagnostics,
       });
     }
@@ -117,7 +170,7 @@ async function invoke(action, extra = {}) {
     throw new MatchmakingRequestError({
       category,
       mode,
-      recoverable: category.endsWith('_PAIRING_RACE') || category.endsWith('_NETWORK_FAILURE'),
+      recoverable: category.endsWith('_PAIRING_RACE'),
       diagnostics: safeDiagnostics(data?.diagnostics, mode, action),
     });
   }
@@ -129,8 +182,9 @@ export const joinRandomMatchmaking = (mode = STANDARD_RANDOM_MODE) => invoke('jo
 export const pollRandomMatchmaking = (mode = STANDARD_RANDOM_MODE) => invoke('poll', {
   mode: normalizeOnlineMatchmakingMode(mode),
 });
-export const cancelRandomMatchmaking = (mode = STANDARD_RANDOM_MODE) => invoke('cancel', {
+export const cancelRandomMatchmaking = (mode = STANDARD_RANDOM_MODE, cleanupReason = 'cancel') => invoke('cancel', {
   mode: normalizeOnlineMatchmakingMode(mode),
+  cleanup_reason: ['cancel', 'retry', 'timeout'].includes(cleanupReason) ? cleanupReason : 'cancel',
 });
 export const consumeRandomMatchmaking = (mode = STANDARD_RANDOM_MODE) => invoke('consume', {
   mode: normalizeOnlineMatchmakingMode(mode),

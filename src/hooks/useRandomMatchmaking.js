@@ -11,7 +11,9 @@ import {
   randomMatchmakingReducer,
 } from '@/lib/randomMatchmakingState';
 
-const POLL_INTERVAL_MS = 1250;
+// A two-second cadence keeps the 30-second UX responsive while avoiding the
+// backend read/lock pressure produced by the old 1.25-second loop.
+const POLL_INTERVAL_MS = 2000;
 const JOIN_RETRY_DELAYS_MS = Object.freeze([0, 450, 900]);
 
 function localExpiryFromServer(data) {
@@ -156,7 +158,7 @@ export default function useRandomMatchmaking(mode = STANDARD_RANDOM_MODE) {
       MATCHMAKING_PHASE.CANCELLED,
     ].includes(previousPhase)) {
       try {
-        const cleanup = await cancelRandomMatchmaking(mode);
+        const cleanup = await cancelRandomMatchmaking(mode, 'retry');
         if (!isActiveSession()) return false;
         if (cleanup?.matched || cleanup?.status === 'matched') {
           applyState(cleanup);
@@ -213,7 +215,7 @@ export default function useRandomMatchmaking(mode = STANDARD_RANDOM_MODE) {
   const cancel = useCallback(async () => {
     stopPolling();
     try {
-      const data = await cancelRandomMatchmaking(mode);
+      const data = await cancelRandomMatchmaking(mode, 'cancel');
       if (!mountedRef.current) return false;
       if (data?.matched || data?.status === 'matched') {
         applyState(data);
@@ -265,7 +267,7 @@ export default function useRandomMatchmaking(mode = STANDARD_RANDOM_MODE) {
     }
 
     try {
-      const cleanup = await cancelRandomMatchmaking(mode);
+      const cleanup = await cancelRandomMatchmaking(mode, 'timeout');
       if (!mountedRef.current || sessionRef.current !== sessionId) return false;
       if (cleanup?.matched || cleanup?.status === 'matched') {
         applyState(cleanup);
@@ -304,7 +306,7 @@ export default function useRandomMatchmaking(mode = STANDARD_RANDOM_MODE) {
       mountedRef.current = false;
       stopPolling();
       if ([MATCHMAKING_PHASE.STARTING, MATCHMAKING_PHASE.SEARCHING].includes(phase)) {
-        void cancelRandomMatchmaking(mode).catch(() => null);
+        void cancelRandomMatchmaking(mode, 'cancel').catch(() => null);
       }
     };
   }, [mode, stopPolling]);

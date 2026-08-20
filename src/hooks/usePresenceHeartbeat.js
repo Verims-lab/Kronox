@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
   PRESENCE_HEARTBEAT_MS,
   PRESENCE_STATUS,
@@ -7,6 +7,7 @@ import {
 import { getStoredGuestCredentials } from '@/lib/guestProfile';
 
 let runtimeSessionId = '';
+const PRESENCE_EVENT_COALESCE_MS = 5 * 1000;
 
 function createSessionId() {
   try {
@@ -52,6 +53,8 @@ export default function usePresenceHeartbeat(user, guestProfile = null) {
     [guestProfile?.guest_id, user?.email],
   );
   const sessionId = useMemo(() => (actor.key ? getOrCreateRuntimeSessionId() : ''), [actor.key]);
+  const inFlightRef = useRef(false);
+  const lastHeartbeatRef = useRef({ status: '', sentAt: 0 });
 
   useEffect(() => {
     if (!actor.key || !sessionId) return undefined;
@@ -59,12 +62,19 @@ export default function usePresenceHeartbeat(user, guestProfile = null) {
     let cancelled = false;
     const heartbeat = (status = PRESENCE_STATUS.ONLINE) => {
       if (cancelled) return;
+      const now = Date.now();
+      const last = lastHeartbeatRef.current;
+      if (inFlightRef.current || (last.status === status && now - last.sentAt < PRESENCE_EVENT_COALESCE_MS)) return;
+      inFlightRef.current = true;
+      lastHeartbeatRef.current = { status, sentAt: now };
       sendPresenceHeartbeat({
         sessionId,
         status,
         guestCredentials: actor.guestCredentials,
       }).catch(() => {
         // Presence is best-effort; gameplay and invite flows must not block on it.
+      }).finally(() => {
+        inFlightRef.current = false;
       });
     };
 
@@ -83,7 +93,6 @@ export default function usePresenceHeartbeat(user, guestProfile = null) {
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('pagehide', handlePageHide);
-    window.addEventListener('beforeunload', handlePageHide);
     window.addEventListener('focus', handleResume);
     window.addEventListener('online', handleResume);
 
@@ -92,14 +101,8 @@ export default function usePresenceHeartbeat(user, guestProfile = null) {
       window.clearInterval(intervalId);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('pagehide', handlePageHide);
-      window.removeEventListener('beforeunload', handlePageHide);
       window.removeEventListener('focus', handleResume);
       window.removeEventListener('online', handleResume);
-      sendPresenceHeartbeat({
-        sessionId,
-        status: PRESENCE_STATUS.OFFLINE,
-        guestCredentials: actor.guestCredentials,
-      }).catch(() => {});
     };
   }, [actor.guestCredentials, actor.key, sessionId]);
 }

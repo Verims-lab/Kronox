@@ -626,6 +626,105 @@ async function soloSmoke(runtime, config) {
   });
 }
 
+const SAFE_MATCHMAKING_MODES = new Set(['random_online', 'same_question_duel']);
+const SAFE_MATCHMAKING_OPERATIONS = new Set([
+  'create_waiting',
+  'find_waiting',
+  'pair_waiting',
+  'create_match',
+  'direct_start',
+  'poll_status',
+  'cleanup_cancel',
+  'cleanup_timeout',
+  'cleanup_retry',
+]);
+const SAFE_MATCHMAKING_QUEUE_STATES = new Set([
+  'none', 'waiting', 'pairing', 'matched', 'consumed', 'cancelled', 'expired', 'timeout', 'unknown',
+]);
+const SAFE_MATCHMAKING_ERROR_CATEGORIES = new Set([
+  'MATCHMAKING_QUEUE_CREATE_FAILED',
+  'MATCHMAKING_QUEUE_WRITE_FAILED',
+  'MATCHMAKING_QUEUE_READ_FAILED',
+  'MATCHMAKING_PAIRING_RACE',
+  'MATCHMAKING_SELF_MATCH_FALSE_POSITIVE',
+  'MATCHMAKING_STALE_QUEUE',
+  'MATCHMAKING_SESSION_CREATE_FAILED',
+  'MATCHMAKING_DIRECT_START_PAYLOAD_MISSING',
+  'MATCHMAKING_PERMISSION_DENIED',
+  'MATCHMAKING_TIMEOUT',
+  'MATCHMAKING_NETWORK_FAILURE',
+  'MATCHMAKING_UNKNOWN_START_FAILURE',
+  'MATCHMAKING_UNKNOWN_BACKEND_REJECTION',
+]);
+
+async function readSafeMatchmakingEvidence(page, selector) {
+  const root = page.locator(selector).first();
+  if (!await root.count()) return null;
+  const read = (name) => root.getAttribute(name).catch(() => null);
+  const [
+    functionCategory,
+    mode,
+    operation,
+    statusClass,
+    errorCategory,
+    queueStateBefore,
+    queueStateAfter,
+    retryCleanupObserved,
+    cancelCleanupObserved,
+    directStartPayloadAvailable,
+    matchFoundObserved,
+  ] = await Promise.all([
+    read('data-matchmaking-function-category'),
+    read('data-matchmaking-mode'),
+    read('data-matchmaking-operation'),
+    read('data-matchmaking-status-class'),
+    read('data-matchmaking-backend-error-category'),
+    read('data-matchmaking-queue-state-before'),
+    read('data-matchmaking-queue-state-after'),
+    read('data-matchmaking-retry-cleanup-observed'),
+    read('data-matchmaking-cancel-cleanup-observed'),
+    read('data-matchmaking-direct-start-payload'),
+    read('data-matchmaking-match-found-observed'),
+  ]);
+  return {
+    onlineMatchmakingFunctionCategory: functionCategory === 'shared_matchmaking_backend'
+      ? functionCategory
+      : null,
+    matchmakingMode: SAFE_MATCHMAKING_MODES.has(mode) ? mode : null,
+    matchmakingOperation: SAFE_MATCHMAKING_OPERATIONS.has(operation) ? operation : null,
+    matchmakingStatusClass: ['2xx', '4xx', '5xx'].includes(statusClass) ? statusClass : null,
+    matchmakingErrorCategory: SAFE_MATCHMAKING_ERROR_CATEGORIES.has(errorCategory)
+      ? errorCategory
+      : null,
+    queueStateBefore: SAFE_MATCHMAKING_QUEUE_STATES.has(queueStateBefore) ? queueStateBefore : 'unknown',
+    queueStateAfter: SAFE_MATCHMAKING_QUEUE_STATES.has(queueStateAfter) ? queueStateAfter : 'unknown',
+    retryCleanupObserved: retryCleanupObserved === 'true',
+    cancelCleanupObserved: cancelCleanupObserved === 'true',
+    directStartPayloadAvailable: directStartPayloadAvailable === 'true',
+    matchFoundObserved: matchFoundObserved === 'true',
+  };
+}
+
+function mergeSafeMatchmakingEvidence(target, observed) {
+  if (!observed) return target;
+  for (const key of [
+    'onlineMatchmakingFunctionCategory',
+    'matchmakingMode',
+    'matchmakingOperation',
+    'matchmakingStatusClass',
+    'matchmakingErrorCategory',
+    'queueStateBefore',
+    'queueStateAfter',
+  ]) {
+    if (observed[key] != null) target[key] = observed[key];
+  }
+  target.retryCleanupObserved ||= observed.retryCleanupObserved;
+  target.cancelCleanupObserved ||= observed.cancelCleanupObserved;
+  target.directStartPayloadAvailable ||= observed.directStartPayloadAvailable;
+  target.matchFoundObserved ||= observed.matchFoundObserved;
+  return target;
+}
+
 async function onlineRandom(runtime, config) {
   const evidence = {
     lobbyRouteObserved: false,
@@ -636,6 +735,17 @@ async function onlineRandom(runtime, config) {
     matchedTransitionMs: null,
     routeAfterMatch: null,
     mode: 'random_online',
+    onlineMatchmakingFunctionCategory: null,
+    matchmakingMode: 'random_online',
+    matchmakingOperation: null,
+    matchmakingStatusClass: null,
+    matchmakingErrorCategory: null,
+    queueStateBefore: 'unknown',
+    queueStateAfter: 'unknown',
+    retryCleanupObserved: false,
+    cancelCleanupObserved: false,
+    directStartPayloadAvailable: false,
+    twoActorRequiredReason: null,
     backendMatchEvidence: {
       observed: false,
       successful: false,
@@ -702,6 +812,10 @@ async function onlineRandom(runtime, config) {
       statusClass: outcome.lifecycle?.responseStatusClass || '2xx',
       safeSummary: 'Online matchmaking returned a successful backend response.',
     };
+    mergeSafeMatchmakingEvidence(evidence, await readSafeMatchmakingEvidence(
+      runtime.page,
+      '[data-testid="online-kapis-search-screen"]',
+    ));
     await inspectNoLobby();
     return 'Online Kapış search opened after a successful matchmaking backend response.';
   });
@@ -709,15 +823,31 @@ async function onlineRandom(runtime, config) {
     await expectVisible(runtime.page, '[data-testid="online-kapis-search-cancel"]');
     const text = await runtime.page.locator('[data-testid="online-kapis-search-screen"]').innerText();
     if (!text.includes('Rakip aranıyor')) throw new Error('Rakip aranıyor copy is not visible on the search screen.');
+    mergeSafeMatchmakingEvidence(evidence, await readSafeMatchmakingEvidence(
+      runtime.page,
+      '[data-testid="online-kapis-search-screen"]',
+    ));
     await inspectNoLobby();
     return 'Rakip aranıyor, bounded countdown, and Vazgeç are visible.';
   });
   await runtime.step('online.cancel', async () => {
+    const baseline = runtime.captureServiceBaseline(RUNTIME_SERVICE_ACTION.ONLINE_MATCHMAKING);
     await clickAndSee(runtime.page, '[data-testid="online-kapis-search-cancel"]', '[data-testid="online-screen"]');
+    await requireSuccessfulBackendAction(runtime, {
+      category: RUNTIME_SERVICE_CATEGORY.ONLINE_MATCHMAKING,
+      actionLabel: RUNTIME_SERVICE_ACTION.ONLINE_MATCHMAKING,
+      baseline,
+      failurePrefix: 'ONLINE_MATCHMAKING_CANCEL',
+      description: 'Online matchmaking cancel',
+    });
     await expectPath(runtime.page, '/online');
     if (await runtime.page.locator('[data-testid="online-kapis-search-screen"]').count()) {
       throw new Error('Stale Online search UI remained after cancellation.');
     }
+    evidence.matchmakingOperation = 'cleanup_cancel';
+    evidence.matchmakingStatusClass = '2xx';
+    evidence.queueStateAfter = 'cancelled';
+    evidence.cancelCleanupObserved = true;
     return 'Vazgeç settled the queue request and returned to /online.';
   });
   await runtime.step('online.restart', async () => {
@@ -737,6 +867,11 @@ async function onlineRandom(runtime, config) {
       statusClass: outcome.lifecycle?.responseStatusClass || '2xx',
       safeSummary: 'Second Online matchmaking attempt returned a successful backend response.',
     };
+    evidence.retryCleanupObserved = true;
+    mergeSafeMatchmakingEvidence(evidence, await readSafeMatchmakingEvidence(
+      runtime.page,
+      '[data-testid="online-kapis-search-screen"]',
+    ));
     return 'Online Kapış restarted with successful backend evidence.';
   });
   let matchedAt = null;
@@ -751,6 +886,10 @@ async function onlineRandom(runtime, config) {
         }
         matchedAt = Date.now();
         evidence.matchFoundObserved = true;
+        mergeSafeMatchmakingEvidence(evidence, await readSafeMatchmakingEvidence(
+          runtime.page,
+          '[data-testid="online-match-found-screen"]',
+        ));
         return 'Rakip bulundu appeared on the same search surface; no lobby was observed.';
       }
       if (runtime.safeRoute() === '/game') {
@@ -759,6 +898,7 @@ async function onlineRandom(runtime, config) {
       const phase = await runtime.page.locator('[data-testid="online-kapis-search-screen"]')
         .getAttribute('data-matchmaking-phase').catch(() => null);
       if (phase === 'timeout') {
+        evidence.twoActorRequiredReason = 'TWO_ACTOR_REQUIRED';
         throw new AutomationSetupGap(
           'TWO_ACTOR_REQUIRED: one actor proved search/cancel/backend response, but no opponent paired for same-screen match-found and direct-game proof.',
           AUTOMATION_STATUS.NOT_AUTOMATABLE,
@@ -767,10 +907,11 @@ async function onlineRandom(runtime, config) {
       }
       await runtime.page.waitForTimeout(100);
     }
+    evidence.twoActorRequiredReason = 'TWO_ACTOR_REQUIRED';
     throw new AutomationSetupGap(
-      'MATCH_FOUND_DIRECT_GAME_PENDING: no match-found event arrived in the bounded runtime window.',
+      'TWO_ACTOR_REQUIRED: one actor completed search/retry/cancel proof, but no match-found event can arrive without an opponent.',
       AUTOMATION_STATUS.NOT_AUTOMATABLE,
-      'MATCH_FOUND_DIRECT_GAME_PENDING',
+      'TWO_ACTOR_REQUIRED',
     );
   });
   await runtime.step('online.direct_game', async () => {
@@ -780,6 +921,7 @@ async function onlineRandom(runtime, config) {
       if (runtime.safeRoute() === '/game') {
         await expectVisible(runtime.page, '[data-testid="online-game-screen"]', 15000);
         evidence.directGameStartObserved = true;
+        evidence.directStartPayloadAvailable = true;
         evidence.routeAfterMatch = '/game';
         evidence.matchedTransitionMs = matchedAt ? Date.now() - matchedAt : null;
         return `Direct /game start observed after ${evidence.matchedTransitionMs ?? 'unknown'}ms.`;
@@ -893,6 +1035,24 @@ async function waitForDirectDuelloRoute(page, timeout = 30000) {
 
 async function duelloTwoContext(runtime, config) {
   if (!runtime?.secondaryPage || !config?.hasTwoStorageStates) {
+    if (runtime) {
+      runtime.authorityEvidence = {
+        onlineMatchmakingFunctionCategory: 'shared_matchmaking_backend',
+        matchmakingMode: 'same_question_duel',
+        matchmakingOperation: null,
+        matchmakingStatusClass: null,
+        matchmakingErrorCategory: null,
+        queueStateBefore: 'unknown',
+        queueStateAfter: 'unknown',
+        retryCleanupObserved: false,
+        cancelCleanupObserved: false,
+        directStartPayloadAvailable: false,
+        lobbyRouteObserved: false,
+        matchFoundObserved: false,
+        directGameStartObserved: false,
+        twoActorRequiredReason: 'TWO_ACTOR_REQUIRED',
+      };
+    }
     throw new AutomationSetupGap(
       'TWO_ACTOR_REQUIRED: configure distinct KRONOX_E2E_STORAGE_STATE_A and KRONOX_E2E_STORAGE_STATE_B files.',
       AUTOMATION_STATUS.MANUAL_EXTERNAL,
@@ -925,6 +1085,20 @@ async function duelloTwoContext(runtime, config) {
       actorBSearchSurfaceAbsentAfterDirectStart: false,
       runnerManagedContextClose: true,
     },
+    onlineMatchmakingFunctionCategory: 'shared_matchmaking_backend',
+    matchmakingMode: 'same_question_duel',
+    matchmakingOperation: null,
+    matchmakingStatusClass: null,
+    matchmakingErrorCategory: null,
+    queueStateBefore: 'unknown',
+    queueStateAfter: 'unknown',
+    retryCleanupObserved: false,
+    cancelCleanupObserved: false,
+    directStartPayloadAvailable: false,
+    lobbyRouteObserved: false,
+    matchFoundObserved: false,
+    directGameStartObserved: false,
+    twoActorRequiredReason: null,
   };
   runtime.authorityEvidence = evidence;
 
@@ -941,6 +1115,7 @@ async function duelloTwoContext(runtime, config) {
       || routeHistoryA.some((route) => route === '/lobby' || route === '/LobbyRoom');
     evidence.actorB.lobbyRouteObserved ||= observedB.lobbyScreenObserved
       || routeHistoryB.some((route) => route === '/lobby' || route === '/LobbyRoom');
+    evidence.lobbyRouteObserved = evidence.actorA.lobbyRouteObserved || evidence.actorB.lobbyRouteObserved;
     if (evidence.actorA.lobbyRouteObserved || evidence.actorB.lobbyRouteObserved) {
       const error = new Error('LOBBY_STILL_PRESENT: Duello observed an active lobby route or waiting-room screen.');
       error.failureCategory = 'LOBBY_STILL_PRESENT';
@@ -984,6 +1159,12 @@ async function duelloTwoContext(runtime, config) {
         pageA.locator('[data-testid="duello-search-screen"]').getAttribute('data-matchmaking-phase').catch(() => null),
         pageB.locator('[data-testid="duello-search-screen"]').getAttribute('data-matchmaking-phase').catch(() => null),
       ]);
+      const safeEvidence = await Promise.all([
+        readSafeMatchmakingEvidence(pageA, '[data-testid="duello-search-screen"], [data-testid="duello-match-found-screen"]'),
+        readSafeMatchmakingEvidence(pageB, '[data-testid="duello-search-screen"], [data-testid="duello-match-found-screen"]'),
+      ]);
+      safeEvidence.forEach((observed) => mergeSafeMatchmakingEvidence(evidence, observed));
+      evidence.matchFoundObserved = evidence.actorA.matchFoundObserved && evidence.actorB.matchFoundObserved;
       if (phases.includes('failed')) {
         const categories = await Promise.all([
           pageA.locator('[data-testid="duello-search-screen"]').getAttribute('data-matchmaking-error-category').catch(() => null),
@@ -1001,7 +1182,14 @@ async function duelloTwoContext(runtime, config) {
       }
       await pageA.waitForTimeout(100);
     }
+    const finalSafeEvidence = await Promise.all([
+      readSafeMatchmakingEvidence(pageA, '[data-testid="duello-search-screen"], [data-testid="duello-match-found-screen"]'),
+      readSafeMatchmakingEvidence(pageB, '[data-testid="duello-search-screen"], [data-testid="duello-match-found-screen"]'),
+    ]);
+    finalSafeEvidence.forEach((observed) => mergeSafeMatchmakingEvidence(evidence, observed));
+    evidence.matchFoundObserved = evidence.actorA.matchFoundObserved && evidence.actorB.matchFoundObserved;
     evidence.backendMatchEvidence = await responseEvidencePromise;
+    evidence.matchmakingStatusClass = evidence.backendMatchEvidence.statusClass;
     if (!evidence.backendMatchEvidence.actorA || !evidence.backendMatchEvidence.actorB) {
       throw new AutomationSetupGap(
         'Successful matchmaking responses were not observed for both isolated actors.',
@@ -1033,6 +1221,8 @@ async function duelloTwoContext(runtime, config) {
     await refreshLobbyEvidence();
     evidence.actorA.directGameObserved = true;
     evidence.actorB.directGameObserved = true;
+    evidence.directGameStartObserved = true;
+    evidence.directStartPayloadAvailable = true;
     evidence.directStartRouteA = '/duel';
     evidence.directStartRouteB = '/duel';
 

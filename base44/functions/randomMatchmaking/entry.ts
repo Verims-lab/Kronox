@@ -9,7 +9,6 @@ import {
   selectOwnActiveQueueRow,
   selectCompatibleWaitingRow,
   selectCommittedPairingPeer,
-  expiredWaitingRows,
   selectLiveLockWinner,
 } from '../../shared/randomMatchmakingPolicy.js';
 
@@ -37,7 +36,20 @@ const SAFE_QUEUE_ACTIONS = new Set([
   'poll_status',
   'cleanup_cancel',
   'cleanup_timeout',
+  'cleanup_retry',
 ]);
+const SAFE_QUEUE_STATES = new Set([
+  'none',
+  'waiting',
+  'pairing',
+  'matched',
+  'consumed',
+  'cancelled',
+  'expired',
+  'timeout',
+  'unknown',
+]);
+const SAFE_CLEANUP_REASONS = new Set(['cancel', 'retry', 'timeout']);
 const normalizeMode = normalizeMatchmakingMode;
 const KRONOX_ID_PATTERN = /^KX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
 
@@ -97,6 +109,12 @@ const safeDiagnostics = ({
   staleQueueDetected = false,
   matchCreated = false,
   directGamePayloadAvailable = false,
+  queueStateBefore = 'none',
+  queueStateAfter = 'none',
+  pairingLockAttempted = false,
+  retryCleanupObserved = false,
+  cancelCleanupObserved = false,
+  statusClass = '2xx',
   errorCategory = null,
 }: any) => {
   const safeModeKeySent = MATCHMAKING_MODES.includes(requestedMode)
@@ -117,6 +135,19 @@ const safeDiagnostics = ({
   directGamePayloadAvailable: Boolean(directGamePayloadAvailable),
   routeAfterMatch: mode === SAME_QUESTION_DUEL_MODE ? '/duel' : '/game',
   lobbyRouteObserved: false,
+  onlineMatchmakingFunctionCategory: 'shared_matchmaking_backend',
+  matchmakingMode: mode || STANDARD_RANDOM_MODE,
+  matchmakingOperation: SAFE_QUEUE_ACTIONS.has(queueAction) ? queueAction : 'find_waiting',
+  matchmakingStatusClass: ['2xx', '4xx', '5xx'].includes(statusClass) ? statusClass : 'unknown',
+  matchmakingErrorCategory: errorCategory
+    ? `MATCHMAKING_${String(errorCategory).replace(/^(?:ONLINE|DUELLO)_/, '').replace('UNKNOWN_START_FAILURE', 'UNKNOWN_BACKEND_REJECTION')}`
+    : null,
+  queueStateBefore: SAFE_QUEUE_STATES.has(queueStateBefore) ? queueStateBefore : 'unknown',
+  queueStateAfter: SAFE_QUEUE_STATES.has(queueStateAfter) ? queueStateAfter : 'unknown',
+  pairingLockAttempted: Boolean(pairingLockAttempted),
+  retryCleanupObserved: Boolean(retryCleanupObserved),
+  cancelCleanupObserved: Boolean(cancelCleanupObserved),
+  matchFoundObserved: Boolean(matchCreated),
   errorCategory,
   requestAction: ['join', 'poll', 'cancel', 'consume'].includes(action) ? action : 'unknown',
   });
@@ -128,12 +159,21 @@ function classifyMatchmakingFailure(error: any, mode: string, action: string) {
   if (message.includes('permission') || message.includes('forbidden') || message.includes('unauthorized')) {
     return modeErrorCategory(mode, 'PERMISSION_DENIED');
   }
-  if (message.includes('queue_create')) return modeErrorCategory(mode, 'QUEUE_CREATE_FAILED');
-  if (message.includes('queue_') || message.includes('queue store')) return modeErrorCategory(mode, 'QUEUE_READ_FAILED');
+  if (message.includes('actor_lookup')) return modeErrorCategory(mode, 'NETWORK_FAILURE');
+  if (message.includes('lock_read') || message.includes('lock_write')) return modeErrorCategory(mode, 'NETWORK_FAILURE');
+  if (message.includes('queue_write') || message.includes('queue_create')) return modeErrorCategory(mode, 'QUEUE_WRITE_FAILED');
+  if (message.includes('queue_read') || message.includes('queue_store')) return modeErrorCategory(mode, 'QUEUE_READ_FAILED');
   if (message.includes('pair_commit') || message.includes('pairing')) return modeErrorCategory(mode, 'PAIRING_RACE');
   if (message.includes('lobby_') || message.includes('session_')) return modeErrorCategory(mode, 'SESSION_CREATE_FAILED');
   if (action === 'join') return modeErrorCategory(mode, 'UNKNOWN_START_FAILURE');
   return modeErrorCategory(mode, 'NETWORK_FAILURE');
+}
+
+function matchmakingOperationError(code: string, operation: string, queueStateBefore = 'unknown') {
+  const error: any = new Error(code);
+  error.matchmakingOperation = SAFE_QUEUE_ACTIONS.has(operation) ? operation : 'find_waiting';
+  error.queueStateBefore = SAFE_QUEUE_STATES.has(queueStateBefore) ? queueStateBefore : 'unknown';
+  return error;
 }
 
 const isRecoverablePairingContention = (error: any) => (
@@ -165,10 +205,14 @@ async function resolveOnlineActor(base44: any, body: any, diagnosticContext: any
       error: 'Oyuncu oturumu doğrulanamadı.',
       code: 'unauthenticated',
       errorCategory,
-      diagnostics: safeDiagnostics({ ...diagnosticContext, errorCategory }),
+      diagnostics: safeDiagnostics({ ...diagnosticContext, statusClass: '4xx', errorCategory }),
     }, 401) };
   }
-  const rows = await base44.asServiceRole.entities.GuestProfile.filter({ guest_id: guestId }, '-created_at', 5).catch(() => []);
+  const rows = await base44.asServiceRole.entities.GuestProfile
+    .filter({ guest_id: guestId }, '-created_at', 5)
+    .catch(() => {
+      throw matchmakingOperationError('random_matchmaking_actor_lookup_unavailable', 'create_waiting');
+    });
   const profile = rows?.[0] || null;
   const providedHash = await hashGuestToken(guestId, guestToken);
   if (!profile || !profile.guest_token_hash || String(profile.guest_token_hash) !== providedHash || String(profile.status || '') === 'linked') {
@@ -177,7 +221,7 @@ async function resolveOnlineActor(base44: any, body: any, diagnosticContext: any
       error: 'Misafir oturumu doğrulanamadı.',
       code: 'invalid_guest_token',
       errorCategory,
-      diagnostics: safeDiagnostics({ ...diagnosticContext, errorCategory }),
+      diagnostics: safeDiagnostics({ ...diagnosticContext, statusClass: '4xx', errorCategory }),
     }, 401) };
   }
   return {
@@ -217,7 +261,12 @@ const publicQueueState = (row: any, diagnosticContext: any = {}) => {
 
 // Mode-scoped pairing lock so two simultaneous "join" calls never claim the
 // same waiting row while Duello and standard Online remain independent.
-async function withPairingLock(base44: any, mode: string, fn: () => Promise<any>) {
+async function withPairingLock(
+  base44: any,
+  mode: string,
+  fn: () => Promise<any>,
+  operation = 'pair_waiting',
+) {
   const entity = base44?.asServiceRole?.entities?.EconomyOperationLock;
   if (!entity?.filter || !entity?.create || !entity?.update) {
     throw new Error('random_matchmaking_lock_store_unavailable');
@@ -225,9 +274,12 @@ async function withPairingLock(base44: any, mode: string, fn: () => Promise<any>
   const lockKey = `random_matchmaking:pair:${mode}`;
   for (let attempt = 0; attempt < 10; attempt += 1) {
     const now = new Date();
-    // Newest-first avoids historical released lock rows starving the bounded
-    // query window. Only live active rows participate in the lock election.
-    const active = await entity.filter({ lock_key: lockKey, status: 'active' }, '-acquired_at', LOCK_READ_LIMIT);
+    // Query by the stable key, then elect only live active rows locally. This
+    // matches the proven lobby lock pattern and avoids a brittle compound
+    // status filter while keeping historical rows out of the election.
+    const active = await entity.filter({ lock_key: lockKey }, '-acquired_at', LOCK_READ_LIMIT).catch(() => {
+      throw matchmakingOperationError('random_matchmaking_lock_read_failed', operation);
+    });
     if (selectLiveLockWinner(active, now.getTime())) {
       await new Promise((resolve) => setTimeout(resolve, 90 + attempt * 80));
       continue;
@@ -240,10 +292,13 @@ async function withPairingLock(base44: any, mode: string, fn: () => Promise<any>
       status: 'active',
       acquired_at: now.toISOString(),
       expires_at: new Date(now.getTime() + PAIR_LOCK_TTL_MS).toISOString(),
-    }).catch(() => null);
-    if (!lock) continue;
+    }).catch(() => {
+      throw matchmakingOperationError('random_matchmaking_lock_write_failed', operation);
+    });
     await new Promise((resolve) => setTimeout(resolve, 70));
-    const contenders = await entity.filter({ lock_key: lockKey, status: 'active' }, '-acquired_at', LOCK_READ_LIMIT);
+    const contenders = await entity.filter({ lock_key: lockKey }, '-acquired_at', LOCK_READ_LIMIT).catch(() => {
+      throw matchmakingOperationError('random_matchmaking_lock_read_failed', operation);
+    });
     const winner = selectLiveLockWinner(contenders, Date.now());
     if (rowId(winner) !== rowId(lock)) {
       await entity.update(rowId(lock), { status: 'released', released_at: new Date().toISOString() }).catch(() => null);
@@ -279,7 +334,9 @@ async function findOwnActiveRow(base44: any, actorKeyHash: string, mode: string)
     { actor_key_hash: actorKeyHash, mode },
     '-created_at',
     QUEUE_READ_LIMIT,
-  );
+  ).catch(() => {
+    throw matchmakingOperationError('random_matchmaking_queue_read_failed', 'find_waiting');
+  });
   const selected = selectOwnActiveQueueRow(rows, actorKeyHash, mode);
   const duplicateWaitingRows = (rows || []).filter((row: any) => (
     rowId(row) !== rowId(selected)
@@ -310,7 +367,7 @@ async function createWaitingRow(base44: any, actor: any, mode: string) {
   } catch {
     const concurrent = await findOwnActiveRow(base44, actor.actorKeyHash, mode).catch(() => null);
     if (concurrent) return concurrent;
-    throw new Error('random_matchmaking_queue_create_failed');
+    throw matchmakingOperationError('random_matchmaking_queue_write_failed', 'create_waiting', 'none');
   }
 }
 
@@ -320,7 +377,9 @@ async function ensureOwnQueueRow(base44: any, actor: any, mode: string) {
   let staleQueueDetected = false;
   if (row && isExpired(row, Date.now())) {
     staleQueueDetected = true;
-    await queue.update(rowId(row), { status: 'expired' });
+    await queue.update(rowId(row), { status: 'expired' }).catch(() => {
+      throw matchmakingOperationError('random_matchmaking_queue_write_failed', 'cleanup_timeout', row?.status || 'unknown');
+    });
     row = null;
   }
   if (!row) row = await createWaitingRow(base44, actor, mode);
@@ -334,7 +393,9 @@ async function resolvePairingRow(base44: any, row: any, mode: string) {
     { lobby_id: String(row?.lobby_id || ''), mode },
     '-created_at',
     PAIR_READ_LIMIT,
-  );
+  ).catch(() => {
+    throw matchmakingOperationError('random_matchmaking_queue_read_failed', 'poll_status', 'pairing');
+  });
   const peer = selectCommittedPairingPeer(pairRows, row, mode);
   if (peer) return { ...row, status: 'matched' };
   const pairingStartedAt = readTime(row?.matched_at || row?.updated_date || row?.created_at);
@@ -350,6 +411,8 @@ async function resolvePairingRow(base44: any, row: any, mode: string) {
     paired_actor_key_hash: '',
     is_host: false,
     expires_at: new Date(Date.now() + RANDOM_MATCH_TIMEOUT_MS).toISOString(),
+  }).catch(() => {
+    throw matchmakingOperationError('random_matchmaking_queue_write_failed', 'poll_status', 'pairing');
   });
   if (row?.lobby_id) {
     await lobbyStore(base44).update(String(row.lobby_id), {
@@ -360,20 +423,15 @@ async function resolvePairingRow(base44: any, row: any, mode: string) {
   return { ...row, status: 'waiting', lobby_id: '', lobby_public_ref: '', lobby_code: '' };
 }
 
-async function settleExpiredWaitingRows(base44: any, rows: any[], nowMs: number) {
-  const expired = expiredWaitingRows(rows, nowMs);
-  await Promise.allSettled(expired.map((row: any) => queueStore(base44).update(rowId(row), {
-    status: 'expired',
-  })));
-}
-
 async function pairWaitingRows(base44: any, actor: any, mode: string, ownRow: any, candidate: any) {
   const queue = queueStore(base44);
   const lobbies = lobbyStore(base44);
   const [freshOwn, freshCandidate] = await Promise.all([
     queue.get(rowId(ownRow)),
     queue.get(rowId(candidate)),
-  ]);
+  ]).catch(() => {
+    throw matchmakingOperationError('random_matchmaking_queue_read_failed', 'pair_waiting', ownRow?.status || 'unknown');
+  });
   const nowMs = Date.now();
   if (freshOwn?.status === 'matched' && !isExpired(freshOwn, nowMs)) return freshOwn;
   if (
@@ -501,71 +559,80 @@ async function pairWaitingRows(base44: any, actor: any, mode: string, ownRow: an
   }
 }
 
-async function reconcileWaitingActor(base44: any, actor: any, mode: string, createIfMissing: boolean) {
-  const queue = queueStore(base44);
-  let ownRow = await findOwnActiveRow(base44, actor.actorKeyHash, mode);
-  if (ownRow?.status === INTERNAL_PAIRING_STATUS && !isExpired(ownRow, Date.now())) {
-    return resolvePairingRow(base44, ownRow, mode);
-  }
-  if (ownRow?.status === 'matched' && !isExpired(ownRow, Date.now())) return ownRow;
-  if (!ownRow && !createIfMissing) return null;
-  if (!ownRow) ownRow = await createWaitingRow(base44, actor, mode);
+async function findWaitingCandidate(base44: any, actorKeyHash: string, mode: string) {
+  const waitingRows = await queueStore(base44).filter(
+    { status: 'waiting', mode },
+    '-created_at',
+    QUEUE_READ_LIMIT,
+  ).catch(() => {
+    throw matchmakingOperationError('random_matchmaking_queue_read_failed', 'find_waiting', 'waiting');
+  });
+  return selectCompatibleWaitingRow(waitingRows, actorKeyHash, mode, Date.now());
+}
 
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    const waitingRows = await queue.filter(
-      { status: 'waiting', mode },
-      '-created_at',
-      QUEUE_READ_LIMIT,
-    );
-    await settleExpiredWaitingRows(base44, waitingRows, Date.now());
-    const candidate = selectCompatibleWaitingRow(waitingRows, actor.actorKeyHash, mode, Date.now());
-    if (!candidate) return ownRow;
-    const paired = await pairWaitingRows(base44, actor, mode, ownRow, candidate);
-    if (paired?.status === 'matched') return paired;
+async function attemptCandidatePairing(base44: any, actor: any, mode: string, ownRow: any) {
+  const candidate = await findWaitingCandidate(base44, actor.actorKeyHash, mode);
+  if (!candidate) {
+    return { row: ownRow, candidateFound: false, lockAttempted: false, recoverable: false };
   }
-  return ownRow;
+  try {
+    const paired = await withPairingLock(base44, mode, () => (
+      pairWaitingRows(base44, actor, mode, ownRow, candidate)
+    ));
+    return {
+      row: paired || ownRow,
+      candidateFound: true,
+      lockAttempted: true,
+      recoverable: false,
+    };
+  } catch (error) {
+    if (!isRecoverablePairingContention(error)) throw error;
+    return {
+      row: ownRow,
+      candidateFound: true,
+      lockAttempted: true,
+      recoverable: true,
+    };
+  }
 }
 
 async function handleJoin(base44: any, actor: any, mode: string, diagnosticContext: any) {
   const admitted = await ensureOwnQueueRow(base44, actor, mode);
-  if (admitted.row?.status === 'matched' && !isExpired(admitted.row, Date.now())) {
+  let admittedRow = admitted.row;
+  if (admittedRow?.status === INTERNAL_PAIRING_STATUS && !isExpired(admittedRow, Date.now())) {
+    admittedRow = await resolvePairingRow(base44, admittedRow, mode);
+  }
+  if (admittedRow?.status === 'matched' && !isExpired(admittedRow, Date.now())) {
     return json({
       ok: true,
-      ...publicQueueState(admitted.row, {
+      ...publicQueueState(admittedRow, {
         ...diagnosticContext,
         queueAction: 'direct_start',
         staleQueueDetected: admitted.staleQueueDetected,
+        queueStateBefore: admitted.row?.status || 'unknown',
+        queueStateAfter: 'matched',
       }),
     });
   }
 
-  try {
-    const row = await withPairingLock(base44, mode, () => (
-      reconcileWaitingActor(base44, actor, mode, false)
-    ));
-    return json({
-      ok: true,
-      ...publicQueueState(row || admitted.row, {
-        ...diagnosticContext,
-        queueAction: row?.status === 'matched' ? 'create_match' : 'find_waiting',
-        selfMatchPrevented: true,
-        staleQueueDetected: admitted.staleQueueDetected,
-      }),
-    });
-  } catch (error) {
-    if (!isRecoverablePairingContention(error)) throw error;
-    return json({
-      ok: true,
-      recoverable: true,
-      ...publicQueueState(admitted.row, {
-        ...diagnosticContext,
-        queueAction: 'find_waiting',
-        selfMatchPrevented: true,
-        staleQueueDetected: admitted.staleQueueDetected,
-        errorCategory: modeErrorCategory(mode, 'PAIRING_RACE'),
-      }),
-    });
-  }
+  const pairing = await attemptCandidatePairing(base44, actor, mode, admittedRow);
+  const row = pairing.row || admittedRow;
+  return json({
+    ok: true,
+    ...(pairing.recoverable ? { recoverable: true } : {}),
+    ...publicQueueState(row, {
+      ...diagnosticContext,
+      queueAction: row?.status === 'matched'
+        ? 'create_match'
+        : (pairing.candidateFound ? 'pair_waiting' : 'find_waiting'),
+      selfMatchPrevented: true,
+      staleQueueDetected: admitted.staleQueueDetected,
+      pairingLockAttempted: pairing.lockAttempted,
+      queueStateBefore: admittedRow?.status || 'unknown',
+      queueStateAfter: row?.status || 'waiting',
+      errorCategory: pairing.recoverable ? modeErrorCategory(mode, 'PAIRING_RACE') : null,
+    }),
+  });
 }
 
 async function handlePoll(base44: any, actor: any, mode: string, diagnosticContext: any) {
@@ -577,63 +644,100 @@ async function handlePoll(base44: any, actor: any, mode: string, diagnosticConte
     matched: false,
     diagnostics: safeDiagnostics({ ...diagnosticContext, queueAction: 'poll_status' }),
   });
-  if (row.status === 'matched' && !isExpired(row, Date.now())) {
-    return json({ ok: true, ...publicQueueState(row, { ...diagnosticContext, queueAction: 'direct_start' }) });
+  let currentRow = row;
+  if (currentRow.status === INTERNAL_PAIRING_STATUS && !isExpired(currentRow, Date.now())) {
+    currentRow = await resolvePairingRow(base44, currentRow, mode);
+    if (currentRow.status === INTERNAL_PAIRING_STATUS) {
+      return json({
+        ok: true,
+        recoverable: true,
+        ...publicQueueState(currentRow, {
+          ...diagnosticContext,
+          queueAction: 'poll_status',
+          queueStateBefore: 'pairing',
+          queueStateAfter: 'pairing',
+          errorCategory: modeErrorCategory(mode, 'PAIRING_RACE'),
+        }),
+      });
+    }
   }
-  if (isExpired(row, Date.now())) {
-    await queueStore(base44).update(rowId(row), { status: 'expired' });
+  if (currentRow.status === 'matched' && !isExpired(currentRow, Date.now())) {
+    return json({
+      ok: true,
+      ...publicQueueState(currentRow, {
+        ...diagnosticContext,
+        queueAction: 'direct_start',
+        queueStateBefore: row.status || 'unknown',
+        queueStateAfter: 'matched',
+      }),
+    });
+  }
+  if (isExpired(currentRow, Date.now())) {
+    await queueStore(base44).update(rowId(currentRow), { status: 'expired' }).catch(() => {
+      throw matchmakingOperationError('random_matchmaking_queue_write_failed', 'cleanup_timeout', currentRow?.status || 'unknown');
+    });
     return json({
       ok: true,
       status: 'timeout',
-      queueRef: row.queue_ref || '',
+      queueRef: currentRow.queue_ref || '',
       matched: false,
       diagnostics: safeDiagnostics({
         ...diagnosticContext,
         queueAction: 'cleanup_timeout',
         staleQueueDetected: true,
+        queueStateBefore: currentRow.status || 'unknown',
+        queueStateAfter: 'expired',
         errorCategory: modeErrorCategory(mode, 'TIMEOUT'),
       }),
     });
   }
-  try {
-    const reconciled = await withPairingLock(base44, mode, () => (
-      reconcileWaitingActor(base44, actor, mode, false)
-    ));
-    return reconciled
-      ? json({
-        ok: true,
-        ...publicQueueState(reconciled, {
-          ...diagnosticContext,
-          queueAction: reconciled?.status === 'matched' ? 'pair_waiting' : 'poll_status',
-          selfMatchPrevented: true,
-        }),
-      })
-      : json({
-        ok: true,
-        status: 'timeout',
-        queueRef: '',
-        matched: false,
-        diagnostics: safeDiagnostics({ ...diagnosticContext, queueAction: 'poll_status' }),
-      });
-  } catch (error) {
-    if (!isRecoverablePairingContention(error)) throw error;
-    return json({
-      ok: true,
-      recoverable: true,
-      ...publicQueueState(row, {
-        ...diagnosticContext,
-        queueAction: 'poll_status',
-        selfMatchPrevented: true,
-        errorCategory: modeErrorCategory(mode, 'PAIRING_RACE'),
-      }),
-    });
-  }
+  const pairing = await attemptCandidatePairing(base44, actor, mode, currentRow);
+  const reconciled = pairing.row || currentRow;
+  return json({
+    ok: true,
+    ...(pairing.recoverable ? { recoverable: true } : {}),
+    ...publicQueueState(reconciled, {
+      ...diagnosticContext,
+      queueAction: reconciled?.status === 'matched'
+        ? 'pair_waiting'
+        : 'poll_status',
+      selfMatchPrevented: true,
+      pairingLockAttempted: pairing.lockAttempted,
+      queueStateBefore: currentRow.status || 'unknown',
+      queueStateAfter: reconciled?.status || 'waiting',
+      errorCategory: pairing.recoverable ? modeErrorCategory(mode, 'PAIRING_RACE') : null,
+    }),
+  });
 }
 
 async function handleCancel(base44: any, actor: any, mode: string, diagnosticContext: any) {
-  let result = { ok: true, cancelled: true };
+  const cleanupReason = SAFE_CLEANUP_REASONS.has(diagnosticContext?.cleanupReason)
+    ? diagnosticContext.cleanupReason
+    : 'cancel';
+  const queueAction = cleanupReason === 'retry'
+    ? 'cleanup_retry'
+    : (cleanupReason === 'timeout' ? 'cleanup_timeout' : 'cleanup_cancel');
+  const settledStatus = cleanupReason === 'timeout' ? 'expired' : 'cancelled';
+  const initialRow = await findOwnActiveRow(base44, actor.actorKeyHash, mode);
+  if (!initialRow) return json({
+    ok: true,
+    cancelled: true,
+    diagnostics: safeDiagnostics({
+      ...diagnosticContext,
+      queueAction,
+      queueStateBefore: 'none',
+      queueStateAfter: cleanupReason === 'timeout' ? 'timeout' : 'cancelled',
+      retryCleanupObserved: cleanupReason === 'retry',
+      cancelCleanupObserved: cleanupReason === 'cancel',
+    }),
+  });
+  let result: any = { ok: true, cancelled: true };
+  let queueStateBefore = initialRow.status || 'unknown';
+  let queueStateAfter = queueStateBefore;
   await withPairingLock(base44, mode, async () => {
-    let row = await findOwnActiveRow(base44, actor.actorKeyHash, mode);
+    let row = await queueStore(base44).get(rowId(initialRow)).catch(() => {
+      throw matchmakingOperationError('random_matchmaking_queue_read_failed', queueAction, queueStateBefore);
+    });
     if (!row) return;
     if (row.status === INTERNAL_PAIRING_STATUS && !isExpired(row, Date.now())) {
       row = await resolvePairingRow(base44, row, mode);
@@ -644,33 +748,57 @@ async function handleCancel(base44: any, actor: any, mode: string, diagnosticCon
         cancelled: false,
         ...publicQueueState(row, { ...diagnosticContext, queueAction: 'direct_start' }),
       };
+      queueStateAfter = 'matched';
       return;
     }
     if (row.status === 'matched') {
-      await queueStore(base44).update(rowId(row), { status: 'expired' });
+      await queueStore(base44).update(rowId(row), { status: 'expired' }).catch(() => {
+        throw matchmakingOperationError('random_matchmaking_queue_write_failed', queueAction, 'matched');
+      });
+      queueStateAfter = 'expired';
+      return;
+    }
+    if (row.status === INTERNAL_PAIRING_STATUS) {
+      result = { ok: true, cancelled: false, recoverable: true };
+      queueStateAfter = 'pairing';
       return;
     }
     if (row.status !== 'waiting') return;
     await queueStore(base44).update(rowId(row), {
-      status: 'cancelled',
-      cancelled_at: new Date().toISOString(),
+      status: settledStatus,
+      ...(settledStatus === 'cancelled'
+        ? { cancelled_at: new Date().toISOString() }
+        : { expires_at: new Date().toISOString() }),
+    }).catch(() => {
+      throw matchmakingOperationError('random_matchmaking_queue_write_failed', queueAction, 'waiting');
     });
-  });
+    queueStateAfter = settledStatus;
+  }, queueAction);
   return json({
     ...result,
-    diagnostics: result?.diagnostics || safeDiagnostics({ ...diagnosticContext, queueAction: 'cleanup_cancel' }),
+    diagnostics: result?.diagnostics || safeDiagnostics({
+      ...diagnosticContext,
+      queueAction,
+      queueStateBefore,
+      queueStateAfter,
+      pairingLockAttempted: true,
+      retryCleanupObserved: cleanupReason === 'retry' && result.cancelled === true,
+      cancelCleanupObserved: cleanupReason === 'cancel' && result.cancelled === true,
+      errorCategory: result?.recoverable ? modeErrorCategory(mode, 'PAIRING_RACE') : null,
+    }),
   });
 }
 
 async function handleConsume(base44: any, actor: any, mode: string, diagnosticContext: any) {
-  await withPairingLock(base44, mode, async () => {
-    const row = await findOwnActiveRow(base44, actor.actorKeyHash, mode);
-    if (!row || !['matched', INTERNAL_PAIRING_STATUS].includes(row.status)) return;
+  const row = await findOwnActiveRow(base44, actor.actorKeyHash, mode);
+  if (row && ['matched', INTERNAL_PAIRING_STATUS].includes(row.status)) {
     await queueStore(base44).update(rowId(row), {
       status: 'consumed',
       consumed_at: new Date().toISOString(),
+    }).catch(() => {
+      throw matchmakingOperationError('random_matchmaking_queue_write_failed', 'direct_start', row.status || 'unknown');
     });
-  });
+  }
   return json({
     ok: true,
     consumed: true,
@@ -679,6 +807,8 @@ async function handleConsume(base44: any, actor: any, mode: string, diagnosticCo
       queueAction: 'direct_start',
       matchCreated: true,
       directGamePayloadAvailable: true,
+      queueStateBefore: row?.status || 'none',
+      queueStateAfter: row ? 'consumed' : 'none',
     }),
   });
 }
@@ -695,13 +825,16 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const action = String(body?.action || 'join');
     const requestedMode = String(body?.mode || STANDARD_RANDOM_MODE).trim().toLowerCase();
-    diagnosticContext = { ...diagnosticContext, requestedMode, action };
+    const cleanupReason = SAFE_CLEANUP_REASONS.has(String(body?.cleanup_reason || ''))
+      ? String(body.cleanup_reason)
+      : 'cancel';
+    diagnosticContext = { ...diagnosticContext, requestedMode, action, cleanupReason };
     if (!MATCHMAKING_MODES.includes(requestedMode)) {
       return json({
         error: 'Geçersiz eşleşme modu.',
         code: 'invalid_matchmaking_mode',
         errorCategory: 'INVALID_MATCHMAKING_MODE',
-        diagnostics: safeDiagnostics(diagnosticContext),
+        diagnostics: safeDiagnostics({ ...diagnosticContext, statusClass: '4xx' }),
       }, 400);
     }
     const mode = normalizeMode(requestedMode);
@@ -720,7 +853,7 @@ Deno.serve(async (req) => {
       error: 'Geçersiz işlem.',
       code: 'invalid_matchmaking_action',
       errorCategory: 'INVALID_MATCHMAKING_ACTION',
-      diagnostics: safeDiagnostics(diagnosticContext),
+      diagnostics: safeDiagnostics({ ...diagnosticContext, statusClass: '4xx' }),
     }, 400);
   } catch (error) {
     const errorCategory = classifyMatchmakingFailure(
@@ -730,6 +863,8 @@ Deno.serve(async (req) => {
     );
     const unavailable = errorCategory.endsWith('_PAIRING_RACE')
       || String(error?.message || '').includes('_unavailable');
+    const permissionDenied = errorCategory.endsWith('_PERMISSION_DENIED');
+    const responseStatus = permissionDenied ? 403 : (unavailable ? 503 : 500);
     console.error('[randomMatchmaking] classified failure', JSON.stringify({
       errorCategory,
       canonicalModeKey: diagnosticContext.mode,
@@ -744,9 +879,13 @@ Deno.serve(async (req) => {
       errorCategory,
       diagnostics: safeDiagnostics({
         ...diagnosticContext,
-        queueAction: diagnosticContext.action === 'join' ? 'create_waiting' : 'poll_status',
+        queueAction: error?.matchmakingOperation
+          || (diagnosticContext.action === 'join' ? 'create_waiting' : 'poll_status'),
+        queueStateBefore: error?.queueStateBefore || 'unknown',
+        queueStateAfter: 'unknown',
+        statusClass: permissionDenied ? '4xx' : '5xx',
         errorCategory,
       }),
-    }, unavailable ? 503 : 500);
+    }, responseStatus);
   }
 });
