@@ -22,7 +22,6 @@ import profilePageSource from '../../pages/ProfilePage.jsx?raw';
 import profileEditPageSource from '../../pages/ProfileEditPage.jsx?raw';
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
 import friendsPageSource from '../../pages/FriendsPage.jsx?raw';
-import lobbyRoomSource from '../../pages/LobbyRoom.jsx?raw';
 import leaderboardPageSource from '../../pages/LeaderboardPage.jsx?raw';
 import kronoxRankingSectionSource from '../leaderboard/KronoxRankingSection.jsx?raw';
 import createLobbyInvitePanelSource from '../lobby/CreateLobbyInvitePanel.jsx?raw';
@@ -443,7 +442,7 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('transient_ui_timer_cleanup_guard',
-    'Transient UI timers in social/lobby/debug surfaces are ref-owned and cleaned up',
+    'Transient UI timers in active social/Online/debug surfaces are ref-owned and cleaned up',
     () => {
       const checks = [
         {
@@ -467,15 +466,6 @@ export const EXTRA_TESTS = [
           ],
         },
         {
-          file: 'src/pages/LobbyRoom.jsx',
-          source: lobbyRoomSource,
-          required: [
-            'copiedTimerRef',
-            'window.clearTimeout(copiedTimerRef.current)',
-            'copiedTimerRef.current = window.setTimeout',
-          ],
-        },
-        {
           file: 'src/components/game/SoloQuestionDebugPanel.jsx',
           source: soloQuestionDebugPanelSource,
           required: [
@@ -489,8 +479,8 @@ export const EXTRA_TESTS = [
           source: gameDebugLogSource,
           required: [
             'copiedTimerRef',
-            'clearTimeout(copiedTimerRef.current)',
-            'copiedTimerRef.current = setTimeout',
+            'window.clearTimeout(copiedTimerRef.current)',
+            'copiedTimerRef.current = window.setTimeout',
           ],
         },
       ];
@@ -500,7 +490,6 @@ export const EXTRA_TESTS = [
       const forbidden = forbiddenTokens([
         friendsPageSource,
         createLobbyInvitePanelSource,
-        lobbyRoomSource,
         soloQuestionDebugPanelSource,
         gameDebugLogSource,
       ].join('\n'), [
@@ -517,7 +506,7 @@ export const EXTRA_TESTS = [
           actual: { missing, forbidden },
         });
       }
-      return pass('Social, lobby, and debug copy/notice timers are ref-owned and unmount-safe.', {
+      return pass('Active social, Online selection, and debug copy/notice timers are ref-owned and unmount-safe; legacy LobbyRoom remains redirect-only and owns no transient timer.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

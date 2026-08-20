@@ -36,7 +36,7 @@ export default function GameDebugLog() {
 
   useEffect(() => () => {
     if (copiedTimerRef.current) {
-      clearTimeout(copiedTimerRef.current);
+      window.clearTimeout(copiedTimerRef.current);
     }
   }, []);
 
@@ -47,9 +47,9 @@ export default function GameDebugLog() {
     navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
       if (copiedTimerRef.current) {
-        clearTimeout(copiedTimerRef.current);
+        window.clearTimeout(copiedTimerRef.current);
       }
-      copiedTimerRef.current = setTimeout(() => {
+      copiedTimerRef.current = window.setTimeout(() => {
         setCopied(false);
         copiedTimerRef.current = null;
       }, 2000);

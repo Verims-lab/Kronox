@@ -1335,7 +1335,7 @@ verified against the deployed Base44 environment.
 * Run the grouped Quick Smoke, Release Gate, Security, Economy, Online, Daily, Solo, Mobile, Admin / Proof, and Full packs from guarded Admin Health Center.
 * Each completed report records run ID, build marker, pack, executed suite count, blocker/warning/manual counts, duration, proof-quality summary, fix ownership, and next action.
 * Proof quality is explicit: executable simulation, source-connected, static-only, or manual/external. Static PASS is not runtime or release proof.
-* Retired comment-scan and duplicate cases must remain absent; the Health Intelligence self-audit fails duplicate IDs, orphan cases, malformed runners, empty packs, and active retired keys.
+* Retired comment-scan and duplicate cases must remain absent; suite and case keys must be globally unique. The Health Intelligence self-audit fails duplicate IDs, orphan cases, malformed runners, empty packs, and active retired keys. Runtime E2E remains separate from Full Health.
 * Duplicate concurrent runs are rejected. Closing/unmounting Health invalidates the current run sequence and clears UI progress; completed pack summaries only are persisted locally.
 * Health runs on demand. Scheduled/continuous monitoring requires external automation or future platform support and is not claimed by B6.
 * Run `Health Proof Integrity Suite`: suite/case IDs and packs are executable catalog checks; recent source scans must import active sources/helpers and declare related files; `STATIC_CONTRACT` PASS cannot be promoted to runtime proof.

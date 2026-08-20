@@ -256,13 +256,13 @@ export const EXTRA_TESTS = [
     'Duello external proof includes the no-lobby/direct-start product contract.',
   ), ['src/lib/health/runtimeE2EScenarios.js']),
 
-  make(RUNTIME_SUITE, 'route_visibility_alone_not_backend_pass', 'Route visibility alone cannot produce backend-dependent PASS', () => sourceContract(
+  make(RUNTIME_SUITE, 'route_visibility_backend_gate_source_contract', 'Route visibility source contract requires backend-dependent proof', () => sourceContract(
     `${runtimeHandlersSource}\n${runtimeReportSource}`,
     ['requireSuccessfulBackendAction', 'backendMatchEvidence', 'result?.backendEvidence?.successful === true', 'BACKEND_PREFLIGHT_APP_NOT_FOUND'],
     'Runtime normalization and Online handler both require real backend evidence.',
   ), ['tests/health-e2e/scenarioHandlers.mjs', 'src/lib/health/runtimeE2EReport.js']),
 
-  make(RUNTIME_SUITE, 'full_run_still_excludes_e2e', 'Full Health Run still excludes Runtime E2E automation', () => sourceContract(
+  make(RUNTIME_SUITE, 'full_run_e2e_separation_source_contract', 'Full Health source contract excludes Runtime E2E automation', () => sourceContract(
     `${simulationPanelSource}\n${runtimeScenariosSource}`,
     ["const runAll = () => runPack('full')", 'if (runtimeAutomationSelected) return', 'fullRunExcluded: true', 'externalAutomation: true'],
     'Runtime browser automation remains a separate explicit run and report.',

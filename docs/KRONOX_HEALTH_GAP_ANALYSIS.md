@@ -43,9 +43,7 @@ fallback polling/refetch.
 - Added architecture-audit Health coverage requiring the new audit/target,
   Health gap, DB reporting readiness, and visual asset readiness docs to stay
   aligned with the MVVM/MVI target and Base44-active boundary.
-- Added a focused transient UI timer cleanup guard for Friends, Online lobby,
-  and debug copy/notice surfaces. This guards ref-owned timeout cleanup in
-  source; live navigation/unmount profiling remains a manual proof area.
+- Added a focused transient UI timer cleanup guard for Friends, legacy Online-selection, and active debug copy/notice surfaces. Timers are ref-owned, clear prior schedules, and clean up on unmount. `LobbyRoom.jsx` is redirect-only legacy compatibility and owns no copied-state timer; live navigation/unmount profiling remains manual proof.
 - Updated invite navigation Health expectations to require `verifiedLobby` and
   `joinedLobby`, not the older `lobby: updatedLobby` token.
 - Added executable Online lobby reducer coverage for 4-player representation,
@@ -235,7 +233,7 @@ Android/WebView smoothness, and bundle/device image-decode behavior.
 
 ## Paket B6 — HealthCenter Intelligence
 
-B6 inventories the active registry, removes obsolete/duplicate coverage, and adds on-demand grouped packs: Quick Smoke, Release Gate, Security, Economy, Online, Daily, Solo, Mobile, Admin / Proof, and Full. Reports now include run/build/pack metadata, executed suite count, blockers, warnings, manual-required count, elapsed time, proof quality (`EXECUTABLE`, `SOURCE_CONNECTED`, `STATIC_ONLY`, `MANUAL_EXTERNAL`), fix owner, and next action. The latest completed pack summary is local Admin UI state only and is never release proof.
+B6 inventories the active registry, requires globally unique suite/case keys, removes obsolete/duplicate coverage, and adds on-demand grouped packs: Quick Smoke, Release Gate, Security, Economy, Online, Daily, Solo, Mobile, Admin / Proof, and Full. Runtime E2E remains a separate report and is excluded from Full Health. Reports now include run/build/pack metadata, executed suite count, blockers, warnings, manual-required count, elapsed time, proof quality (`EXECUTABLE`, `SOURCE_CONNECTED`, `STATIC_ONLY`, `MANUAL_EXTERNAL`), fix owner, and next action. The latest completed pack summary is local Admin UI state only and is never release proof.
 
 Retired suites `research_test_strategy`, `report_ux_human_decision`, and `sre_release_health_signals` scanned orchestration comments and duplicated stronger executable report-integrity/intelligence coverage. Retired duplicate cases covered old Timeline DOM-manual rows, repeated subjective beauty/title checks, and the obsolete "random matchmaking not detected" warning; active dedicated mobile/DOM, visual, and matchmaking suites remain. No meaningful contract was removed without stronger replacement.
 

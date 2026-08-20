@@ -117,10 +117,7 @@ Mechanical scan from this pass:
 - Restored the root `@base44/sdk` package source and committed lockfile root/
   resolved package to the exact `0.8.34` pin required by the deploy gate and
   backend imports. No runtime SDK upgrade work was attempted.
-- Converted transient social/lobby/debug UI timers to ref-owned timers with
-  previous-timer clearing and unmount cleanup in the Friends success banner,
-  create-lobby auto-trim note, lobby copy-code state, and debug copy controls.
-  A focused static Health guard now checks this cleanup pattern.
+- Converted transient social/legacy Online-selection/debug UI timers to ref-owned timers with previous-timer clearing and unmount cleanup in the Friends success banner, legacy create-lobby auto-trim note, and active debug copy controls. `LobbyRoom.jsx` remains redirect-only compatibility and owns no transient copied-state timer. A focused static Health guard checks this cleanup pattern.
 - Corrected invite navigation Health expectations from the older
   `lobby: updatedLobby` token to the current `verifiedLobby` / `joinedLobby`
   contract.
