@@ -191,6 +191,18 @@ remains MANUAL_EXTERNAL / TWO_ACTOR_REQUIRED without A/B fixtures, Runtime E2E
 remains separate from Full Health, Health IDs remain unique, and package/lock/
 function SDK pins remain exact 0.8.34.
 
+Codex644 handles a deployed RandomMatchQueue endpoint that rejects every
+bounded service-role read by binding the existing backend-private
+EconomyOperationLock entity through the same mode-scoped queue interface. The
+allowlisted queue storage strategy is visible to proof tooling, but lock
+metadata and internal actor references never reach public UI or exports. The
+fallback preserves stale/duplicate own-row reconciliation, self-match
+prevention, reciprocal pairing, caller-only cleanup, and direct no-lobby
+handoff. Registered startup also verifies pending guest-link proof and retires
+only conclusively missing or invalid stale local proof before linkGuestAccount;
+transient failures remain visible. No route, score, reward, pricing, Solo,
+Daily, Store, Leaderboard, or Duello rule changes.
+
 Full architecture/performance cleanup keeps the root package.json @base44/sdk spec exactly at 0.8.34, matching backend Deno imports. The package-lock root and resolved SDK must also remain exact 0.8.34; source-connected Health validates both when the lockfile is available. Transient Friends, legacy Online-selection, and active debug notice timers are ref-owned, clear previous timers before rescheduling, and clean up on unmount. Legacy LobbyRoom is redirect-only and owns no copied-state timer. No broad runtime refactor, unused-code deletion, or Base44 migration work was attempted during this safe pass.
 `;
 
@@ -1080,6 +1092,7 @@ remain manual/NOT_AUTOMATABLE.
 - Codex639 Duello pairing uses canonical same_question_duel scope, reciprocal private pairing rows, exactly two distinct actors, and one backend session. Normal waiting/recoverable contention stays searching; only classified DUELLO_* failures show safe start-failure copy. The UI lifecycle is idle, starting, searching, matched, directStarting, timeout, failed, or cancelled; retry/cancel/unmount settle only owned state and clear timers. Both actors must see Rakip bulundu on /online and enter /duel with no /lobby. With KRONOX_E2E_STORAGE_STATE_A/B, Runtime E2E must prove both contexts and matching redacted session/card fingerprints; without both it reports MANUAL_EXTERNAL / TWO_ACTOR_REQUIRED. Public evidence is username-only and excludes private IDs, raw session/card values, answer years, and the full question bank. First-correct claim racing, RLS, reconnect, and physical-device proof remain external.
 - Codex641 removes no-opponent lock churn from shared Online/Duello join/poll: candidate lookup precedes the mode lock, one actor receives 2xx waiting, and only a distinct same-mode candidate triggers pairing arbitration. Retry/cancel/timeout cleanup is caller/mode-scoped and idempotent; real actor/RLS/queue/lock/session failure retains safe 4xx/5xx evidence. Runtime authority evidence exports only allowlisted matching category/mode/operation/status/error/queue-state/cleanup/direct-start/no-lobby/two-actor fields. One-actor search/cancel can be automated; match remains NOT_AUTOMATABLE / TWO_ACTOR_REQUIRED, and Duello remains MANUAL_EXTERNAL without both A/B fixtures. Runtime E2E stays separate from Full Health.
 - Codex642 adds a bounded service-role list fallback when Base44 rejects a scoped matchmaking queue/lock filter, while retaining fail-closed 5xx classification if storage remains unreadable. Ref-owned countdown/poll/retry handles clear on cancel, timeout, retry, match, and unmount; timeout performs a final backend poll and a boundary match wins before own-row locked cleanup. Exact SDK 0.8.34, no-lobby direct start, unique Health IDs, Full Health/E2E separation, and the Duello two-actor manual gate remain mandatory.
+- Codex644 binds an unreadable deployed RandomMatchQueue endpoint to the existing backend-private EconomyOperationLock store through the same mode-scoped queue contract. The allowlisted strategy is proof-visible while private lock metadata stays server-only; stale/duplicate own-row handling, self-match prevention, reciprocal pairing, caller-only cleanup, and direct no-lobby handoff remain intact. Authenticated startup verifies pending guest-link proof and retires only conclusively stale local proof before linkGuestAccount. Exact SDK 0.8.34 and fail-closed real storage/session/RLS errors remain mandatory.
 `;
 
 export const CATEGORY_TAXONOMY_DOC = `# Kronox Category Taxonomy

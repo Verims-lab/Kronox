@@ -88,6 +88,7 @@ export default function PreGameHourglass({
       data-matchmaking-no-opponent-waiting={diagnostics?.noOpponentYetClassifiedAsWaiting ? 'true' : 'false'}
       data-matchmaking-stale-own-row-handled={diagnostics?.staleOwnRowHandled ? 'true' : 'false'}
       data-matchmaking-duplicate-own-row-handled={diagnostics?.duplicateOwnRowHandled ? 'true' : 'false'}
+      data-matchmaking-queue-storage={diagnostics?.queueStorageStrategy || undefined}
       data-matchmaking-retry-cleanup-observed={diagnostics?.retryCleanupObserved ? 'true' : 'false'}
       data-matchmaking-cancel-cleanup-observed={diagnostics?.cancelCleanupObserved ? 'true' : 'false'}
       data-matchmaking-direct-start-payload={diagnostics?.directGamePayloadAvailable ? 'true' : 'false'}

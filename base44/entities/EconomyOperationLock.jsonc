@@ -59,7 +59,7 @@
     },
     "metadata": {
       "type": "object",
-      "description": "Debug-safe metadata without secrets or identity payloads."
+      "description": "Backend-private operation metadata. Matchmaking fallback rows may contain hashed internal actor references; public UI and exports must never expose this object."
     },
     "description": {
       "type": "string",
