@@ -12,6 +12,11 @@ import {
   selectLiveLockWinner,
 } from '../../shared/randomMatchmakingPolicy.js';
 import { readMatchmakingRows } from '../../shared/randomMatchmakingRead.js';
+import {
+  FALLBACK_QUEUE_STORAGE,
+  PRIMARY_QUEUE_STORAGE,
+  resolveMatchmakingQueueStore,
+} from '../../shared/randomMatchmakingQueueStore.js';
 
 // Codex591 — Online Kapışma random matchmaking (RASTGELE EŞLEŞ).
 // Backend-authoritative queue + pairing for linked and guest actors.
@@ -60,6 +65,10 @@ const SAFE_START_RESPONSE_SHAPES = new Set([
   'timeout',
   'cancelled',
   'failed_safe',
+]);
+const SAFE_QUEUE_STORAGE_STRATEGIES = new Set([
+  PRIMARY_QUEUE_STORAGE,
+  FALLBACK_QUEUE_STORAGE,
 ]);
 const normalizeMode = normalizeMatchmakingMode;
 const KRONOX_ID_PATTERN = /^KX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
@@ -128,6 +137,7 @@ const safeDiagnostics = ({
   noOpponentYetClassifiedAsWaiting = false,
   staleOwnRowHandled = false,
   duplicateOwnRowHandled = false,
+  queueStorageStrategy = 'unknown',
   statusClass = '2xx',
   errorCategory = null,
 }: any) => {
@@ -178,6 +188,9 @@ const safeDiagnostics = ({
     noOpponentYetClassifiedAsWaiting: Boolean(noOpponentYetClassifiedAsWaiting),
     staleOwnRowHandled: Boolean(staleOwnRowHandled),
     duplicateOwnRowHandled: Boolean(duplicateOwnRowHandled),
+    queueStorageStrategy: SAFE_QUEUE_STORAGE_STRATEGIES.has(queueStorageStrategy)
+      ? queueStorageStrategy
+      : 'unknown',
     matchFoundObserved: Boolean(matchCreated),
     errorCategory,
     requestAction: ['join', 'poll', 'cancel', 'consume'].includes(action) ? action : 'unknown',
@@ -385,8 +398,21 @@ async function withPairingLock(
   throw new Error('random_matchmaking_lock_unavailable');
 }
 
+const queueStoreBindings = new WeakMap();
+
+async function bindQueueStore(base44: any, actorKeyHash: string, mode: string) {
+  const binding = await resolveMatchmakingQueueStore({
+    primaryEntity: base44?.asServiceRole?.entities?.RandomMatchQueue,
+    fallbackEntity: base44?.asServiceRole?.entities?.EconomyOperationLock,
+    actorKeyHash,
+    mode,
+  });
+  queueStoreBindings.set(base44, binding);
+  return binding.strategy;
+}
+
 function queueStore(base44: any) {
-  const entity = base44?.asServiceRole?.entities?.RandomMatchQueue;
+  const entity = queueStoreBindings.get(base44)?.entity;
   if (!entity?.filter || !entity?.list || !entity?.create || !entity?.get || !entity?.update) {
     throw new Error('random_matchmaking_queue_store_unavailable');
   }
@@ -948,7 +974,12 @@ Deno.serve(async (req) => {
     const resolved = await resolveOnlineActor(base44, body, diagnosticContext);
     if (!resolved.ok) return resolved.response;
     const actor = resolved.actor;
-    diagnosticContext = { ...diagnosticContext, actorKind: actor.playerType };
+    const queueStorageStrategy = await bindQueueStore(base44, actor.actorKeyHash, mode);
+    diagnosticContext = {
+      ...diagnosticContext,
+      actorKind: actor.playerType,
+      queueStorageStrategy,
+    };
 
     if (action === 'join') return await handleJoin(base44, actor, mode, diagnosticContext);
     if (action === 'poll') return await handlePoll(base44, actor, mode, diagnosticContext);

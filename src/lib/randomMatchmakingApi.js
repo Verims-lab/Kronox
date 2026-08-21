@@ -81,6 +81,11 @@ const SAFE_START_RESPONSE_SHAPES = new Set([
   'cancelled',
   'failed_safe',
 ]);
+const SAFE_QUEUE_STORAGE_STRATEGIES = new Set([
+  'random_match_queue',
+  'economy_lock_queue',
+  'unknown',
+]);
 
 function safeQueueState(value) {
   const state = String(value || 'unknown');
@@ -150,6 +155,9 @@ function safeDiagnostics(value, mode, action) {
     noOpponentYetClassifiedAsWaiting: Boolean(source.noOpponentYetClassifiedAsWaiting),
     staleOwnRowHandled: Boolean(source.staleOwnRowHandled),
     duplicateOwnRowHandled: Boolean(source.duplicateOwnRowHandled),
+    queueStorageStrategy: SAFE_QUEUE_STORAGE_STRATEGIES.has(source.queueStorageStrategy)
+      ? source.queueStorageStrategy
+      : 'unknown',
     matchFoundObserved: Boolean(source.matchFoundObserved),
     errorCategory: source.errorCategory
       ? safeErrorCategory(source.errorCategory, mode)
