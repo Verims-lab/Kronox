@@ -265,6 +265,13 @@ export const EXTRA_TESTS = [
     "fallbackSuffix = status === 401 || status === 403",
   ]), 'Product-critical actor/RLS denial cannot be converted to waiting or optional telemetry.'), ['base44/functions/randomMatchmaking/entry.ts', 'src/lib/randomMatchmakingApi.js']),
 
+  makeMatchmaking('runtime_failure_preserves_safe_actor_evidence', 'Runtime failure evidence preserves the observed search and actor diagnostics', () => sourceResult(required(runtimeHandlers, [
+    'evidence.searchScreenObserved = true;',
+    "'[data-testid=\"online-kapis-search-screen\"]'",
+    'mergeSafeMatchmakingEvidence(evidence, await readSafeMatchmakingEvidence(',
+    'const outcome = await requireSuccessfulBackendAction(runtime, {',
+  ]), 'The runner records the rendered search surface and allowlisted actor/queue diagnostics before enforcing the successful-response gate; a 4xx/5xx still blocks.'), ['tests/health-e2e/scenarioHandlers.mjs']),
+
   makeMatchmaking('matchmaking_queue_mode_scoped', 'Shared queue and lock remain mode scoped', () => sourceResult(required(randomBackend, [
     '{ actor_key_hash: actorKeyHash, mode }',
     "{ status: 'waiting', mode }",

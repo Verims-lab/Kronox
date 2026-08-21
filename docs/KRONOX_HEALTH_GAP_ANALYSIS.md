@@ -5,8 +5,10 @@ Status: current Health gap audit.
 Health is a contract guard. It is not release proof. Static checks prevent
 common drift, but Online, realtime, push, mobile wrappers, RLS/BOLA, and
 parallel economy behavior still require simulation or live/manual proof.
-The Online lobby/start/reconnect contract remains an architecture target and
-manual live-proof area even when reducer/static Health checks pass.
+The active Online/Duello contract is no-lobby: `/online` owns bounded search,
+same-screen match-found, and direct backend-authoritative `/game` or `/duel`
+handoff. The private `Lobby` row remains an implementation/session store only;
+two-actor delivery, reconnect, and result persistence remain live-proof areas.
 
 ## Why Recent Online Failures Escaped
 
@@ -429,6 +431,7 @@ browser automation. Question-service success remains mandatory gameplay proof.
 
 ## Manual / Live Probe Checklist
 
+- One-actor Online admission: the current deployed `randomMatchmaking` probe must return 2xx `waiting` for a completed actor, classify the actor as authenticated/guest, avoid the pairing lock when no opponent exists, and confirm 2xx caller-only cancel. A prior Codex643 Runtime E2E 5xx/permission report is stale only after this live probe and a fresh Runtime E2E rerun agree; it must never be hidden or downgraded.
 - Two-phone matchmaking: use distinct actors, enter Duello within 30 seconds,
   confirm both show `Rakip bulundu` on `/online`, never render `/lobby`, and
   enter the same exactly-two-player `/duel`; repeat through `Online Kapış`, then

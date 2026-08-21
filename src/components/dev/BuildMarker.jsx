@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex644 — Audit Base44 alignment, confirm live authenticated Online join/cancel, preserve failed-response actor/search evidence, and align Health/docs/shared-function/DB recommendations without product changes.
 // Codex643 — Restore live valid-actor Online admission through scoped Base44 queue-read fallback, preserve fail-closed errors, and add safe waiting/reconciliation diagnostics without route or scoring changes.
 // Codex642 — Restore the exact Base44 SDK pin, add bounded queue-read fallback for production matchmaking, and align cancel/timeout Health proof with explicit cleanup reasons.
 // Codex641 — Remove no-opponent matchmaking lock churn, classify shared Online/Duello backend failures safely, harden caller-only cleanup/presence pressure, and extend Runtime E2E/Health/docs without scoring or lobby changes.
@@ -222,7 +223,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex643';
+const BUILD_MARKER = 'Codex644';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

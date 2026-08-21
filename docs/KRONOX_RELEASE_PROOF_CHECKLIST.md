@@ -1697,9 +1697,11 @@ Manual release gates that source cannot prove:
   session before direct start.
 * One-actor production E2E must prove successful matchmaking response, search,
   cancel, no critical 5xx/permission diagnostic, and no `/lobby`; match/direct
-  game may remain `NOT_AUTOMATABLE / TWO_ACTOR_REQUIRED`. Duello pairing remains
-  `MANUAL_EXTERNAL / TWO_ACTOR_REQUIRED` unless both ignored A/B storage states
-  are present. Runtime E2E stays separate from Full Health.
+  game may remain `NOT_AUTOMATABLE / TWO_ACTOR_REQUIRED`. A Base44 Test Function
+  probe may establish current authenticated join/cancel behavior, but it does
+  not replace completed-guest or browser Runtime E2E proof. Duello pairing
+  remains `MANUAL_EXTERNAL / TWO_ACTOR_REQUIRED` unless both ignored A/B storage
+  states are present. Runtime E2E stays separate from Full Health.
 * Keep Health suite/case keys globally unique. Export only allowlisted matching
   category/mode/operation/status/error/queue-state/cleanup/direct-start booleans;
   never export URLs, credentials, actor/session IDs, private storage metadata,

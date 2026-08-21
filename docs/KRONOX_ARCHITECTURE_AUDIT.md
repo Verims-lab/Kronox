@@ -277,6 +277,38 @@ The client still stops its single poll/retry lifecycle before cancel, timeout,
 or retry. Timeout performs one final authoritative poll, a committed match wins
 the boundary, and only an unmatched caller row is settled under the mode lock.
 The active flow remains same-screen search followed by direct `/game` or
-`/duel`; no lobby, score, reward, pricing, or gameplay rule changed. The root
-and lockfile SDK specs are restored to exact `0.8.34`, aligned with function
-imports.
+`/duel`; no lobby, score, reward, pricing, or gameplay rule changed. Package and
+lockfile SDK alignment remains Codex/repository-owned and is not changed by this
+Base44 audit.
+
+## Codex644 Base44 Alignment Audit
+
+The current deployed `randomMatchmaking` callable was probed with an authenticated
+actor. Join returned 2xx `waiting` with `actorKind=authenticated`,
+`noOpponentYetClassifiedAsWaiting=true`, and no pairing-lock attempt; caller-only
+cancel then returned 2xx `cancelled` with `cancelCleanupObserved=true`. This
+confirms the earlier Codex643 Online 5xx/permission report no longer reproduces
+for the authenticated Base44 path. Completed-guest invocation, two-actor pairing,
+and a fresh browser Runtime E2E report remain external proof; failures must stay
+visible and blocking.
+
+Runtime evidence capture now records the rendered Online search surface and its
+allowlisted actor/queue diagnostics before enforcing the successful-response
+gate. This does not weaken the gate: 4xx/5xx still fails, but evidence no longer
+misreports an observed search screen or resolved actor as false/unknown merely
+because the response was rejected.
+
+Shared module reuse is working for the deployed matchmaking path:
+`randomMatchmakingPolicy.js`, `randomMatchmakingRead.js`, and
+`onlineActorCrypto.ts` are imported by the live function. No broad Shared
+Function migration is recommended now. The safe pilot is the already-deployed
+matchmaking helper set; admin authorization and economy helpers remain unchanged
+until deploy-order, publish consistency, cold-start, and multi-function runtime
+proof are recorded.
+
+DB risk remains Medium overall: queue/session/score writes are backend-owned and
+privacy boundaries are strong, while unique indexes/atomic compare-and-set are
+still platform/manual proof gaps. `DailyWheelSpin` owner reads remain available,
+but create/update/delete are now backend/admin-only so players cannot tamper with
+the server-selected claim ledger. No data cleanup, index, score, reward, or
+pricing mutation was performed.

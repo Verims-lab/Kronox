@@ -16,6 +16,7 @@ import economyGatewaySource from '../../lib/dbGateway/economyGateway.js?raw';
 import diamondEconomySource from '../../lib/diamondEconomy.js?raw';
 import gameSoundsSource from '../../lib/gameSounds.js?raw';
 import guestProfileEntitySource from '../../../base44/entities/GuestProfile.jsonc?raw';
+import dailyWheelSpinEntitySource from '../../../base44/entities/DailyWheelSpin.jsonc?raw';
 import claimDailyWheelSource from '../../../base44/functions/claimDailyWheelReward/entry.ts?raw';
 import { ECONOMY_RULES_DOC as economyRulesSource } from '@/lib/economyRulesDoc';
 import { RELEASE_PROOF_CHECKLIST_DOC as releaseChecklistSource } from '@/lib/package2DocMirrors';
@@ -1387,6 +1388,24 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Daily Wheel reset and account-deletion cleanup are documented.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('daily_wheel_ledger_mutations_backend_only',
+    'Daily Wheel ledger rows are readable by their owner but mutable only by backend/admin',
+    () => {
+      const missing = missingTokens(dailyWheelSpinEntitySource, [
+        '"create": { "user_condition": { "role": "admin" } }',
+        '"data.user_email": "{{user.email}}"',
+        '"update": { "user_condition": { "role": "admin" } }',
+        '"delete": { "user_condition": { "role": "admin" } }',
+      ]);
+      if (missing.length) return fail('A player can directly create, update, or delete the Daily Wheel audit ledger instead of using the backend claim path.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'REAL_PRODUCT_RISK',
+        file: 'base44/entities/DailyWheelSpin.jsonc',
+        missing,
+      });
+      return pass('Owners retain read access while create/update/delete remain backend/admin-only.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('daily_wheel_duplicate_race_runtime_probe_required',

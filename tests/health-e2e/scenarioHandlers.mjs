@@ -855,6 +855,11 @@ async function onlineRandom(runtime, config) {
     const matchmakingBaseline = runtime.captureServiceBaseline(RUNTIME_SERVICE_ACTION.ONLINE_MATCHMAKING);
     matchmakingSessionBaseline = matchmakingBaseline;
     await clickAndSee(runtime.page, '[data-testid="online-kapis-entry"]', '[data-testid="online-kapis-search-screen"]', 20000);
+    evidence.searchScreenObserved = true;
+    mergeSafeMatchmakingEvidence(evidence, await readSafeMatchmakingEvidence(
+      runtime.page,
+      '[data-testid="online-kapis-search-screen"]',
+    ));
     const outcome = await requireSuccessfulBackendAction(runtime, {
       category: RUNTIME_SERVICE_CATEGORY.ONLINE_MATCHMAKING,
       actionLabel: RUNTIME_SERVICE_ACTION.ONLINE_MATCHMAKING,
@@ -862,7 +867,6 @@ async function onlineRandom(runtime, config) {
       failurePrefix: 'ONLINE_MATCHMAKING',
       description: 'Online matchmaking',
     });
-    evidence.searchScreenObserved = true;
     evidence.backendMatchEvidence = {
       observed: true,
       successful: true,
@@ -870,10 +874,6 @@ async function onlineRandom(runtime, config) {
       statusClass: outcome.lifecycle?.responseStatusClass || '2xx',
       safeSummary: 'Online matchmaking returned a successful backend response.',
     };
-    mergeSafeMatchmakingEvidence(evidence, await readSafeMatchmakingEvidence(
-      runtime.page,
-      '[data-testid="online-kapis-search-screen"]',
-    ));
     await inspectNoLobby();
     return 'Online Kapış search opened after a successful matchmaking backend response.';
   });
