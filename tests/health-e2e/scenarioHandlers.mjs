@@ -642,6 +642,7 @@ const SAFE_MATCHMAKING_QUEUE_STATES = new Set([
   'none', 'waiting', 'pairing', 'matched', 'consumed', 'cancelled', 'expired', 'timeout', 'unknown',
 ]);
 const SAFE_MATCHMAKING_ACTOR_KINDS = new Set(['guest', 'authenticated', 'unknown']);
+const SAFE_MATCHMAKING_QUEUE_STORAGE = new Set(['random_match_queue', 'economy_lock_queue', 'unknown']);
 const SAFE_MATCHMAKING_START_RESPONSE_SHAPES = new Set([
   'waiting', 'searching', 'matched', 'direct_start_ready', 'timeout', 'cancelled', 'failed_safe',
 ]);
@@ -678,6 +679,7 @@ async function readSafeMatchmakingEvidence(page, selector) {
     noOpponentYetClassifiedAsWaiting,
     staleOwnRowHandled,
     duplicateOwnRowHandled,
+    queueStorageStrategy,
     retryCleanupObserved,
     cancelCleanupObserved,
     directStartPayloadAvailable,
@@ -695,6 +697,7 @@ async function readSafeMatchmakingEvidence(page, selector) {
     read('data-matchmaking-no-opponent-waiting'),
     read('data-matchmaking-stale-own-row-handled'),
     read('data-matchmaking-duplicate-own-row-handled'),
+    read('data-matchmaking-queue-storage'),
     read('data-matchmaking-retry-cleanup-observed'),
     read('data-matchmaking-cancel-cleanup-observed'),
     read('data-matchmaking-direct-start-payload'),
@@ -719,6 +722,9 @@ async function readSafeMatchmakingEvidence(page, selector) {
     noOpponentYetClassifiedAsWaiting: noOpponentYetClassifiedAsWaiting === 'true',
     staleOwnRowHandled: staleOwnRowHandled === 'true',
     duplicateOwnRowHandled: duplicateOwnRowHandled === 'true',
+    queueStorageStrategy: SAFE_MATCHMAKING_QUEUE_STORAGE.has(queueStorageStrategy)
+      ? queueStorageStrategy
+      : 'unknown',
     retryCleanupObserved: retryCleanupObserved === 'true',
     cancelCleanupObserved: cancelCleanupObserved === 'true',
     directStartPayloadAvailable: directStartPayloadAvailable === 'true',
@@ -738,6 +744,7 @@ function mergeSafeMatchmakingEvidence(target, observed) {
     'queueStateBefore',
     'queueStateAfter',
     'startResponseShape',
+    'queueStorageStrategy',
   ]) {
     if (observed[key] != null) target[key] = observed[key];
   }
@@ -774,6 +781,7 @@ async function onlineRandom(runtime, config) {
     noOpponentYetClassifiedAsWaiting: false,
     staleOwnRowHandled: false,
     duplicateOwnRowHandled: false,
+    queueStorageStrategy: 'unknown',
     retryCleanupObserved: false,
     cancelCleanupObserved: false,
     directStartPayloadAvailable: false,

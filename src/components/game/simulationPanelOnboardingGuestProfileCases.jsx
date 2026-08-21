@@ -369,6 +369,10 @@ export const EXTRA_TESTS = [
         'linked_guest_ids',
         'linkPendingGuestAccount',
         "base44.functions.invoke('linkGuestAccount'",
+        'STALE_GUEST_LINK_PROOF_CODES',
+        'stale_guest_link_proof',
+        'clearPendingGuestAccountLinkIntent();',
+        'clearGuestSession();',
       ]);
       const forbidden = presentTokens(linkGuestAccountSource, [
         'console.log(body',
@@ -384,7 +388,7 @@ export const EXTRA_TESTS = [
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Guest account linking is server-authoritative, token-proven, audited, and idempotent.', {
+      return pass('Guest account linking is server-authoritative, token-proven, audited, idempotent, and retires stale local proof before invoking the merge function.', {
         verification: 'STATIC_CONTRACT',
         actionType: ACTION_TYPES.CODE_FIX,
       });

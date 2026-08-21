@@ -11,6 +11,11 @@ import {
   selectOwnActiveQueueRow,
 } from '../base44/shared/randomMatchmakingPolicy.js';
 import { readMatchmakingRows } from '../base44/shared/randomMatchmakingRead.js';
+import {
+  FALLBACK_QUEUE_STORAGE,
+  createEconomyLockQueueStore,
+  resolveMatchmakingQueueStore,
+} from '../base44/shared/randomMatchmakingQueueStore.js';
 
 const now = Date.parse('2026-08-19T12:00:00.000Z');
 const freshExpiry = '2026-08-19T12:00:30.000Z';
@@ -140,4 +145,125 @@ await assert.rejects(() => readMatchmakingRows({
   fallbackLimit: 500,
 }), /matchmaking_read_permission_denied/);
 
-process.stdout.write('Online matchmaking runtime contracts: PASS (canonical modes, mode isolation, no self-match, reciprocal pair commit, active-row priority, scoped compound-filter fallback, fail-closed and permission-classified reads, expiry fallback, live-lock election).\n');
+const fallbackLocks = [];
+const fallbackEntity = {
+  async filter(query) {
+    return fallbackLocks.filter((row) => Object.entries(query || {}).every(([key, value]) => (
+      String(row?.[key] ?? '') === String(value ?? '')
+    )));
+  },
+  async list() {
+    return [...fallbackLocks];
+  },
+  async get(id) {
+    return fallbackLocks.find((row) => row.id === id) || null;
+  },
+  async create(data) {
+    const row = { id: `fallback-${fallbackLocks.length + 1}`, ...data };
+    fallbackLocks.push(row);
+    return row;
+  },
+  async update(id, patch) {
+    const index = fallbackLocks.findIndex((row) => row.id === id);
+    assert.notEqual(index, -1);
+    fallbackLocks[index] = {
+      ...fallbackLocks[index],
+      ...patch,
+      metadata: {
+        ...(fallbackLocks[index]?.metadata || {}),
+        ...(patch?.metadata || {}),
+      },
+    };
+    return fallbackLocks[index];
+  },
+};
+const unavailablePrimary = {
+  filter: async () => { throw new Error('queue_endpoint_unavailable'); },
+  list: async () => { throw new Error('queue_endpoint_unavailable'); },
+  get: async () => null,
+  create: async () => null,
+  update: async () => null,
+};
+const resolvedQueue = await resolveMatchmakingQueueStore({
+  primaryEntity: unavailablePrimary,
+  fallbackEntity,
+  actorKeyHash: 'actor-a',
+  mode: STANDARD_RANDOM_MODE,
+});
+assert.equal(resolvedQueue.strategy, FALLBACK_QUEUE_STORAGE);
+
+const deniedFallbackEntity = {
+  filter: async () => {
+    const error = new Error('permission denied');
+    error.status = 403;
+    throw error;
+  },
+  list: async () => {
+    const error = new Error('permission denied');
+    error.status = 403;
+    throw error;
+  },
+  get: async () => null,
+  create: async () => null,
+  update: async () => null,
+};
+await assert.rejects(() => resolveMatchmakingQueueStore({
+  primaryEntity: unavailablePrimary,
+  fallbackEntity: deniedFallbackEntity,
+  actorKeyHash: 'actor-denied',
+  mode: STANDARD_RANDOM_MODE,
+}), /matchmaking_fallback_queue_permission_denied/);
+
+const fallbackQueue = createEconomyLockQueueStore(fallbackEntity);
+const fallbackA = await fallbackQueue.create({
+  queue_ref: 'queue-a',
+  actor_key_hash: 'actor-a',
+  mode: STANDARD_RANDOM_MODE,
+  player_type: 'linked',
+  public_username: 'PlayerA',
+  status: 'waiting',
+  created_at: '2026-08-19T11:59:58.000Z',
+  expires_at: freshExpiry,
+});
+await fallbackQueue.create({
+  queue_ref: 'queue-b',
+  actor_key_hash: 'actor-b',
+  mode: STANDARD_RANDOM_MODE,
+  player_type: 'guest',
+  public_username: 'PlayerB',
+  status: 'waiting',
+  created_at: '2026-08-19T11:59:59.000Z',
+  expires_at: freshExpiry,
+});
+await fallbackQueue.create({
+  queue_ref: 'queue-duel',
+  actor_key_hash: 'actor-c',
+  mode: SAME_QUESTION_DUEL_MODE,
+  player_type: 'guest',
+  public_username: 'PlayerC',
+  status: 'waiting',
+  created_at: '2026-08-19T11:59:59.000Z',
+  expires_at: freshExpiry,
+});
+const fallbackOnlineRows = await fallbackQueue.filter({
+  status: 'waiting',
+  mode: STANDARD_RANDOM_MODE,
+}, '-created_at', 100);
+assert.deepEqual(fallbackOnlineRows.map((row) => row.queue_ref).sort(), ['queue-a', 'queue-b']);
+assert.equal(selectCompatibleWaitingRow(
+  fallbackOnlineRows,
+  'actor-a',
+  STANDARD_RANDOM_MODE,
+  now,
+)?.queue_ref, 'queue-b');
+const fallbackCancelled = await fallbackQueue.update(fallbackA.id, {
+  status: 'cancelled',
+  cancelled_at: '2026-08-19T12:00:01.000Z',
+});
+assert.equal(fallbackCancelled.status, 'cancelled');
+assert.equal((await fallbackQueue.filter({
+  actor_key_hash: 'actor-a',
+  mode: STANDARD_RANDOM_MODE,
+}, '-created_at', 5))[0]?.status, 'cancelled');
+
+process.stdout.write('Online matchmaking runtime contracts: PASS (canonical modes, mode isolation, no self-match, reciprocal pair commit, active-row priority, scoped read fallback, deployed lock-store queue fallback, fail-closed permission classification, expiry, and live-lock election).\n');

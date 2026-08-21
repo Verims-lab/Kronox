@@ -9,6 +9,7 @@ const KRONOX_USER_ID_PATTERN = /^KX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP
 const USERNAME_PREFIX = 'KronoxUser';
 const UNSAFE_PUBLIC_USERNAME_PATTERN = /^(apple|google|firebase|auth0|base44|provider|uid|owner)(?:[\w:-].*)?$/i;
 const INTERNAL_ID_PUBLIC_USERNAME_PATTERN = /^(guest|player|owner|user_key|player_key|g|u)_[A-Za-z0-9_-]{4,}$/i;
+const STALE_GUEST_LINK_PROOF_CODES = new Set(['guest_profile_not_found', 'invalid_guest_token']);
 
 export const GUEST_ONBOARDING_STATES = Object.freeze({
   GUEST_CREATED: 'guest_created',
@@ -407,11 +408,31 @@ export async function linkPendingGuestAccount({ soloProgress = null, onlineProgr
   const intent = getPendingGuestAccountLinkIntent();
   if (!credentials.guest_id || !credentials.guest_token || !intent?.idempotency_key) return null;
 
-  await syncGuestProfileProgress({ soloProgress, onlineProgress }).catch(() => null);
-  const response = await base44.functions.invoke('linkGuestAccount', {
-    ...credentials,
-    idempotency_key: intent.idempotency_key,
-  });
+  try {
+    const verified = await invokeCreateGuestProfile(credentials);
+    storeGuestSession(verified.profile, verified.guest_token || credentials.guest_token);
+    await syncGuestProfileProgress({ soloProgress, onlineProgress });
+  } catch (error) {
+    if (!STALE_GUEST_LINK_PROOF_CODES.has(String(error?.code || ''))) throw error;
+    clearPendingGuestAccountLinkIntent();
+    clearGuestSession();
+    return { ok: false, skipped: true, reason: 'stale_guest_link_proof' };
+  }
+
+  let response;
+  try {
+    response = await base44.functions.invoke('linkGuestAccount', {
+      ...credentials,
+      idempotency_key: intent.idempotency_key,
+    });
+  } catch (error) {
+    const data = error?.response?.data || error?.data || {};
+    const code = String(data?.code || data?.error || error?.code || '');
+    if (!STALE_GUEST_LINK_PROOF_CODES.has(code)) throw error;
+    clearPendingGuestAccountLinkIntent();
+    clearGuestSession();
+    return { ok: false, skipped: true, reason: 'stale_guest_link_proof' };
+  }
   const data = response?.data || response || {};
   if (data?.ok === false) {
     const error = new Error(data.code || data.error || 'account_link_failed');
