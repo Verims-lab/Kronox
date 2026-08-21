@@ -277,9 +277,26 @@ The client still stops its single poll/retry lifecycle before cancel, timeout,
 or retry. Timeout performs one final authoritative poll, a committed match wins
 the boundary, and only an unmatched caller row is settled under the mode lock.
 The active flow remains same-screen search followed by direct `/game` or
-`/duel`; no lobby, score, reward, pricing, or gameplay rule changed. Package and
-lockfile SDK alignment remains Codex/repository-owned and is not changed by this
-Base44 audit.
+`/duel`; no lobby, score, reward, pricing, or gameplay rule changed. The root
+and lockfile SDK specs are restored to exact `0.8.34`, aligned with function
+imports; package/lockfile ownership remains Codex/repository-side and this
+Base44 audit does not patch those files.
+
+## Codex644 Deployed Queue Store Compatibility
+
+The production Codex643 trace showed that all bounded reads against the
+deployed `RandomMatchQueue` endpoint failed before a valid authenticated actor
+could create or find a waiting row. `randomMatchmaking` now probes that primary
+store and, only when it is unreadable, uses the existing backend-private
+`EconomyOperationLock` entity through the same queue interface. The adapter is
+mode-scoped, preserves active-row reconciliation and reciprocal pairing, and
+surfaces its allowlisted storage strategy without exposing lock metadata.
+
+The separate critical 401 came from a stale local guest-link intent during
+authenticated startup. The client now verifies that guest proof first and
+retires only a conclusively missing or invalid local proof before calling the
+merge function. Neither change alters routes, lobby removal, gameplay, scores,
+rewards, pricing, or public identity.
 
 ## Codex644 Base44 Alignment Audit
 

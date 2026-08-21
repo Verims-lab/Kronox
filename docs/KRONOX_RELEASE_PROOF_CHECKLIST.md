@@ -1723,5 +1723,24 @@ Manual release gates that source cannot prove:
   for a classified backend failure. Active Online/Duello remains no-lobby and
   direct-start only.
 * Full Health and Runtime E2E remain separate, and Health suite/case IDs remain
-  globally unique. One-actor production E2E must clear the critical 5xx gate;
+globally unique. One-actor production E2E must clear the critical 5xx gate;
   Duello stays manual/two-actor-required without both isolated A/B states.
+
+## Deployed Queue Compatibility Gate (Codex644)
+
+* If the deployed `RandomMatchQueue` endpoint rejects every bounded
+  service-role read, shared matchmaking may bind the existing backend-private
+  `EconomyOperationLock` entity as a mode-scoped queue store. The selected
+  strategy is allowlisted in diagnostics; private lock metadata is never
+  exported to UI or reports.
+* The fallback preserves one active row per actor/mode, stale and duplicate
+  reconciliation, self-match prevention, reciprocal pair commit, caller-only
+  cancel, and direct `/game` or `/duel` handoff. It adds no backend function and
+  does not make a real lock/session/RLS failure look like normal waiting.
+* Registered startup verifies pending guest-link proof before invoking
+  `linkGuestAccount`. A proven missing/invalid old guest session retires only
+  that local intent instead of issuing a guaranteed permission-denied request;
+  transient and unclassified failures remain visible and retryable.
+* Base44 authenticated join/cancel probe evidence may confirm the current 2xx
+  waiting/cancel path, but completed-guest, two-actor, and browser Runtime E2E
+  proof remain separate and required where applicable.
