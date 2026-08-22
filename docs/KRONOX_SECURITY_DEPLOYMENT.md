@@ -94,6 +94,13 @@ The backend Base44 Deno functions, frontend `package.json`, and committed
 exactly. The deploy gate and source-connected Health checks validate all three
 surfaces. Live Base44 deployment remains separate manual proof.
 
+Base44 package-update exports have repeatedly changed the main-branch package
+spec back to a newer caret range. `npm install` now runs the fail-fast
+`scripts/checkBase44SdkPin.mjs` preinstall guard, which rejects a stale
+package/lock combination before dependency installation. The exact-pin Codex
+commit must still be merged back to main so later main-to-Codex syncs do not
+reintroduce the generated dependency drift.
+
 `scripts/checkBase44FunctionsCompile.mjs` caps the repo at 50 Base44 function
 entry files, verifies SDK alignment, and rejects removed legacy/test/diagnostic
 function directories. The repository is currently at exactly 50 entries after
