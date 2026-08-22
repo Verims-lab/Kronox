@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex647 — Polish the Online entry screen with concise copy, Barlow typography, unified navy/cyan cards, and a compact Duello CTA while preserving selectors and behavior.
 // Codex646 — Restore Base44 SDK 0.8.34 after bot export e9354206, enforce repo-local save-exact plus source-connected guard proof, and preserve all product behavior.
 // Codex645 — Keep Base44 SDK 0.8.34 fail-fast across generated main syncs and make DailyWheelSpin owner-read/admin-mutation Health proof formatting-independent; no product behavior changes.
 // Codex644 — Restore SDK/queue/guest-link compatibility, confirm live authenticated Online join/cancel, preserve failed-response evidence, and align Base44 Health/docs/DB guidance without route, scoring, reward, or pricing changes.
@@ -225,7 +226,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex646';
+const BUILD_MARKER = 'Codex647';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

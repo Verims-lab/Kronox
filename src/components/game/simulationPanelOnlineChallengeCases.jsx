@@ -87,7 +87,8 @@ export const EXTRA_TESTS = [
         'selected_category_ids',
       ]);
       const required = missingTokens(onlineChallengeScreenSource, [
-        'Tüm kategorilerden rastgele sorular',
+        'const random = useRandomMatchmaking(STANDARD_RANDOM_MODE)',
+        'const duel = useRandomMatchmaking(SAME_QUESTION_DUEL_MODE)',
       ]);
       if (forbidden.length || required.length) {
         return fail('Category selection UI/state leaked back into the Online screen.', {
@@ -95,12 +96,52 @@ export const EXTRA_TESTS = [
           classification: 'REAL_PRODUCT_RISK',
           file: 'OnlineChallengeScreen.jsx',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'visible all-category random copy and no OnlineCategoryCarousel / selectedCategories / selected_category_ids tokens',
+          expected: 'canonical random/Duello mode wiring and no OnlineCategoryCarousel / selectedCategories / selected_category_ids tokens',
           actual: { forbidden, required },
         });
       }
       return pass('Online screen has no category selection UI/state.',
         { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION' });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('online_challenge_flow', 'online_main_visual_polish_contract',
+    'Online main keeps Kronox typography, unified card surfaces, concise copy, and compact Duello CTA',
+    () => {
+      const required = missingTokens(onlineChallengeScreenSource, [
+        'ONLINE_DISPLAY_FONT',
+        '#F4F7FB',
+        '#102A4A',
+        '#55D8FF3D',
+        '#FFC928',
+        '#081327',
+        'fontWeight: 800',
+        'fontWeight: 700',
+        'action="Duelloya Başla"',
+        'testId="online-invite-entry"',
+        'testId="online-kapis-entry"',
+        'testId="duello-entry"',
+      ]);
+      const forbidden = forbiddenTokensFound(onlineChallengeScreenSource, [
+        'Tüm kategorilerden rastgele sorular',
+        'Seçtiğin oyuncuya 60 saniye davet.',
+        '30 saniyede rastgele bir rakip bul.',
+        'Aynı soruda rakibinden hızlı ve doğru ol.',
+        '2 oyuncu · 10 kart hedefi · Rastgele rakip',
+      ]);
+      if (required.length || forbidden.length) {
+        return fail('Online main visual-only contract drifted.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'OnlineChallengeScreen.jsx',
+          actionType: ACTION_TYPES.CODE_FIX,
+          actual: { required, forbidden },
+        });
+      }
+      return pass('Online main uses the requested concise Kronox card hierarchy without changing entry actions or selectors.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'SOURCE_CONNECTED',
+      });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 

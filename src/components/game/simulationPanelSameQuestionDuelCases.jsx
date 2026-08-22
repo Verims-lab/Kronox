@@ -44,8 +44,9 @@ export const EXTRA_TESTS = [
     ...required(modeDisplay + onlineScreen, [
       "DUELLO_DISPLAY_NAME = 'Duello'",
       'label={DUELLO_DISPLAY_NAME}',
-      'Duelloya Başla',
-      '2 oyuncu · 10 kart hedefi · Rastgele rakip',
+      'action="Duelloya Başla"',
+      'testId="duello-entry"',
+      'onClick={handleStartDuel}',
     ]),
     ...forbidden(bottomNav, ['Duello']),
   ], 'Duello entry remains on the Online screen and outside BottomNav.'), ['onlineModeDisplay.js', 'OnlineChallengeScreen.jsx', 'BottomNav.jsx']),

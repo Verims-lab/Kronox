@@ -1100,10 +1100,10 @@ export const EXTRA_TESTS = [
     () => {
       const online = safeStr(onlineChallengeScreenSource);
       const required = [
-        'Tüm kategorilerden rastgele sorular',
+        'ONLINE KAPIŞMA',
         'Arkadaşını Davet Et',
-        'Rastgele Eşleş',
-        'veya kodla katıl',
+        'label="Online Kapış"',
+        'label={DUELLO_DISPLAY_NAME}',
         'useRandomMatchmaking',
         'ctaDisabledRandom = loading || creating',
         'friendModalOpen',
@@ -1128,7 +1128,7 @@ export const EXTRA_TESTS = [
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Online challenge screen has no category metadata UI path and keeps invite/random/join entry points available.',
+      return pass('Online challenge screen has no category metadata UI path and keeps invite/random/Duello entry points available.',
         {
           verification: 'STATIC_CONTRACT',
           classification: 'STATIC_CHECK_LIMITATION',
@@ -1150,10 +1150,10 @@ export const EXTRA_TESTS = [
       const startBackend = safeStr(startLobbyGameSource);
       const required = {
         challenge: [
-          'Tüm kategorilerden rastgele sorular',
+          'const random = useRandomMatchmaking(STANDARD_RANDOM_MODE)',
           'Arkadaşını Davet Et',
-          'Rastgele Eşleş',
-          'veya kodla katıl',
+          'label="Online Kapış"',
+          'label={DUELLO_DISPLAY_NAME}',
         ],
         room: [
           'const lobbyPayload = { code, playerName: derivedName, maxPlayers }',
@@ -1448,7 +1448,7 @@ export const EXTRA_TESTS = [
       const source = `${safeStr(onlineChallengeScreenSource)}\n${safeStr(startLobbyGameSource)}`;
       const required = [
         'Category selection is removed',
-        'Tüm kategorilerden rastgele sorular',
+        'const random = useRandomMatchmaking(STANDARD_RANDOM_MODE)',
         'every active category',
         'selectedCategoriesOnly: false',
         'allCategoriesRandom: true',

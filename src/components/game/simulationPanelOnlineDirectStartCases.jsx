@@ -435,7 +435,7 @@ export const LEGACY_OVERRIDE_TESTS = [
   legacyMake('online_category_taxonomy', 'online_screen_uses_current_metadata_and_retry',
     'Online selection uses the current all-active-category contract', () => sourceContract(
       onlineScreenSource,
-      ['label="Online Kapış"', 'label={DUELLO_DISPLAY_NAME}', 'Tüm kategorilerden rastgele sorular', 'onRetry'],
+      ['label="Online Kapış"', 'label={DUELLO_DISPLAY_NAME}', 'const random = useRandomMatchmaking(STANDARD_RANDOM_MODE)', 'onRetry'],
       'Online exposes its current modes and retry surfaces without a category selector.',
       ['selectedCategories', 'CategoryCarousel', 'veya kodla katıl'],
     ), ['src/components/lobby/OnlineChallengeScreen.jsx']),
