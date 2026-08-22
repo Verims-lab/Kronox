@@ -52,6 +52,42 @@ function forbiddenTokens(source, tokens) {
   return tokens.filter((token) => value.includes(token));
 }
 
+function extractJsonObjectAfterKey(source, key) {
+  const text = safeStr(source);
+  const keyIndex = text.indexOf(`"${key}"`);
+  if (keyIndex < 0) return '';
+  const start = text.indexOf('{', keyIndex);
+  if (start < 0) return '';
+  let depth = 0;
+  for (let index = start; index < text.length; index += 1) {
+    if (text[index] === '{') depth += 1;
+    if (text[index] === '}') {
+      depth -= 1;
+      if (depth === 0) return text.slice(start, index + 1);
+    }
+  }
+  return '';
+}
+
+function auditDailyWheelLedgerRls(source) {
+  const readBlock = extractJsonObjectAfterKey(source, 'read');
+  const mutations = ['create', 'update', 'delete'].map((operation) => {
+    const block = extractJsonObjectAfterKey(source, operation);
+    const adminOnly = block.includes('"user_condition"')
+      && block.includes('"role": "admin"')
+      && !block.includes('"data.')
+      && !block.includes('"{{user.');
+    return { operation, adminOnly };
+  });
+  const ownerReadable = readBlock.includes('"data.user_email": "{{user.email}}"');
+  const adminReadable = readBlock.includes('"user_condition"') && readBlock.includes('"role": "admin"');
+  return {
+    ownerReadable,
+    adminReadable,
+    mutationFailures: mutations.filter(({ adminOnly }) => !adminOnly).map(({ operation }) => operation),
+  };
+}
+
 function pass(reason, extra = {}) { return { status: STATUS.PASS, reason, ...extra }; }
 function fail(reason, extra = {}) { return { status: STATUS.FAIL, reason, ...extra }; }
 function notAutomatable(reason, extra = {}) { return { status: STATUS.NOT_AUTOMATABLE, reason, ...extra }; }
@@ -1393,17 +1429,12 @@ export const EXTRA_TESTS = [
   makeCase('daily_wheel_ledger_mutations_backend_only',
     'Daily Wheel ledger rows are readable by their owner but mutable only by backend/admin',
     () => {
-      const missing = missingTokens(dailyWheelSpinEntitySource, [
-        '"create": { "user_condition": { "role": "admin" } }',
-        '"data.user_email": "{{user.email}}"',
-        '"update": { "user_condition": { "role": "admin" } }',
-        '"delete": { "user_condition": { "role": "admin" } }',
-      ]);
-      if (missing.length) return fail('A player can directly create, update, or delete the Daily Wheel audit ledger instead of using the backend claim path.', {
+      const audit = auditDailyWheelLedgerRls(dailyWheelSpinEntitySource);
+      if (!audit.ownerReadable || !audit.adminReadable || audit.mutationFailures.length) return fail('A player can directly create, update, or delete the Daily Wheel audit ledger instead of using the backend claim path.', {
         verification: 'STATIC_CONTRACT',
         classification: 'REAL_PRODUCT_RISK',
         file: 'base44/entities/DailyWheelSpin.jsonc',
-        missing,
+        actual: audit,
       });
       return pass('Owners retain read access while create/update/delete remain backend/admin-only.', { verification: 'STATIC_CONTRACT' });
     }),
