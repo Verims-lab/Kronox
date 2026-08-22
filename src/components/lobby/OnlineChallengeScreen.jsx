@@ -26,11 +26,13 @@ import {
  *     then wait up to 60s for that player to accept.
  *   • "Online Kapış" — join the random matchmaking queue, wait up to 30s
  *     to be paired with another searching player.
+ *   • "Duello" — join the same-question duel queue for a direct match.
  * Match found stays on this visual surface and hands the private backend
  * session to the direct-start coordinator. No waiting-room UI is mounted.
  */
 const INVITE_WAIT_MS = 60 * 1000;
 const INVITE_POLL_MS = 2500;
+const ONLINE_DISPLAY_FONT = '"Barlow Condensed", "Arial Narrow", sans-serif';
 export default function OnlineChallengeScreen({
   user,
   guestProfile = null,
@@ -238,13 +240,15 @@ export default function OnlineChallengeScreen({
 
         <TitleBlock />
 
-        <div className="mt-5 space-y-3">
+        <div
+          className="mt-4 grid"
+          style={{ gap: 'clamp(0.65rem, 1.8dvh, 0.85rem)' }}
+        >
           <ModeButton
             testId="online-invite-entry"
             icon={Users}
             label="Arkadaşını Davet Et"
             ariaLabel="Arkadaşını Davet Et"
-            hint="Seçtiğin oyuncuya 60 saniye davet."
             disabled={ctaDisabledInvite}
             onClick={() => { sounds.tap(); setFriendModalOpen(true); }}
           />
@@ -253,7 +257,6 @@ export default function OnlineChallengeScreen({
             icon={Shuffle}
             label="Online Kapış"
             ariaLabel="Online Kapış"
-            hint="30 saniyede rastgele bir rakip bul."
             disabled={ctaDisabledRandom}
             onClick={handleStartRandom}
           />
@@ -262,8 +265,6 @@ export default function OnlineChallengeScreen({
             icon={Target}
             label={DUELLO_DISPLAY_NAME}
             ariaLabel="Duello — Duelloya Başla"
-            hint="Aynı soruda rakibinden hızlı ve doğru ol."
-            helper="2 oyuncu · 10 kart hedefi · Rastgele rakip"
             action="Duelloya Başla"
             disabled={ctaDisabledDuel}
             onClick={handleStartDuel}
@@ -321,11 +322,13 @@ function TitleBlock() {
       <div className="flex items-center justify-center gap-2.5">
         <DecorStar />
         <h1
-          className="font-cinzel font-black"
           style={{
-            color: '#f1f4ff',
-            fontSize: 'clamp(17px, 5.2vw, 22px)',
-            letterSpacing: '0.16em',
+            color: '#F4F7FB',
+            fontFamily: ONLINE_DISPLAY_FONT,
+            fontSize: 'clamp(1.55rem, 6.5vw, 2rem)',
+            fontWeight: 800,
+            letterSpacing: 0,
+            lineHeight: 1,
             textShadow: '0 0 14px rgba(250,204,21,0.30), 0 2px 4px rgba(0,0,0,0.6)',
           }}
         >
@@ -338,9 +341,6 @@ function TitleBlock() {
         width: 'min(70%, 240px)',
         background: 'linear-gradient(90deg, transparent, rgba(250,204,21,0.55), transparent)',
       }} />
-      <p className="mt-1.5 font-inter text-[12px] text-blue-100/75">
-        Tüm kategorilerden rastgele sorular
-      </p>
     </motion.div>
   );
 }
@@ -363,7 +363,7 @@ function DecorStar() {
 
 /* ----------------------------- Mode button ---------------------------- */
 
-function ModeButton({ icon: Icon, label, ariaLabel, hint, helper, action, disabled, onClick, testId }) {
+function ModeButton({ icon: Icon, label, ariaLabel, action, disabled, onClick, testId }) {
   return (
     <motion.button
       type="button"
@@ -372,10 +372,15 @@ function ModeButton({ icon: Icon, label, ariaLabel, hint, helper, action, disabl
       disabled={disabled}
       aria-label={ariaLabel || label}
       whileTap={disabled ? undefined : { scale: 0.98 }}
-      className="kx-a1-panel kx-a1-pressable w-full flex items-center gap-4 rounded-2xl px-4 py-4 text-left disabled:opacity-55"
+      className="kx-a1-pressable w-full flex items-center text-left disabled:opacity-55"
       style={{
-        background: 'linear-gradient(180deg, rgba(20,32,68,0.85), rgba(8,14,32,0.95))',
-        boxShadow: 'inset 0 0 0 1.5px rgba(120,170,255,0.32), inset 0 1px 0 rgba(255,255,255,0.08), 0 8px 18px rgba(2,6,23,0.45)',
+        gap: 'clamp(0.8rem, 3.5vw, 1rem)',
+        padding: 'clamp(0.8rem, 2.4dvh, 1rem) clamp(0.9rem, 4vw, 1.15rem)',
+        minHeight: 'clamp(4.35rem, 10dvh, 5.15rem)',
+        borderRadius: 'clamp(0.65rem, 3vw, 0.9rem)',
+        background: '#102A4A',
+        border: '0.0625rem solid #55D8FF3D',
+        boxShadow: 'inset 0 0.0625rem 0 rgba(255,255,255,0.04), 0 0.65rem 1.25rem rgba(2,6,23,0.26)',
       }}
     >
       <span
@@ -385,10 +390,40 @@ function ModeButton({ icon: Icon, label, ariaLabel, hint, helper, action, disabl
         <Icon style={{ width: 22, height: 22, color: '#facc15' }} strokeWidth={2.2} />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block font-inter text-[15px] font-black tracking-wide text-white">{label}</span>
-        <span className="block mt-0.5 font-inter text-[12px] text-blue-100/65">{hint}</span>
-        {helper && <span className="mt-1 block font-inter text-[10px] font-semibold text-cyan-200/70">{helper}</span>}
-        {action && <span className="mt-1.5 block font-inter text-[11px] font-black text-amber-200">{action}</span>}
+        <span
+          className="block"
+          style={{
+            color: '#F4F7FB',
+            fontFamily: ONLINE_DISPLAY_FONT,
+            fontSize: 'clamp(1.1rem, 5vw, 1.35rem)',
+            fontWeight: 700,
+            letterSpacing: 0,
+            lineHeight: 1.05,
+          }}
+        >
+          {label}
+        </span>
+        {action && (
+          <span
+            className="mt-2 inline-flex items-center justify-center"
+            style={{
+              width: 'fit-content',
+              minHeight: 'clamp(1.9rem, 5dvh, 2.2rem)',
+              padding: '0.32rem clamp(0.7rem, 3vw, 0.9rem)',
+              borderRadius: '0.5rem',
+              background: '#FFC928',
+              color: '#081327',
+              fontFamily: ONLINE_DISPLAY_FONT,
+              fontSize: 'clamp(0.9rem, 4vw, 1.02rem)',
+              fontWeight: 700,
+              letterSpacing: 0,
+              lineHeight: 1,
+              boxShadow: '0 0.25rem 0.55rem rgba(2,6,23,0.22)',
+            }}
+          >
+            {action}
+          </span>
+        )}
       </span>
     </motion.button>
   );

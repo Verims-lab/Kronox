@@ -29,6 +29,7 @@ import getOnlinePlayerSelectionSource from '../../../base44/functions/getOnlineP
 import startLobbyGameSource from '../../../base44/functions/startLobbyGame/entry.ts?raw';
 import acceptGameInviteSource from '../../../base44/functions/acceptGameInvite/entry.ts?raw';
 import caseRegistrySource from './simulationPanelCaseRegistry.jsx?raw';
+import npmConfigSource from '../../../.npmrc?raw';
 import packageJsonSource from '../../../package.json?raw';
 import packageLockJsonSource from '../../../package-lock.json?raw';
 import sdkPinGuardSource from '../../../scripts/checkBase44SdkPin.mjs?raw';
@@ -327,6 +328,7 @@ export const EXTRA_TESTS = [
     () => {
       const requiredPackage = `"@base44/sdk": "${BASE44_SDK_VERSION}"`;
       const requiredDeno = `npm:@base44/sdk@${BASE44_SDK_VERSION}`;
+      const npmConfig = String(npmConfigSource || '');
       const packageSource = String(packageJsonSource || '');
       const packageLockSource = String(packageLockJsonSource || '');
       const pinGuardSource = String(sdkPinGuardSource || '');
@@ -335,11 +337,13 @@ export const EXTRA_TESTS = [
       const packageLockResolvedVersion = parsedPackageLock?.packages?.['node_modules/@base44/sdk']?.version;
       const combinedFunctionSource = CRITICAL_BASE44_FUNCTION_SDK_SOURCES.map(([, source]) => source).join('\n');
       const missing = [
+        ...(!/^save-exact\s*=\s*true\s*$/m.test(npmConfig) ? ['.npmrc save-exact guard'] : []),
         ...(!packageSource.includes(requiredPackage) ? ['package.json exact @base44/sdk pin'] : []),
         ...(!packageSource.includes('"preinstall": "node scripts/checkBase44SdkPin.mjs"') ? ['package.json SDK preinstall guard'] : []),
         ...(packageLockRootPin !== BASE44_SDK_VERSION ? ['package-lock.json root exact @base44/sdk pin'] : []),
         ...(packageLockResolvedVersion !== BASE44_SDK_VERSION ? ['package-lock.json resolved @base44/sdk version'] : []),
         ...(!pinGuardSource.includes("EXPECTED_SDK_VERSION = '0.8.34'") ? ['SDK install guard expected version'] : []),
+        ...(!pinGuardSource.includes("readText('.npmrc')") ? ['SDK install guard .npmrc proof'] : []),
         ...(!pinGuardSource.includes('Base44 SDK install gate failed') ? ['SDK install guard fail-closed path'] : []),
         ...CRITICAL_BASE44_FUNCTION_SDK_SOURCES
           .filter(([, source]) => !String(source || '').includes(requiredDeno))
@@ -360,7 +364,7 @@ export const EXTRA_TESTS = [
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass(`Base44 SDK is pinned to ${BASE44_SDK_VERSION} in package.json, package-lock root/resolution, the fail-fast install guard, and critical Base44 functions.`, {
+      return pass(`Base44 SDK is pinned to ${BASE44_SDK_VERSION} in .npmrc, package.json, package-lock root/resolution, the fail-fast install guard, and critical Base44 functions.`, {
         verification: 'STATIC_CONTRACT',
         classification: 'RUNTIME_PATH_VERIFIED',
         actionType: ACTION_TYPES.CODE_FIX,

@@ -197,7 +197,7 @@ export const EXTRA_TESTS = [
     () => {
       const src = `${safeStr(onlineChallengeScreenSource)}\n${safeStr(onlinePageSource)}\n${safeStr(findLobbyByCodeFnSource)}\n${safeStr(startLobbyGameFnSource)}`;
       const required = [
-        'Tüm kategorilerden rastgele sorular',
+        'const random = useRandomMatchmaking(STANDARD_RANDOM_MODE)',
         'onCreateInviteMatch',
         'createLobby({ code, playerName, maxPlayers: 2 })',
         'onMatchFound={handleMatchFound}',

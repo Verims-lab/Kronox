@@ -9,8 +9,13 @@ function readJson(relativePath) {
   return JSON.parse(fs.readFileSync(path.join(rootDir, relativePath), 'utf8'));
 }
 
+function readText(relativePath) {
+  return fs.readFileSync(path.join(rootDir, relativePath), 'utf8');
+}
+
 const packageJson = readJson('package.json');
 const packageLock = readJson('package-lock.json');
+const npmConfig = readText('.npmrc');
 const checks = [
   ['package.json dependency', packageJson?.dependencies?.['@base44/sdk']],
   ['package-lock.json root dependency', packageLock?.packages?.['']?.dependencies?.['@base44/sdk']],
@@ -19,6 +24,10 @@ const checks = [
 const failures = checks
   .filter(([, actual]) => actual !== EXPECTED_SDK_VERSION)
   .map(([label, actual]) => `${label}: expected ${EXPECTED_SDK_VERSION}, received ${String(actual || 'missing')}`);
+
+if (!/^save-exact\s*=\s*true\s*$/m.test(npmConfig)) {
+  failures.push('.npmrc: expected save-exact=true');
+}
 
 if (failures.length) {
   console.error('Base44 SDK install gate failed. Restore the exact supported pin before installing dependencies.');

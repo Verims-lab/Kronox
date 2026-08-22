@@ -247,7 +247,7 @@ export const EXTRA_TESTS = [
     () => {
       const online = safeStr(onlineChallengeScreenSource);
       const required = missingTokens(online, [
-        'Tüm kategorilerden rastgele sorular',
+        'const random = useRandomMatchmaking(STANDARD_RANDOM_MODE)',
         'Arkadaşını Davet Et',
         'Online Kapış',
       ]);
@@ -265,7 +265,7 @@ export const EXTRA_TESTS = [
           actual: { required, forbidden },
         });
       }
-      return pass('Online screen does not fetch or sort categories for UI selection; no-category copy and entry points remain.',
+      return pass('Online screen does not fetch or sort categories for UI selection; no-category mode wiring and entry points remain.',
         { verification: 'STATIC_CONTRACT' });
     }),
 

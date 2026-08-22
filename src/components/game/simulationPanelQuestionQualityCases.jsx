@@ -63,7 +63,7 @@ export const EXTRA_TESTS = [
     return absent.length ? fail('Metadata completeness coverage drifted.', { missing: absent }) : pass('Question text, answer, year, category, subcategory, tag, difficulty, and state gaps are counted.');
   }),
   makeCase('online_all_active_category_coverage_reported', 'Online all-active-category readiness is reported', () => {
-    const absent = missing(`${reportSource}\n${startOnlineSource}\n${onlineScreenSource}`, ['allActiveCategoryPolicy: true', 'onlineCategorySelectorAllowed: false', 'onlineSharedDeckReady', 'onlineEligibleCount', 'online_shared_all_active_random_deck_v1', 'allCategoriesRandom: true', 'Tüm kategorilerden rastgele sorular']);
+    const absent = missing(`${reportSource}\n${startOnlineSource}\n${onlineScreenSource}`, ['allActiveCategoryPolicy: true', 'onlineCategorySelectorAllowed: false', 'onlineSharedDeckReady', 'onlineEligibleCount', 'online_shared_all_active_random_deck_v1', 'allCategoriesRandom: true', 'const random = useRandomMatchmaking(STANDARD_RANDOM_MODE)']);
     const forbidden = present(onlineScreenSource, ['OnlineCategoryCarousel', 'selectedCategoryIds']);
     return absent.length || forbidden.length ? fail('Online readiness proof or no-category UI contract drifted.', { missing: absent, forbidden }) : pass('B3 measures all-active random shared-deck coverage without adding Online category selection.');
   }),
