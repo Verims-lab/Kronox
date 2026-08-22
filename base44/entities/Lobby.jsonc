@@ -18,7 +18,7 @@
         "same_question_duel"
       ],
       "default": "random_online",
-      "description": "Online mode. same_question_duel is random-opponent, exactly two-player V1."
+      "description": "Online mode. same_question_duel is the independent random-opponent, exactly two-player shared-timeline V2."
     },
     "host_email": {
       "type": "string",
@@ -92,7 +92,17 @@
           "claimed_count": {
             "type": "number",
             "minimum": 0,
-            "description": "same_question_duel cards claimed through backend-confirmed first-correct arbitration. Opening anchors do not count."
+            "description": "Legacy-compatible alias of correct_count for same_question_duel V2."
+          },
+          "correct_count": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Backend-confirmed Duello V2 correct-answer count."
+          },
+          "total_correct_response_time_ms": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Diagnostic-only total response time for correct Duello answers. Never awards points or breaks ties."
           },
           "cards": {
             "type": "array",
@@ -170,18 +180,107 @@
     "duel_sequence": {
       "type": "number",
       "minimum": 1,
-      "description": "Current same-question shared-card sequence."
+      "description": "Current Duello V2 shared question index, bounded to 12."
+    },
+    "duel_rules_version": {
+      "type": "string",
+      "description": "Duello rules contract version; current value is duello_shared_timeline_v2."
+    },
+    "duel_match_state": {
+      "type": "string",
+      "enum": [
+        "MATCHING",
+        "COUNTDOWN",
+        "QUESTION_ACTIVE",
+        "WAITING_FOR_OPPONENT",
+        "ROUND_RESULT",
+        "SUDDEN_DEATH",
+        "MATCH_FINISHED"
+      ],
+      "description": "Backend-authoritative simultaneous Duello lifecycle state."
+    },
+    "duel_shared_timeline": {
+      "type": "array",
+      "description": "Single authoritative timeline shared by both Duello players and grown after every resolved round.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "year": { "type": "number" },
+          "question": { "type": "string" },
+          "type": { "type": "string" },
+          "media_url": { "type": "string" }
+        }
+      }
+    },
+    "duel_round_answers": {
+      "type": "array",
+      "description": "Private per-round locked answer rows. Public DTOs expose only booleans and result state.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "actor_key_hash": { "type": "string" },
+          "participant_ref": { "type": "string" },
+          "placement_zone": { "type": "number" },
+          "answered_at": { "type": "string", "format": "date-time" },
+          "response_ms": { "type": "number" },
+          "correct": { "type": "boolean" }
+        }
+      }
+    },
+    "duel_question_started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "duel_question_deadline": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Authoritative 10-second round deadline shared by both clients."
+    },
+    "duel_countdown_ends_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "duel_round_resolve_after": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Backend transition time after the approximately 0.8-second result feedback window."
+    },
+    "duel_round_result": {
+      "type": "object",
+      "description": "Resolved round feedback projected without private actor keys."
+    },
+    "duel_pending_finish": {
+      "type": "object",
+      "description": "Private finish decision held until round feedback completes."
+    },
+    "duel_sudden_death": {
+      "type": "boolean",
+      "description": "True after a simultaneous 5-5 target round until a differential result or question 12."
+    },
+    "duel_result_type": {
+      "type": "string",
+      "enum": ["win", "draw"]
+    },
+    "duel_result_reason": {
+      "type": "string",
+      "enum": ["target", "sudden_death", "max_questions", "draw"]
+    },
+    "duel_points_awarded": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Backend winner award: 50 for target/Sudden Death, 25 for question-12 non-target winner, or 0 for draw/loser."
     },
     "duel_round_attempts": {
       "type": "array",
       "items": {
         "type": "string"
       },
-      "description": "Private actor keys that already answered the current duel card incorrectly."
+      "description": "Legacy private compatibility projection. Duello V2 authority is duel_round_answers."
     },
     "recent_claim": {
       "type": "object",
-      "description": "Safe claim event state; backend DTO personalizes claimed_by_self and never returns private actor keys.",
+      "description": "Legacy V1 claim state. Duello V2 serializers always return recent_claim null.",
       "properties": {
         "participant_ref": {
           "type": "string"

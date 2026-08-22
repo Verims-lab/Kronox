@@ -37,6 +37,9 @@ export async function joinLobbyByCode(code, playerName) {
   return invokeLobbyMutation('join', { code, playerName });
 }
 
+/**
+ * @param {{ lobbyId?: string, code?: string, scope?: string }} [options]
+ */
 export async function getLobbySnapshot({ lobbyId, code, scope = LOBBY_SNAPSHOT_SCOPES.GAME } = {}) {
   return invokeLobbyMutation('get', { lobbyId, code, snapshot_scope: scope });
 }
@@ -60,6 +63,14 @@ export async function updateLobbyGameState(payload) {
   return base44.functions.invoke('updateLobbyGameState', withActorProof(payload));
 }
 
+export async function submitDuelloAnswer(payload) {
+  return updateLobbyGameState({ action: 'submit_duello_answer', ...payload });
+}
+
+export async function syncDuelloRound(lobbyId) {
+  return updateLobbyGameState({ action: 'sync_duello_round', lobbyId });
+}
+
 export async function commitOnlineMatchResult(payload) {
   return updateLobbyGameState({ action: 'commit_result', ...payload });
 }
@@ -72,6 +83,8 @@ export const lobbyGatewayContract = Object.freeze({
   gameSnapshot: 'participant-only active match projection',
   startFunction: 'startLobbyGame',
   resultFunction: 'updateLobbyGameState:commit_result',
+  duelloAnswerFunction: 'updateLobbyGameState:submit_duello_answer',
+  duelloClockSyncFunction: 'updateLobbyGameState:sync_duello_round',
   requiresAuthenticatedHost: false,
   cleanupJob: 'cancelStaleLobbies',
 });

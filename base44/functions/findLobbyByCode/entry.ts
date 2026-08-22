@@ -1,4 +1,12 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
+import {
+  DUELLO_MATCH_STATE,
+  DUELLO_MAX_QUESTIONS,
+  DUELLO_RULES_VERSION,
+  DUELLO_ROUND_SECONDS,
+  DUELLO_TARGET_CORRECT,
+  isDuelloAnswerableState,
+} from '../../shared/duelloV2Rules.js';
 
 const LOBBY_STALE_AFTER_MS = 10 * 60 * 1000;
 const LOBBY_LOCK_TTL_MS = 8 * 1000;
@@ -234,11 +242,14 @@ function publicDuelTimelineCards(cards: any[] = []) {
     .map((card: any, index: number) => ({
       id: `duel_timeline_${index + 1}`,
       year: Number(card?.year),
+      question: String(card?.question || ''),
+      type: card?.type || 'metin',
+      media_url: String(card?.media_url || '').startsWith('https://') ? card.media_url : '',
     }))
     .filter((card: any) => Number.isFinite(card.year));
 }
 
-function publicDuelActiveCard(question: any, sequence: number, canAttempt: boolean) {
+function publicDuelActiveCard(question: any, sequence: number, canAttempt: boolean, revealYear = false) {
   if (!question) return null;
   const mediaUrl = String(question?.media_url || '');
   return {
@@ -248,6 +259,26 @@ function publicDuelActiveCard(question: any, sequence: number, canAttempt: boole
     media_url: mediaUrl.startsWith('https://') || mediaUrl.startsWith('/assets/') ? mediaUrl : '',
     sequence_id: sequence,
     can_attempt: canAttempt,
+    ...(revealYear && Number.isFinite(Number(question?.year)) ? { revealed_year: Number(question.year) } : {}),
+  };
+}
+
+function publicDuelRoundResult(lobby: any, players: any[]) {
+  const result = lobby?.duel_round_result;
+  if (!result || !Array.isArray(result?.answers)) return null;
+  return {
+    question_index: Math.max(1, Math.trunc(Number(result?.question_index) || 1)),
+    correct_year: Number.isFinite(Number(result?.correct_year)) ? Number(result.correct_year) : null,
+    answers: players.map((player: any) => {
+      const answer = result.answers.find((candidate: any) =>
+        String(candidate?.participant_ref || '') === String(player?.participant_ref || ''));
+      return {
+        participant_ref: String(player?.participant_ref || ''),
+        answered: Boolean(answer?.answered),
+        correct: Boolean(answer?.correct),
+        unanswered: !answer?.answered,
+      };
+    }),
   };
 }
 
@@ -260,17 +291,29 @@ function publicLobby(lobby: any, actor: any, { summaryOnly = false, snapshotScop
   const hostActorKey = String(lobby?.host_actor_key_hash || players[0]?.actor_key_hash || '');
   const scope = normalizeSnapshotScope(snapshotScope);
   const gameMode = String(lobby?.game_mode || 'random_online');
-  const duelAttempts = Array.isArray(lobby?.duel_round_attempts) ? lobby.duel_round_attempts : [];
+  const duelAnswers = Array.isArray(lobby?.duel_round_answers) ? lobby.duel_round_answers : [];
   const duelSequence = Math.max(1, Math.trunc(Number(lobby?.duel_sequence) || 1));
   const duelIsActive = ['starting', 'in_game'].includes(String(lobby?.status || ''));
+  const duelMatchState = String(lobby?.duel_match_state || DUELLO_MATCH_STATE.MATCHING);
+  const actorAnswer = duelAnswers.find((answer: any) =>
+    String(answer?.actor_key_hash || '') === String(actor?.actorKeyHash || ''));
+  const deadlineMs = Date.parse(String(lobby?.duel_question_deadline || ''));
+  const canAttempt = duelIsActive
+    && isDuelloAnswerableState(duelMatchState)
+    && !actorAnswer
+    && Number.isFinite(deadlineMs)
+    && Date.now() < deadlineMs;
   const activeQuestion = gameMode === SAME_QUESTION_DUEL_MODE && duelIsActive
     ? (lobby?.online_question_deck || []).find((question: any) => String(question?.id || '') === String(lobby?.current_question_id || ''))
     : null;
   const publicActiveQuestion = publicDuelActiveCard(
     activeQuestion,
     duelSequence,
-    !duelAttempts.includes(actor?.actorKeyHash),
+    canAttempt,
+    duelMatchState === DUELLO_MATCH_STATE.ROUND_RESULT,
   );
+  const sharedTimeline = publicDuelTimelineCards(lobby?.duel_shared_timeline || []);
+  const roundResult = publicDuelRoundResult(lobby, players);
   const base = {
     id: String(lobby?.public_ref || ''),
     code: String(lobby?.code || ''),
@@ -295,7 +338,9 @@ function publicLobby(lobby: any, actor: any, { summaryOnly = false, snapshotScop
         includeCards: scope === 'game' && gameMode !== SAME_QUESTION_DUEL_MODE,
       });
       if (scope === 'game' && gameMode === SAME_QUESTION_DUEL_MODE) {
-        publicProjection.cards = actorMatchesPlayer(actor, player) ? publicDuelTimelineCards(player?.cards) : [];
+        publicProjection.correct_count = Math.max(0, Math.trunc(Number(player?.correct_count ?? player?.claimed_count) || 0));
+        publicProjection.claimed_count = publicProjection.correct_count;
+        publicProjection.cards = sharedTimeline;
       }
       return publicProjection;
     }),
@@ -319,14 +364,30 @@ function publicLobby(lobby: any, actor: any, { summaryOnly = false, snapshotScop
       : (Array.isArray(lobby?.online_question_deck) ? lobby.online_question_deck : []),
     online_deck_meta: lobby?.online_deck_meta || null,
     active_shared_card: publicActiveQuestion,
-    recent_claim: gameMode === SAME_QUESTION_DUEL_MODE && lobby?.recent_claim ? {
-      participant_ref: lobby.recent_claim.participant_ref || null,
-      sequence_id: Number(lobby.recent_claim.sequence_id) || null,
-      claimed_at: lobby.recent_claim.claimed_at || null,
-      skipped: Boolean(lobby.recent_claim.skipped),
-      claimed_by_self: Boolean(lobby.recent_claim.participant_ref && players.some((player: any) =>
-        actorMatchesPlayer(actor, player) && player.participant_ref === lobby.recent_claim.participant_ref)),
-    } : null,
+    ...(gameMode === SAME_QUESTION_DUEL_MODE ? {
+      match_id: String(lobby?.public_ref || ''),
+      duel_rules_version: String(lobby?.duel_rules_version || DUELLO_RULES_VERSION),
+      duel_match_state: duelMatchState,
+      duel_question_index: duelSequence,
+      duel_max_questions: DUELLO_MAX_QUESTIONS,
+      duel_target_correct: DUELLO_TARGET_CORRECT,
+      duel_round_seconds: DUELLO_ROUND_SECONDS,
+      duel_shared_timeline: sharedTimeline,
+      duel_answer_locked: Boolean(actorAnswer),
+      duel_opponent_answered: duelAnswers.some((answer: any) =>
+        String(answer?.actor_key_hash || '') !== String(actor?.actorKeyHash || '')),
+      duel_question_started_at: lobby?.duel_question_started_at || null,
+      duel_question_deadline: lobby?.duel_question_deadline || null,
+      duel_countdown_ends_at: lobby?.duel_countdown_ends_at || null,
+      duel_round_resolve_after: lobby?.duel_round_resolve_after || null,
+      duel_round_result: roundResult,
+      duel_sudden_death: Boolean(lobby?.duel_sudden_death),
+      duel_result_type: lobby?.duel_result_type || null,
+      duel_result_reason: lobby?.duel_result_reason || null,
+      duel_points_awarded: Math.max(0, Math.trunc(Number(lobby?.duel_points_awarded) || 0)),
+      server_now: new Date().toISOString(),
+    } : {}),
+    recent_claim: null,
     winner: lobby?.winner ? safeUsername(lobby.winner, lobby?.winner_participant_ref) : null,
     winner_participant_ref: lobby?.winner_participant_ref || null,
   };

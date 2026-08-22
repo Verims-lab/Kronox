@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex648 — Replace Duello's claim race with simultaneous shared-question/shared-timeline V2, backend 10-second rounds and +50/+25/0 results, Solo visual reuse, Runtime E2E shared-round proof, Health, and docs while preserving Online Kapış.
 // Codex647 — Polish the Online entry screen with concise copy, Barlow typography, unified navy/cyan cards, and a compact Duello CTA while preserving selectors and behavior.
 // Codex646 — Restore Base44 SDK 0.8.34 after bot export e9354206, enforce repo-local save-exact plus source-connected guard proof, and preserve all product behavior.
 // Codex645 — Keep Base44 SDK 0.8.34 fail-fast across generated main syncs and make DailyWheelSpin owner-read/admin-mutation Health proof formatting-independent; no product behavior changes.
@@ -226,7 +227,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex647';
+const BUILD_MARKER = 'Codex648';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

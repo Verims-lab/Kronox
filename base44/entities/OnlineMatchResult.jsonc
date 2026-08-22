@@ -46,9 +46,10 @@
       "type": "string",
       "enum": [
         "win",
-        "loss"
+        "loss",
+        "draw"
       ],
-      "description": "Per-player result. Draw scoring is not part of current Online product rules."
+      "description": "Per-player backend result. Standard Online uses win/loss; Duello V2 may record draw with zero delta."
     },
     "delta": {
       "type": "number",

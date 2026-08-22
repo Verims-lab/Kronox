@@ -75,5 +75,6 @@ export const onlineResultAuthorityContract = Object.freeze({
   clientProfileScoreWrites: false,
   clientLeaderboardWrites: false,
   scoreRule: 'winner_15_loser_minus_6',
+  duelloScoreRule: 'backend_50_25_0_no_speed_bonus',
   guestSupportedWithTokenProof: true,
 });

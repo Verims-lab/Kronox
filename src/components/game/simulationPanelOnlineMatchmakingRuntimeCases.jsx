@@ -198,7 +198,7 @@ export const EXTRA_TESTS = [
   ], 'Public search/direct-start UI uses bounded Turkish lifecycle copy and never renders transport or private actor details.'), ['PreGameHourglass.jsx', 'useRandomMatchmaking.js', 'useDirectOnlineGameHandoff.js']),
 
   make('duello_two_phone_manual_gate', 'Two-phone Duello remains a deployed manual release gate', () => sourceResult(required(releaseProof + healthMirrors, [
-    'Duello V1 Manual Proof',
+    'Duello V2 Manual Proof',
     'two-device',
     'MANUAL_EXTERNAL',
     'same_question_duel',

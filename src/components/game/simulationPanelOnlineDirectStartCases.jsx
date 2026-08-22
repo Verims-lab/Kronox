@@ -259,8 +259,8 @@ export const EXTRA_TESTS = [
 
   make(DUELLO_SUITE, 'duello_two_actor_proof_still_manual_without_fixtures', 'Duello cannot PASS without two isolated deterministic actors', () => sourceContract(
     runtimeSources,
-    ['AUTOMATION_STATUS.MANUAL_EXTERNAL', 'KRONOX_E2E_STORAGE_STATE_A and KRONOX_E2E_STORAGE_STATE_B', "'TWO_ACTOR_REQUIRED'", 'twoIsolatedActors', 'deterministicClaimFixture'],
-    'Duello remains MANUAL_EXTERNAL without two isolated actors; claim-race proof stays optional and separate.',
+    ['AUTOMATION_STATUS.MANUAL_EXTERNAL', 'KRONOX_E2E_STORAGE_STATE_A and KRONOX_E2E_STORAGE_STATE_B', "'TWO_ACTOR_REQUIRED'", 'twoIsolatedActors', 'deterministicResultFixture'],
+    'Duello remains MANUAL_EXTERNAL without two isolated actors; full result/rematch proof stays optional and separate.',
   ), ['src/lib/health/runtimeE2EScenarios.js', 'tests/health-e2e/scenarioHandlers.mjs']),
 
   make(RUNTIME_SUITE, 'online_no_lobby_route_for_pass', 'Runtime Online PASS excludes every lobby route and surface', () => sourceContract(

@@ -1520,21 +1520,37 @@ Manual release gates that source cannot prove:
 * Verify deployed Base44 RLS/BOLA and completed-guest token behavior with
   separate accounts. Static Health PASS is not release proof.
 
-## Duello V1 Manual Proof
+## Duello V2 Manual Proof
 
-* User A and User B enter `Duello` through the stable internal `same_question_duel` lane; normal random players do not pair into this queue.
-* Use two physical phones with distinct actors and enter within the same 30-second window. Confirm both clients leave `Rakip aranıyor`, show `Rakip bulundu` on the same `/online` surface, and enter `/duel` directly from the same backend session without `/lobby`. Repeat guest/guest and guest/linked where staging data permits.
-* Cancel one attempt, let one attempt time out, then retry. Confirm `Rakip bulunamadı`, `Tekrar dene`, and `Vazgeç` remain usable, no raw backend detail appears, and neither stale row blocks the next pair.
-* Repeat with `Online Kapış` to prove the repaired shared infrastructure still pairs `random_online` actors without crossing into `same_question_duel`.
-* The private matched session contains exactly two players; no lobby/ready UI, category selector, or third/fourth join path appears.
-* Both clients receive identical two-card opening context and the same active shared card.
-* Submit near-simultaneous correct placements; backend order awards exactly one claim and reconnect preserves it.
-* Verify the pre-claim payload contains the same sequence/prompt on both clients but no answer year, raw Question id, used-question ids, opponent card rows, or remaining deck.
-* Verify the winner sees `Kartı sen aldın.`, the opponent sees `Rakip kartı aldı.`, and a stale submitter sees `Bu kart rakip tarafından alındı.` before reconciling to the newer revision.
-* A wrong answer locks only that player for the current card; if both are wrong, the backend releases the next shared card.
-* Continue until one player reaches 10 backend-confirmed claims; verify terminal winner, loser, +15/-6 persistence, no duplicate score on refresh, and no Diamond/Daily/Store/Solo reward.
-* Confirm public UI and copied snapshots contain no email, guest token/id, owner/actor/internal player IDs, private row IDs, or remaining deck.
-* Run `Duello Health Suite` plus Online, shared-deck, result-authority, Privacy, BottomNav, build, lint, and Base44 function-count checks. Health PASS remains contract proof only.
+* User A and User B enter `Duello` through the stable internal
+  `same_question_duel` lane; `random_online` actors do not cross-match.
+* Use two distinct actors. Confirm both show `Rakip aranıyor`, then
+  `Rakip bulundu` on `/online`, count down 3-2-1, and enter `/duel` directly
+  from the same backend session without `/lobby`.
+* Confirm both clients receive the same answer-free question fingerprint,
+  shared timeline fingerprint, question index, and 10-second deadline.
+* A submits once and sees `CEVABIN KİLİTLENDİ`; B remains able to answer until
+  the shared deadline. Duplicate or late answers do not change the locked row.
+* Let one player miss the deadline. Confirm no extra penalty, no correct-count
+  increase, and normal round completion.
+* After every round, confirm the correct event appears chronologically in both
+  timelines regardless of both players' correctness. The next round must begin
+  from that identical grown timeline with no Continue button.
+* Prove first-to-five only after round completion. At 4-4 with both correct,
+  confirm 5-5 enters `ANİ ÖLÜM`; equal Sudden Death outcomes continue and a
+  differential round wins.
+* Confirm maximum 12 questions: target/Sudden Death winner `+50`, question-12
+  non-target higher correct count `+25`, equal count draw `0`, and no speed
+  bonus or speed tiebreak.
+* Confirm no Joker, Hint, Solo level, Diamond, Daily, Store, or Solo reward.
+* Confirm result win/loss/draw states and backend-only score persistence.
+  `RÖVANŞ İSTE` remains explicitly gated until reciprocal rematch is delivered.
+* Confirm public UI/snapshots omit email, guest proof, owner/actor/internal IDs,
+  raw row IDs, used-question IDs, remaining deck, full bank, active answer year,
+  and raw errors.
+* Run `Duello Health Suite`, Online regression checks, Health Proof Integrity,
+  `npm run health:e2e:contracts`, build, lint, SDK pin, and function-count gates.
+  Health PASS remains contract proof; deployed two-actor proof remains separate.
 
 ## Runtime E2E Automation V2
 
@@ -1618,12 +1634,14 @@ Manual release gates that source cannot prove:
   summaries.
 * Online production search/cancel may run when a completed linked or
   token-proven guest actor and the explicit matchmaking gate are present, but
-  it still requires observed matchmaking backend evidence. Duello requires two real isolated contexts, deterministic pairing, a
-  deterministic correct-claim fixture, one accepted backend claim, and
-  reconciled snapshots. Until those capabilities exist, its scenario remains
+  it still requires observed matchmaking backend evidence. Duello requires two
+  real isolated contexts and deterministic pairing to prove matching shared
+  state, independent answer locks, timeline growth, and next-round
+  reconciliation. Until those capabilities exist, its scenario remains
   MANUAL_EXTERNAL. A route smoke must never be promoted to Duello PASS.
-  `KRONOX_E2E_STORAGE_STATE_A/B` can declare two actor fixtures, but does not
-  replace deterministic pairing or correct-claim proof.
+  `KRONOX_E2E_STORAGE_STATE_A/B` declares two actor fixtures but does not
+  replace deterministic pairing; full score/rematch proof needs a deterministic
+  result fixture.
 * Runtime E2E improves repeatable screen proof but does not replace deployed
   Base44, RLS/BOLA, real-device, store, push, race, or release evidence.
 
@@ -1639,15 +1657,16 @@ Manual release gates that source cannot prove:
   mode-scoped, idempotent terminal transitions. The client never invents a
   session, writes final score, or receives a pre-game question bank.
 * Online scoring remains backend winner `+15`, loser `-6`, with no speed bonus.
-  Duello remains exactly two players, same active backend card, first confirmed
-  correct claim, first to 10, winner `+15`, loser `-6`, and no speed bonus.
+  Duello remains exactly two players but uses its independent simultaneous V2
+  shared-question/shared-timeline contract and backend `+50` / `+25` / `0`
+  scoring with no speed bonus.
 * Public match-found state contains fixed Turkish copy only; username/avatar
   may be public, while email, provider/owner/raw guest/auth/internal actor
   identifiers, tokens, answer data, raw errors, and stacks remain forbidden.
-* The 25 direct-start Health cases are source/executable contract proof. Duello
-  pairing/direct-start stays `MANUAL_EXTERNAL` until two isolated actors and
-  deterministic pairing evidence exist; correct-claim/result proof additionally
-  requires a deterministic answer fixture and reconciled backend snapshots.
+* Direct-start Health cases are source/executable contract proof. Duello
+  pairing/shared-round synchronization stays `MANUAL_EXTERNAL` until two
+  isolated actors and deterministic pairing evidence exist; full 12-round
+  result/rematch proof additionally requires a deterministic result fixture.
 
 ## Duello Two-Device Matchmaking Gate (Codex639)
 
@@ -1674,12 +1693,14 @@ Manual release gates that source cannot prove:
 * Runtime E2E uses `KRONOX_E2E_STORAGE_STATE_A` and
   `KRONOX_E2E_STORAGE_STATE_B` as isolated contexts. With both fixtures it must
   prove search and match-found on both screens, direct `/duel`, no `/lobby`, and
-  matching redacted session/active-card fingerprints. Without both fixtures it
+  matching redacted session/question/timeline/index/deadline fingerprints. It
+  then proves A's answer locks without closing B and both timelines grow into
+  the same next round. Without both fixtures it
   remains `MANUAL_EXTERNAL` with `TWO_ACTOR_REQUIRED`; no route-only fake PASS
   is allowed.
-* Real-device reconnect/RLS behavior and the near-simultaneous first-correct
-  claim race remain external release proof. Matchmaking/direct-start proof does
-  not change Duello/Online `+15`/`-6`, first-to-10, or no-speed-bonus rules.
+* Real-device reconnect/RLS behavior and full 12-round score/rematch delivery
+  remain external release proof. Matchmaking changes do not alter Online
+  `+15`/`-6` or Duello V2 `+50`/`+25`/`0` scoring.
 
 ## Shared Matchmaking Backend 5xx Gate (Codex641)
 

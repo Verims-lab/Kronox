@@ -194,13 +194,15 @@ directly to `/game` and `/duel` respectively.
 
 `RandomMatchQueue.consumed` adds an idempotent terminal handoff state through
 the existing `randomMatchmaking` function, so function count does not grow.
-Cancel and timeout remain serialized terminal updates. Online/Duello score and
-result authority are unchanged (`+15`/`-6`, no speed bonus), no client final
-score write was added, and the pre-game UI receives no deck/answer payload.
+Cancel and timeout remain serialized terminal updates. This historical
+direct-start pass did not change score authority; the current contract keeps
+Online at `+15`/`-6` and gives Duello V2 its separate backend
+`+50`/`+25`/`0` rules. No client final-score write exists, and the pre-game UI
+receives no deck/answer payload.
 
-The new 25-case focused Health layer plus Runtime E2E contracts rejects lobby
-route/screen evidence and route-only PASS. Two-client delivery, Duello claim
-races, RLS, and production permission behavior remain external proof gates.
+The focused Health layer plus Runtime E2E contracts rejects lobby route/screen
+evidence and route-only PASS. Two-client delivery, RLS, and production
+permission behavior remain external proof gates.
 
 ## Codex639 Duello Matchmaking Stabilization
 
@@ -228,11 +230,35 @@ navigates only after an authoritative payload. Duello stays on the same search
 surface for `searching` and `matched`, then enters `/duel`; Online Kapış enters
 `/game`. Neither active path uses `/lobby`.
 
-Runtime E2E can now create two isolated A/B contexts, fail on any lobby route,
-and compare only redacted session/active-card fingerprints after both reach
-`/duel`. Missing A/B fixtures remains `MANUAL_EXTERNAL` /
-`TWO_ACTOR_REQUIRED`. Deterministic first-correct claim racing, real-device
-reconnect, and deployed RLS remain separate external release gates.
+Runtime E2E can create two isolated A/B contexts, fail on any lobby route, and
+compare redacted shared-state fingerprints after both reach `/duel`. The
+current V2 scenario also proves independent answer windows, one-card timeline
+growth, and identical next-round state. Missing A/B fixtures remains
+`MANUAL_EXTERNAL` / `TWO_ACTOR_REQUIRED`. Full 12-round result/rematch proof,
+real-device reconnect, and deployed RLS remain separate release gates.
+
+## Duello V2 Shared Timeline Architecture
+
+Duello now uses `base44/shared/duelloV2Rules.js` as its pure rules layer and the
+private Lobby row as the authoritative state machine. One session owns exactly
+two players, a bounded 14-card private deck (two anchors plus up to 12 active
+questions), one shared timeline, one active question/index/deadline, private
+per-actor answers, correct counts, diagnostic correct-response totals, Sudden
+Death state, pending terminal result, and bounded idempotency receipts.
+
+`startLobbyGame` creates the COUNTDOWN snapshot. `updateLobbyGameState`
+accepts one `submit_duello_answer` per actor and advances countdown, deadline,
+feedback hold, next round, or terminal state through idempotent
+`sync_duello_round`. Round resolution always appends the correct event to the
+one shared timeline. Winner and score are backend-owned: target/Sudden Death
+`+50`, question-12 non-target higher count `+25`, draw `0`, no speed bonus.
+
+`useSameQuestionDuel` is a snapshot/effect adapter rather than a score owner.
+It accepts non-regressing revisions, derives display time from `server_now` and
+the shared deadline, locks locally while the backend confirms, and reconstructs
+state after a brief disconnect. `DuelArena` directly reuses Solo
+`QuestionCard` and `Timeline`; no Joker, Hint, Solo level, or lobby surface is
+present. Reciprocal rematch remains explicitly gated pending a backend protocol.
 
 ## Codex641 Shared Matchmaking 5xx Hardening
 
@@ -260,8 +286,9 @@ rate limit returns fixed safe 429 copy, while other failures remain safe 503.
 Runtime evidence exports only allowlisted function category, mode, operation,
 status class, error category, queue-state, cleanup, match, direct-start, and
 no-lobby booleans. The active flow remains `/online` search, same-screen match
-found, then direct `/game` or `/duel`; Online/Duello `+15`/`-6`, Duello
-first-to-10, Solo, Daily, Store, and Leaderboard contracts are unchanged.
+found, then direct `/game` or `/duel`; Online keeps `+15`/`-6`, while Duello V2
+uses its isolated shared-timeline and `+50`/`+25`/`0` contracts. Solo, Daily,
+Store, and Leaderboard remain unchanged.
 
 ## Codex642 Queue Read Compatibility
 

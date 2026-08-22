@@ -1108,6 +1108,38 @@ async function waitForDirectDuelloRoute(page, timeout = 30000) {
   throw error;
 }
 
+async function readDuelloRoundProof(page) {
+  const root = page.locator('[data-testid="duello-active-card"]');
+  return {
+    questionFingerprint: await root.getAttribute('data-kronox-duello-question-fingerprint'),
+    timelineFingerprint: await root.getAttribute('data-kronox-duello-timeline-fingerprint'),
+    timelineCount: Number(await root.getAttribute('data-kronox-duello-timeline-count')),
+    questionIndex: Number(await root.getAttribute('data-kronox-duello-question-index')),
+    deadlineFingerprint: safeRuntimeFingerprint(await root.getAttribute('data-kronox-duello-deadline')),
+    answerLocked: await root.getAttribute('data-kronox-duello-answer-locked') === 'true',
+  };
+}
+
+async function waitForDuelloAnswerWindow(page, timeout = 15000) {
+  await page.waitForFunction(() => {
+    const root = document.querySelector('[data-testid="duello-active-card"]');
+    const state = root?.getAttribute('data-kronox-duello-state');
+    const answerLocked = root?.getAttribute('data-kronox-duello-answer-locked') === 'true';
+    const timelineZone = document.querySelector('[data-testid="timeline-zone-0"]');
+    return ['QUESTION_ACTIVE', 'WAITING_FOR_OPPONENT', 'SUDDEN_DEATH'].includes(String(state || ''))
+      && !answerLocked
+      && timelineZone instanceof HTMLElement;
+  }, null, { timeout });
+}
+
+async function selectDuelloZoneAndWaitForSubmit(page, zoneIndex = 0, timeout = 5000) {
+  await page.locator(`[data-testid="timeline-zone-${zoneIndex}"]`).first().click();
+  await page.waitForFunction(() => {
+    const button = document.querySelector('[data-testid="duello-confirm-placement"]');
+    return button instanceof HTMLButtonElement && !button.disabled;
+  }, null, { timeout });
+}
+
 async function duelloTwoContext(runtime, config) {
   if (!runtime?.secondaryPage || !config?.hasTwoStorageStates) {
     if (runtime) {
@@ -1152,6 +1184,13 @@ async function duelloTwoContext(runtime, config) {
     actorB: { searchObserved: false, matchFoundObserved: false, directGameObserved: false, lobbyRouteObserved: false },
     sharedSessionFingerprintMatched: false,
     sharedActiveCardFingerprintMatched: false,
+    sharedTimelineFingerprintMatched: false,
+    sharedQuestionIndexMatched: false,
+    sharedDeadlineFingerprintMatched: false,
+    actorAAnswerLocked: false,
+    actorBAnswerWindowStayedOpen: false,
+    sharedTimelineGrewAfterRound: false,
+    nextRoundSharedStateMatched: false,
     directStartRouteA: null,
     directStartRouteB: null,
     backendMatchEvidence: { actorA: false, actorB: false, statusClass: null },
@@ -1306,20 +1345,63 @@ async function duelloTwoContext(runtime, config) {
     const sessionFingerprints = sessionRefs.map(safeRuntimeFingerprint);
     evidence.sharedSessionFingerprintMatched = sessionFingerprints[0] === sessionFingerprints[1];
 
-    const cardInputs = await Promise.all([pageA, pageB].map(async (page) => {
-      const root = page.locator('[data-testid="duello-active-card"]');
-      const sequence = await root.getAttribute('data-kronox-duello-sequence');
-      const visibleCardText = await root.locator('.kronox-question-card-drag-surface').first().innerText();
-      return `${sequence || 'pending'}|${visibleCardText}`;
-    }));
-    const cardFingerprints = cardInputs.map(safeRuntimeFingerprint);
-    evidence.sharedActiveCardFingerprintMatched = cardFingerprints[0] === cardFingerprints[1];
-    if (!evidence.sharedSessionFingerprintMatched || !evidence.sharedActiveCardFingerprintMatched) {
-      const error = new Error('The two Duello actors did not receive the same session and active-card fingerprint.');
+    const [proofA, proofB] = await Promise.all([readDuelloRoundProof(pageA), readDuelloRoundProof(pageB)]);
+    evidence.sharedActiveCardFingerprintMatched = proofA.questionFingerprint === proofB.questionFingerprint;
+    evidence.sharedTimelineFingerprintMatched = proofA.timelineFingerprint === proofB.timelineFingerprint;
+    evidence.sharedQuestionIndexMatched = proofA.questionIndex === proofB.questionIndex;
+    evidence.sharedDeadlineFingerprintMatched = proofA.deadlineFingerprint === proofB.deadlineFingerprint;
+    if (!evidence.sharedSessionFingerprintMatched
+      || !evidence.sharedActiveCardFingerprintMatched
+      || !evidence.sharedTimelineFingerprintMatched
+      || !evidence.sharedQuestionIndexMatched
+      || !evidence.sharedDeadlineFingerprintMatched) {
+      const error = new Error('The two Duello actors did not receive the same session, question, timeline, index, and deadline fingerprints.');
       error.failureCategory = 'DUELLO_SNAPSHOT_DIVERGENCE';
       throw error;
     }
-    return 'Both actors entered direct /duel with matching anonymized session and active-card fingerprints.';
+    return 'Both actors entered direct /duel with matching anonymized session, question, timeline, index, and deadline fingerprints.';
+  });
+  await runtime.step('duello.shared_round', async () => {
+    await Promise.all([waitForDuelloAnswerWindow(pageA), waitForDuelloAnswerWindow(pageB)]);
+    const [beforeA, beforeB] = await Promise.all([readDuelloRoundProof(pageA), readDuelloRoundProof(pageB)]);
+    if (beforeA.timelineCount !== beforeB.timelineCount || beforeA.questionIndex !== beforeB.questionIndex) {
+      throw new Error('Duello shared state diverged before answer submission.');
+    }
+
+    await selectDuelloZoneAndWaitForSubmit(pageA);
+    await pageA.locator('[data-testid="duello-confirm-placement"]').click();
+    await pageA.waitForFunction(() => (
+      document.querySelector('[data-testid="duello-active-card"]')?.getAttribute('data-kronox-duello-answer-locked') === 'true'
+    ), null, { timeout: 5000 });
+    evidence.actorAAnswerLocked = true;
+
+    evidence.actorBAnswerWindowStayedOpen = await pageB.locator('[data-testid="duello-active-card"]')
+      .getAttribute('data-kronox-duello-answer-locked') === 'false';
+    if (!evidence.actorBAnswerWindowStayedOpen) {
+      throw new Error('Actor A answer lock incorrectly closed Actor B answer window.');
+    }
+    await selectDuelloZoneAndWaitForSubmit(pageB);
+    await pageB.locator('[data-testid="duello-confirm-placement"]').click();
+
+    await Promise.all([pageA, pageB].map((page) => page.waitForFunction(({ count, index }) => {
+      const root = document.querySelector('[data-testid="duello-active-card"]');
+      return Number(root?.getAttribute('data-kronox-duello-timeline-count')) > count
+        && Number(root?.getAttribute('data-kronox-duello-question-index')) > index;
+    }, { count: beforeA.timelineCount, index: beforeA.questionIndex }, { timeout: 15000 })));
+
+    const [afterA, afterB] = await Promise.all([readDuelloRoundProof(pageA), readDuelloRoundProof(pageB)]);
+    evidence.sharedTimelineGrewAfterRound = afterA.timelineCount === beforeA.timelineCount + 1
+      && afterB.timelineCount === beforeB.timelineCount + 1;
+    evidence.nextRoundSharedStateMatched = afterA.timelineFingerprint === afterB.timelineFingerprint
+      && afterA.questionFingerprint === afterB.questionFingerprint
+      && afterA.questionIndex === afterB.questionIndex
+      && afterA.deadlineFingerprint === afterB.deadlineFingerprint;
+    if (!evidence.sharedTimelineGrewAfterRound || !evidence.nextRoundSharedStateMatched) {
+      const error = new Error('Duello round did not grow one identical shared timeline and start one identical next round.');
+      error.failureCategory = 'DUELLO_SHARED_TIMELINE_DIVERGENCE';
+      throw error;
+    }
+    return 'A locked immediately, B retained its answer window, and both clients advanced to one identical grown timeline and next round.';
   });
   await runtime.step('duello.privacy', async () => {
     await Promise.all([assertPublicTextSafe(pageA), assertPublicTextSafe(pageB)]);
@@ -1338,9 +1420,9 @@ async function duelloTwoContext(runtime, config) {
   });
   await runtime.step('duello.extended_result', async () => {
     throw new AutomationSetupGap(
-      'A deterministic correct-claim/first-to-10 fixture is not configured; pairing/direct-start proof does not claim score proof.',
+      'A deterministic 12-round result fixture is not configured; the shared-round proof does not claim +50/+25/0 persistence or rematch delivery proof.',
       AUTOMATION_STATUS.MANUAL_EXTERNAL,
-      'DUELLO_CLAIM_FIXTURE_REQUIRED',
+      'DUELLO_RESULT_FIXTURE_REQUIRED',
     );
   }, { optional: true });
 }

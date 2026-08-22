@@ -1,4 +1,19 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.34';
+import {
+  DUELLO_MATCH_STATE,
+  DUELLO_MAX_QUESTIONS,
+  DUELLO_RESULT_VISIBLE_MS,
+  DUELLO_RULES_VERSION,
+  DUELLO_ROUND_SECONDS,
+  DUELLO_TARGET_CORRECT,
+  appendDuelloTimelineCard,
+  buildDuelloRoundTiming,
+  duelloRoundShouldResolve,
+  isDuelloAnswerLate,
+  isDuelloAnswerableState,
+  isDuelloPlacementCorrect,
+  resolveDuelloRound,
+} from '../../shared/duelloV2Rules.js';
 
 const ONLINE_WIN_POINTS = 15;
 const ONLINE_LOSS_POINTS = -6;
@@ -6,9 +21,8 @@ const ONLINE_CHECKPOINTS = [0, 100, 250, 500, 1000, 1500, 2000, 3000];
 const LOCK_TTL_MS = 12 * 1000;
 const LOCK_SETTLE_MS = 90;
 const KRONOX_ID_PATTERN = /^KX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
-const VALID_ACTIONS = new Set(['place_card', 'advance_turn', 'skip_question', 'claim_shared_card']);
+const VALID_ACTIONS = new Set(['place_card', 'advance_turn', 'skip_question', 'submit_duello_answer', 'sync_duello_round']);
 const SAME_QUESTION_DUEL_MODE = 'same_question_duel';
-const SAME_QUESTION_DUEL_TARGET = 10;
 
 const json = (body: unknown, status = 200) => Response.json(body, { status });
 const rowId = (row: any) => row?.id || row?._id || '';
@@ -140,11 +154,14 @@ function publicDuelTimelineCards(cards: any[] = []) {
     .map((card: any, index: number) => ({
       id: `duel_timeline_${index + 1}`,
       year: Number(card?.year),
+      question: String(card?.question || ''),
+      type: card?.type || 'metin',
+      media_url: String(card?.media_url || '').startsWith('https://') ? card.media_url : '',
     }))
     .filter((card: any) => Number.isFinite(card.year));
 }
 
-function publicDuelActiveCard(question: any, sequence: number, canAttempt: boolean) {
+function publicDuelActiveCard(question: any, sequence: number, canAttempt: boolean, revealYear = false) {
   if (!question) return null;
   const mediaUrl = String(question?.media_url || '');
   return {
@@ -154,6 +171,25 @@ function publicDuelActiveCard(question: any, sequence: number, canAttempt: boole
     media_url: mediaUrl.startsWith('https://') || mediaUrl.startsWith('/assets/') ? mediaUrl : '',
     sequence_id: sequence,
     can_attempt: canAttempt,
+    ...(revealYear && Number.isFinite(Number(question?.year)) ? { revealed_year: Number(question.year) } : {}),
+  };
+}
+
+function publicDuelRoundResult(lobby: any, players: any[]) {
+  const result = lobby?.duel_round_result;
+  if (!result || !Array.isArray(result?.answers)) return null;
+  return {
+    question_index: Math.max(1, Math.trunc(Number(result?.question_index) || 1)),
+    correct_year: Number.isFinite(Number(result?.correct_year)) ? Number(result.correct_year) : null,
+    answers: players.map((player: any) => {
+      const answer = result.answers.find((candidate: any) => String(candidate?.participant_ref || '') === String(player?.participant_ref || ''));
+      return {
+        participant_ref: String(player?.participant_ref || ''),
+        answered: Boolean(answer?.answered),
+        correct: Boolean(answer?.correct),
+        unanswered: !answer?.answered,
+      };
+    }),
   };
 }
 
@@ -161,17 +197,28 @@ function publicLobby(lobby: any, actor: any) {
   const players = Array.isArray(lobby?.players) ? lobby.players : [];
   const hostActorKey = String(lobby?.host_actor_key_hash || players[0]?.actor_key_hash || '');
   const gameMode = String(lobby?.game_mode || 'random_online');
-  const duelAttempts = Array.isArray(lobby?.duel_round_attempts) ? lobby.duel_round_attempts : [];
+  const duelAnswers = Array.isArray(lobby?.duel_round_answers) ? lobby.duel_round_answers : [];
   const duelSequence = Math.max(1, Math.trunc(Number(lobby?.duel_sequence) || 1));
   const duelIsActive = ['starting', 'in_game'].includes(String(lobby?.status || ''));
+  const duelMatchState = String(lobby?.duel_match_state || DUELLO_MATCH_STATE.MATCHING);
+  const actorAnswer = duelAnswers.find((answer: any) => String(answer?.actor_key_hash || '') === String(actor?.actorKeyHash || ''));
+  const deadlineMs = Date.parse(String(lobby?.duel_question_deadline || ''));
+  const canAttempt = duelIsActive
+    && isDuelloAnswerableState(duelMatchState)
+    && !actorAnswer
+    && Number.isFinite(deadlineMs)
+    && Date.now() < deadlineMs;
   const activeQuestion = gameMode === SAME_QUESTION_DUEL_MODE && duelIsActive
     ? (lobby?.online_question_deck || []).find((question: any) => String(question?.id || '') === String(lobby?.current_question_id || ''))
     : null;
   const publicActiveQuestion = publicDuelActiveCard(
     activeQuestion,
     duelSequence,
-    !duelAttempts.includes(actor?.actorKeyHash),
+    canAttempt,
+    duelMatchState === DUELLO_MATCH_STATE.ROUND_RESULT,
   );
+  const sharedTimeline = publicDuelTimelineCards(lobby?.duel_shared_timeline || []);
+  const roundResult = publicDuelRoundResult(lobby, players);
   return {
     id: String(lobby?.public_ref || ''),
     code: String(lobby?.code || ''),
@@ -187,9 +234,10 @@ function publicLobby(lobby: any, actor: any) {
         name: safeUsername(player?.name, player?.participant_ref),
         ...safeAvatar(player),
         ready: Boolean(player?.ready),
-        claimed_count: Math.max(0, Math.trunc(Number(player?.claimed_count) || 0)),
+        correct_count: Math.max(0, Math.trunc(Number(player?.correct_count ?? player?.claimed_count) || 0)),
+        claimed_count: Math.max(0, Math.trunc(Number(player?.correct_count ?? player?.claimed_count) || 0)),
         cards: gameMode === SAME_QUESTION_DUEL_MODE
-          ? (isSelf ? publicDuelTimelineCards(player?.cards) : [])
+          ? sharedTimeline
           : (Array.isArray(player?.cards) ? player.cards : []),
         is_self: isSelf,
         is_host: Boolean(hostActorKey && hostActorKey === String(player?.actor_key_hash || '')),
@@ -211,14 +259,29 @@ function publicLobby(lobby: any, actor: any) {
       : (Array.isArray(lobby?.online_question_deck) ? lobby.online_question_deck : []),
     online_deck_meta: lobby?.online_deck_meta || null,
     active_shared_card: publicActiveQuestion,
-    recent_claim: gameMode === SAME_QUESTION_DUEL_MODE && lobby?.recent_claim ? {
-      participant_ref: lobby.recent_claim.participant_ref || null,
-      sequence_id: Number(lobby.recent_claim.sequence_id) || null,
-      claimed_at: lobby.recent_claim.claimed_at || null,
-      skipped: Boolean(lobby.recent_claim.skipped),
-      claimed_by_self: Boolean(lobby.recent_claim.participant_ref && players.some((player: any) =>
-        actorMatchesPlayer(actor, player) && player.participant_ref === lobby.recent_claim.participant_ref)),
-    } : null,
+    ...(gameMode === SAME_QUESTION_DUEL_MODE ? {
+      match_id: String(lobby?.public_ref || ''),
+      duel_rules_version: String(lobby?.duel_rules_version || DUELLO_RULES_VERSION),
+      duel_match_state: duelMatchState,
+      duel_question_index: duelSequence,
+      duel_max_questions: DUELLO_MAX_QUESTIONS,
+      duel_target_correct: DUELLO_TARGET_CORRECT,
+      duel_round_seconds: DUELLO_ROUND_SECONDS,
+      duel_shared_timeline: sharedTimeline,
+      duel_answer_locked: Boolean(actorAnswer),
+      duel_opponent_answered: duelAnswers.some((answer: any) => String(answer?.actor_key_hash || '') !== String(actor?.actorKeyHash || '')),
+      duel_question_started_at: lobby?.duel_question_started_at || null,
+      duel_question_deadline: lobby?.duel_question_deadline || null,
+      duel_countdown_ends_at: lobby?.duel_countdown_ends_at || null,
+      duel_round_resolve_after: lobby?.duel_round_resolve_after || null,
+      duel_round_result: roundResult,
+      duel_sudden_death: Boolean(lobby?.duel_sudden_death),
+      duel_result_type: lobby?.duel_result_type || null,
+      duel_result_reason: lobby?.duel_result_reason || null,
+      duel_points_awarded: Math.max(0, Math.trunc(Number(lobby?.duel_points_awarded) || 0)),
+      server_now: new Date().toISOString(),
+    } : {}),
+    recent_claim: null,
     winner: lobby?.winner || null,
     winner_participant_ref: lobby?.winner_participant_ref || null,
     started_at: lobby?.started_at || null,
@@ -322,11 +385,13 @@ function getCheckpoint(score: number) {
   return checkpoint;
 }
 
-function applyOnlineScore(progress: any, result: 'win' | 'loss') {
+function applyOnlineScore(progress: any, result: 'win' | 'loss' | 'draw', authoritativeDelta: number | null = null) {
   const previousScore = safeNumber(progress?.score, 0);
   const previousPeak = Math.max(previousScore, safeNumber(progress?.peakScore, previousScore));
   const previousCheckpoint = Math.max(getCheckpoint(previousScore), safeNumber(progress?.peakCheckpoint, getCheckpoint(previousPeak)));
-  const delta = result === 'win' ? ONLINE_WIN_POINTS : ONLINE_LOSS_POINTS;
+  const delta = authoritativeDelta !== null && Number.isFinite(Number(authoritativeDelta))
+    ? Math.trunc(Number(authoritativeDelta))
+    : (result === 'win' ? ONLINE_WIN_POINTS : ONLINE_LOSS_POINTS);
   const nextScore = delta < 0 ? Math.max(previousCheckpoint, previousScore + delta, 0) : previousScore + delta;
   return {
     progress: {
@@ -413,10 +478,17 @@ async function commitOnlineResult(base44: any, lobby: any, actor: any, body: any
   const players = Array.isArray(lobby?.players) ? lobby.players : [];
   const actorPlayer = players.find((player: any) => actorMatchesPlayer(actor, player));
   if (!actorPlayer) return json({ ok: false, code: 'not_lobby_participant', error: 'Bu maçın oyuncusu değilsin.' }, 403);
-  if (lobby?.status !== 'finished' || !lobby?.winner_actor_key_hash) {
+  const isDuello = String(lobby?.game_mode || '') === SAME_QUESTION_DUEL_MODE;
+  const isDraw = isDuello && String(lobby?.duel_result_type || '') === 'draw';
+  if (lobby?.status !== 'finished' || (!isDraw && !lobby?.winner_actor_key_hash)) {
     return json({ ok: false, code: 'match_not_finished', error: 'Maç sonucu henüz doğrulanmadı.' }, 409);
   }
-  const result: 'win' | 'loss' = String(lobby.winner_actor_key_hash) === actor.actorKeyHash ? 'win' : 'loss';
+  const result: 'win' | 'loss' | 'draw' = isDraw
+    ? 'draw'
+    : (String(lobby.winner_actor_key_hash) === actor.actorKeyHash ? 'win' : 'loss');
+  const duelloDelta = isDuello
+    ? (result === 'win' ? Math.max(0, Math.trunc(safeNumber(lobby?.duel_points_awarded, 0))) : 0)
+    : null;
   const idempotencyKey = buildOnlineMatchResultIdempotencyKey(rowId(lobby), actor.actorKeyHash);
   const resultEntity = base44.asServiceRole.entities.OnlineMatchResult;
   const existingRows = await resultEntity.filter({ idempotency_key: idempotencyKey }, 'created_at', 10).catch(() => []);
@@ -472,7 +544,7 @@ async function commitOnlineResult(base44: any, lobby: any, actor: any, body: any
     if (reservation && currentScore !== safeNumber(reservation?.score_before, currentScore)) {
       return json({ ok: false, code: 'online_result_reconciliation_conflict', error: 'Maç puanı güvenli biçimde uzlaştırılamadı.' }, 409);
     }
-    const { progress, applied } = applyOnlineScore(currentProgress, result);
+    const { progress, applied } = applyOnlineScore(currentProgress, result, duelloDelta);
     progress.lastMatchId = matchRef;
     const soloScore = readSoloScore(freshProfile, applied.previousScore);
     const totalScore = Math.max(0, Math.trunc(soloScore + applied.nextScore));
@@ -499,7 +571,11 @@ async function commitOnlineResult(base44: any, lobby: any, actor: any, body: any
           status: 'reserved',
           created_at: timestamp,
           source: String(body?.source || 'online_game').slice(0, 80),
-          metadata: { backendAuthoritative: true, scoreRule: 'winner_15_loser_minus_6' },
+          metadata: {
+            backendAuthoritative: true,
+            scoreRule: isDuello ? 'duello_v2_backend_50_25_0' : 'winner_15_loser_minus_6',
+            speedBonus: false,
+          },
         });
       } catch (_reservationError) {
         return json({
@@ -532,7 +608,148 @@ async function commitOnlineResult(base44: any, lobby: any, actor: any, body: any
   }
 }
 
-async function claimSameQuestionDuelCard(base44: any, lobby: any, actor: any, body: any) {
+function currentDuelloQuestion(lobby: any) {
+  return (Array.isArray(lobby?.online_question_deck) ? lobby.online_question_deck : [])
+    .find((question: any) => String(question?.id || '') === String(lobby?.current_question_id || '')) || null;
+}
+
+function buildDuelloRoundResolutionUpdate(lobby: any, answers: any[], currentQuestion: any, nowMs: number, processedKeys: string[]) {
+  const sequence = Math.max(1, Math.trunc(safeNumber(lobby?.duel_sequence, 1)));
+  const resolution = resolveDuelloRound({
+    players: lobby?.players,
+    answers,
+    questionIndex: sequence,
+    suddenDeath: Boolean(lobby?.duel_sudden_death),
+  });
+  const sharedTimeline = appendDuelloTimelineCard(lobby?.duel_shared_timeline, currentQuestion);
+  const timestamp = new Date(nowMs).toISOString();
+  const nextPlayers = resolution.players.map((player: any) => ({ ...player, cards: sharedTimeline.map((card: any) => ({ ...card })) }));
+  return {
+    status: 'in_game',
+    players: nextPlayers,
+    duel_shared_timeline: sharedTimeline,
+    duel_round_answers: answers,
+    duel_round_attempts: answers.map((answer: any) => answer.actor_key_hash).filter(Boolean),
+    duel_round_result: {
+      question_index: sequence,
+      correct_year: Number(currentQuestion?.year),
+      answers: resolution.answers,
+      resolved_at: timestamp,
+    },
+    duel_round_resolve_after: new Date(nowMs + DUELLO_RESULT_VISIBLE_MS).toISOString(),
+    duel_match_state: DUELLO_MATCH_STATE.ROUND_RESULT,
+    duel_sudden_death: resolution.suddenDeath,
+    duel_pending_finish: resolution.finished ? {
+      result_type: resolution.resultType,
+      result_reason: resolution.resultReason,
+      winner_participant_ref: resolution.winnerParticipantRef,
+      points_awarded: resolution.pointsAwarded,
+    } : null,
+    duel_processed_operation_keys: processedKeys.slice(-80),
+    recent_claim: null,
+    last_activity_at: timestamp,
+    state_revision: readRevision(lobby?.state_revision) + 1,
+  };
+}
+
+function buildDuelloFinishUpdate(lobby: any, nowMs: number) {
+  const pending = lobby?.duel_pending_finish;
+  if (!pending) return null;
+  const players = Array.isArray(lobby?.players) ? lobby.players : [];
+  const winnerPlayer = players.find((player: any) => String(player?.participant_ref || '') === String(pending?.winner_participant_ref || '')) || null;
+  const timestamp = new Date(nowMs).toISOString();
+  return {
+    status: 'finished',
+    current_question_id: null,
+    duel_match_state: DUELLO_MATCH_STATE.MATCH_FINISHED,
+    duel_pending_finish: null,
+    duel_result_type: pending?.result_type || 'draw',
+    duel_result_reason: pending?.result_reason || 'draw',
+    duel_points_awarded: Math.max(0, Math.trunc(safeNumber(pending?.points_awarded, 0))),
+    winner: winnerPlayer ? safeUsername(winnerPlayer?.name, winnerPlayer?.participant_ref) : null,
+    winner_participant_ref: winnerPlayer?.participant_ref || null,
+    winner_actor_key_hash: winnerPlayer?.actor_key_hash || null,
+    winner_email: winnerPlayer?.email || null,
+    winner_kronox_user_id: winnerPlayer?.kronox_user_id || null,
+    completed_at: timestamp,
+    last_activity_at: timestamp,
+    state_revision: readRevision(lobby?.state_revision) + 1,
+  };
+}
+
+function buildNextDuelloRoundUpdate(lobby: any, nowMs: number) {
+  const sequence = Math.max(1, Math.trunc(safeNumber(lobby?.duel_sequence, 1)));
+  if (sequence >= DUELLO_MAX_QUESTIONS) return null;
+  const used = new Set((Array.isArray(lobby?.used_question_ids) ? lobby.used_question_ids : []).map(String));
+  const nextQuestion = (Array.isArray(lobby?.online_question_deck) ? lobby.online_question_deck : [])
+    .find((question: any) => !used.has(String(question?.id || '')));
+  if (!nextQuestion) return null;
+  used.add(String(nextQuestion.id));
+  const timing = buildDuelloRoundTiming(nowMs);
+  return {
+    status: 'in_game',
+    current_question_id: String(nextQuestion.id),
+    used_question_ids: Array.from(used),
+    duel_sequence: sequence + 1,
+    duel_match_state: lobby?.duel_sudden_death ? DUELLO_MATCH_STATE.SUDDEN_DEATH : DUELLO_MATCH_STATE.QUESTION_ACTIVE,
+    duel_round_answers: [],
+    duel_round_attempts: [],
+    duel_round_result: null,
+    duel_round_resolve_after: null,
+    duel_pending_finish: null,
+    duel_question_started_at: timing.questionStartedAt,
+    duel_question_deadline: timing.questionDeadline,
+    duel_countdown_ends_at: null,
+    recent_claim: null,
+    last_activity_at: new Date(nowMs).toISOString(),
+    state_revision: readRevision(lobby?.state_revision) + 1,
+  };
+}
+
+function buildDueDuelloUpdate(lobby: any, nowMs = Date.now()) {
+  const matchState = String(lobby?.duel_match_state || '');
+  if (matchState === DUELLO_MATCH_STATE.COUNTDOWN) {
+    const startsAt = Date.parse(String(lobby?.duel_question_started_at || ''));
+    if (Number.isFinite(startsAt) && nowMs >= startsAt) {
+      return {
+        status: 'in_game',
+        duel_match_state: lobby?.duel_sudden_death ? DUELLO_MATCH_STATE.SUDDEN_DEATH : DUELLO_MATCH_STATE.QUESTION_ACTIVE,
+        duel_countdown_ends_at: null,
+        last_activity_at: new Date(nowMs).toISOString(),
+        state_revision: readRevision(lobby?.state_revision) + 1,
+      };
+    }
+    return null;
+  }
+  if ([DUELLO_MATCH_STATE.QUESTION_ACTIVE, DUELLO_MATCH_STATE.WAITING_FOR_OPPONENT, DUELLO_MATCH_STATE.SUDDEN_DEATH].includes(matchState)) {
+    const answers = Array.isArray(lobby?.duel_round_answers) ? lobby.duel_round_answers : [];
+    if (!duelloRoundShouldResolve({
+      answers,
+      playerCount: 2,
+      questionDeadline: lobby?.duel_question_deadline,
+      serverNowMs: nowMs,
+    })) return null;
+    const question = currentDuelloQuestion(lobby);
+    if (!question) return null;
+    return buildDuelloRoundResolutionUpdate(
+      lobby,
+      answers,
+      question,
+      nowMs,
+      Array.isArray(lobby?.duel_processed_operation_keys) ? lobby.duel_processed_operation_keys : [],
+    );
+  }
+  if (matchState === DUELLO_MATCH_STATE.ROUND_RESULT) {
+    const resolveAfter = Date.parse(String(lobby?.duel_round_resolve_after || ''));
+    if (!Number.isFinite(resolveAfter) || nowMs < resolveAfter) return null;
+    return lobby?.duel_pending_finish
+      ? buildDuelloFinishUpdate(lobby, nowMs)
+      : buildNextDuelloRoundUpdate(lobby, nowMs);
+  }
+  return null;
+}
+
+async function submitSameQuestionDuelAnswer(base44: any, lobby: any, actor: any, body: any) {
   if (String(lobby?.game_mode || '') !== SAME_QUESTION_DUEL_MODE) {
     return json({ ok: false, code: 'wrong_game_mode', error: 'Bu işlem bu Online modu için kullanılamaz.' }, 400);
   }
@@ -547,10 +764,10 @@ async function claimSameQuestionDuelCard(base44: any, lobby: any, actor: any, bo
   const clientOperationKey = String(body?.operation_key || `sequence:${requestedSequence}`)
     .replace(/[^A-Za-z0-9:_-]/g, '')
     .slice(0, 160);
-  const operationKey = `duel_claim:${rowId(lobby)}:${requestedSequence}:${actor.actorKeyHash}:${clientOperationKey}`;
+  const operationKey = `duel_answer:${rowId(lobby)}:${requestedSequence}:${actor.actorKeyHash}:${clientOperationKey}`;
   const processed = Array.isArray(lobby?.duel_processed_operation_keys) ? lobby.duel_processed_operation_keys : [];
   if (processed.includes(operationKey)) {
-    return json({ success: true, idempotent: true, claim_result: 'already_processed', lobby: publicLobby(lobby, actor) });
+    return json({ success: true, idempotent: true, answer_result: 'already_processed', lobby: publicLobby(lobby, actor) });
   }
 
   const lock = await acquireLock(
@@ -572,14 +789,14 @@ async function claimSameQuestionDuelCard(base44: any, lobby: any, actor: any, bo
     }
     const freshProcessed = Array.isArray(fresh?.duel_processed_operation_keys) ? fresh.duel_processed_operation_keys : [];
     if (freshProcessed.includes(operationKey)) {
-      return json({ success: true, idempotent: true, claim_result: 'already_processed', lobby: publicLobby(fresh, actor) });
+      return json({ success: true, idempotent: true, answer_result: 'already_processed', lobby: publicLobby(fresh, actor) });
     }
     const currentSequence = Math.max(1, Math.trunc(safeNumber(fresh?.duel_sequence, 1)));
     if (requestedSequence !== currentSequence) {
       return json({
         success: true,
         idempotent: true,
-        claim_result: 'card_already_resolved',
+        answer_result: 'round_already_resolved',
         lobby: publicLobby(fresh, actor),
       });
     }
@@ -590,115 +807,107 @@ async function claimSameQuestionDuelCard(base44: any, lobby: any, actor: any, bo
     }
     const freshActorIndex = storedPlayers.findIndex((player: any) => actorMatchesPlayer(actor, player));
     if (freshActorIndex < 0) return json({ ok: false, code: 'not_lobby_participant', error: 'Bu maçın oyuncusu değilsin.' }, 403);
-    const attempts = Array.isArray(fresh?.duel_round_attempts) ? fresh.duel_round_attempts : [];
-    if (attempts.includes(actor.actorKeyHash)) {
-      return json({ success: true, idempotent: true, claim_result: 'already_attempted', lobby: publicLobby(fresh, actor) });
-    }
-
-    const deck = Array.isArray(fresh?.online_question_deck) ? fresh.online_question_deck : [];
-    const currentQuestion = deck.find((question: any) => String(question?.id || '') === String(fresh?.current_question_id || ''));
-    if (!currentQuestion) return json({ ok: false, code: 'question_not_in_deck', error: 'Aktif soru doğrulanamadı.' }, 409);
-    const playerCards = Array.isArray(storedPlayers[freshActorIndex]?.cards) ? storedPlayers[freshActorIndex].cards : [];
-    const placementZone = Math.trunc(Number(body?.placement_zone));
-    const correct = isCorrectPlacement(playerCards, Number(currentQuestion.year), placementZone);
-    const nextProcessed = [...freshProcessed, operationKey].slice(-80);
-    const timestamp = new Date().toISOString();
-    const nextRevision = readRevision(fresh?.state_revision) + 1;
-
-    if (correct) {
-      const claimedCard = {
-        id: String(currentQuestion.id),
-        year: Number(currentQuestion.year),
-        question: String(currentQuestion.question || ''),
-        type: currentQuestion.type || 'metin',
-        media_url: currentQuestion.media_url || '',
-      };
-      const nextPlayers = storedPlayers.map((player: any, index: number) => index === freshActorIndex ? {
-        ...player,
-        cards: [...playerCards, claimedCard],
-        claimed_count: Math.max(0, Math.trunc(safeNumber(player?.claimed_count, 0))) + 1,
-      } : player);
-      const winnerPlayer = nextPlayers[freshActorIndex];
-      const hasWon = Number(winnerPlayer.claimed_count) >= SAME_QUESTION_DUEL_TARGET;
-      const used = new Set((fresh?.used_question_ids || []).map(String));
-      used.add(String(currentQuestion.id));
-      const nextQuestion = hasWon ? null : deck.find((question: any) => !used.has(String(question?.id || '')));
-      if (!hasWon && !nextQuestion) {
-        return json({ ok: false, code: 'duel_deck_exhausted', error: 'Yeni ortak kart hazırlanamadı.' }, 409);
-      }
-      if (nextQuestion) used.add(String(nextQuestion.id));
-      const updateData: Record<string, unknown> = {
-        players: nextPlayers,
-        status: hasWon ? 'finished' : 'in_game',
-        current_question_id: hasWon ? null : String(nextQuestion.id),
-        used_question_ids: Array.from(used),
-        duel_sequence: hasWon ? currentSequence : currentSequence + 1,
-        duel_round_attempts: [],
-        duel_processed_operation_keys: nextProcessed,
-        recent_claim: {
-          participant_ref: winnerPlayer.participant_ref,
-          sequence_id: currentSequence,
-          claimed_at: timestamp,
-          skipped: false,
-        },
-        last_operation_key: operationKey,
-        last_activity_at: timestamp,
-        state_revision: nextRevision,
-      };
-      if (hasWon) {
-        updateData.winner = safeUsername(winnerPlayer?.name, winnerPlayer?.participant_ref);
-        updateData.winner_participant_ref = winnerPlayer?.participant_ref || null;
-        updateData.winner_actor_key_hash = winnerPlayer?.actor_key_hash || actor.actorKeyHash;
-        updateData.winner_email = winnerPlayer?.email || null;
-        updateData.winner_kronox_user_id = winnerPlayer?.kronox_user_id || null;
-        updateData.completed_at = timestamp;
-      }
-      await base44.asServiceRole.entities.Lobby.update(rowId(fresh), updateData);
+    const nowMs = Date.now();
+    const dueUpdate = buildDueDuelloUpdate(fresh, nowMs);
+    if (dueUpdate && (
+      String(dueUpdate?.duel_match_state || '') === DUELLO_MATCH_STATE.ROUND_RESULT
+      || String(fresh?.duel_match_state || '') === DUELLO_MATCH_STATE.ROUND_RESULT
+    )) {
+      await base44.asServiceRole.entities.Lobby.update(rowId(fresh), dueUpdate);
       const updated = await base44.asServiceRole.entities.Lobby.get(rowId(fresh));
-      return json({
-        success: true,
-        claim_result: 'claimed',
-        correct: true,
-        completed: hasWon,
-        lobby: publicLobby(updated, actor),
-      });
+      return json({ success: true, accepted: false, answer_result: 'round_already_resolved', lobby: publicLobby(updated, actor) });
+    }
+    const working = dueUpdate
+      ? { ...fresh, ...dueUpdate, state_revision: readRevision(fresh?.state_revision) }
+      : fresh;
+    const matchState = String(working?.duel_match_state || '');
+    if (!isDuelloAnswerableState(matchState)) {
+      return json({ ok: false, code: 'duel_round_not_active', error: 'Bu Duello turu henüz aktif değil.' }, 409);
+    }
+    if (isDuelloAnswerLate(working?.duel_question_deadline, nowMs)) {
+      const lateUpdate = buildDueDuelloUpdate(working, nowMs);
+      if (lateUpdate) await base44.asServiceRole.entities.Lobby.update(rowId(fresh), lateUpdate);
+      const updated = await base44.asServiceRole.entities.Lobby.get(rowId(fresh));
+      return json({ success: true, accepted: false, answer_result: 'late', lobby: publicLobby(updated, actor) });
+    }
+    const answers = Array.isArray(working?.duel_round_answers) ? working.duel_round_answers : [];
+    if (answers.some((answer: any) => String(answer?.actor_key_hash || '') === actor.actorKeyHash)) {
+      return json({ success: true, idempotent: true, accepted: true, answer_result: 'locked', lobby: publicLobby(working, actor) });
     }
 
-    const nextAttempts = [...attempts, actor.actorKeyHash];
-    const bothAnsweredWrong = nextAttempts.length >= 2;
-    const used = new Set((fresh?.used_question_ids || []).map(String));
-    used.add(String(currentQuestion.id));
-    const nextQuestion = bothAnsweredWrong
-      ? deck.find((question: any) => !used.has(String(question?.id || '')))
-      : null;
-    if (bothAnsweredWrong && !nextQuestion) {
-      return json({ ok: false, code: 'duel_deck_exhausted', error: 'Yeni ortak kart hazırlanamadı.' }, 409);
-    }
-    if (nextQuestion) used.add(String(nextQuestion.id));
-    await base44.asServiceRole.entities.Lobby.update(rowId(fresh), {
-      status: 'in_game',
-      current_question_id: nextQuestion ? String(nextQuestion.id) : String(currentQuestion.id),
-      used_question_ids: Array.from(used),
-      duel_sequence: nextQuestion ? currentSequence + 1 : currentSequence,
-      duel_round_attempts: nextQuestion ? [] : nextAttempts,
-      duel_processed_operation_keys: nextProcessed,
-      recent_claim: nextQuestion ? {
-        participant_ref: null,
-        sequence_id: currentSequence,
-        claimed_at: timestamp,
-        skipped: true,
-      } : fresh?.recent_claim || null,
-      last_operation_key: operationKey,
-      last_activity_at: timestamp,
-      state_revision: nextRevision,
+    const currentQuestion = currentDuelloQuestion(working);
+    if (!currentQuestion) return json({ ok: false, code: 'question_not_in_deck', error: 'Aktif soru doğrulanamadı.' }, 409);
+    const sharedTimeline = Array.isArray(working?.duel_shared_timeline) ? working.duel_shared_timeline : [];
+    const placementZone = Math.trunc(Number(body?.placement_zone));
+    const correct = isDuelloPlacementCorrect(sharedTimeline, Number(currentQuestion.year), placementZone);
+    const nextProcessed = [...freshProcessed, operationKey].slice(-80);
+    const startedAtMs = Date.parse(String(working?.duel_question_started_at || ''));
+    const responseMs = Number.isFinite(startedAtMs) ? Math.max(0, Math.min(DUELLO_ROUND_SECONDS * 1000, nowMs - startedAtMs)) : 0;
+    const nextAnswers = [...answers, {
+      actor_key_hash: actor.actorKeyHash,
+      participant_ref: String(storedPlayers[freshActorIndex]?.participant_ref || ''),
+      placement_zone: placementZone,
+      answered_at: new Date(nowMs).toISOString(),
+      response_ms: responseMs,
+      correct,
+    }];
+
+    const shouldResolve = duelloRoundShouldResolve({
+      answers: nextAnswers,
+      playerCount: 2,
+      questionDeadline: working?.duel_question_deadline,
+      serverNowMs: nowMs,
     });
+    const updateData = shouldResolve
+      ? buildDuelloRoundResolutionUpdate(working, nextAnswers, currentQuestion, nowMs, nextProcessed)
+      : {
+          status: 'in_game',
+          duel_match_state: DUELLO_MATCH_STATE.WAITING_FOR_OPPONENT,
+          duel_round_answers: nextAnswers,
+          duel_round_attempts: nextAnswers.map((answer: any) => answer.actor_key_hash).filter(Boolean),
+          duel_processed_operation_keys: nextProcessed,
+          last_operation_key: operationKey,
+          last_activity_at: new Date(nowMs).toISOString(),
+          state_revision: readRevision(working?.state_revision) + 1,
+        };
+    await base44.asServiceRole.entities.Lobby.update(rowId(fresh), updateData);
     const updated = await base44.asServiceRole.entities.Lobby.get(rowId(fresh));
     return json({
       success: true,
-      claim_result: nextQuestion ? 'both_wrong_next_card' : 'wrong',
-      correct: false,
+      accepted: true,
+      answer_result: shouldResolve ? 'round_resolved' : 'locked',
       lobby: publicLobby(updated, actor),
     });
+  } finally {
+    await releaseLock(base44, lock.lock);
+  }
+}
+
+async function syncSameQuestionDuelRound(base44: any, lobby: any, actor: any) {
+  if (String(lobby?.game_mode || '') !== SAME_QUESTION_DUEL_MODE) {
+    return json({ ok: false, code: 'wrong_game_mode', error: 'Bu işlem bu Online modu için kullanılamaz.' }, 400);
+  }
+  const players = Array.isArray(lobby?.players) ? lobby.players : [];
+  if (players.length !== 2 || !players.some((player: any) => actorMatchesPlayer(actor, player))) {
+    return json({ ok: false, code: 'not_lobby_participant', error: 'Bu maçın oyuncusu değilsin.' }, 403);
+  }
+  if (!buildDueDuelloUpdate(lobby, Date.now())) {
+    return json({ success: true, state_changed: false, lobby: publicLobby(lobby, actor) });
+  }
+  const sequence = Math.max(1, Math.trunc(safeNumber(lobby?.duel_sequence, 1)));
+  const operationKey = `duel_sync:${rowId(lobby)}:${sequence}:${String(lobby?.duel_match_state || '')}`;
+  const lock = await acquireLock(base44, `same-question-duel:${rowId(lobby)}:${sequence}`, actor, 'lobby_turn', operationKey);
+  if (!lock.ok) return lock.response;
+  try {
+    const fresh = await base44.asServiceRole.entities.Lobby.get(rowId(lobby));
+    if (!fresh || String(fresh?.game_mode || '') !== SAME_QUESTION_DUEL_MODE) {
+      return json({ ok: false, code: 'wrong_game_mode', error: 'Duello durumu doğrulanamadı.' }, 409);
+    }
+    const updateData = buildDueDuelloUpdate(fresh, Date.now());
+    if (!updateData) return json({ success: true, state_changed: false, lobby: publicLobby(fresh, actor) });
+    await base44.asServiceRole.entities.Lobby.update(rowId(fresh), updateData);
+    const updated = await base44.asServiceRole.entities.Lobby.get(rowId(fresh));
+    return json({ success: true, state_changed: true, lobby: publicLobby(updated, actor) });
   } finally {
     await releaseLock(base44, lock.lock);
   }
@@ -726,8 +935,11 @@ Deno.serve(async (req) => {
       return json({ ok: false, code: 'invalid_lobby_status', error: 'Oyun aktif değil.' }, 409);
     }
 
-    if (body?.action === 'claim_shared_card') {
-      return claimSameQuestionDuelCard(base44, lobby, actor, body);
+    if (body?.action === 'submit_duello_answer') {
+      return submitSameQuestionDuelAnswer(base44, lobby, actor, body);
+    }
+    if (body?.action === 'sync_duello_round') {
+      return syncSameQuestionDuelRound(base44, lobby, actor);
     }
 
     const expectedRevision = readRevision(body?.expected_state_revision);

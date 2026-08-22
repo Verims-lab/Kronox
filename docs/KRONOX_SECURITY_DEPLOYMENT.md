@@ -1188,8 +1188,25 @@ token, or username in that subsection. Production release proof should verify
 the projection entities are deployed and RLS/admin access does not make these
 rows public.
 
-## Duello V1 Security Boundary
+## Duello V2 Security Boundary
 
-`Duello` is the final display name for the stable internal `same_question_duel` key. The mode is isolated from normal random matchmaking by a backend-validated mode lane and creates exactly two-player lobbies. `startLobbyGame` authors one private shared deck and identical two-card opening context. `updateLobbyGameState:claim_shared_card` serializes each shared sequence under a backend lock, evaluates placement against server state, records one wrong attempt per actor, and awards at most one claim. Client time does not decide races; retries are actor/sequence/operation idempotent, and stale sequences return the current sanitized Lobby snapshot. Public snapshots expose username, sanitized avatar, opaque participant ref, claimed count, synthetic timeline/card ids, the prompt without its answer year, safe recent-claim state, and terminal winner only. They omit email, guest proof, actor/owner/internal IDs, raw Question/Lobby row ids, used-question ids, opponent card rows, the remaining deck, and raw errors. Clients accept only non-regressing `state_revision` snapshots and show safe Turkish stale-claim copy. V1 disables Joker/Hint. Real simultaneous arbitration, reconnect, RLS/BOLA, and score persistence require two-device deployed-runtime proof.
+`Duello` uses the stable internal `same_question_duel` key in a backend-validated
+mode lane and creates exactly two-player sessions. `startLobbyGame` authors one
+private deck, shared opening timeline, active question, and shared 10-second
+deadline. `updateLobbyGameState:submit_duello_answer` serializes each actor's
+single answer under a round lock, rejects duplicate/late submissions, evaluates
+placement against the private answer year, and resolves only after both answers
+or deadline. `sync_duello_round` advances due countdown, deadline, feedback,
+and terminal states idempotently. Client time, score, winner, and points are not
+authoritative.
+
+Public snapshots expose username, sanitized avatar, opaque participant ref,
+correct count, synthetic timeline/card IDs, shared state/timestamps, and an
+answer-free active prompt. They omit email, guest proof, actor/owner/internal
+IDs, raw Question/Lobby row IDs, used-question IDs, remaining deck, full bank,
+raw errors, and the active answer year. Correct year is revealed only in
+resolved feedback. Clients accept non-regressing revisions. Jokers, Hint, and
+Solo level state are disabled. Real two-device synchronization, reconnect,
+RLS/BOLA, and full score persistence remain deployed-runtime proof gates.
 
 The shared matchmaking queue accepts both token-proven guests and authenticated actors; actor type is not a compatibility filter. `random_online` and `same_question_duel` are the only accepted mode keys, and the backend lock, queue scan, Lobby mode, and poll reconciliation stay in the same lane. Polling reads backend queue state and matched clients retry the sanitized waiting-room snapshot rather than trusting route state. A timeout performs one final backend poll before serialized cancellation, so a match committed at the boundary is not deleted by the client. Public failures use fixed Turkish retry/cancel copy. Backend logs may contain an internal failure category, but public UI/report exports must not contain actor hashes, raw guest credentials, queue/Lobby rows, raw transport messages, stack traces, or secrets.

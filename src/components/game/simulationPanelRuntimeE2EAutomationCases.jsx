@@ -282,7 +282,7 @@ export const EXTRA_TESTS = [
       'authenticatedStorage',
       'safeMatchmakingQueue',
       'deterministicTwoActorPairing',
-      'deterministicClaimFixture',
+      'deterministicResultFixture',
     ]);
     return !missingDeclarations.length && !absent.length
       ? pass('All 10 scenarios declare capability-owned preflight requirements.', { scenarioCount: RUNTIME_E2E_SCENARIOS.length })
@@ -543,13 +543,13 @@ export const EXTRA_TESTS = [
       : fail('Online actor/matchmaking setup gate drifted.', { missing: absent });
   }),
 
-  makeCase('duello_two_context_requires_real_pairing', 'Duello two-context proof requires real A/B pairing; claim proof stays optional', () => {
+  makeCase('duello_two_context_requires_real_pairing', 'Duello two-context proof requires real A/B pairing; full result proof stays optional', () => {
     const duello = RUNTIME_E2E_SCENARIOS.find((item) => item.scenarioId === 'runtime_e2e.duello_two_context_runtime_sync');
     const required = ['safeMatchmakingQueue', 'twoBrowserContexts', 'twoIsolatedActors', 'deterministicTwoActorPairing'];
     const absent = required.filter((item) => !duello?.requiredCapabilities.includes(item));
-    const claimOptional = duello?.optionalCapabilities?.includes('deterministicClaimFixture');
-    return !absent.length && claimOptional && handlerSource.includes('AUTOMATION_STATUS.MANUAL_EXTERNAL')
-      ? pass('Duello pairing/direct-start can run with two real actors while claim-race score proof remains an honest optional manual gate.')
+    const resultOptional = duello?.optionalCapabilities?.includes('deterministicResultFixture');
+    return !absent.length && resultOptional && handlerSource.includes('AUTOMATION_STATUS.MANUAL_EXTERNAL')
+      ? pass('Duello shared-round sync can run with two real actors while full 12-round score/rematch proof remains an honest optional manual gate.')
       : fail('Duello can be promoted without real two-actor authority evidence.', { missing: absent });
   }),
 

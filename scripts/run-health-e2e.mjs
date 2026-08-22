@@ -769,7 +769,7 @@ async function main() {
       appRoute: preflight.appRoute,
       contextCount: environment.hasStorageStateA && environment.hasStorageStateB ? 2 : 1,
       deterministicPairing: false,
-      deterministicClaimFixture: false,
+      deterministicResultFixture: false,
       preflight,
       backendPreflight: preflight,
       environment,

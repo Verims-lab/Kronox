@@ -52,6 +52,8 @@ function DropZone({ index, label = '', isActive, isDragMode, isMagnetic, onSelec
 
   return (
     <div
+      data-kronox-timeline-zone={index}
+      data-testid={`timeline-zone-${index}`}
       onClick={() => { if (onSelect) { sounds.tap(); onSelect(index); } }}
       className={`flex-shrink-0 flex flex-col cursor-pointer ${showEdgePeek ? (peekSide === 'right' ? 'items-start' : 'items-end') : 'items-center'} justify-center`}
       style={{

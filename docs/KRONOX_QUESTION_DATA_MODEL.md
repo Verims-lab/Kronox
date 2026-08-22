@@ -628,6 +628,15 @@ sections. The subsection `Kişi Bazlı Soru Çeşitliliği — Anonim` lives ins
 The report must not output email, provider ids, raw guest id, raw guest token,
 owner key, internal player key, or username as the per-player coverage label.
 
-## Duello V1 Question Boundary
+## Duello V2 Question Boundary
 
-`Duello` uses the stable internal `same_question_duel` key and `startLobbyGame` to build one bounded private server-authored deck from all active Online-eligible categories with difficulty 1/2. Both players receive the same two opening timeline anchors and the same monotonic active-card sequence. The public active-card projection contains only a synthetic sequence card id, prompt/type/media, sequence id, and attemptability; it never contains the answer year, the private Question row id, used-question ids, the remaining deck, or the full question bank. Each actor receives only their own resolved timeline years under synthetic timeline ids; the opponent is represented by safe identity and `claimed_count`, not opponent card rows. The backend reveals a claimed year to the winner's resolved timeline only after it has awarded the claim. Solo buffers and category preferences are not used.
+`Duello` uses the stable internal `same_question_duel` key and
+`startLobbyGame` to build one bounded private server-authored deck from active
+Online-eligible categories. Both players receive the same two opening timeline
+anchors, active prompt, shared timeline, sequence, and deadline. The active-card
+projection contains a synthetic card id, prompt/type/media, sequence, and
+attemptability only; it never contains the answer year, private Question row
+id, used-question ids, remaining deck, or full question bank. The correct year
+is revealed only in the resolved-round projection, then the correct event is
+inserted into the one shared timeline for both players regardless of either
+answer. Solo buffers and category preferences are not used.

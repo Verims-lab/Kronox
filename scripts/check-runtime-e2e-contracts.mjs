@@ -114,7 +114,7 @@ const appNotFoundEvidence = {
   baseUrlOrigin: 'https://runtime.contract.test',
   contextCount: 1,
   deterministicPairing: false,
-  deterministicClaimFixture: false,
+  deterministicResultFixture: false,
   backendPreflight: {
     status: BACKEND_PREFLIGHT_STATUS.APP_NOT_FOUND,
     appConfigPresent: true,

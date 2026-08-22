@@ -16,7 +16,7 @@ export const RUNTIME_E2E_CAPABILITY = Object.freeze({
   TWO_BROWSER_CONTEXTS: 'twoBrowserContexts',
   TWO_ISOLATED_ACTORS: 'twoIsolatedActors',
   DETERMINISTIC_TWO_ACTOR_PAIRING: 'deterministicTwoActorPairing',
-  DETERMINISTIC_CLAIM_FIXTURE: 'deterministicClaimFixture',
+  DETERMINISTIC_RESULT_FIXTURE: 'deterministicResultFixture',
 });
 
 export const RUNTIME_E2E_CAPABILITY_STATUS = Object.freeze({
@@ -178,10 +178,10 @@ export function buildRuntimeCapabilitySummary({
         : 'The repository has no configured two-actor Duello pairing fixtures.',
       'Provide distinct KRONOX_E2E_STORAGE_STATE_A and KRONOX_E2E_STORAGE_STATE_B fixtures.',
     ),
-    [RUNTIME_E2E_CAPABILITY.DETERMINISTIC_CLAIM_FIXTURE]: capability(
+    [RUNTIME_E2E_CAPABILITY.DETERMINISTIC_RESULT_FIXTURE]: capability(
       RUNTIME_E2E_CAPABILITY_STATUS.MANUAL_EXTERNAL,
-      'The repository has no deterministic correct-claim race fixture.',
-      'Keep the claim-race proof manual until a safe deterministic fixture exists.',
+      'The repository has no deterministic 12-round Duello result fixture.',
+      'Keep full +50/+25/0 persistence and rematch delivery proof manual until a safe deterministic fixture exists.',
     ),
   });
 }

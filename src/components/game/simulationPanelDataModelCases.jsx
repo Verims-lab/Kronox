@@ -468,7 +468,9 @@ export const EXTRA_TESTS = [
         "authority: 'updateLobbyGameState:commit_result'",
         'clientOnlineMatchResultWrites: false',
         "lobby?.status !== 'finished'",
-        "const result: 'win' | 'loss' = String(lobby.winner_actor_key_hash)",
+        "const isDuello = String(lobby?.game_mode || '') === SAME_QUESTION_DUEL_MODE",
+        "const result: 'win' | 'loss' | 'draw' = isDraw",
+        "result === 'win' ? Math.max(0, Math.trunc(safeNumber(lobby?.duel_points_awarded, 0))) : 0",
         'actor.profileEntity.update',
         'publishLeaderboardProjection',
       ]);
@@ -494,11 +496,26 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('online_match_result_health', 'online_score_no_draw_contract',
-    'OnlineMatchResult and scoring helpers do not introduce draw result rows',
+    'Standard Online stays win/loss while backend-verified Duello may record a zero-point draw',
     () => {
-      const bad = String(onlineMatchResultEntitySource).includes('"draw"') || String(applyOnlineResultSource).includes("result: 'draw'");
-      if (bad) return fail('OnlineMatchResult or writer reintroduced draw result.', { verification: 'STATIC_CONTRACT' });
-      return pass('OnlineMatchResult is win/loss only; no draw scoring is introduced.', { verification: 'STATIC_CONTRACT' });
+      const source = String(updateLobbyGameStateSource);
+      const missing = missingTokens(`${onlineMatchResultEntitySource}\n${source}`, [
+        '"win",',
+        '"loss",',
+        '"draw"',
+        "const isDraw = isDuello && String(lobby?.duel_result_type || '') === 'draw'",
+        "const duelloDelta = isDuello",
+        "result === 'win' ? Math.max(0, Math.trunc(safeNumber(lobby?.duel_points_awarded, 0))) : 0",
+        "scoreRule: isDuello ? 'duello_v2_backend_50_25_0' : 'winner_15_loser_minus_6'",
+      ]);
+      const bad = source.includes("const isDraw = String(lobby?.duel_result_type || '') === 'draw'");
+      if (missing.length || bad) {
+        return fail('Draw persistence is not safely scoped to backend-verified Duello with zero delta.', {
+          verification: 'STATIC_CONTRACT',
+          actual: { missing, unscopedDraw: bad },
+        });
+      }
+      return pass('Standard Online remains win/loss; only Duello can persist a backend-derived zero-point draw.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('cleanup_retention_health', 'cleanup_expired_game_invites_idempotent',

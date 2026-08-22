@@ -708,6 +708,19 @@ return `display_name`.
 Age and gender must not affect scoring, level unlocks, matchmaking, leaderboard
 rank, Solo question weighting, or Online question selection.
 
-## Duello V1
+## Duello V2
 
-`Duello` is the final display name for the stable internal `same_question_duel` key. It is a random-opponent, exactly two-player Online mode. The backend authors the identical shared opening context and active card sequence for both players; first-correct backend confirmation awards the card, and the first player to reach 10 claimed cards wins. Duello has no category selector, draws randomly from all active Online-eligible categories, and never uses Solo question buffers or Solo preferences. Result persistence reuses the idempotent `updateLobbyGameState:commit_result` receipt path, so winner +15 and loser -6 with checkpoint protection remain unchanged. The client cannot write result, score, profile, or leaderboard state. Public snapshots expose username-safe identity, opaque participant references, claimed counts, self-only resolved years, safe recent-claim state, and one answer-free synthetic active-card projection—not raw Question ids, used-question ids, opponent card rows, the remaining deck, or private actor data. The mode grants no Diamonds, Daily progress, Store reward, Solo score, or Solo Streak reward.
+`Duello` is the display name for the stable internal `same_question_duel` key.
+It is an exactly two-player simultaneous mode with one backend-owned question,
+shared timeline, question index, and 10-second deadline. Correct answers update
+per-player correct counts only after the round resolves. First to five wins
+after the active round unless both reach 5-5, which starts Sudden Death. The
+match ends after at most 12 questions. Target and Sudden Death winners receive
+`+50`; a question-12 higher-count winner who has not reached the target receives
+`+25`; an equal question-12 result is a draw with `0`. Response time is
+diagnostic only, with no speed bonus or tiebreak.
+
+Result persistence reuses the idempotent backend `commit_result` path. The
+client cannot write result, score, profile, or leaderboard state. Duello grants
+no Diamonds, Daily progress, Store reward, Solo score, or Solo Streak reward.
+Online Kapış keeps its independent winner `+15` / loser `-6` rule.

@@ -177,8 +177,22 @@ export const EXTRA_TESTS = [
     "route === '/duel'",
     'sharedSessionFingerprintMatched',
     'sharedActiveCardFingerprintMatched',
-    'data-kronox-duello-sequence',
-  ]), 'Both contexts must reach /duel with matching anonymized session/card fingerprints.'), RUNTIME_FILES),
+    'sharedTimelineFingerprintMatched',
+    'sharedQuestionIndexMatched',
+    'sharedDeadlineFingerprintMatched',
+    'data-kronox-duello-question-fingerprint',
+    'data-kronox-duello-timeline-fingerprint',
+  ]), 'Both contexts must reach /duel with matching anonymized session, question, timeline, index, and deadline fingerprints.'), RUNTIME_FILES),
+
+  make(RUNTIME_SUITE, 'duello_two_actor_shared_round_grows_timeline', 'Two-actor E2E proves independent locks and identical timeline growth', () => sourceResult(required(handlers + duelArena, [
+    "runtime.step('duello.shared_round'",
+    'actorAAnswerLocked',
+    'actorBAnswerWindowStayedOpen',
+    'sharedTimelineGrewAfterRound',
+    'nextRoundSharedStateMatched',
+    'timeline-zone-0',
+    'data-kronox-duello-answer-locked',
+  ]), 'A locks without closing B; after B answers, both clients gain one identical timeline card and one identical next round.'), RUNTIME_FILES),
 
   make(RUNTIME_SUITE, 'duello_lobby_observed_is_fail', 'Any active Duello lobby observation fails E2E', () => sourceResult(required(handlers, [
     "routeHistoryA.some((route) => route === '/lobby' || route === '/LobbyRoom')",

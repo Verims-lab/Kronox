@@ -366,8 +366,9 @@ guest actor plus `KRONOX_E2E_ALLOW_MATCHMAKING=true`; production
 direct-preflight limitations no longer block its safe search/cancel probe, but only observed matchmaking
 backend evidence can support PASS. Duello A/B actor fixtures may be declared
 through `KRONOX_E2E_STORAGE_STATE_A/B`, but the scenario remains
-`AUTOMATION_MANUAL_EXTERNAL` until deterministic pairing and correct-claim
-fixtures prove two real contexts, one accepted claim, and reconciled snapshots.
+`AUTOMATION_MANUAL_EXTERNAL` until deterministic pairing proves two real
+contexts, matching shared-state fingerprints, independent answer locks,
+identical timeline growth, and reconciled next-round snapshots.
 Missing setup never becomes a fake PASS. Health PASS remains contract proof,
 not release-ready proof while manual/external gates remain.
 
@@ -398,12 +399,13 @@ two-actor or direct-start evidence becomes `TWO_ACTOR_REQUIRED`,
 `MATCH_FOUND_DIRECT_GAME_PENDING`, backend-response, or permission evidence,
 never route-only PASS.
 
-Static/source checks cannot prove simultaneous two-client delivery or Duello's
-first-correct race. Duello therefore remains `MANUAL_EXTERNAL` until two
-isolated actors and deterministic pairing/claim fixtures prove the shared card,
-one accepted claim, first-to-10 result, and single backend `+15`/`-6` commit.
-Online also retains `+15`/`-6`; neither mode has a speed bonus. Permission/RLS
-diagnostics remain visible and blocking where applicable.
+Static/source checks cannot prove simultaneous two-client delivery. Duello V2
+therefore remains `MANUAL_EXTERNAL` until two isolated actors and deterministic
+pairing prove one shared question/timeline/deadline, independent answer locks,
+one-card timeline growth, and identical next-round state. Full 12-round
+`+50`/`+25`/`0` persistence and rematch delivery require a deterministic result
+fixture. Online retains its separate `+15`/`-6`; neither mode has a speed bonus.
+Permission/RLS diagnostics remain visible and blocking where applicable.
 
 ## Codex638 Solo Exit Runtime Coverage
 
@@ -471,7 +473,7 @@ Recoverable pair-lock contention and ordinary no-opponent waiting stay
 Retry/cancel/unmount clear owned timers and stale caller rows without deleting a
 committed opponent session.
 
-Fourteen focused `duello_flow` cases and ten `runtime_e2e_automation` cases
+Focused `duello_flow`, `duello`, and `runtime_e2e_automation` cases
 protect canonical `same_question_duel` isolation, distinct-actor pairing,
 self-match rejection, same-screen `Rakip bulundu`, authoritative direct
 `/duel`, no active `/lobby`, stale retry cleanup, safe timeout/error copy,
@@ -482,13 +484,14 @@ two-phone release proof.
 
 When both ignored A/B storage states are configured, Runtime E2E opens two
 isolated browser contexts and requires both actors to search, match on the same
-surface, enter `/duel` without `/lobby`, and agree on redacted session/card
-fingerprints. Missing A/B state remains `MANUAL_EXTERNAL` /
+surface, enter `/duel` without `/lobby`, and agree on redacted session,
+question, timeline, index, and deadline fingerprints. A must lock without
+closing B's answer window; both clients must then show one identical grown
+timeline and next round. Missing A/B state remains `MANUAL_EXTERNAL` /
 `TWO_ACTOR_REQUIRED`; it is never promoted to PASS. Real-device delivery,
-production RLS/reconnect behavior, and Duello's simultaneous first-correct
-claim race remain manual/external. Public evidence remains username-safe and
-cannot include private actor fields, raw session/card values, answer years, or
-the full question bank.
+production RLS/reconnect behavior, and full 12-round score/rematch proof remain
+manual/external. Public evidence remains username-safe and cannot include
+private actor fields, raw session/card values, answer years, or the full bank.
 
 ## Codex641 Shared Matchmaking Backend Coverage
 
@@ -508,7 +511,7 @@ credential, raw actor/session identifier, question answer, or stack. One actor
 must prove Online search 2xx and confirmed cancel; match/direct-game remains
 `NOT_AUTOMATABLE / TWO_ACTOR_REQUIRED` without an opponent. Duello remains
 `MANUAL_EXTERNAL / TWO_ACTOR_REQUIRED` without two isolated A/B states, and
-real RLS/reconnect/physical-device and deterministic claim-race proof remains
+real RLS/reconnect/physical-device plus full score/rematch proof remains
 external. Ordinary no-opponent waiting is never `Eşleşme başlatılamadı`; that
 copy is reserved for a real classified backend failure.
 
