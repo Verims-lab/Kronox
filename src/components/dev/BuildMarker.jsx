@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex646 — Restore Base44 SDK 0.8.34 after bot export e9354206, enforce repo-local save-exact plus source-connected guard proof, and preserve all product behavior.
 // Codex645 — Keep Base44 SDK 0.8.34 fail-fast across generated main syncs and make DailyWheelSpin owner-read/admin-mutation Health proof formatting-independent; no product behavior changes.
 // Codex644 — Restore SDK/queue/guest-link compatibility, confirm live authenticated Online join/cancel, preserve failed-response evidence, and align Base44 Health/docs/DB guidance without route, scoring, reward, or pricing changes.
 // Codex643 — Restore live valid-actor Online admission through scoped Base44 queue-read fallback, preserve fail-closed errors, and add safe waiting/reconciliation diagnostics without route or scoring changes.
@@ -224,7 +225,7 @@ import React, { useEffect, useState } from 'react';
 //
 
 
-const BUILD_MARKER = 'Codex645';
+const BUILD_MARKER = 'Codex646';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

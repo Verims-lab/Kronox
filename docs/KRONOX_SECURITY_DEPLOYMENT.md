@@ -95,11 +95,15 @@ exactly. The deploy gate and source-connected Health checks validate all three
 surfaces. Live Base44 deployment remains separate manual proof.
 
 Base44 package-update exports have repeatedly changed the main-branch package
-spec back to a newer caret range. `npm install` now runs the fail-fast
-`scripts/checkBase44SdkPin.mjs` preinstall guard, which rejects a stale
-package/lock combination before dependency installation. The exact-pin Codex
-commit must still be merged back to main so later main-to-Codex syncs do not
-reintroduce the generated dependency drift.
+spec back to a newer caret range. PR #564 merged the exact-pin fix into main,
+then Base44 bot commit `e9354206` directly replaced the package and lock entries
+with `^0.8.43` / `0.8.43` without running the repository install gate. Repo-local
+`.npmrc` now keeps ordinary npm dependency writes exact, while `npm install`
+runs the fail-fast `scripts/checkBase44SdkPin.mjs` preinstall guard and verifies
+both the package/lock state and `save-exact=true`. Direct Base44 bot exports can
+only be prevented before main by making this source-connected guard a required
+repository check or equivalent branch rule; every main-to-Codex sync must keep
+the pre-work pin gate until that external governance is active.
 
 `scripts/checkBase44FunctionsCompile.mjs` caps the repo at 50 Base44 function
 entry files, verifies SDK alignment, and rejects removed legacy/test/diagnostic
